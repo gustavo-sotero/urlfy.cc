@@ -1,37 +1,37 @@
-import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
-import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { resourceFromAttributes } from '@opentelemetry/resources';
+import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
+import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
+import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
+import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import { resourceFromAttributes } from "@opentelemetry/resources";
 import {
   BatchLogRecordProcessor,
-  LoggerProvider
-} from '@opentelemetry/sdk-logs';
-import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
-import { NodeSDK } from '@opentelemetry/sdk-node';
+  LoggerProvider,
+} from "@opentelemetry/sdk-logs";
+import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
+import { NodeSDK } from "@opentelemetry/sdk-node";
 import {
   SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
   SEMRESATTRS_SERVICE_NAME,
-  SEMRESATTRS_SERVICE_VERSION
-} from '@opentelemetry/semantic-conventions';
+  SEMRESATTRS_SERVICE_VERSION,
+} from "@opentelemetry/semantic-conventions";
 
 // Habilita debug em desenvolvimento
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 }
 
 const OTEL_ENDPOINT =
-  process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318';
+  process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "http://localhost:4318";
 
 // ═══════════════════════════════════════════════════════════════════
 // RESOURCE (Identificação do Serviço)
 // ═══════════════════════════════════════════════════════════════════
 
 const resource = resourceFromAttributes({
-  [SEMRESATTRS_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'urlfy-api',
-  [SEMRESATTRS_SERVICE_VERSION]: process.env.npm_package_version || '0.1.0',
-  [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development'
+  [SEMRESATTRS_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || "urlfy-api",
+  [SEMRESATTRS_SERVICE_VERSION]: process.env.npm_package_version || "0.1.0",
+  [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || "development",
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -39,15 +39,15 @@ const resource = resourceFromAttributes({
 // ═══════════════════════════════════════════════════════════════════
 
 const traceExporter = new OTLPTraceExporter({
-  url: `${OTEL_ENDPOINT}/v1/traces`
+  url: `${OTEL_ENDPOINT}/v1/traces`,
 });
 
 const metricExporter = new OTLPMetricExporter({
-  url: `${OTEL_ENDPOINT}/v1/metrics`
+  url: `${OTEL_ENDPOINT}/v1/metrics`,
 });
 
 const logExporter = new OTLPLogExporter({
-  url: `${OTEL_ENDPOINT}/v1/logs`
+  url: `${OTEL_ENDPOINT}/v1/logs`,
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -55,10 +55,10 @@ const logExporter = new OTLPLogExporter({
 // ═══════════════════════════════════════════════════════════════════
 
 const loggerProvider = new LoggerProvider({ resource });
-if ('addLogRecordProcessor' in loggerProvider) {
+if ("addLogRecordProcessor" in loggerProvider) {
   // biome-ignore lint/suspicious/noExplicitAny: API compatibility with OpenTelemetry SDK versions
   (loggerProvider as any).addLogRecordProcessor(
-    new BatchLogRecordProcessor(logExporter)
+    new BatchLogRecordProcessor(logExporter),
   );
 }
 
@@ -71,15 +71,15 @@ const sdk = new NodeSDK({
   traceExporter,
   metricReader: new PeriodicExportingMetricReader({
     exporter: metricExporter,
-    exportIntervalMillis: 60000 // 1 minuto
+    exportIntervalMillis: 60000, // 1 minuto
   }),
   instrumentations: [
     getNodeAutoInstrumentations({
-      '@opentelemetry/instrumentation-fs': {
-        enabled: false // Reduz ruído
-      }
-    })
-  ]
+      "@opentelemetry/instrumentation-fs": {
+        enabled: false, // Reduz ruído
+      },
+    }),
+  ],
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -88,15 +88,15 @@ const sdk = new NodeSDK({
 
 export function initTelemetry() {
   sdk.start();
-  console.log('✅ Telemetry initialized');
+  console.log("✅ Telemetry initialized");
 }
 
 export async function shutdownTelemetry() {
   try {
     await sdk.shutdown();
-    console.log('✅ OpenTelemetry shut down gracefully');
+    console.log("✅ OpenTelemetry shut down gracefully");
   } catch (error) {
-    console.error('❌ Error shutting down OpenTelemetry:', error);
+    console.error("❌ Error shutting down OpenTelemetry:", error);
   }
 }
 
@@ -104,7 +104,7 @@ export async function shutdownTelemetry() {
 // LOGGER ESTRUTURADO
 // ═══════════════════════════════════════════════════════════════════
 
-import { trace } from '@opentelemetry/api';
+import { trace } from "@opentelemetry/api";
 
 export interface LogContext {
   traceId?: string;
@@ -125,7 +125,7 @@ export function createLogger(name: string) {
       message,
       timestamp: new Date().toISOString(),
       logger: name,
-      ...ctx
+      ...ctx,
     };
 
     if (spanContext) {
@@ -138,20 +138,20 @@ export function createLogger(name: string) {
       severityText: level.toUpperCase(),
       body: JSON.stringify(logRecord),
       // biome-ignore lint/suspicious/noExplicitAny: OpenTelemetry attributes accept flexible types
-      attributes: logRecord as any
+      attributes: logRecord as any,
     });
 
     // Console log para desenvolvimento
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       console.log(JSON.stringify(logRecord, null, 2));
     }
   };
 
   return {
-    debug: (message: string, ctx?: LogContext) => log('debug', message, ctx),
-    info: (message: string, ctx?: LogContext) => log('info', message, ctx),
-    warn: (message: string, ctx?: LogContext) => log('warn', message, ctx),
-    error: (message: string, ctx?: LogContext) => log('error', message, ctx)
+    debug: (message: string, ctx?: LogContext) => log("debug", message, ctx),
+    info: (message: string, ctx?: LogContext) => log("info", message, ctx),
+    warn: (message: string, ctx?: LogContext) => log("warn", message, ctx),
+    error: (message: string, ctx?: LogContext) => log("error", message, ctx),
   };
 }
 
@@ -159,92 +159,92 @@ export function createLogger(name: string) {
 // METRICS (Redirect Engine)
 // ═══════════════════════════════════════════════════════════════════
 
-import { metrics } from '@opentelemetry/api';
+import { metrics } from "@opentelemetry/api";
 
-const meter = metrics.getMeter('urlfy-redirect', '1.0.0');
+const meter = metrics.getMeter("urlfy-redirect", "1.0.0");
 
 /**
  * Histograma de latência de redirect (em milissegundos)
  */
-export const redirectLatency = meter.createHistogram('redirect.latency', {
-  description: 'Latência do redirecionamento em milissegundos',
-  unit: 'ms',
+export const redirectLatency = meter.createHistogram("redirect.latency", {
+  description: "Latência do redirecionamento em milissegundos",
+  unit: "ms",
   advice: {
-    explicitBucketBoundaries: [5, 10, 25, 50, 100, 250, 500, 1000, 2000]
-  }
+    explicitBucketBoundaries: [5, 10, 25, 50, 100, 250, 500, 1000, 2000],
+  },
 });
 
 /**
  * Contador total de redirects processados
  */
-export const redirectTotal = meter.createCounter('redirect.total', {
-  description: 'Total de redirects processados',
-  unit: '1'
+export const redirectTotal = meter.createCounter("redirect.total", {
+  description: "Total de redirects processados",
+  unit: "1",
 });
 
 /**
  * Cache hits
  */
-export const cacheHits = meter.createCounter('redirect.cache.hits', {
-  description: 'Cache hits no Redis',
-  unit: '1'
+export const cacheHits = meter.createCounter("redirect.cache.hits", {
+  description: "Cache hits no Redis",
+  unit: "1",
 });
 
 /**
  * Cache misses
  */
-export const cacheMisses = meter.createCounter('redirect.cache.misses', {
-  description: 'Cache misses no Redis',
-  unit: '1'
+export const cacheMisses = meter.createCounter("redirect.cache.misses", {
+  description: "Cache misses no Redis",
+  unit: "1",
 });
 
 /**
  * Fallbacks para PostgreSQL quando Redis está indisponível
  */
-export const redisFallbacks = meter.createCounter('redirect.redis.fallbacks', {
-  description: 'Fallbacks para PostgreSQL quando Redis indisponível',
-  unit: '1'
+export const redisFallbacks = meter.createCounter("redirect.redis.fallbacks", {
+  description: "Fallbacks para PostgreSQL quando Redis indisponível",
+  unit: "1",
 });
 
 /**
  * Erros de redirect por tipo
  */
-export const redirectErrors = meter.createCounter('redirect.errors', {
-  description: 'Erros no redirecionamento por tipo',
-  unit: '1'
+export const redirectErrors = meter.createCounter("redirect.errors", {
+  description: "Erros no redirecionamento por tipo",
+  unit: "1",
 });
 
 /**
  * Stampede protection locks adquiridos
  */
 export const stampedeLocksAcquired = meter.createCounter(
-  'redirect.stampede.locks_acquired',
+  "redirect.stampede.locks_acquired",
   {
-    description: 'Locks adquiridos para stampede protection',
-    unit: '1'
-  }
+    description: "Locks adquiridos para stampede protection",
+    unit: "1",
+  },
 );
 
 /**
  * Stampede protection locks aguardados
  */
 export const stampedeLocksWaited = meter.createCounter(
-  'redirect.stampede.locks_waited',
+  "redirect.stampede.locks_waited",
   {
-    description: 'Requests que aguardaram lock de outro processo',
-    unit: '1'
-  }
+    description: "Requests que aguardaram lock de outro processo",
+    unit: "1",
+  },
 );
 
 /**
  * Circuit breaker trips (transições para OPEN)
  */
 export const circuitBreakerTrips = meter.createCounter(
-  'redirect.circuit_breaker.trips',
+  "redirect.circuit_breaker.trips",
   {
-    description: 'Número de vezes que o circuit breaker abriu',
-    unit: '1'
-  }
+    description: "Número de vezes que o circuit breaker abriu",
+    unit: "1",
+  },
 );
 
 /**
@@ -284,7 +284,7 @@ const originalCacheMissesAdd = cacheMisses.add.bind(cacheMisses);
 // biome-ignore lint/suspicious/noExplicitAny: Required to override OpenTelemetry Counter method
 (cacheHits as any).add = (
   value: number,
-  attributes?: Record<string, string>
+  attributes?: Record<string, string>,
 ) => {
   cacheMetricsTracker.recordHit();
   return originalCacheHitsAdd(value, attributes);
@@ -293,7 +293,7 @@ const originalCacheMissesAdd = cacheMisses.add.bind(cacheMisses);
 // biome-ignore lint/suspicious/noExplicitAny: Required to override OpenTelemetry Counter method
 (cacheMisses as any).add = (
   value: number,
-  attributes?: Record<string, string>
+  attributes?: Record<string, string>,
 ) => {
   cacheMetricsTracker.recordMiss();
   return originalCacheMissesAdd(value, attributes);
@@ -304,11 +304,11 @@ const originalCacheMissesAdd = cacheMisses.add.bind(cacheMisses);
  * Auto-calculates from tracked hits/misses
  */
 export const cacheHitRate = meter.createObservableGauge(
-  'redirect.cache.hit_rate',
+  "redirect.cache.hit_rate",
   {
-    description: 'Taxa de cache hit calculada (0-100%)',
-    unit: '%'
-  }
+    description: "Taxa de cache hit calculada (0-100%)",
+    unit: "%",
+  },
 );
 
 cacheHitRate.addCallback((result) => {
@@ -329,7 +329,7 @@ export function recordRedirectMetrics(metrics: {
 
   // Total
   redirectTotal.add(1, {
-    success: String(metrics.success)
+    success: String(metrics.success),
   });
 
   // Cache
@@ -342,7 +342,7 @@ export function recordRedirectMetrics(metrics: {
   // Erros
   if (!metrics.success && metrics.errorType) {
     redirectErrors.add(1, {
-      type: metrics.errorType
+      type: metrics.errorType,
     });
   }
 }

@@ -1,12 +1,18 @@
 // src/types/analytics.types.ts
 
 export interface ClickEvent {
+  linkId: string;
   shortCode: string;
   requestId: string;
   ip: string | null;
   userAgent: string | null;
   referer: string | null;
   acceptLanguage: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  utmContent?: string | null;
+  utmTerm?: string | null;
   timestamp: Date;
 }
 

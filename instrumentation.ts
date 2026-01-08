@@ -6,7 +6,7 @@
 
 export async function register() {
   // Only run in Node.js server environment
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('@/server/init');
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("@/server/init");
   }
 }

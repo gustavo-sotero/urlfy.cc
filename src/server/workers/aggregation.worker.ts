@@ -1,25 +1,25 @@
 // src/server/workers/aggregation.worker.ts
 
-import { db } from '@/db';
+import { type Job, Worker } from "bullmq";
+import { and, countDistinct, count as countFn, eq, gte, lt } from "drizzle-orm";
+import { db } from "@/db";
 import {
   analyticsBrowserBreakdown,
   analyticsCountryBreakdown,
   analyticsDeviceBreakdown,
   analyticsEvents,
-  linkClicksDaily
-} from '@/db/schema';
-import { recordMetric } from '@/server/lib/metrics';
-import { createLogger } from '@/server/lib/telemetry';
-import { type Job, Worker } from 'bullmq';
-import { and, countDistinct, count as countFn, eq, gte, lt } from 'drizzle-orm';
+  linkClicksDaily,
+} from "@/db/schema";
+import { recordMetric } from "@/server/lib/metrics";
+import { createLogger } from "@/server/lib/telemetry";
 
-const logger = createLogger('aggregation-worker');
+const logger = createLogger("aggregation-worker");
 
 const connection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: Number.parseInt(process.env.REDIS_PORT || '6379', 10),
+  host: process.env.REDIS_HOST || "localhost",
+  port: Number.parseInt(process.env.REDIS_PORT || "6379", 10),
   maxRetriesPerRequest: null,
-  enableReadyCheck: false
+  enableReadyCheck: false,
 };
 
 interface AggregationJob {
@@ -34,7 +34,7 @@ interface AggregationJob {
  * - Executa diariamente via scheduler
  */
 export const aggregationWorker = new Worker<AggregationJob>(
-  'aggregation',
+  "aggregation",
   async (job: Job<AggregationJob>) => {
     const startTime = Date.now();
     const { date, linkIds } = job.data;
@@ -56,8 +56,8 @@ export const aggregationWorker = new Worker<AggregationJob>(
           .where(
             and(
               gte(analyticsEvents.createdAt, dateObj),
-              lt(analyticsEvents.createdAt, nextDate)
-            )
+              lt(analyticsEvents.createdAt, nextDate),
+            ),
           );
 
         linksToProcess = activeLinks.map((row) => row.linkId);
@@ -66,7 +66,7 @@ export const aggregationWorker = new Worker<AggregationJob>(
       }
 
       logger.info(
-        `[AggregationWorker] Processing ${linksToProcess.length} links for ${date}`
+        `[AggregationWorker] Processing ${linksToProcess.length} links for ${date}`,
       );
 
       let aggregatedCount = 0;
@@ -78,42 +78,42 @@ export const aggregationWorker = new Worker<AggregationJob>(
           aggregatedCount++;
         } catch (error) {
           logger.warn(`[AggregationWorker] Error aggregating link ${linkId}`, {
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           });
         }
       }
 
       const duration = Date.now() - startTime;
 
-      recordMetric('analytics_aggregation_completed', aggregatedCount, {
+      recordMetric("analytics_aggregation_completed", aggregatedCount, {
         date,
-        duration: String(duration)
+        duration: String(duration),
       });
 
       logger.info(
         `[AggregationWorker] Job ${job.id} completed in ${duration}ms`,
         {
           aggregated: aggregatedCount,
-          date
-        }
+          date,
+        },
       );
 
       return { aggregated: aggregatedCount, date };
     } catch (error) {
       logger.error(`[AggregationWorker] Job ${job.id} failed`, {
         error: error instanceof Error ? error.message : String(error),
-        date
+        date,
       });
 
-      recordMetric('analytics_aggregation_failed', 1, { date });
+      recordMetric("analytics_aggregation_failed", 1, { date });
 
       throw error;
     }
   },
   {
     connection,
-    concurrency: 1 // Apenas um job de agregação por vez
-  }
+    concurrency: 1, // Apenas um job de agregação por vez
+  },
 );
 
 /**
@@ -130,10 +130,10 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
     // Total de cliques e visitantes únicos
     const dailyStats = await db
       .select({
-        totalClicks: countFn().as('total_clicks'),
+        totalClicks: countFn().as("total_clicks"),
         uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
-          'unique_visitors'
-        )
+          "unique_visitors",
+        ),
       })
       .from(analyticsEvents)
       .where(
@@ -141,8 +141,8 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
           eq(analyticsEvents.linkId, linkId),
           gte(analyticsEvents.createdAt, dateObj),
           lt(analyticsEvents.createdAt, nextDate),
-          eq(analyticsEvents.isBot, false) // Excluir bots
-        )
+          eq(analyticsEvents.isBot, false), // Excluir bots
+        ),
       );
 
     const stats = dailyStats[0] || { totalClicks: 0, uniqueVisitors: 0 };
@@ -154,25 +154,25 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
         linkId,
         date: dateStr,
         clicks: stats.totalClicks,
-        uniqueVisitors: stats.uniqueVisitors
+        uniqueVisitors: stats.uniqueVisitors,
       })
       .onConflictDoUpdate({
         target: [linkClicksDaily.linkId, linkClicksDaily.date],
         set: {
           clicks: stats.totalClicks,
           uniqueVisitors: stats.uniqueVisitors,
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
 
     // Agregação por país
     const countryBreakdown = await db
       .select({
         country: analyticsEvents.country,
-        clicks: countFn().as('clicks'),
+        clicks: countFn().as("clicks"),
         uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
-          'unique_visitors'
-        )
+          "unique_visitors",
+        ),
       })
       .from(analyticsEvents)
       .where(
@@ -180,8 +180,8 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
           eq(analyticsEvents.linkId, linkId),
           gte(analyticsEvents.createdAt, dateObj),
           lt(analyticsEvents.createdAt, nextDate),
-          eq(analyticsEvents.isBot, false)
-        )
+          eq(analyticsEvents.isBot, false),
+        ),
       )
       .groupBy(analyticsEvents.country);
 
@@ -194,18 +194,18 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
             date: dateStr,
             country: row.country,
             clicks: row.clicks,
-            uniqueVisitors: row.uniqueVisitors
+            uniqueVisitors: row.uniqueVisitors,
           })
           .onConflictDoUpdate({
             target: [
               analyticsCountryBreakdown.linkId,
               analyticsCountryBreakdown.date,
-              analyticsCountryBreakdown.country
+              analyticsCountryBreakdown.country,
             ],
             set: {
               clicks: row.clicks,
-              uniqueVisitors: row.uniqueVisitors
-            }
+              uniqueVisitors: row.uniqueVisitors,
+            },
           });
       }
     }
@@ -214,10 +214,10 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
     const deviceBreakdown = await db
       .select({
         deviceType: analyticsEvents.deviceType,
-        clicks: countFn().as('clicks'),
+        clicks: countFn().as("clicks"),
         uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
-          'unique_visitors'
-        )
+          "unique_visitors",
+        ),
       })
       .from(analyticsEvents)
       .where(
@@ -225,8 +225,8 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
           eq(analyticsEvents.linkId, linkId),
           gte(analyticsEvents.createdAt, dateObj),
           lt(analyticsEvents.createdAt, nextDate),
-          eq(analyticsEvents.isBot, false)
-        )
+          eq(analyticsEvents.isBot, false),
+        ),
       )
       .groupBy(analyticsEvents.deviceType);
 
@@ -239,18 +239,18 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
             date: dateStr,
             deviceType: row.deviceType,
             clicks: row.clicks,
-            uniqueVisitors: row.uniqueVisitors
+            uniqueVisitors: row.uniqueVisitors,
           })
           .onConflictDoUpdate({
             target: [
               analyticsDeviceBreakdown.linkId,
               analyticsDeviceBreakdown.date,
-              analyticsDeviceBreakdown.deviceType
+              analyticsDeviceBreakdown.deviceType,
             ],
             set: {
               clicks: row.clicks,
-              uniqueVisitors: row.uniqueVisitors
-            }
+              uniqueVisitors: row.uniqueVisitors,
+            },
           });
       }
     }
@@ -259,10 +259,10 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
     const browserBreakdown = await db
       .select({
         browser: analyticsEvents.browser,
-        clicks: countFn().as('clicks'),
+        clicks: countFn().as("clicks"),
         uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
-          'unique_visitors'
-        )
+          "unique_visitors",
+        ),
       })
       .from(analyticsEvents)
       .where(
@@ -270,8 +270,8 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
           eq(analyticsEvents.linkId, linkId),
           gte(analyticsEvents.createdAt, dateObj),
           lt(analyticsEvents.createdAt, nextDate),
-          eq(analyticsEvents.isBot, false)
-        )
+          eq(analyticsEvents.isBot, false),
+        ),
       )
       .groupBy(analyticsEvents.browser);
 
@@ -284,18 +284,18 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
             date: dateStr,
             browser: row.browser,
             clicks: row.clicks,
-            uniqueVisitors: row.uniqueVisitors
+            uniqueVisitors: row.uniqueVisitors,
           })
           .onConflictDoUpdate({
             target: [
               analyticsBrowserBreakdown.linkId,
               analyticsBrowserBreakdown.date,
-              analyticsBrowserBreakdown.browser
+              analyticsBrowserBreakdown.browser,
             ],
             set: {
               clicks: row.clicks,
-              uniqueVisitors: row.uniqueVisitors
-            }
+              uniqueVisitors: row.uniqueVisitors,
+            },
           });
       }
     }
@@ -304,27 +304,27 @@ async function aggregateLinkDaily(linkId: string, date: string): Promise<void> {
       `[AggregationWorker] Aggregated link ${linkId} for ${dateStr}`,
       {
         clicks: stats.totalClicks,
-        unique: stats.uniqueVisitors
-      }
+        unique: stats.uniqueVisitors,
+      },
     );
   } catch (error) {
     logger.error(`[AggregationWorker] Error in aggregateLinkDaily`, {
       error: error instanceof Error ? error.message : String(error),
       linkId,
-      date
+      date,
     });
     throw error;
   }
 }
 
 // Event handlers
-aggregationWorker.on('completed', (job) => {
+aggregationWorker.on("completed", (job) => {
   logger.debug(`[AggregationWorker] Job completed: ${job?.id}`);
 });
 
-aggregationWorker.on('failed', (job, err) => {
+aggregationWorker.on("failed", (job, err) => {
   logger.error(`[AggregationWorker] Job failed: ${job?.id}`, {
-    error: err.message
+    error: err.message,
   });
 });
 

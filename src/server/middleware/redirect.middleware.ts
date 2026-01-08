@@ -5,7 +5,7 @@ import { NextResponse as Response } from "next/server";
 import { analyticsQueue } from "@/server/lib/queue";
 import { createLogger } from "@/server/lib/telemetry";
 import { redirectService } from "@/server/services/redirect.service";
-import type { ClickEvent } from "@/types/redirect.types";
+import type { ClickEvent as AnalyticsClickEvent } from "@/types/analytics.types";
 
 const logger = createLogger("redirect-middleware");
 
@@ -215,17 +215,31 @@ async function enqueueClickEvent(
   try {
     // Extrai informações da request
     const ip = getClientIp(request);
-    const userAgent = request.headers.get("user-agent") ?? "unknown";
+    const userAgent = request.headers.get("user-agent") ?? null;
     const referer = request.headers.get("referer") ?? null;
+    const acceptLanguage = request.headers.get("accept-language") ?? null;
 
-    const event: ClickEvent = {
+    const searchParams = request.nextUrl.searchParams;
+    const utmSource = searchParams.get("utm_source");
+    const utmMedium = searchParams.get("utm_medium");
+    const utmCampaign = searchParams.get("utm_campaign");
+    const utmContent = searchParams.get("utm_content");
+    const utmTerm = searchParams.get("utm_term");
+
+    const event: AnalyticsClickEvent = {
       linkId,
       shortCode,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
       ip,
       userAgent,
       referer,
       requestId,
+      acceptLanguage,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      utmContent,
+      utmTerm,
     };
 
     // Adiciona à fila

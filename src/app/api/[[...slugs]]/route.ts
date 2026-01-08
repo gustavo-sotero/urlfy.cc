@@ -1,5 +1,5 @@
 // Initialize telemetry before API
-import { api } from '@/server/api';
+import { api } from "@/server/api";
 
 // ElysiaJS integration with Next.js App Router
 export const GET = api.handle;

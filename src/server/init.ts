@@ -1,16 +1,16 @@
 // Initialize telemetry and validate environment as early as possible
-import { validateEnv } from '@/lib/env';
-import { initTelemetry } from '@/server/lib/telemetry';
-import { initializeWorkers, shutdownWorkers } from '@/server/workers';
+import { validateEnv } from "@/lib/env";
+import { initTelemetry } from "@/server/lib/telemetry";
+import { initializeWorkers, shutdownWorkers } from "@/server/workers";
 
 // Only initialize in server environment
-if (typeof window === 'undefined') {
+if (typeof window === "undefined") {
   // Validate environment first
   try {
     validateEnv();
-    console.log('✅ Environment variables validated');
+    console.log("✅ Environment variables validated");
   } catch (_error) {
-    console.error('❌ Environment validation failed');
+    console.error("❌ Environment validation failed");
     process.exit(1);
   }
 
@@ -19,7 +19,7 @@ if (typeof window === 'undefined') {
 
   // Initialize workers and schedulers
   initializeWorkers().catch((error) => {
-    console.error('❌ Failed to initialize workers:', error);
+    console.error("❌ Failed to initialize workers:", error);
     process.exit(1);
   });
 
@@ -28,9 +28,9 @@ if (typeof window === 'undefined') {
 }
 
 async function setupGracefulShutdown() {
-  const { closeDatabase } = await import('@/db');
-  const { closeRedis } = await import('@/server/lib/redis');
-  const { shutdownQueues } = await import('@/server/lib/queue');
+  const { closeDatabase } = await import("@/db");
+  const { closeRedis } = await import("@/server/lib/redis");
+  const { shutdownQueues } = await import("@/server/lib/queue");
 
   const shutdown = async (signal: string) => {
     console.log(`\n${signal} received. Starting graceful shutdown...`);
@@ -42,14 +42,14 @@ async function setupGracefulShutdown() {
       // Close connections
       await Promise.all([closeDatabase(), closeRedis(), shutdownQueues()]);
 
-      console.log('✅ Graceful shutdown complete');
+      console.log("✅ Graceful shutdown complete");
       process.exit(0);
     } catch (error) {
-      console.error('❌ Error during shutdown:', error);
+      console.error("❌ Error during shutdown:", error);
       process.exit(1);
     }
   };
 
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }

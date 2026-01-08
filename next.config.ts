@@ -1,11 +1,11 @@
-import type { NextConfig } from 'next';
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
 
   // Standalone output for Docker
-  output: 'standalone',
+  output: "standalone",
 
   // Optimize for production
   poweredByHeader: false,
@@ -13,9 +13,9 @@ const nextConfig: NextConfig = {
   // Experimental features
   experimental: {
     serverActions: {
-      bodySizeLimit: '2mb'
-    }
-  }
+      bodySizeLimit: "2mb",
+    },
+  },
 };
 
 export default nextConfig;

@@ -1,9 +1,9 @@
 // src/server/lib/privacy.ts
 
-import { createLogger } from '@/server/lib/telemetry';
-import { createHash } from 'node:crypto';
+import { createHash } from "node:crypto";
+import { createLogger } from "@/server/lib/telemetry";
 
-const logger = createLogger('privacy');
+const logger = createLogger("privacy");
 
 /**
  * Gerencia salt rotativo semanal para anonimização de IPs
@@ -30,7 +30,7 @@ export interface SaltInfo {
 function getWeekNumber(date: Date): number {
   // Cálculo ISO week (segunda-feira é dia 1)
   const d = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
   );
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
@@ -51,18 +51,22 @@ export function getSaltInfo(date: Date = new Date()): SaltInfo {
   simple.setDate(simple.getDate() - dayNum + 1);
 
   const startDate = new Date(
-    Date.UTC(simple.getUTCFullYear(), simple.getUTCMonth(), simple.getUTCDate())
+    Date.UTC(
+      simple.getUTCFullYear(),
+      simple.getUTCMonth(),
+      simple.getUTCDate(),
+    ),
   );
 
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + 7);
 
   return {
-    salt: `${year}-W${String(week).padStart(2, '0')}`,
+    salt: `${year}-W${String(week).padStart(2, "0")}`,
     year,
     week,
     startDate,
-    endDate
+    endDate,
   };
 }
 
@@ -82,19 +86,19 @@ export function getSaltInfo(date: Date = new Date()): SaltInfo {
 export function hashVisitor(
   ip: string | null,
   linkId: string,
-  date: Date = new Date()
+  date: Date = new Date(),
 ): string {
   // Fallback para visitors sem IP
-  if (!ip || ip.trim() === '') {
+  if (!ip || ip.trim() === "") {
     const { salt } = getSaltInfo(date);
     const uniqueId = `anonymous:${linkId}:${salt}`;
-    return createHash('sha256').update(uniqueId).digest('hex');
+    return createHash("sha256").update(uniqueId).digest("hex");
   }
 
   const { salt } = getSaltInfo(date);
   const hashInput = `${ip}:${linkId}:${salt}`;
 
-  return createHash('sha256').update(hashInput).digest('hex');
+  return createHash("sha256").update(hashInput).digest("hex");
 }
 
 /**
@@ -105,7 +109,7 @@ export function validateHashForWeek(
   hash: string,
   ip: string,
   linkId: string,
-  date: Date = new Date()
+  date: Date = new Date(),
 ): boolean {
   const expectedHash = hashVisitor(ip, linkId, date);
   return hash === expectedHash;
@@ -122,7 +126,7 @@ export function getHashesForPeriod(
   ip: string,
   linkId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): Array<{ hash: string; week: string; startDate: Date; endDate: Date }> {
   const hashes: Array<{
     hash: string;
@@ -143,7 +147,7 @@ export function getHashesForPeriod(
         hash: hashVisitor(ip, linkId, currentDate),
         week: saltInfo.salt,
         startDate: saltInfo.startDate,
-        endDate: saltInfo.endDate
+        endDate: saltInfo.endDate,
       });
     }
 
@@ -163,42 +167,42 @@ export function validatePrivacyImplementation(): boolean {
   const nextWeek = new Date(now);
   nextWeek.setDate(nextWeek.getDate() + 7);
 
-  const hash1 = hashVisitor('192.168.1.1', 'link-id', now);
-  const hash2 = hashVisitor('192.168.1.1', 'link-id', nextWeek);
+  const hash1 = hashVisitor("192.168.1.1", "link-id", now);
+  const hash2 = hashVisitor("192.168.1.1", "link-id", nextWeek);
 
   if (hash1 === hash2) {
-    logger.error('[Privacy] CRITICAL: Hashes são iguais entre semanas!');
+    logger.error("[Privacy] CRITICAL: Hashes são iguais entre semanas!");
     return false;
   }
 
   // Mesmo IP + link + semana = hash idêntico
-  const hash3 = hashVisitor('192.168.1.1', 'link-id', now);
+  const hash3 = hashVisitor("192.168.1.1", "link-id", now);
   if (hash1 !== hash3) {
     logger.error(
-      '[Privacy] CRITICAL: Hashes devem ser iguais para mesma semana!'
+      "[Privacy] CRITICAL: Hashes devem ser iguais para mesma semana!",
     );
     return false;
   }
 
   // IP diferente = hash diferente
-  const hash4 = hashVisitor('192.168.1.2', 'link-id', now);
+  const hash4 = hashVisitor("192.168.1.2", "link-id", now);
   if (hash1 === hash4) {
     logger.error(
-      '[Privacy] CRITICAL: IPs diferentes produziram hash idêntico!'
+      "[Privacy] CRITICAL: IPs diferentes produziram hash idêntico!",
     );
     return false;
   }
 
   // Link diferente = hash diferente
-  const hash5 = hashVisitor('192.168.1.1', 'different-link', now);
+  const hash5 = hashVisitor("192.168.1.1", "different-link", now);
   if (hash1 === hash5) {
     logger.error(
-      '[Privacy] CRITICAL: Links diferentes produziram hash idêntico!'
+      "[Privacy] CRITICAL: Links diferentes produziram hash idêntico!",
     );
     return false;
   }
 
-  logger.info('[Privacy] ✅ Privacy implementation validated successfully');
+  logger.info("[Privacy] ✅ Privacy implementation validated successfully");
   return true;
 }
 

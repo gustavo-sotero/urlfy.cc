@@ -1,27 +1,27 @@
 // src/server/workers/cleanup.worker.ts
 
-import { db } from '@/db';
-import { analyticsEvents } from '@/db/schema';
-import { PartitionManager } from '@/db/scripts/partition-manager';
-import { recordMetric } from '@/server/lib/metrics';
-import { createLogger } from '@/server/lib/telemetry';
-import { type Job, Worker } from 'bullmq';
-import { lt, sql } from 'drizzle-orm';
+import { type Job, Worker } from "bullmq";
+import { lt, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { analyticsEvents } from "@/db/schema";
+import { PartitionManager } from "@/db/scripts/partition-manager";
+import { recordMetric } from "@/server/lib/metrics";
+import { createLogger } from "@/server/lib/telemetry";
 
-const logger = createLogger('cleanup-worker');
+const logger = createLogger("cleanup-worker");
 
 const connection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: Number.parseInt(process.env.REDIS_PORT || '6379', 10),
+  host: process.env.REDIS_HOST || "localhost",
+  port: Number.parseInt(process.env.REDIS_PORT || "6379", 10),
   maxRetriesPerRequest: null,
-  enableReadyCheck: false
+  enableReadyCheck: false,
 };
 
 const RETENTION_DAYS = 90; // Manter dados por 90 dias
 const partitionManager = new PartitionManager();
 
 interface CleanupJob {
-  type: 'retention' | 'partitions' | 'full';
+  type: "retention" | "partitions" | "full";
 }
 
 /**
@@ -31,7 +31,7 @@ interface CleanupJob {
  * - Executa uma vez por semana via scheduler
  */
 export const cleanupWorker = new Worker<CleanupJob>(
-  'cleanup',
+  "cleanup",
   async (job: Job<CleanupJob>) => {
     const startTime = Date.now();
     const { type } = job.data;
@@ -42,7 +42,7 @@ export const cleanupWorker = new Worker<CleanupJob>(
       let deletedCount = 0;
 
       // Limpeza de retenção de dados
-      if (type === 'retention' || type === 'full') {
+      if (type === "retention" || type === "full") {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
 
@@ -66,8 +66,8 @@ export const cleanupWorker = new Worker<CleanupJob>(
             .delete(analyticsEvents)
             .where(
               sql`${analyticsEvents.id} = ANY(${sql.raw(
-                `ARRAY[${toDelete.map((r) => `'${r.id}'`).join(',')}]`
-              )})`
+                `ARRAY[${toDelete.map((r) => `'${r.id}'`).join(",")}]`,
+              )})`,
             );
 
           const deletedCount = toDelete.length;
@@ -75,7 +75,7 @@ export const cleanupWorker = new Worker<CleanupJob>(
 
           batchDeleted += deletedCount;
           logger.debug(
-            `[CleanupWorker] Batch deleted: ${deletedCount}, total: ${batchDeleted}`
+            `[CleanupWorker] Batch deleted: ${deletedCount}, total: ${batchDeleted}`,
           );
 
           // Pequena pausa entre batches para não sobrecarregar o DB
@@ -87,44 +87,44 @@ export const cleanupWorker = new Worker<CleanupJob>(
       }
 
       // Gerenciamento de partições
-      if (type === 'partitions' || type === 'full') {
-        logger.info('[CleanupWorker] Running partition maintenance');
+      if (type === "partitions" || type === "full") {
+        logger.info("[CleanupWorker] Running partition maintenance");
         await partitionManager.runMaintenance();
       }
 
       const duration = Date.now() - startTime;
 
-      recordMetric('analytics_cleanup_completed', deletedCount, {
+      recordMetric("analytics_cleanup_completed", deletedCount, {
         type,
-        duration: String(duration)
+        duration: String(duration),
       });
 
       logger.info(`[CleanupWorker] Job ${job.id} completed in ${duration}ms`, {
         type,
         deletedCount,
-        duration
+        duration,
       });
 
       return {
         deleted: deletedCount,
         type,
-        duration
+        duration,
       };
     } catch (error) {
       logger.error(`[CleanupWorker] Job ${job.id} failed`, {
         error: error instanceof Error ? error.message : String(error),
-        type
+        type,
       });
 
-      recordMetric('analytics_cleanup_failed', 1, { type });
+      recordMetric("analytics_cleanup_failed", 1, { type });
 
       throw error;
     }
   },
   {
     connection,
-    concurrency: 1 // Apenas um job de cleanup por vez
-  }
+    concurrency: 1, // Apenas um job de cleanup por vez
+  },
 );
 
 /**
@@ -132,7 +132,7 @@ export const cleanupWorker = new Worker<CleanupJob>(
  * Chamada via API admin ou manualmente
  */
 export async function runCleanup(
-  type: 'retention' | 'partitions' | 'full' = 'full'
+  type: "retention" | "partitions" | "full" = "full",
 ): Promise<void> {
   try {
     logger.info(`[CleanupWorker] Manual cleanup initiated: ${type}`);
@@ -140,7 +140,7 @@ export async function runCleanup(
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
 
-    if (type === 'retention' || type === 'full') {
+    if (type === "retention" || type === "full") {
       logger.info(`[CleanupWorker] Deleting events older than ${cutoffDate}`);
 
       // Executa em batches
@@ -160,8 +160,8 @@ export async function runCleanup(
           .delete(analyticsEvents)
           .where(
             sql`${analyticsEvents.id} = ANY(${sql.raw(
-              `ARRAY[${toDelete.map((r) => `'${r.id}'`).join(',')}]`
-            )})`
+              `ARRAY[${toDelete.map((r) => `'${r.id}'`).join(",")}]`,
+            )})`,
           );
 
         const deletedCount = toDelete.length;
@@ -176,27 +176,27 @@ export async function runCleanup(
       logger.info(`[CleanupWorker] Total deleted: ${totalDeleted}`);
     }
 
-    if (type === 'partitions' || type === 'full') {
+    if (type === "partitions" || type === "full") {
       await partitionManager.runMaintenance();
     }
 
     logger.info(`[CleanupWorker] Manual cleanup completed: ${type}`);
   } catch (error) {
-    logger.error('[CleanupWorker] Manual cleanup failed', {
-      error: error instanceof Error ? error.message : String(error)
+    logger.error("[CleanupWorker] Manual cleanup failed", {
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
 }
 
 // Event handlers
-cleanupWorker.on('completed', (job) => {
+cleanupWorker.on("completed", (job) => {
   logger.debug(`[CleanupWorker] Job completed: ${job?.id}`);
 });
 
-cleanupWorker.on('failed', (job, err) => {
+cleanupWorker.on("failed", (job, err) => {
   logger.error(`[CleanupWorker] Job failed: ${job?.id}`, {
-    error: err.message
+    error: err.message,
   });
 });
 

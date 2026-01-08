@@ -1,47 +1,48 @@
 // src/server/workers/index.ts
 
-import { aggregationJob, cleanupJob } from '@/server/jobs/scheduler';
-import { createLogger } from '@/server/lib/telemetry';
-import { aggregationWorker } from './aggregation.worker';
-import { cleanupWorker } from './cleanup.worker';
-import { clickWorker } from './click.worker';
-import { setupDLQHandler } from './dlq.handler';
+import { aggregationJob, cleanupJob } from "@/server/jobs/scheduler";
+import { createLogger } from "@/server/lib/telemetry";
+import { aggregationWorker } from "./aggregation.worker";
+import { cleanupWorker } from "./cleanup.worker";
+import { clickWorker } from "./click.worker";
+import { setupDLQHandlers } from "./dlq.handler";
 
-const logger = createLogger('workers-init');
+const logger = createLogger("workers-init");
 
 /**
  * Inicializa todos os workers e jobs agendados
  */
 export async function initializeWorkers(): Promise<void> {
   try {
-    logger.info('[WorkersInit] Starting worker initialization...');
+    logger.info("[WorkersInit] Starting worker initialization...");
 
     // Registra handlers de DLQ
-    setupDLQHandler();
-    logger.info('[WorkersInit] ✅ DLQ handler setup');
+    // @ts-expect-error - Worker parameter type differs from Queue, intentionally used for setup
+    await setupDLQHandlers(clickWorker);
+    logger.info("[WorkersInit] ✅ DLQ handler setup");
 
     // Inicia workers
-    logger.info('[WorkersInit] ✅ Click worker ready');
-    logger.info('[WorkersInit] ✅ Aggregation worker ready');
-    logger.info('[WorkersInit] ✅ Cleanup worker ready');
+    logger.info("[WorkersInit] ✅ Click worker ready");
+    logger.info("[WorkersInit] ✅ Aggregation worker ready");
+    logger.info("[WorkersInit] ✅ Cleanup worker ready");
 
     // Inicia jobs agendados
     aggregationJob.start();
     logger.info(
-      '[WorkersInit] ✅ Aggregation scheduler started (daily at 02:00 UTC)'
+      "[WorkersInit] ✅ Aggregation scheduler started (daily at 02:00 UTC)",
     );
 
     cleanupJob.start();
     logger.info(
-      '[WorkersInit] ✅ Cleanup scheduler started (weekly on Sunday at 03:00 UTC)'
+      "[WorkersInit] ✅ Cleanup scheduler started (weekly on Sunday at 03:00 UTC)",
     );
 
     logger.info(
-      '[WorkersInit] All workers and schedulers initialized successfully'
+      "[WorkersInit] All workers and schedulers initialized successfully",
     );
   } catch (error) {
-    logger.error('[WorkersInit] Failed to initialize workers', {
-      error: error instanceof Error ? error.message : String(error)
+    logger.error("[WorkersInit] Failed to initialize workers", {
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
@@ -52,7 +53,7 @@ export async function initializeWorkers(): Promise<void> {
  */
 export async function shutdownWorkers(): Promise<void> {
   try {
-    logger.info('[WorkersShutdown] Starting worker shutdown...');
+    logger.info("[WorkersShutdown] Starting worker shutdown...");
 
     // Para jobs agendados
     aggregationJob.stop();
@@ -62,13 +63,13 @@ export async function shutdownWorkers(): Promise<void> {
     await Promise.all([
       clickWorker.close(),
       aggregationWorker.close(),
-      cleanupWorker.close()
+      cleanupWorker.close(),
     ]);
 
-    logger.info('[WorkersShutdown] All workers shut down successfully');
+    logger.info("[WorkersShutdown] All workers shut down successfully");
   } catch (error) {
-    logger.error('[WorkersShutdown] Error during shutdown', {
-      error: error instanceof Error ? error.message : String(error)
+    logger.error("[WorkersShutdown] Error during shutdown", {
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
