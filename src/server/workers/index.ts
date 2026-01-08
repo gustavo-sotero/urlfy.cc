@@ -1,10 +1,15 @@
 // src/server/workers/index.ts
 
-import { aggregationJob, cleanupJob } from "@/server/jobs/scheduler";
+import {
+  aggregationJob,
+  cleanupJob,
+  dataDeletionJob,
+} from "@/server/jobs/scheduler";
 import { createLogger } from "@/server/lib/telemetry";
 import { aggregationWorker } from "./aggregation.worker";
 import { cleanupWorker } from "./cleanup.worker";
 import { clickWorker } from "./click.worker";
+import { deletionWorker } from "./deletion.worker";
 import { setupDLQHandlers } from "./dlq.handler";
 
 const logger = createLogger("workers-init");
@@ -25,6 +30,7 @@ export async function initializeWorkers(): Promise<void> {
     logger.info("[WorkersInit] ✅ Click worker ready");
     logger.info("[WorkersInit] ✅ Aggregation worker ready");
     logger.info("[WorkersInit] ✅ Cleanup worker ready");
+    logger.info("[WorkersInit] ✅ Deletion worker ready");
 
     // Inicia jobs agendados
     aggregationJob.start();
@@ -35,6 +41,11 @@ export async function initializeWorkers(): Promise<void> {
     cleanupJob.start();
     logger.info(
       "[WorkersInit] ✅ Cleanup scheduler started (weekly on Sunday at 03:00 UTC)",
+    );
+
+    dataDeletionJob.start();
+    logger.info(
+      "[WorkersInit] ✅ Data deletion scheduler started (every 30 minutes)",
     );
 
     logger.info(
@@ -58,12 +69,14 @@ export async function shutdownWorkers(): Promise<void> {
     // Para jobs agendados
     aggregationJob.stop();
     cleanupJob.stop();
+    dataDeletionJob.stop();
 
     // Close workers
     await Promise.all([
       clickWorker.close(),
       aggregationWorker.close(),
       cleanupWorker.close(),
+      deletionWorker.close(),
     ]);
 
     logger.info("[WorkersShutdown] All workers shut down successfully");
@@ -76,4 +89,4 @@ export async function shutdownWorkers(): Promise<void> {
 }
 
 // Export workers para acesso direto se necessário
-export { aggregationWorker, cleanupWorker, clickWorker };
+export { aggregationWorker, cleanupWorker, clickWorker, deletionWorker };

@@ -9,7 +9,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Elysia } from "elysia";
 import { nanoid } from "nanoid";
 import { db } from "@/db";
@@ -226,6 +226,3 @@ export const userDataRoutes = new Elysia({ prefix: "/me" })
       data: requests[0],
     };
   });
-
-// Re-export for convenience
-import { and, desc } from "drizzle-orm";

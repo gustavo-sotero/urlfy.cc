@@ -22,6 +22,7 @@ export const QUEUE_NAMES = {
   analyticsDead: "analytics_dead", // Changed from "analytics:dead"
   aggregation: "aggregation",
   cleanup: "cleanup",
+  deletion: "deletion",
   notifications: "notifications",
 } as const;
 
@@ -61,6 +62,18 @@ export const aggregationQueue = new Queue(QUEUE_NAMES.aggregation, {
 
 // Fila de cleanup
 export const cleanupQueue = new Queue(QUEUE_NAMES.cleanup, {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 5000,
+    },
+  },
+});
+
+// Fila de exclusão de dados (GDPR/LGPD)
+export const deletionQueue = new Queue(QUEUE_NAMES.deletion, {
   connection,
   defaultJobOptions: {
     attempts: 3,
@@ -133,6 +146,7 @@ export async function shutdownQueues() {
     analyticsDeadQueue.close(),
     aggregationQueue.close(),
     cleanupQueue.close(),
+    deletionQueue.close(),
   ]).catch((error) => {
     console.error("Error closing queues:", error);
   });

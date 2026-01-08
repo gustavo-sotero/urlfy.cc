@@ -1,7 +1,14 @@
 // src/server/jobs/scheduler.ts
 
 import { CronJob } from "cron";
-import { aggregationQueue, cleanupQueue } from "@/server/lib/queue";
+import { and, eq, lt } from "drizzle-orm";
+import { db } from "@/db";
+import { dataDeletionRequest } from "@/db/schema/audit";
+import {
+  aggregationQueue,
+  cleanupQueue,
+  deletionQueue,
+} from "@/server/lib/queue";
 import { createLogger } from "@/server/lib/telemetry";
 
 const logger = createLogger("scheduler");
@@ -87,6 +94,86 @@ export const cleanupJob = new CronJob(
 );
 
 // ═══════════════════════════════════════════════════════════════════
+// DATA DELETION JOB
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Executa a cada hora (01 e 31 minutos de cada hora)
+ * Busca deletion requests com deadline atingido e enfileira para processamento
+ */
+export const dataDeletionJob = new CronJob(
+  "1,31 * * * *", // A cada 30 minutos
+  async () => {
+    try {
+      logger.info("[Scheduler] Running data deletion check");
+
+      // Buscar requests pendentes com deadline atingido
+      const pendingRequests = await db
+        .select()
+        .from(dataDeletionRequest)
+        .where(
+          and(
+            eq(dataDeletionRequest.status, "pending" as const),
+            lt(dataDeletionRequest.deadlineAt, new Date()),
+          ),
+        );
+
+      if (pendingRequests.length === 0) {
+        logger.debug("[Scheduler] No pending deletion requests due");
+        return;
+      }
+
+      logger.info(
+        `[Scheduler] Found ${pendingRequests.length} deletion requests due`,
+      );
+
+      // Enfileira cada request para processamento
+      for (const request of pendingRequests) {
+        try {
+          await deletionQueue.add(
+            "process-deletion",
+            {
+              requestId: request.id,
+              userId: request.userId,
+            },
+            {
+              jobId: `deletion-${request.id}`,
+              removeOnComplete: { age: 86400 }, // Remove após 24h
+              attempts: 3,
+              backoff: {
+                type: "exponential",
+                delay: 2000, // 2s inicial
+              },
+            },
+          );
+
+          logger.info("[Scheduler] Data deletion job enqueued", {
+            requestId: request.id,
+            userId: request.userId,
+          });
+        } catch (error) {
+          logger.error("[Scheduler] Error enqueueing deletion job", {
+            error: error instanceof Error ? error.message : String(error),
+            requestId: request.id,
+          });
+        }
+      }
+
+      logger.info(
+        `[Scheduler] Enqueued ${pendingRequests.length} deletion jobs`,
+      );
+    } catch (error) {
+      logger.error("[Scheduler] Error in data deletion job", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  },
+  null,
+  false,
+  "UTC",
+);
+
+// ═══════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
 
@@ -115,10 +202,12 @@ export function startScheduler(): void {
   try {
     aggregationJob.start();
     cleanupJob.start();
+    dataDeletionJob.start();
 
     logger.info("[Scheduler] ✅ All scheduled jobs started");
     logger.debug("[Scheduler] - Aggregation: 02:00 UTC daily");
     logger.debug("[Scheduler] - Cleanup: 03:00 UTC every Sunday");
+    logger.debug("[Scheduler] - Data Deletion: every 30 minutes");
   } catch (error) {
     logger.error("[Scheduler] Failed to start scheduler", {
       error: error instanceof Error ? error.message : String(error),
@@ -136,6 +225,7 @@ export function stopScheduler(): void {
   try {
     aggregationJob.stop();
     cleanupJob.stop();
+    dataDeletionJob.stop();
 
     logger.info("[Scheduler] ✅ All scheduled jobs stopped");
   } catch (error) {

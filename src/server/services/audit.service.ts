@@ -9,7 +9,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import {
   type AuditAction,
@@ -159,6 +159,3 @@ export class AuditLogService {
 
 // Export singleton instance
 export const auditLogService = new AuditLogService();
-
-// Re-export for convenience
-import { and, sql } from "drizzle-orm";
