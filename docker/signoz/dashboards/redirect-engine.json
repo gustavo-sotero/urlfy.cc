@@ -1,0 +1,236 @@
+{
+  "title": "Redirect Engine Dashboard",
+  "description": "Métricas de performance e observabilidade do módulo de redirecionamento",
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Redirect Latency (P50, P95, P99)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "query": {
+        "metric": "redirect.latency",
+        "aggregation": ["p50", "p95", "p99"],
+        "groupBy": ["service"]
+      },
+      "thresholds": [
+        { "value": 30, "color": "green", "label": "P50 SLO" },
+        { "value": 300, "color": "red", "label": "P99 SLO" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Cache Hit Rate",
+      "type": "gauge",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 8 },
+      "query": {
+        "metric": "redirect.cache.hit_rate",
+        "aggregation": "last"
+      },
+      "thresholds": [
+        { "value": 70, "color": "red" },
+        { "value": 85, "color": "yellow" },
+        { "value": 95, "color": "green" }
+      ],
+      "format": "percent"
+    },
+    {
+      "id": 3,
+      "title": "Throughput (req/s)",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 8 },
+      "query": {
+        "metric": "redirect.total",
+        "aggregation": "rate",
+        "interval": "1s"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Error Rate by Type",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "query": {
+        "metric": "redirect.errors",
+        "aggregation": "rate",
+        "groupBy": ["error_type"]
+      },
+      "thresholds": [
+        { "value": 0.001, "color": "yellow", "label": "Warning (0.1%)" },
+        { "value": 0.01, "color": "red", "label": "Critical (1%)" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Cache Operations",
+      "type": "bargauge",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "query": [
+        {
+          "metric": "redirect.cache.hits",
+          "aggregation": "sum",
+          "label": "Hits"
+        },
+        {
+          "metric": "redirect.cache.misses",
+          "aggregation": "sum",
+          "label": "Misses"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Circuit Breaker State",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 16, "w": 6, "h": 4 },
+      "query": {
+        "metric": "redirect.circuit_breaker.trips",
+        "aggregation": "increase",
+        "interval": "5m"
+      },
+      "mappings": [
+        { "value": 0, "text": "CLOSED", "color": "green" },
+        { "value": 1, "text": "HALF_OPEN", "color": "yellow" },
+        { "value": 2, "text": "OPEN", "color": "red" }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Redis Fallbacks",
+      "type": "timeseries",
+      "gridPos": { "x": 6, "y": 16, "w": 6, "h": 4 },
+      "query": {
+        "metric": "redirect.redis.fallbacks",
+        "aggregation": "rate"
+      },
+      "alert": {
+        "condition": "value > 10",
+        "severity": "warning",
+        "message": "High Redis fallback rate detected"
+      }
+    },
+    {
+      "id": 8,
+      "title": "Stampede Protection",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 4 },
+      "query": [
+        {
+          "metric": "redirect.stampede.locks_acquired",
+          "aggregation": "rate",
+          "label": "Locks Acquired"
+        },
+        {
+          "metric": "redirect.stampede.locks_waited",
+          "aggregation": "rate",
+          "label": "Locks Waited"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Top Error Types (Last Hour)",
+      "type": "table",
+      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
+      "query": {
+        "metric": "redirect.errors",
+        "aggregation": "sum",
+        "groupBy": ["error_type"],
+        "timeRange": "1h",
+        "orderBy": "value DESC",
+        "limit": 10
+      }
+    },
+    {
+      "id": 10,
+      "title": "Request Traces (High Latency)",
+      "type": "traces",
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+      "query": {
+        "service": "urlfy-redirect",
+        "operation": "redirect.resolve",
+        "filter": "duration > 300ms",
+        "limit": 50
+      }
+    }
+  ],
+  "alerts": [
+    {
+      "id": "alert-1",
+      "name": "High P99 Latency",
+      "condition": "redirect.latency{p99} > 300",
+      "for": "5m",
+      "severity": "critical",
+      "annotations": {
+        "summary": "Redirect P99 latency above SLO (>300ms)",
+        "description": "P99 latency: {{ $value }}ms"
+      },
+      "actions": ["webhook-slack", "email-oncall"]
+    },
+    {
+      "id": "alert-2",
+      "name": "Low Cache Hit Rate",
+      "condition": "redirect.cache.hit_rate < 70",
+      "for": "10m",
+      "severity": "warning",
+      "annotations": {
+        "summary": "Cache hit rate below threshold (<70%)",
+        "description": "Current hit rate: {{ $value }}%"
+      }
+    },
+    {
+      "id": "alert-3",
+      "name": "High Error Rate",
+      "condition": "rate(redirect.errors[5m]) > 0.01",
+      "for": "2m",
+      "severity": "critical",
+      "annotations": {
+        "summary": "Error rate above 1%",
+        "description": "Error rate: {{ $value | humanizePercentage }}"
+      }
+    },
+    {
+      "id": "alert-4",
+      "name": "Circuit Breaker Open",
+      "condition": "redirect.circuit_breaker.trips > 0",
+      "for": "1m",
+      "severity": "critical",
+      "annotations": {
+        "summary": "Circuit breaker has opened",
+        "description": "Database or Redis circuit breaker tripped"
+      },
+      "actions": ["pagerduty-critical"]
+    },
+    {
+      "id": "alert-5",
+      "name": "Redis Fallback High",
+      "condition": "rate(redirect.redis.fallbacks[1m]) > 10",
+      "for": "5m",
+      "severity": "warning",
+      "annotations": {
+        "summary": "High Redis fallback rate (>10/min)",
+        "description": "Redis may be experiencing issues"
+      }
+    }
+  ],
+  "variables": [
+    {
+      "name": "environment",
+      "type": "query",
+      "query": "label_values(redirect.total, environment)",
+      "default": "production"
+    },
+    {
+      "name": "time_range",
+      "type": "interval",
+      "options": ["5m", "15m", "1h", "6h", "24h", "7d"],
+      "default": "1h"
+    }
+  ],
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "tags": ["redirect", "performance", "module-04"]
+}

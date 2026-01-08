@@ -1,0 +1,5 @@
+# Run backup script every hour
+0 * * * * /backup.sh >> /var/log/backup.log 2>&1
+
+# Full backup with analytics daily at 02:00 UTC
+0 2 * * * INCLUDE_ANALYTICS=1 /backup.sh >> /var/log/backup.log 2>&1

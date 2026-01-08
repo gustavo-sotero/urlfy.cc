@@ -1,0 +1,203 @@
+version: '3.9'
+
+services:
+  # ═══════════════════════════════════════════════════════════════════
+  # APLICAÇÃO PRINCIPAL (Next.js + ElysiaJS + Bun)
+  # ═══════════════════════════════════════════════════════════════════
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgres://urlfy:urlfy@postgres:5432/urlfy
+      - REDIS_URL=redis://redis:6379
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
+      - OTEL_SERVICE_NAME=urlfy-api
+      - MAXMIND_DB_PATH=/app/geoip/GeoLite2-City.mmdb
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../src:/app/src:ro
+      - geoip_data:/app/geoip:ro
+    networks:
+      - urlfy-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # POSTGRESQL 16
+  # ═══════════════════════════════════════════════════════════════════
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: urlfy
+      POSTGRES_PASSWORD: urlfy
+      POSTGRES_DB: urlfy
+      POSTGRES_INITDB_ARGS: '--encoding=UTF-8 --lc-collate=C --lc-ctype=C'
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - urlfy-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U urlfy -d urlfy']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # REDIS 7
+  # ═══════════════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - urlfy-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # SIGNOZ OTEL COLLECTOR
+  # ═══════════════════════════════════════════════════════════════════
+  signoz-otel-collector:
+    image: signoz/signoz-otel-collector:0.102.8
+    command:
+      [
+        '--config=/etc/otel-collector-config.yaml',
+        '--feature-gates=-pkg.translator.prometheus.NormalizeName'
+      ]
+    ports:
+      - '4317:4317' # OTLP gRPC
+      - '4318:4318' # OTLP HTTP
+    volumes:
+      - ./signoz-otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    networks:
+      - urlfy-network
+    restart: unless-stopped
+    depends_on:
+      - signoz-clickhouse
+
+  # ═══════════════════════════════════════════════════════════════════
+  # SIGNOZ QUERY SERVICE
+  # ═══════════════════════════════════════════════════════════════════
+  signoz-query-service:
+    image: signoz/query-service:0.55.0
+    ports:
+      - '8080:8080'
+    environment:
+      - STORAGE=clickhouse
+      - GODEBUG=netdns=go
+      - CLICKHOUSE_TCP_PORT=9000
+      - CLICKHOUSE_HTTP_PORT=8123
+      - CLICKHOUSE_HOST=signoz-clickhouse
+      - CLICKHOUSE_DATABASE_NAME=signoz_traces
+    networks:
+      - urlfy-network
+    restart: unless-stopped
+    depends_on:
+      - signoz-clickhouse
+
+  # ═══════════════════════════════════════════════════════════════════
+  # SIGNOZ FRONTEND
+  # ═══════════════════════════════════════════════════════════════════
+  signoz-frontend:
+    image: signoz/frontend:0.55.0
+    ports:
+      - '3301:3301'
+    environment:
+      - FRONTEND_API_ENDPOINT=http://signoz-query-service:8080
+    networks:
+      - urlfy-network
+    restart: unless-stopped
+    depends_on:
+      - signoz-query-service
+
+  # ═══════════════════════════════════════════════════════════════════
+  # SIGNOZ CLICKHOUSE
+  # ═══════════════════════════════════════════════════════════════════
+  signoz-clickhouse:
+    image: clickhouse/clickhouse-server:24.1.2-alpine
+    volumes:
+      - signoz_clickhouse_data:/var/lib/clickhouse
+    environment:
+      - CLICKHOUSE_DB=signoz_traces
+    networks:
+      - urlfy-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # GEOIP UPDATE (MAXMIND)
+  # ═══════════════════════════════════════════════════════════════════
+  geoipupdate:
+    image: maxmindinc/geoipupdate:latest
+    environment:
+      - GEOIPUPDATE_ACCOUNT_ID=${MAXMIND_ACCOUNT_ID}
+      - GEOIPUPDATE_LICENSE_KEY=${MAXMIND_LICENSE_KEY}
+      - GEOIPUPDATE_EDITION_IDS=GeoLite2-City
+      - GEOIPUPDATE_FREQUENCY=168 # Weekly (hours)
+    volumes:
+      - geoip_data:/usr/share/GeoIP
+    networks:
+      - urlfy-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # BACKUP SCHEDULER (PostgreSQL)
+  # ═══════════════════════════════════════════════════════════════════
+  backup:
+    image: postgres:16-alpine
+    environment:
+      - PGHOST=postgres
+      - PGDATABASE=urlfy
+      - PGUSER=urlfy
+      - PGPASSWORD=urlfy
+      - BACKUP_RETENTION_DAYS=7
+    volumes:
+      - ../scripts/backup.sh:/backup.sh:ro
+      - backup_data:/backups
+      - ./crontab:/etc/crontabs/root:ro
+    entrypoint: []
+    command: ['sh', '-c', 'chmod +x /backup.sh && crond -f -l 2']
+    networks:
+      - urlfy-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+# ═════════════════════════════════════════════════════════════════════
+# VOLUMES
+# ═════════════════════════════════════════════════════════════════════
+volumes:
+  postgres_data:
+    name: urlfy_postgres_data
+  redis_data:
+    name: urlfy_redis_data
+  signoz_clickhouse_data:
+    name: urlfy_signoz_clickhouse_data
+  geoip_data:
+    name: urlfy_geoip_data
+  backup_data:
+    name: urlfy_backup_data
+
+# ═════════════════════════════════════════════════════════════════════
+# NETWORKS
+# ═════════════════════════════════════════════════════════════════════
+networks:
+  urlfy-network:
+    driver: bridge
+    name: urlfy-network

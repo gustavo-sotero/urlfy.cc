@@ -1,0 +1,378 @@
+# Security - urlfy.cc
+
+> 📖 [← Voltar ao PRD](../prd.md) | [← Caching](./caching-strategy.md) | [API →](../api/endpoints.md)
+
+**Navegação:** [Overview](./overview.md) · [Database](./database-schema.md) · [Caching](./caching-strategy.md) · [Security](#) · [API](../api/endpoints.md)
+
+---
+
+## Visão Geral
+
+Este documento descreve as medidas de segurança implementadas no urlfy.cc.
+
+---
+
+## Rate Limiting
+
+Implementado com **rate-limiter-flexible** usando algoritmo **Sliding Window** com Redis.
+
+### Configuração
+
+```typescript
+import { RateLimiterRedis } from 'rate-limiter-flexible';
+import { redis } from './redis'; // Bun.redis instance
+
+const rateLimiter = new RateLimiterRedis({
+  storeClient: redis,
+  keyPrefix: 'rl',
+  points: 10,
+  duration: 3600 // sliding window
+});
+```
+
+### Limites por Endpoint
+
+| Endpoint                | Guest          | Autenticado        | Burst   | Window |
+| ----------------------- | -------------- | ------------------ | ------- | ------ |
+| `POST /links`           | 10/hora por IP | 100/hora por Token | 5/seg   | 1 hora |
+| `POST /links/bulk`      | N/A            | 20/hora por Token  | 2/seg   | 1 hora |
+| `GET /:code` (redirect) | 100/min por IP | -                  | 100/seg | 1 min  |
+| `GET /links/:code/qr`   | 30/hora por IP | 120/hora por Token | 5/seg   | 1 hora |
+| `GET /analytics/*`      | N/A            | 60/min por Token   | 10/seg  | 1 min  |
+| `POST /admin/*`         | N/A            | 30/min por Token   | 5/seg   | 1 min  |
+
+### Rate Limiting por Link (Redirect)
+
+Para links virais, rate limiting por IP bloquearia usuários legítimos. Estratégia:
+
+1. **Por link:** 5.000 cliques/min por link (detecta abuse coordenado)
+2. **Por IP:** 100/min (usuário normal não clica 100x/min)
+3. **Fingerprinting:** Hash de `User-Agent + Accept-Language` para detectar bots
+
+---
+
+## Validação de URLs
+
+### Processo de Validação
+
+```typescript
+async function validateUrl(url: string): Promise<ValidationResult> {
+  // 1. Validação de formato
+  if (!isValidUrlFormat(url)) {
+    return { valid: false, error: 'INVALID_FORMAT' };
+  }
+
+  // 2. Protocolo permitido
+  const { protocol } = new URL(url);
+  if (!['http:', 'https:'].includes(protocol)) {
+    return { valid: false, error: 'INVALID_PROTOCOL' };
+  }
+
+  // 3. Blacklist de domínios
+  const domain = extractDomain(url);
+  const isBanned = await checkBannedDomain(domain);
+  if (isBanned) {
+    return { valid: false, error: 'DOMAIN_BANNED' };
+  }
+
+  // 4. Bloqueio de outros encurtadores
+  if (isShortenerDomain(domain)) {
+    return { valid: false, error: 'SHORTENER_NOT_ALLOWED' };
+  }
+
+  return { valid: true };
+}
+```
+
+### Encurtadores Bloqueados
+
+```typescript
+const BLOCKED_SHORTENERS = [
+  'bit.ly',
+  'tinyurl.com',
+  't.co',
+  'goo.gl',
+  'ow.ly',
+  'is.gd',
+  'buff.ly',
+  'adf.ly',
+  'shorturl.at',
+  'tiny.cc',
+  'rb.gy'
+];
+```
+
+---
+
+## Proteção contra Redirect Loops
+
+### Header de Profundidade
+
+```typescript
+// No middleware de redirect
+const depth = parseInt(request.headers.get('X-Redirect-Depth') ?? '0');
+
+if (depth >= 3) {
+  return new Response(null, {
+    status: 421, // Misdirected Request
+    headers: {
+      'X-Error-Code': 'REDIRECT_LOOP'
+    }
+  });
+}
+
+// Adiciona header na resposta de redirect
+return Response.redirect(targetUrl, redirectType, {
+  headers: {
+    'X-Redirect-Depth': String(depth + 1)
+  }
+});
+```
+
+---
+
+## Proteção de Links com Senha
+
+### Fluxo
+
+```
+1. GET /:code
+   └─ Link tem password_hash?
+      ├─ Sim → Verifica cookie `urlfy_unlock_{code}`
+      │        ├─ Válido → Redireciona
+      │        └─ Inválido → 401 + redirect /unlock/:code
+      └─ Não → Redireciona
+
+2. POST /api/v1/links/:code/verify-password
+   └─ Valida senha (bcrypt)
+      ├─ Sucesso → Set-Cookie (JWT, 5min TTL)
+      └─ Falha → 401
+```
+
+### Implementação
+
+```typescript
+import { sign, verify } from 'jsonwebtoken';
+
+// Verificação de senha
+async function verifyPassword(code: string, password: string) {
+  const link = await getLink(code);
+
+  if (!link.passwordHash) {
+    throw new Error('LINK_NOT_PROTECTED');
+  }
+
+  const valid = await Bun.password.verify(password, link.passwordHash);
+
+  if (!valid) {
+    throw new Error('INVALID_PASSWORD');
+  }
+
+  // Gera JWT válido por 5 minutos
+  const token = sign({ code, type: 'unlock' }, process.env.JWT_SECRET!, {
+    expiresIn: '5m'
+  });
+
+  return { token };
+}
+```
+
+---
+
+## Headers de Segurança
+
+Configurados via middleware ou next.config.ts:
+
+```typescript
+const securityHeaders = {
+  'Content-Security-Policy': [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "frame-ancestors 'none'"
+  ].join('; '),
+
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload'
+};
+```
+
+---
+
+## CORS Configuration
+
+```typescript
+const corsConfig = {
+  origin:
+    process.env.NODE_ENV === 'production'
+      ? ['https://urlfy.cc', 'https://www.urlfy.cc']
+      : ['http://localhost:3000'],
+
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-API-Key',
+    'Idempotency-Key'
+  ],
+
+  credentials: true,
+  maxAge: 86400 // 24 horas
+};
+```
+
+---
+
+## CSRF Protection
+
+```typescript
+// Cookies com SameSite=Strict
+const cookieConfig = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  path: '/'
+};
+
+// Token CSRF para formulários (se não usar SPA)
+// Gerenciado pelo Better-Auth automaticamente
+```
+
+---
+
+## Sanitização de Meta Tags
+
+OG tags customizados devem ser sanitizados:
+
+```typescript
+import DOMPurify from 'isomorphic-dompurify';
+
+function sanitizeMetaTags(input: {
+  metaTitle?: string;
+  metaDescription?: string;
+  metaImage?: string;
+}) {
+  return {
+    metaTitle: input.metaTitle
+      ? DOMPurify.sanitize(input.metaTitle).slice(0, 60)
+      : null,
+
+    metaDescription: input.metaDescription
+      ? DOMPurify.sanitize(input.metaDescription).slice(0, 160)
+      : null,
+
+    metaImage: input.metaImage ? validateImageUrl(input.metaImage) : null
+  };
+}
+
+function validateImageUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+
+    // Apenas HTTPS
+    if (parsed.protocol !== 'https:') return null;
+
+    // Whitelist de CDNs conhecidos (ou proxy próprio)
+    const allowedHosts = ['cdn.urlfy.cc', 'images.unsplash.com', 'i.imgur.com'];
+
+    if (!allowedHosts.includes(parsed.host)) {
+      // TODO: Proxy via serviço próprio
+      return null;
+    }
+
+    return url;
+  } catch {
+    return null;
+  }
+}
+```
+
+---
+
+## LGPD/GDPR Compliance
+
+### Anonimização de IPs
+
+IPs nunca são armazenados em texto. São convertidos em hash imediatamente:
+
+```typescript
+import { createHash } from 'crypto';
+
+function hashIp(ip: string, salt: string): string {
+  return createHash('sha256').update(`${ip}:${salt}`).digest('hex');
+}
+
+// Salt rotacionado semanalmente
+function getWeeklySalt(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const week = getWeekNumber(now);
+  return `${year}-W${week}`;
+}
+```
+
+### Endpoints de Compliance
+
+| Endpoint                 | Descrição                                |
+| ------------------------ | ---------------------------------------- |
+| `GET /api/v1/me/export`  | Exporta todos os dados do usuário (JSON) |
+| `DELETE /api/v1/me/data` | Solicita exclusão de dados               |
+
+### Processo de Exclusão
+
+1. Usuário solicita exclusão
+2. Sistema cria registro em `data_deletion_requests`
+3. Prazo legal: 72 horas
+4. Job processa e remove:
+   - Links do usuário (hard delete)
+   - Eventos de analytics associados
+   - Dados de autenticação
+5. Confirmação enviada por email
+
+---
+
+## Autenticação (Better-Auth)
+
+### Plugins Ativos
+
+| Plugin      | Função                                |
+| ----------- | ------------------------------------- |
+| `twoFactor` | TOTP obrigatório para admins          |
+| `admin`     | Gestão de usuários (ban, roles)       |
+| `apiKey`    | Acesso programático via `x-api-key`   |
+| `openAPI`   | Documentação em `/api/auth/reference` |
+
+### Provedores OAuth
+
+- Email/Password (com verificação)
+- Google
+- GitHub
+
+### API Keys
+
+```http
+GET /api/v1/links
+x-api-key: urlfy_sk_live_abc123...
+```
+
+---
+
+## Alertas de Segurança
+
+Configurados no SigNoz:
+
+| Alerta           | Condição                        | Ação                  |
+| ---------------- | ------------------------------- | --------------------- |
+| Brute Force      | > 50 falhas de login/IP em 5min | Block IP + alerta     |
+| API Abuse        | > 1000 req/min por API key      | Throttle + alerta     |
+| Suspicious Link  | Link reportado 3+ vezes         | Review queue + alerta |
+| Failed Deletions | LGPD deadline em 12h            | Alerta urgente        |

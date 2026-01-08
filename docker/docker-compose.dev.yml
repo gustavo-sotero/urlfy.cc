@@ -1,0 +1,58 @@
+version: '3.9'
+
+# ═══════════════════════════════════════════════════════════════════
+# DEVELOPMENT OVERRIDE
+# ═══════════════════════════════════════════════════════════════════
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  app:
+    build:
+      target: builder
+    command: ['bun', 'dev']
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ../src:/app/src
+      - ../.env:/app/.env:ro
+    ports:
+      - '3000:3000'
+
+  postgres:
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_PASSWORD=urlfy
+
+  redis:
+    ports:
+      - '6379:6379'
+
+  signoz-frontend:
+    ports:
+      - '3301:3301'
+
+  signoz-otel-collector:
+    ports:
+      - '4317:4317'
+      - '4318:4318'
+
+  # Development-only services
+  postgres-admin:
+    image: dpage/pgadmin4:latest
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@urlfy.cc
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - '5050:80'
+    networks:
+      - urlfy-network
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - '8081:8081'
+    networks:
+      - urlfy-network
