@@ -106,9 +106,24 @@ export interface AdminContext extends RequireAuthContext {
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * API key permissions
+ * API key permissions (input - optional fields)
  */
 export interface ApiKeyPermissions {
+  links?: {
+    create?: boolean;
+    read?: boolean;
+    update?: boolean;
+    delete?: boolean;
+  };
+  analytics?: {
+    read?: boolean;
+  };
+}
+
+/**
+ * Normalized API key permissions (all fields required)
+ */
+export interface NormalizedApiKeyPermissions {
   links: {
     create: boolean;
     read: boolean;
@@ -127,7 +142,7 @@ export interface PublicApiKey {
   id: string;
   name: string;
   keyPrefix: string;
-  permissions: ApiKeyPermissions;
+  permissions: NormalizedApiKeyPermissions;
   rateLimit: number;
   lastUsedAt: Date | null;
   usageCount: number;
@@ -161,7 +176,7 @@ export interface ApiKeyContext {
   apiKey: {
     id: string;
     name: string;
-    permissions: ApiKeyPermissions;
+    permissions: NormalizedApiKeyPermissions;
     rateLimit: number;
   };
   isAuthenticated: true;

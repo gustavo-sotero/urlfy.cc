@@ -88,42 +88,64 @@ export function ConsentBanner() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+    <div
+      className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background shadow-lg"
+      role="dialog"
+      aria-labelledby="consent-title"
+      aria-describedby="consent-description"
+    >
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3
+              id="consent-title"
+              className="mb-2 text-lg font-semibold text-foreground"
+            >
               Preferências de Privacidade
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p
+              id="consent-description"
+              className="mb-4 text-sm text-muted-foreground"
+            >
               Usamos cookies e rastreamento para melhorar sua experiência. Você
               pode aceitar tudo, rejeitar tudo ou personalizar suas
               preferências. Leia nossa{" "}
               <a
                 href="/privacy"
-                className="text-blue-600 hover:text-blue-700 underline"
+                className="text-primary underline hover:text-primary/80"
               >
                 política de privacidade
               </a>
               .
             </p>
 
-            <div className="space-y-2 text-sm text-gray-600">
-              <label className="flex items-center gap-2 cursor-pointer">
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   defaultChecked
                   disabled
-                  className="w-4 h-4"
+                  className="h-4 w-4"
+                  aria-describedby="essential-hint"
                 />
                 <span>Cookies Essenciais (obrigatório)</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" defaultChecked className="w-4 h-4" />
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  defaultChecked
+                  className="h-4 w-4"
+                  aria-label="Analytics anônimo"
+                />
                 <span>Analytics (anônimo)</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" defaultChecked className="w-4 h-4" />
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  defaultChecked
+                  className="h-4 w-4"
+                  aria-label="Marketing"
+                />
                 <span>Marketing</span>
               </label>
             </div>
@@ -132,14 +154,14 @@ export function ConsentBanner() {
           <button
             type="button"
             onClick={() => setShowBanner(false)}
-            className="text-gray-400 hover:text-gray-500 shrink-0"
-            aria-label="Close"
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+            aria-label="Fechar banner de consentimento"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-3 justify-end">
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
           <Button
             variant="outline"
             onClick={handleOpenSettings}
@@ -156,11 +178,7 @@ export function ConsentBanner() {
             Rejeitar Tudo
           </Button>
 
-          <Button
-            onClick={handleAcceptAll}
-            disabled={isLoading}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
+          <Button onClick={handleAcceptAll} disabled={isLoading}>
             {isLoading ? "Salvando..." : "Aceitar Tudo"}
           </Button>
         </div>

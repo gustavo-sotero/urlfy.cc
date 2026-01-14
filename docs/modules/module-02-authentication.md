@@ -1510,38 +1510,38 @@ describe('Auth API', () => {
 
 ### Fase 1: Core (Obrigatório)
 
-- [ ] Configurar Better-Auth com Drizzle adapter
-- [ ] Implementar schemas de banco (users, sessions, accounts)
-- [ ] Configurar Email/Password authentication
-- [ ] Implementar middleware de autenticação
-- [ ] Testar fluxo de registro e login
+- [x] Configurar Better-Auth com Drizzle adapter
+- [x] Implementar schemas de banco (users, sessions, accounts)
+- [x] Configurar Email/Password authentication
+- [x] Implementar middleware de autenticação
+- [x] Testar fluxo de registro e login
 
 ### Fase 2: OAuth
 
-- [ ] Configurar Google OAuth
-- [ ] Configurar GitHub OAuth
-- [ ] Testar linking de contas
+- [x] Configurar Google OAuth
+- [x] Configurar GitHub OAuth
+- [x] Testar linking de contas
 
 ### Fase 3: Two-Factor
 
-- [ ] Implementar plugin twoFactor
-- [ ] Configurar obrigatoriedade para admins
-- [ ] Implementar backup codes
-- [ ] Testar fluxo completo de 2FA
+- [x] Implementar plugin twoFactor
+- [x] Configurar obrigatoriedade para admins
+- [x] Implementar backup codes
+- [x] Testar fluxo completo de 2FA
 
 ### Fase 4: API Keys
 
-- [ ] Implementar plugin apiKey
-- [ ] Criar endpoints de gestão
-- [ ] Implementar rate limiting por key
-- [ ] Testar autenticação via API key
+- [x] Implementar plugin apiKey
+- [x] Criar endpoints de gestão
+- [x] Implementar rate limiting por key
+- [x] Testar autenticação via API key
 
 ### Fase 5: Admin & Compliance
 
-- [ ] Implementar rotas de admin
-- [ ] Criar endpoint de export de dados (LGPD)
-- [ ] Implementar solicitação de exclusão
-- [ ] Configurar audit logs
+- [x] Implementar rotas de admin
+- [x] Criar endpoint de export de dados (LGPD)
+- [x] Implementar solicitação de exclusão
+- [x] Configurar audit logs
 
 ---
 

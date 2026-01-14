@@ -4,6 +4,7 @@
 import { Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 import { QueryError } from "@/components/query-error";
 import { LinkCard } from "@/components/shared/link-card";
 import { LinkListSkeleton } from "@/components/shared/link-card-skeleton";
@@ -27,8 +28,14 @@ export default function LinksPage() {
     if (confirm("Tem certeza que deseja deletar este link?")) {
       try {
         await deleteLink.mutateAsync(id);
+        toast.success("Link deletado com sucesso");
       } catch (error) {
         console.error("Failed to delete link:", error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Erro ao deletar link. Tente novamente.",
+        );
       }
     }
   };

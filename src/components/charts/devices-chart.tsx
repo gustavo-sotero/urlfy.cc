@@ -1,19 +1,20 @@
 // src/components/charts/devices-chart.tsx
-'use client';
+"use client";
 
+import { useMemo } from "react";
 import {
   Cell,
   Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
-  Tooltip
-} from 'recharts';
+  Tooltip,
+} from "recharts";
 
 const COLORS = {
-  desktop: 'hsl(var(--chart-1))',
-  mobile: 'hsl(var(--chart-2))',
-  tablet: 'hsl(var(--chart-3))'
+  desktop: "hsl(var(--chart-1))",
+  mobile: "hsl(var(--chart-2))",
+  tablet: "hsl(var(--chart-3))",
 };
 
 interface Props {
@@ -21,18 +22,28 @@ interface Props {
 }
 
 export function DevicesChart({ data }: Props) {
-  const chartData = data.map((item) => ({
-    name:
-      item.type === 'desktop'
-        ? 'Desktop'
-        : item.type === 'mobile'
-        ? 'Mobile'
-        : 'Tablet',
-    value: item.clicks
-  }));
+  // Memoize chart data transformation
+  const chartData = useMemo(
+    () =>
+      data.map((item) => ({
+        name:
+          item.type === "desktop"
+            ? "Desktop"
+            : item.type === "mobile"
+              ? "Mobile"
+              : "Tablet",
+        value: item.clicks,
+        type: item.type,
+      })),
+    [data],
+  );
 
   return (
-    <div className="h-[250px]">
+    <div
+      className="h-62.5"
+      role="img"
+      aria-label="Gráfico de distribuição por dispositivo"
+    >
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -47,12 +58,11 @@ export function DevicesChart({ data }: Props) {
             fill="hsl(var(--primary))"
             dataKey="value"
           >
-            {chartData.map((_entry, index) => (
+            {chartData.map((entry) => (
               <Cell
-                key={`cell-${index}`}
+                key={`cell-${entry.type}`}
                 fill={
-                  COLORS[data[index]?.type as keyof typeof COLORS] ??
-                  COLORS.desktop
+                  COLORS[entry.type as keyof typeof COLORS] ?? COLORS.desktop
                 }
               />
             ))}

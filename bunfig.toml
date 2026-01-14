@@ -1,0 +1,22 @@
+# Bun configuration file
+# See: https://bun.sh/docs/runtime/bunfig
+
+[test]
+# Preload test setup file
+preload = ["./tests/setup.ts"]
+
+# Test timeout (in milliseconds) - default is 5000
+timeout = 10000
+
+# Coverage configuration
+coverage = false
+coverageDir = "coverage"
+
+# Reporter
+#reporter = "spec"
+
+# Retry failed tests
+retry = 0
+
+# Bail on first failure (useful for CI)
+bail = false

@@ -2,7 +2,6 @@
 
 import { createHash } from "node:crypto";
 import { Elysia, t } from "elysia";
-import type { CreateLinkInput } from "@/types/links.types";
 
 import { handleLinkError } from "../../../lib/errors";
 import {
@@ -52,19 +51,155 @@ const publicRoutes = new Elysia()
     },
   )
   // ═══════════════════════════════════════════════════════════════
+  // POST /links/by-code/:code/verify-password - Verificar senha de link protegido
+  // ═══════════════════════════════════════════════════════════════
+  .post(
+    "/by-code/:code/verify-password",
+    async ({ params, body, set }) => {
+      try {
+        const isValid = await linkService.verifyLinkPassword(
+          params.code,
+          body.password,
+        );
+
+        if (!isValid) {
+          set.status = 401;
+          return {
+            success: false,
+            error: {
+              code: "INVALID_PASSWORD",
+              message: "Senha incorreta",
+            },
+          };
+        }
+
+        // Retorna URL para redirect
+        const shortUrl = `${process.env.PUBLIC_URL || "https://urlfy.cc"}/${
+          params.code
+        }`;
+        return {
+          success: true,
+          data: {
+            redirectUrl: `/${params.code}`,
+            shortUrl,
+          },
+        };
+      } catch (error) {
+        return handleLinkError(error);
+      }
+    },
+    {
+      params: t.Object({
+        code: t.String({ minLength: 1, maxLength: 20 }),
+      }),
+      body: t.Object({
+        password: t.String({ minLength: 1 }),
+      }),
+    },
+  )
+  // ═══════════════════════════════════════════════════════════════
+  // GET /links/by-code/:code/qr - Gerar QR Code (público)
+  // ═══════════════════════════════════════════════════════════════
+  .get(
+    "/by-code/:code/qr",
+    async ({ params, query, set }) => {
+      try {
+        const link = await linkService.getLinkByCode(params.code);
+        if (!link) {
+          set.status = 404;
+          return {
+            success: false,
+            error: {
+              code: "LINK_NOT_FOUND",
+              message: "Link não encontrado",
+            },
+          };
+        }
+
+        const size = qrService.validateQRSize(
+          query.size ? parseInt(query.size, 10) : 200,
+        );
+        const format = qrService.validateQRFormat(query.format || "png");
+
+        const shortUrl = `${process.env.PUBLIC_URL || "https://urlfy.cc"}/${
+          params.code
+        }`;
+        const qrCode = await qrService.generateQRCode(
+          shortUrl,
+          params.code,
+          size,
+          format,
+        );
+
+        set.headers["Content-Type"] =
+          format === "svg" ? "image/svg+xml" : "image/png";
+        set.headers["Cache-Control"] = "public, max-age=86400";
+
+        return qrCode;
+      } catch (error) {
+        return handleLinkError(error);
+      }
+    },
+    {
+      params: t.Object({
+        code: t.String(),
+      }),
+      query: t.Object({
+        size: t.Optional(t.String()),
+        format: t.Optional(t.Union([t.Literal("png"), t.Literal("svg")])),
+      }),
+    },
+  )
+  // ═══════════════════════════════════════════════════════════════
+  // GET /links/by-code/:code/preview - Preview de link (público)
+  // ═══════════════════════════════════════════════════════════════
+  .get(
+    "/by-code/:code/preview",
+    async ({ params, set }) => {
+      try {
+        const link = await linkService.getLinkByCode(params.code);
+        if (!link) {
+          set.status = 404;
+          return {
+            success: false,
+            error: {
+              code: "LINK_NOT_FOUND",
+              message: "Link não encontrado",
+            },
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            shortCode: link.shortCode,
+            originalUrl: link.originalUrl,
+            metaTitle: link.metaTitle,
+            metaDescription: link.metaDescription,
+            metaImage: link.metaImage,
+            createdAt: link.createdAt.toISOString(),
+            isPasswordProtected: !!link.passwordHash,
+          },
+        };
+      } catch (error) {
+        return handleLinkError(error);
+      }
+    },
+    {
+      params: t.Object({
+        code: t.String(),
+      }),
+    },
+  )
+  // ═══════════════════════════════════════════════════════════════
   // POST /links - Criar link (guest ou autenticado)
   // ═══════════════════════════════════════════════════════════════
   .post(
     "/",
-    async ({
-      body,
-      headers,
-      user,
-    }: {
-      body: CreateLinkInput;
-      headers: Record<string, string | undefined>;
-      user?: { id: string };
-    }) => {
+    async (ctx) => {
+      const { body, headers, user } = ctx as typeof ctx & {
+        user: { id: string } | null;
+      };
       try {
         // Verificar idempotency key
         const idempotencyKey = headers["idempotency-key"];
@@ -81,7 +216,7 @@ const publicRoutes = new Elysia()
 
           const cached = await checkIdempotency(idempotencyKey);
           if (cached) {
-            const link = await linkService.getLinkById(cached, user?.id || "");
+            const link = await linkService.getLinkById(cached, user?.id ?? "");
             return {
               success: true,
               data: linkService.formatLinkResponse(link),
@@ -95,7 +230,11 @@ const publicRoutes = new Elysia()
         const ipHash = createHash("sha256").update(clientIp).digest("hex");
 
         // Criar link
-        const link = await linkService.createLink(body, user?.id, ipHash);
+        const link = await linkService.createLink(
+          body,
+          user?.id ?? undefined,
+          ipHash,
+        );
 
         // Armazenar idempotency se fornecida
         if (idempotencyKey) {
@@ -468,88 +607,20 @@ const authenticatedRoutes = new Elysia()
   )
 
   // ═══════════════════════════════════════════════════════════════
-  // GET /links/:code/qr - Gerar QR Code
+  // GET /links/:id/stats - Stats rápidas do link
   // ═══════════════════════════════════════════════════════════════
   .get(
-    "/:code/qr",
-    async ({ params, query, set }) => {
+    "/:id/stats",
+    async (ctx) => {
+      const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
-        const link = await linkService.getLinkByCode(params.code);
-        if (!link) {
-          set.status = 404;
-          return {
-            success: false,
-            error: {
-              code: "LINK_NOT_FOUND",
-              message: "Link não encontrado",
-            },
-          };
-        }
-
-        const size = qrService.validateQRSize(
-          query.size ? parseInt(query.size, 10) : 200,
-        );
-        const format = qrService.validateQRFormat(query.format || "png");
-
-        const shortUrl = `${process.env.PUBLIC_URL || "https://urlfy.cc"}/${
-          params.code
-        }`;
-        const qrCode = await qrService.generateQRCode(
-          shortUrl,
-          params.code,
-          size,
-          format,
-        );
-
-        set.headers["Content-Type"] =
-          format === "svg" ? "image/svg+xml" : "image/png";
-        set.headers["Cache-Control"] = "public, max-age=86400";
-
-        return qrCode;
-      } catch (error) {
-        return handleLinkError(error);
-      }
-    },
-    {
-      params: t.Object({
-        code: t.String(),
-      }),
-      query: t.Object({
-        size: t.Optional(t.String()),
-        format: t.Optional(t.Union([t.Literal("png"), t.Literal("svg")])),
-      }),
-    },
-  )
-
-  // ═══════════════════════════════════════════════════════════════
-  // GET /links/:code/preview - Preview de link (público)
-  // ═══════════════════════════════════════════════════════════════
-  .get(
-    "/:code/preview",
-    async ({ params }) => {
-      try {
-        const link = await linkService.getLinkByCode(params.code);
-        if (!link) {
-          return {
-            success: false,
-            error: {
-              code: "LINK_NOT_FOUND",
-              message: "Link não encontrado",
-            },
-            status: 404,
-          };
-        }
-
+        const link = await linkService.getLinkById(params.id, user.id);
         return {
           success: true,
           data: {
-            shortCode: link.shortCode,
-            originalUrl: link.originalUrl,
-            metaTitle: link.metaTitle,
-            metaDescription: link.metaDescription,
-            metaImage: link.metaImage,
-            createdAt: link.createdAt.toISOString(),
-            isPasswordProtected: !!link.passwordHash,
+            clicks: link.clicksCount,
+            uniqueVisitors: link.clicksCount, // TODO: Implement unique visitor tracking
+            lastClickedAt: link.lastClickedAt?.toISOString() ?? null,
           },
         };
       } catch (error) {
@@ -558,7 +629,7 @@ const authenticatedRoutes = new Elysia()
     },
     {
       params: t.Object({
-        code: t.String(),
+        id: t.String(),
       }),
     },
   );

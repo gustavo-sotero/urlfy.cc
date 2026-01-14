@@ -9,27 +9,13 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, isNull } from "drizzle-orm";
-import { Elysia, t } from "elysia";
-import { nanoid } from "nanoid";
-import { db } from "@/db";
-import { apiKey as apiKeyTable } from "@/db/schema/auth";
-import { requireAuth } from "@/server/middleware/auth.middleware";
-
-// ═══════════════════════════════════════════════════════════════════
-// TYPES
-// ═══════════════════════════════════════════════════════════════════
-interface ApiKeyPermissions {
-  links?: {
-    create?: boolean;
-    read?: boolean;
-    update?: boolean;
-    delete?: boolean;
-  };
-  analytics?: {
-    read?: boolean;
-  };
-}
+import { db } from '@/db';
+import { apiKey as apiKeyTable } from '@/db/schema/auth';
+import { requireAuth } from '@/server/middleware/auth.middleware';
+import type { ApiKeyPermissions } from '@/types/auth.types';
+import { and, desc, eq, isNull } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
+import { nanoid } from 'nanoid';
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPER: GENERATE API KEY
@@ -37,7 +23,7 @@ interface ApiKeyPermissions {
 async function generateApiKey(
   userId: string,
   name: string,
-  permissions: ApiKeyPermissions,
+  permissions: ApiKeyPermissions
 ) {
   // Generate the actual API key: urlfy_sk_<32 random chars>
   const key = `urlfy_sk_${nanoid(32)}`;
@@ -48,11 +34,11 @@ async function generateApiKey(
   // Hash the full key for storage (SHA-256)
   const encoder = new TextEncoder();
   const data = encoder.encode(key);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const keyHash = hashArray
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 
   // Normalize permissions to ensure all required fields are present
   const normalizedPermissions = {
@@ -60,11 +46,11 @@ async function generateApiKey(
       create: permissions.links?.create ?? false,
       read: permissions.links?.read ?? false,
       update: permissions.links?.update ?? false,
-      delete: permissions.links?.delete ?? false,
+      delete: permissions.links?.delete ?? false
     },
     analytics: {
-      read: permissions.analytics?.read ?? false,
-    },
+      read: permissions.analytics?.read ?? false
+    }
   };
 
   const [created] = await db
@@ -73,15 +59,19 @@ async function generateApiKey(
       id: nanoid(),
       userId,
       name,
+      // Never store the plaintext key in the database.
+      // Store hashes only; the plaintext is returned once to the caller.
+      key: keyHash,
       keyHash,
       keyPrefix,
-      permissions: normalizedPermissions,
-      rateLimit: 1000,
+      permissions: JSON.stringify(normalizedPermissions),
+      rateLimit: true,
+      rateLimitMax: 1000,
       lastUsedAt: null,
       usageCount: 0,
       expiresAt: null,
       revokedAt: null,
-      deletedAt: null,
+      deletedAt: null
     })
     .returning();
 
@@ -91,14 +81,14 @@ async function generateApiKey(
 // ═══════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════
-export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
+export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
   .use(requireAuth)
 
   // ───────────────────────────────────────────────────────────────────
   // LIST API KEYS
   // ───────────────────────────────────────────────────────────────────
   .get(
-    "/",
+    '/',
     async (context) => {
       const { user } = context as typeof context & {
         user: { id: string };
@@ -111,34 +101,34 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
           permissions: apiKeyTable.permissions,
           lastUsedAt: apiKeyTable.lastUsedAt,
           usageCount: apiKeyTable.usageCount,
-          createdAt: apiKeyTable.createdAt,
+          createdAt: apiKeyTable.createdAt
         })
         .from(apiKeyTable)
         .where(
-          and(eq(apiKeyTable.userId, user.id), isNull(apiKeyTable.deletedAt)),
+          and(eq(apiKeyTable.userId, user.id), isNull(apiKeyTable.deletedAt))
         )
         .orderBy(desc(apiKeyTable.createdAt));
 
       return {
         success: true,
-        data: keys,
+        data: keys
       };
     },
     {
       detail: {
-        tags: ["API Keys"],
-        summary: "List API keys",
+        tags: ['API Keys'],
+        summary: 'List API keys',
         description:
-          "Get all API keys for the current user (keys are never returned)",
-      },
-    },
+          'Get all API keys for the current user (keys are never returned)'
+      }
+    }
   )
 
   // ───────────────────────────────────────────────────────────────────
   // CREATE API KEY
   // ───────────────────────────────────────────────────────────────────
   .post(
-    "/",
+    '/',
     async (context) => {
       const { user, body } = context as typeof context & {
         user: { id: string };
@@ -151,7 +141,7 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
       const { created, plainKey } = await generateApiKey(
         user.id,
         body.name,
-        body.permissions || {},
+        body.permissions || {}
       );
 
       return {
@@ -162,8 +152,8 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
           key: plainKey,
           permissions: created.permissions,
           createdAt: created.createdAt,
-          warning: "⚠️ Save this key securely. It will not be shown again.",
-        },
+          warning: '⚠️ Save this key securely. It will not be shown again.'
+        }
       };
     },
     {
@@ -176,36 +166,36 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
                 create: t.Optional(t.Boolean()),
                 read: t.Optional(t.Boolean()),
                 update: t.Optional(t.Boolean()),
-                delete: t.Optional(t.Boolean()),
-              }),
+                delete: t.Optional(t.Boolean())
+              })
             ),
             analytics: t.Optional(
               t.Object({
-                read: t.Optional(t.Boolean()),
-              }),
-            ),
-          }),
-        ),
+                read: t.Optional(t.Boolean())
+              })
+            )
+          })
+        )
       }),
       detail: {
-        tags: ["API Keys"],
-        summary: "Create API key",
+        tags: ['API Keys'],
+        summary: 'Create API key',
         description:
-          "Generate a new API key with specified permissions. The key is only shown once.",
-      },
-    },
+          'Generate a new API key with specified permissions. The key is only shown once.'
+      }
+    }
   )
 
   // ───────────────────────────────────────────────────────────────────
   // UPDATE API KEY (name/permissions only)
   // ───────────────────────────────────────────────────────────────────
   .patch(
-    "/:keyId",
+    '/:keyId',
     async (context) => {
       const {
         user,
         params: { keyId },
-        body,
+        body
       } = context as typeof context & {
         user: { id: string };
         params: { keyId: string };
@@ -222,11 +212,11 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
               create: body.permissions.links?.create ?? false,
               read: body.permissions.links?.read ?? false,
               update: body.permissions.links?.update ?? false,
-              delete: body.permissions.links?.delete ?? false,
+              delete: body.permissions.links?.delete ?? false
             },
             analytics: {
-              read: body.permissions.analytics?.read ?? false,
-            },
+              read: body.permissions.analytics?.read ?? false
+            }
           }
         : undefined;
 
@@ -234,14 +224,16 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
         .update(apiKeyTable)
         .set({
           name: body.name,
-          permissions: normalizedPermissions,
+          permissions: normalizedPermissions
+            ? JSON.stringify(normalizedPermissions)
+            : undefined
         })
         .where(
           and(
             eq(apiKeyTable.id, keyId),
             eq(apiKeyTable.userId, user.id),
-            isNull(apiKeyTable.deletedAt),
-          ),
+            isNull(apiKeyTable.deletedAt)
+          )
         )
         .returning();
 
@@ -249,9 +241,9 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
         return {
           success: false,
           error: {
-            code: "API_KEY_NOT_FOUND",
-            message: "API key not found",
-          },
+            code: 'API_KEY_NOT_FOUND',
+            message: 'API key not found'
+          }
         };
       }
 
@@ -261,13 +253,13 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
           id: updated.id,
           name: updated.name,
           permissions: updated.permissions,
-          updatedAt: updated.updatedAt,
-        },
+          updatedAt: updated.updatedAt
+        }
       };
     },
     {
       params: t.Object({
-        keyId: t.String(),
+        keyId: t.String()
       }),
       body: t.Object({
         name: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
@@ -278,35 +270,35 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
                 create: t.Optional(t.Boolean()),
                 read: t.Optional(t.Boolean()),
                 update: t.Optional(t.Boolean()),
-                delete: t.Optional(t.Boolean()),
-              }),
+                delete: t.Optional(t.Boolean())
+              })
             ),
             analytics: t.Optional(
               t.Object({
-                read: t.Optional(t.Boolean()),
-              }),
-            ),
-          }),
-        ),
+                read: t.Optional(t.Boolean())
+              })
+            )
+          })
+        )
       }),
       detail: {
-        tags: ["API Keys"],
-        summary: "Update API key",
+        tags: ['API Keys'],
+        summary: 'Update API key',
         description:
-          "Update API key name or permissions (key itself cannot be changed)",
-      },
-    },
+          'Update API key name or permissions (key itself cannot be changed)'
+      }
+    }
   )
 
   // ───────────────────────────────────────────────────────────────────
   // DELETE API KEY (soft delete)
   // ───────────────────────────────────────────────────────────────────
   .delete(
-    "/:keyId",
+    '/:keyId',
     async (context) => {
       const {
         user,
-        params: { keyId },
+        params: { keyId }
       } = context as typeof context & {
         user: { id: string };
         params: { keyId: string };
@@ -315,14 +307,14 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
       const [deleted] = await db
         .update(apiKeyTable)
         .set({
-          deletedAt: new Date(),
+          deletedAt: new Date()
         })
         .where(
           and(
             eq(apiKeyTable.id, keyId),
             eq(apiKeyTable.userId, user.id),
-            isNull(apiKeyTable.deletedAt),
-          ),
+            isNull(apiKeyTable.deletedAt)
+          )
         )
         .returning();
 
@@ -330,27 +322,27 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
         return {
           success: false,
           error: {
-            code: "API_KEY_NOT_FOUND",
-            message: "API key not found",
-          },
+            code: 'API_KEY_NOT_FOUND',
+            message: 'API key not found'
+          }
         };
       }
 
       return {
         success: true,
         data: {
-          message: "API key deleted successfully",
-        },
+          message: 'API key deleted successfully'
+        }
       };
     },
     {
       params: t.Object({
-        keyId: t.String(),
+        keyId: t.String()
       }),
       detail: {
-        tags: ["API Keys"],
-        summary: "Delete API key",
-        description: "Soft delete an API key (revokes access immediately)",
-      },
-    },
+        tags: ['API Keys'],
+        summary: 'Delete API key',
+        description: 'Soft delete an API key (revokes access immediately)'
+      }
+    }
   );

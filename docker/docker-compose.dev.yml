@@ -22,7 +22,7 @@ services:
     ports:
       - '5432:5432'
     environment:
-      - POSTGRES_PASSWORD=urlfy
+      POSTGRES_PASSWORD: urlfy
 
   redis:
     ports:

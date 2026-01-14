@@ -1,0 +1,1 @@
+CREATE INDEX "idx_links_validation" ON "links" USING btree ("is_active","is_banned","expires_at");

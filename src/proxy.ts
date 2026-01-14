@@ -1,4 +1,4 @@
-// src/middleware.ts
+// src/proxy.ts
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -49,10 +49,10 @@ export const config = {
 };
 
 /**
- * Next.js Middleware principal
- * Intercepta todas as requests e decide se é um short code ou rota do sistema
+ * Next.js Proxy function (renamed from middleware in Next.js 16)
+ * Intercepts all requests and decides if it's a short code or system route
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Verifica se é rota excluída

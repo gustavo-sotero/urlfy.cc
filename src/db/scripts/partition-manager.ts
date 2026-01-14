@@ -116,11 +116,14 @@ export class PartitionManager {
           endDate,
         });
 
-        await db.execute(sql`
-          CREATE TABLE ${sql.identifier(partitionName)}
-          PARTITION OF ${sql.identifier(this.tableName)}
-          FOR VALUES FROM ('${startDate}') TO ('${endDate}');
-        `);
+        // Use sql.raw for proper date string escaping in partition bounds
+        await db.execute(
+          sql.raw(`
+            CREATE TABLE IF NOT EXISTS "${partitionName}"
+            PARTITION OF "${this.tableName}"
+            FOR VALUES FROM ('${startDate}') TO ('${endDate}')
+          `),
+        );
 
         // Cria índices locais na partição
         await this.createPartitionIndexes(partitionName);
@@ -164,7 +167,7 @@ export class PartitionManager {
           );
 
           await db.execute(
-            sql`DROP TABLE IF EXISTS ${sql.identifier(partition.name)} CASCADE;`,
+            sql.raw(`DROP TABLE IF EXISTS "${partition.name}" CASCADE`),
           );
 
           logger.info(

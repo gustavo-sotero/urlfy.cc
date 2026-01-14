@@ -1329,24 +1329,24 @@ curl http://localhost:3000/api/v1/health/ready
 
 | Item | Descrição                                        | Status |
 | ---- | ------------------------------------------------ | ------ |
-| 1.1  | Criar `docker-compose.yml` com todos os serviços | ⬜     |
-| 1.2  | Criar `Dockerfile` multi-stage                   | ⬜     |
-| 1.3  | Configurar conexão PostgreSQL com Bun SQL        | ⬜     |
-| 1.4  | Configurar Drizzle ORM e migrações               | ⬜     |
-| 1.5  | Configurar cliente Redis com Bun.redis           | ⬜     |
-| 1.6  | Setup BullMQ com Dead Letter Queue               | ⬜     |
-| 1.7  | Integrar OpenTelemetry com SigNoz                | ⬜     |
-| 1.8  | Implementar logger estruturado                   | ⬜     |
-| 1.9  | Configurar métricas customizadas                 | ⬜     |
-| 1.10 | Setup MaxMind GeoIP com container geoipupdate    | ⬜     |
-| 1.11 | Implementar `/api/v1/health`                     | ⬜     |
-| 1.12 | Implementar `/api/v1/health/ready`               | ⬜     |
-| 1.13 | Implementar `/api/v1/health/detailed`            | ⬜     |
-| 1.14 | Configurar script de backup automático           | ⬜     |
-| 1.15 | Documentar procedimento de restore               | ⬜     |
-| 1.16 | Configurar alertas no SigNoz                     | ⬜     |
-| 1.17 | Testar `docker-compose up` completo              | ⬜     |
-| 1.18 | Validar health checks de todos os containers     | ⬜     |
+| 1.1  | Criar `docker-compose.yml` com todos os serviços | ✅     |
+| 1.2  | Criar `Dockerfile` multi-stage                   | ✅     |
+| 1.3  | Configurar conexão PostgreSQL com Bun SQL        | ✅     |
+| 1.4  | Configurar Drizzle ORM e migrações               | ✅     |
+| 1.5  | Configurar cliente Redis com ioredis             | ✅     |
+| 1.6  | Setup BullMQ com Dead Letter Queue               | ✅     |
+| 1.7  | Integrar OpenTelemetry com SigNoz                | ✅     |
+| 1.8  | Implementar logger estruturado                   | ✅     |
+| 1.9  | Configurar métricas customizadas                 | ✅     |
+| 1.10 | Setup MaxMind GeoIP com container geoipupdate    | ✅     |
+| 1.11 | Implementar `/api/v1/health`                     | ✅     |
+| 1.12 | Implementar `/api/v1/health/ready`               | ✅     |
+| 1.13 | Implementar `/api/v1/health/detailed`            | ✅     |
+| 1.14 | Configurar script de backup automático           | ✅     |
+| 1.15 | Documentar procedimento de restore               | ✅     |
+| 1.16 | Configurar alertas no SigNoz                     | ✅     |
+| 1.17 | Testar `docker-compose up` completo              | ✅     |
+| 1.18 | Validar health checks de todos os containers     | ✅     |
 
 ### 12.2 Variáveis de Ambiente Necessárias
 

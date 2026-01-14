@@ -30,6 +30,36 @@ import { validateUrl } from "./url-validator";
 const BASE_URL = process.env.PUBLIC_URL || "https://urlfy.cc";
 
 // ═══════════════════════════════════════════════════════════════════
+// PASSWORD VERIFICATION
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Verifica a senha de um link protegido
+ * @param code - Short code do link
+ * @param password - Senha fornecida
+ * @returns true se a senha está correta
+ */
+export async function verifyLinkPassword(
+  code: string,
+  password: string,
+): Promise<boolean> {
+  const link = await getLinkByCode(code);
+
+  if (!link) {
+    throw createLinkError("LINK_NOT_FOUND");
+  }
+
+  if (!link.passwordHash) {
+    // Link não é protegido por senha
+    return true;
+  }
+
+  const isValid = await Bun.password.verify(password, link.passwordHash);
+
+  return isValid;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // CREATE
 // ═══════════════════════════════════════════════════════════════════
 
@@ -425,6 +455,8 @@ export function formatLinkResponse(link: Link): LinkResponse {
     clicksCount: link.clicksCount,
     maxClicks: link.maxClicks,
     isActive: link.isActive,
+    isBanned: link.isBanned,
+    bannedReason: link.bannedReason,
     isProtected: !!link.passwordHash,
     expiresAt: link.expiresAt?.toISOString() ?? null,
     metaTitle: link.metaTitle,

@@ -34,7 +34,10 @@ export function LinkCard({ link, onDelete }: Props) {
   const isMaxed = link.maxClicks !== null && link.clicksCount >= link.maxClicks;
 
   return (
-    <Card className="p-4 transition-shadow hover:shadow-md">
+    <Card
+      className="p-4 transition-shadow hover:shadow-md"
+      data-testid={`link-card-${link.shortCode}`}
+    >
       <div className="space-y-3">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
@@ -65,7 +68,7 @@ export function LinkCard({ link, onDelete }: Props) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label="Opções do link">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>

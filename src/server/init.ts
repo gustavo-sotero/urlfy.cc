@@ -1,4 +1,5 @@
 // Initialize telemetry and validate environment as early as possible
+// NOTE: Console suppression for BullMQ eviction warnings is in instrumentation.ts
 import { validateEnv } from "@/lib/env";
 import { initTelemetry } from "@/server/lib/telemetry";
 import { initializeWorkers, shutdownWorkers } from "@/server/workers";

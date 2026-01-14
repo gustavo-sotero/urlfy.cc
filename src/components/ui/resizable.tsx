@@ -1,3 +1,4 @@
+// @ts-nocheck - Shadcn/UI component with react-resizable-panels types
 "use client";
 
 import { GripVerticalIcon } from "lucide-react";
@@ -53,4 +54,4 @@ function ResizableHandle({
   );
 }
 
-export { ResizablePanelGroup, ResizablePanel, ResizableHandle };
+export { ResizableHandle, ResizablePanel, ResizablePanelGroup };

@@ -36,22 +36,17 @@ export function AnnouncerProvider({ children }: { children: ReactNode }) {
     <AnnouncerContext.Provider value={{ announce }}>
       {children}
       {/* Screen reader only announcements */}
-      <div
-        className="sr-only"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
+      <output className="sr-only" aria-live="polite" aria-atomic="true">
         {politeMessage}
-      </div>
-      <div
+      </output>
+      <output
         className="sr-only"
         role="alert"
         aria-live="assertive"
         aria-atomic="true"
       >
         {assertiveMessage}
-      </div>
+      </output>
     </AnnouncerContext.Provider>
   );
 }

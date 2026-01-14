@@ -1,7 +1,7 @@
 // src/components/charts/clicks-chart.tsx
-'use client';
+"use client";
 
-import type { DailyStats } from '@/types/analytics.types';
+import { useMemo } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -10,42 +10,52 @@ import {
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis
-} from 'recharts';
+  YAxis,
+} from "recharts";
+import type { DailyStats } from "@/types/analytics.types";
 
 interface Props {
   data: DailyStats[];
 }
 
 export function ClicksChart({ data }: Props) {
-  const chartData = data.map((item) => ({
-    date: new Date(item.date).toLocaleDateString('pt-BR', {
-      month: 'short',
-      day: 'numeric'
-    }),
-    Cliques: item.clicks,
-    'Visitantes Únicos': item.uniqueVisitors
-  }));
+  // Memoize chart data to prevent unnecessary recalculations
+  const chartData = useMemo(
+    () =>
+      data.map((item) => ({
+        date: new Date(item.date).toLocaleDateString("pt-BR", {
+          month: "short",
+          day: "numeric",
+        }),
+        Cliques: item.clicks,
+        "Visitantes Únicos": item.uniqueVisitors,
+      })),
+    [data],
+  );
 
   return (
-    <div className="h-75">
+    <div
+      className="h-75"
+      role="img"
+      aria-label="Gráfico de cliques ao longo do tempo"
+    >
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis
             dataKey="date"
             className="text-xs"
-            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+            tick={{ fill: "hsl(var(--muted-foreground))" }}
           />
           <YAxis
             className="text-xs"
-            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+            tick={{ fill: "hsl(var(--muted-foreground))" }}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'hsl(var(--card))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '6px'
+              backgroundColor: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "6px",
             }}
           />
           <Legend />
@@ -55,6 +65,7 @@ export function ClicksChart({ data }: Props) {
             stroke="hsl(var(--primary))"
             strokeWidth={2}
             dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
           />
           <Line
             type="monotone"
@@ -62,6 +73,7 @@ export function ClicksChart({ data }: Props) {
             stroke="hsl(var(--chart-2))"
             strokeWidth={2}
             dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
           />
         </LineChart>
       </ResponsiveContainer>

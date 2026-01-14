@@ -42,7 +42,7 @@ export const RATE_LIMIT_CONFIGS = {
     perLink: { points: 5000, duration: 60 }, // 5000/min per link
   },
   // QR Code generation
-  "GET /api/v1/links/:code/qr": {
+  "GET /api/v1/links/by-code/:code/qr": {
     guest: { points: 30, duration: 3600 }, // 30/hour
     auth: { points: 120, duration: 3600 }, // 120/hour
   },

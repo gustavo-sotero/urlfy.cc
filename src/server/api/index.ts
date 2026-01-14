@@ -2,6 +2,7 @@ import { swagger } from "@elysiajs/swagger";
 import { Elysia } from "elysia";
 import { auth } from "@/lib/auth";
 import { healthRoutes } from "./health";
+import { adminAuditRoutes } from "./v1/admin/audit";
 import { analyticsRoutes } from "./v1/analytics/index";
 import { apiKeysRoutes } from "./v1/auth/api-keys";
 import { authRoutes } from "./v1/auth/index";
@@ -94,7 +95,9 @@ export const api = new Elysia({ prefix: "/api" })
       .use(userDataRoutes)
       .use(usersRoutes)
       .use(linksRouter)
-      .use(analyticsRoutes),
+      .use(analyticsRoutes)
+      // Admin routes
+      .group("/admin", (admin) => admin.use(adminAuditRoutes)),
   )
 
   .onError(({ code, error, set }) => {

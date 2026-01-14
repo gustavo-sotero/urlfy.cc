@@ -15,17 +15,13 @@ import { db } from "@/db";
 import { analyticsEvents, dataDeletionRequest, links } from "@/db/schema";
 import { user } from "@/db/schema/auth";
 import { recordMetric } from "@/server/lib/metrics";
+import { bullmqConnection } from "@/server/lib/queue";
 import { createLogger } from "@/server/lib/telemetry";
 import { auditLogService } from "@/server/services/audit.service";
 
 const logger = createLogger("deletion-worker");
 
-const connection = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: Number.parseInt(process.env.REDIS_PORT || "6379", 10),
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-};
+const connection = bullmqConnection;
 
 interface DeletionJob {
   requestId: string;

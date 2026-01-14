@@ -85,9 +85,10 @@ class UserAgentService {
 
   /**
    * Mapeia tipo de dispositivo para valores padrão
+   * Retorna "desktop" como default para navegadores sem tipo específico
    */
   private mapDeviceType(type?: string): "desktop" | "mobile" | "tablet" | null {
-    if (!type) return null;
+    if (!type) return "desktop"; // Desktop browsers don't have device type set
 
     switch (type.toLowerCase()) {
       case "mobile":
@@ -99,7 +100,7 @@ class UserAgentService {
       case "wearable":
         return "desktop"; // Agrupar como desktop para simplificar
       default:
-        return null;
+        return "desktop";
     }
   }
 }

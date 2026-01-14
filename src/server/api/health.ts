@@ -2,6 +2,7 @@ import { Elysia } from "elysia";
 import { checkDatabaseHealth } from "@/db";
 import { checkQueueHealth } from "../lib/queue";
 import { checkRedisHealth } from "../lib/redis";
+import { requireAdmin } from "../middleware/auth.middleware";
 
 // ═══════════════════════════════════════════════════════════════════
 // HEALTH CHECK SIMPLES (público)
@@ -63,23 +64,9 @@ const healthReady = new Elysia().get(
 // HEALTH CHECK DETALHADO (admin only)
 // ═══════════════════════════════════════════════════════════════════
 
-const healthDetailed = new Elysia().get(
+const healthDetailed = new Elysia().use(requireAdmin).get(
   "/health/detailed",
-  async ({ set, headers }) => {
-    // TODO: Add proper auth check in Module 2
-    // For now, simple API key check
-    const apiKey = headers["x-api-key"];
-    if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
-      set.status = 401;
-      return {
-        success: false,
-        error: {
-          code: "UNAUTHORIZED",
-          message: "Admin API key required",
-        },
-      };
-    }
-
+  async () => {
     const startTime = performance.now();
 
     const [dbHealth, redisHealth, queueHealth] = await Promise.all([
@@ -127,9 +114,10 @@ const healthDetailed = new Elysia().get(
   {
     detail: {
       summary: "Detailed health check (Admin)",
-      description: "Returns detailed health metrics for all services",
+      description:
+        "Returns detailed health metrics for all services. Requires admin authentication with 2FA enabled.",
       tags: ["Health", "Admin"],
-      security: [{ apiKey: [] }],
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }],
     },
   },
 );

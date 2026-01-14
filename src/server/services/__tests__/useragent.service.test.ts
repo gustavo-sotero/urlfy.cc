@@ -103,7 +103,7 @@ describe("UserAgent Service", () => {
 
       expect(result.browser).toBeNull();
       expect(result.os).toBeNull();
-      expect(result.deviceType).toBeNull();
+      expect(result.deviceType).toBe("desktop"); // Default for unknown/empty
       expect(result.isBot).toBe(false);
     });
 

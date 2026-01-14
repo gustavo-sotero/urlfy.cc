@@ -1,6 +1,6 @@
 // src/components/shared/link-card-skeleton.tsx
-import { Card } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function LinkCardSkeleton() {
   return (
@@ -35,7 +35,7 @@ export function LinkCardSkeleton() {
 export function LinkListSkeleton({ count = 5 }: { count?: number }) {
   return (
     <div className="space-y-4" role="status" aria-label="Carregando links">
-      {Array.from({ length: count }).map((_, i) => (
+      {Array.from({ length: count }, (_, i) => (
         <LinkCardSkeleton key={`link-skeleton-${i}`} />
       ))}
     </div>

@@ -1,3 +1,19 @@
+// src/server/lib/telemetry.ts
+/**
+ * Full OpenTelemetry instrumentation for Node.js runtime
+ *
+ * ⚠️ WARNING: DO NOT import this file in proxy.ts or Edge Runtime code!
+ *
+ * This module uses Node.js-specific APIs that are not available in Edge Runtime.
+ * For middleware, use telemetry.edge.ts instead.
+ *
+ * Usage:
+ * - API routes (app/api/*)
+ * - Server actions
+ * - Background workers
+ * - CLI scripts
+ */
+
 import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
@@ -16,13 +32,23 @@ import {
   SEMRESATTRS_SERVICE_VERSION,
 } from "@opentelemetry/semantic-conventions";
 
-// Habilita debug em desenvolvimento
-if (process.env.NODE_ENV === "development") {
-  diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
+// Only enable telemetry diagnostics for actual errors in development
+// INFO level is too verbose and logs stack traces for logger registration
+if (
+  process.env.NODE_ENV === "development" &&
+  process.env.OTEL_DEBUG === "true"
+) {
+  diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
 }
 
-const OTEL_ENDPOINT =
-  process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "http://localhost:4318";
+const OTEL_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+
+// Check if telemetry is enabled (requires explicit OTEL endpoint or OTEL_ENABLED=true)
+const TELEMETRY_ENABLED =
+  process.env.OTEL_ENABLED === "true" || Boolean(OTEL_ENDPOINT);
+
+// Fallback to localhost if endpoint not set but telemetry is explicitly enabled
+const OTEL_ENDPOINT_URL = OTEL_ENDPOINT || "http://localhost:4318";
 
 // ═══════════════════════════════════════════════════════════════════
 // RESOURCE (Identificação do Serviço)
@@ -35,27 +61,33 @@ const resource = resourceFromAttributes({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// EXPORTERS
+// EXPORTERS (only created if telemetry is enabled)
 // ═══════════════════════════════════════════════════════════════════
 
-const traceExporter = new OTLPTraceExporter({
-  url: `${OTEL_ENDPOINT}/v1/traces`,
-});
+const traceExporter = TELEMETRY_ENABLED
+  ? new OTLPTraceExporter({
+      url: `${OTEL_ENDPOINT_URL}/v1/traces`,
+    })
+  : undefined;
 
-const metricExporter = new OTLPMetricExporter({
-  url: `${OTEL_ENDPOINT}/v1/metrics`,
-});
+const metricExporter = TELEMETRY_ENABLED
+  ? new OTLPMetricExporter({
+      url: `${OTEL_ENDPOINT_URL}/v1/metrics`,
+    })
+  : undefined;
 
-const logExporter = new OTLPLogExporter({
-  url: `${OTEL_ENDPOINT}/v1/logs`,
-});
+const logExporter = TELEMETRY_ENABLED
+  ? new OTLPLogExporter({
+      url: `${OTEL_ENDPOINT_URL}/v1/logs`,
+    })
+  : undefined;
 
 // ═══════════════════════════════════════════════════════════════════
 // LOGGER PROVIDER
 // ═══════════════════════════════════════════════════════════════════
 
 const loggerProvider = new LoggerProvider({ resource });
-if ("addLogRecordProcessor" in loggerProvider) {
+if (logExporter && "addLogRecordProcessor" in loggerProvider) {
   // biome-ignore lint/suspicious/noExplicitAny: API compatibility with OpenTelemetry SDK versions
   (loggerProvider as any).addLogRecordProcessor(
     new BatchLogRecordProcessor(logExporter),
@@ -63,16 +95,20 @@ if ("addLogRecordProcessor" in loggerProvider) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// SDK NODE
+// SDK NODE (only with exporters if telemetry is enabled)
 // ═══════════════════════════════════════════════════════════════════
 
 const sdk = new NodeSDK({
   resource,
   traceExporter,
-  metricReader: new PeriodicExportingMetricReader({
-    exporter: metricExporter,
-    exportIntervalMillis: 60000, // 1 minuto
-  }),
+  metricReaders: metricExporter
+    ? [
+        new PeriodicExportingMetricReader({
+          exporter: metricExporter,
+          exportIntervalMillis: 60000, // 1 minuto
+        }),
+      ]
+    : [],
   instrumentations: [
     getNodeAutoInstrumentations({
       "@opentelemetry/instrumentation-fs": {
@@ -88,7 +124,13 @@ const sdk = new NodeSDK({
 
 export function initTelemetry() {
   sdk.start();
-  console.log("✅ Telemetry initialized");
+  if (TELEMETRY_ENABLED) {
+    console.log(`✅ Telemetry initialized (exporting to ${OTEL_ENDPOINT_URL})`);
+  } else {
+    console.log(
+      "✅ Telemetry initialized (local only - no OTEL_EXPORTER_OTLP_ENDPOINT set)",
+    );
+  }
 }
 
 export async function shutdownTelemetry() {
@@ -117,7 +159,11 @@ export function createLogger(name: string) {
   const logger = loggerProvider.getLogger(name);
 
   const log = (level: string, message: string, ctx?: LogContext) => {
-    const span = trace.getActiveSpan();
+    // Safely get active span (may not exist in test environment)
+    const span =
+      typeof trace?.getActiveSpan === "function"
+        ? trace.getActiveSpan()
+        : undefined;
     const spanContext = span?.spanContext();
 
     const logRecord: Record<string, unknown> = {

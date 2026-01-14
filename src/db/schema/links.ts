@@ -84,6 +84,12 @@ export const links = pgTable(
     index("idx_links_created_at").on(table.createdAt),
     index("idx_links_expires").on(table.expiresAt),
     index("idx_links_tags").on(table.tags),
+    // Validation index for redirect engine (hot path optimization)
+    index("idx_links_validation").on(
+      table.isActive,
+      table.isBanned,
+      table.expiresAt,
+    ),
   ],
 );
 

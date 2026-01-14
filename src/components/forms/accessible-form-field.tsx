@@ -1,10 +1,10 @@
 // src/components/forms/accessible-form-field.tsx
 
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import { AlertCircle } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { AlertCircle } from "lucide-react";
+import type { ReactNode } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface FormFieldProps {
   id: string;
@@ -21,7 +21,7 @@ export function AccessibleFormField({
   error,
   hint,
   required,
-  children
+  children,
 }: FormFieldProps) {
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;

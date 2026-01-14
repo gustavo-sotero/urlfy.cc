@@ -7,6 +7,7 @@ import { analyticsEvents, links } from "@/db/schema";
 import { lookupGeoIP } from "@/server/lib/geoip";
 import { recordMetric } from "@/server/lib/metrics";
 import { hashVisitor } from "@/server/lib/privacy";
+import { bullmqConnection } from "@/server/lib/queue";
 import { createLogger } from "@/server/lib/telemetry";
 import { parseUserAgent } from "@/server/services/useragent.service";
 import { moveToDLQ } from "@/server/workers/dlq.handler";
@@ -14,12 +15,7 @@ import type { ClickEvent } from "@/types/analytics.types";
 
 const logger = createLogger("click-worker");
 
-const connection = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: Number.parseInt(process.env.REDIS_PORT || "6379", 10),
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-};
+const connection = bullmqConnection;
 
 /**
  * Worker para processar eventos de clique

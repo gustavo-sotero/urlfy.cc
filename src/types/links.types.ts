@@ -59,6 +59,8 @@ export interface LinkResponse {
   clicksCount: number;
   maxClicks: number | null;
   isActive: boolean;
+  isBanned: boolean;
+  bannedReason: string | null;
   isProtected: boolean; // true se tem senha
   expiresAt: string | null;
   metaTitle: string | null;

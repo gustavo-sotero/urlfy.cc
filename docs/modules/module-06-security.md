@@ -1253,25 +1253,25 @@ generateSecurityReport();
 
 ## 13. Checklist de Implementação
 
-- [ ] Rate limiting por IP, token e link
-- [ ] Security headers em next.config.ts
-- [ ] CORS configurado para produção
-- [ ] Sanitização de meta tags (DOMPurify)
-- [ ] Validação de URLs com blacklist
-- [ ] Anti-abuse com detecção de anomalias
-- [ ] Audit logs para ações admin
-- [ ] GET /me/export (GDPR export)
-- [ ] DELETE /me/data (GDPR deletion)
-- [ ] Worker de exclusão (72h delay)
-- [ ] Consent banner com integração analytics
-- [ ] Hook useAnalyticsConsent
-- [ ] Testes automatizados de SQL injection
-- [ ] Testes automatizados de XSS
-- [ ] Testes automatizados de SSRF
-- [ ] Testes de rate limiting
-- [ ] Testes de CORS
-- [ ] Testes de security headers
-- [ ] Pipeline CI/CD com Snyk, Semgrep, ZAP
-- [ ] Container scanning com Trivy
-- [ ] Script de relatório de conformidade
-- [ ] Validação em securityheaders.com (A+)
+- [x] Rate limiting por IP, token e link
+- [x] Security headers em next.config.ts
+- [x] CORS configurado para produção
+- [x] Sanitização de meta tags (DOMPurify)
+- [x] Validação de URLs com blacklist
+- [x] Anti-abuse com detecção de anomalias
+- [x] Audit logs para ações admin
+- [x] GET /me/export (GDPR export)
+- [x] DELETE /me/data (GDPR deletion)
+- [x] Worker de exclusão (72h delay)
+- [x] Consent banner com integração analytics
+- [x] Hook useAnalyticsConsent
+- [x] Testes automatizados de SQL injection
+- [x] Testes automatizados de XSS
+- [x] Testes automatizados de SSRF
+- [x] Testes de rate limiting
+- [x] Testes de CORS
+- [x] Testes de security headers
+- [x] Pipeline CI/CD com Snyk, Semgrep, ZAP
+- [x] Container scanning com Trivy
+- [x] Script de relatório de conformidade
+- [ ] Validação em securityheaders.com (A+) - Requer deploy em produção

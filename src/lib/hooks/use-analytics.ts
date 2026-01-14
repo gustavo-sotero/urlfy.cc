@@ -46,31 +46,38 @@ export function useDailyStats(
 
 export function useAnalyticsBreakdown(
   linkId: string,
-  from?: string,
-  to?: string,
-  options?: Omit<UseQueryOptions<AnalyticsBreakdown>, "queryKey" | "queryFn">,
+  options?: Omit<
+    UseQueryOptions<AnalyticsBreakdown>,
+    "queryKey" | "queryFn"
+  > & {
+    from?: string;
+    to?: string;
+  },
 ) {
+  const { from, to, ...queryOptions } = options || {};
   return useQuery({
     queryKey: analyticsKeys.breakdown(linkId, from, to),
     queryFn: () => api.getAnalyticsBreakdown(linkId, { from, to }),
     staleTime: 60_000, // 1 minute
     enabled: !!linkId,
-    ...options,
+    ...queryOptions,
   });
 }
 
 export function useAnalyticsSummary(
   linkId: string,
-  from?: string,
-  to?: string,
-  options?: Omit<UseQueryOptions<AnalyticsSummary>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<AnalyticsSummary>, "queryKey" | "queryFn"> & {
+    from?: string;
+    to?: string;
+  },
 ) {
+  const { from, to, ...queryOptions } = options || {};
   return useQuery({
     queryKey: analyticsKeys.summary(linkId, from, to),
     queryFn: () => api.getAnalyticsSummary(linkId, { from, to }),
     staleTime: 60_000, // 1 minute
     enabled: !!linkId,
-    ...options,
+    ...queryOptions,
   });
 }
 

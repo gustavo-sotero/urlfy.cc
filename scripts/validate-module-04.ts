@@ -76,7 +76,11 @@ validateCategory("Core Implementation Files", [
       "src/server/middleware/redirect.middleware.ts",
       "Redirect Middleware Handler",
     ),
-  () => checkFile("src/middleware.ts", "Next.js Middleware"),
+  () =>
+    checkFile(
+      "src/proxy.ts",
+      "Next.js Proxy (renamed from middleware in Next.js 16)",
+    ),
 ]);
 
 validateCategory("Supporting Libraries", [
@@ -117,8 +121,8 @@ validateCategory("Documentation", [
   () => checkFile("tests/README.md", "Test Documentation"),
   () =>
     checkFile(
-      "docs/modules/module-04-redirect-checklist.md",
-      "Implementation Checklist",
+      "docs/modules/module-04-redirect.md",
+      "Module Documentation (includes checklist)",
     ),
 ]);
 

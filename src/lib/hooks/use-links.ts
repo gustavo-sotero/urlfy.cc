@@ -10,6 +10,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { toast } from "sonner";
 import * as api from "@/lib/api-client";
 import type {
   CreateLinkInput,
@@ -115,10 +116,21 @@ export function useCreateLink(
 
   return useMutation({
     mutationFn: (input: CreateLinkInput) => api.createLink(input),
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Invalidate lists to refetch
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
       queryClient.invalidateQueries({ queryKey: linkKeys.quota() });
+
+      // Show success toast
+      toast.success("Link criado com sucesso!", {
+        description: `Código: ${data.shortCode}`,
+      });
+    },
+    onError: (error) => {
+      // Show error toast
+      toast.error("Erro ao criar link", {
+        description: error.message || "Tente novamente mais tarde",
+      });
     },
     ...options,
   });
@@ -141,6 +153,15 @@ export function useUpdateLink(
       queryClient.setQueryData(linkKeys.detail(data.id), data);
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
+
+      // Show success toast
+      toast.success("Link atualizado com sucesso!");
+    },
+    onError: (error) => {
+      // Show error toast
+      toast.error("Erro ao atualizar link", {
+        description: error.message || "Tente novamente mais tarde",
+      });
     },
     ...options,
   });
@@ -159,6 +180,14 @@ export function useDeleteLink(
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
       queryClient.invalidateQueries({ queryKey: linkKeys.quota() });
+
+      // Success toast is handled in the component to allow undo
+    },
+    onError: (error) => {
+      // Show error toast
+      toast.error("Erro ao deletar link", {
+        description: error.message || "Tente novamente mais tarde",
+      });
     },
     ...options,
   });

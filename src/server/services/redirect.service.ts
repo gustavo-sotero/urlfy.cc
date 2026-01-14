@@ -205,11 +205,12 @@ export class RedirectService {
             span.setAttribute("cache.hit", true);
             cacheHits.add(1, { type: "banned" });
             // Retorna um link "fantasma" para validação retornar BANNED
+            // IMPORTANTE: isActive DEVE ser true para que validateLink chegue na checagem de isBanned
             return {
               id: "banned",
               originalUrl: "",
               redirectType: 302 as const,
-              isActive: false,
+              isActive: true,
               isBanned: true,
               expiresAt: null,
               maxClicks: null,

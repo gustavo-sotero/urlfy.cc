@@ -1,6 +1,6 @@
 // src/components/charts/analytics-skeleton.tsx
-import { Card } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function ChartSkeleton() {
   return (
@@ -17,8 +17,8 @@ export function StatsGridSkeleton() {
       role="status"
       aria-label="Carregando estatísticas"
     >
-      {[...Array(4)].map((_, i) => (
-        <Card key={`stats-skeleton-${i}`} className="p-6">
+      {Array.from({ length: 4 }, (_, i) => (
+        <Card key={`stats-${i}`} className="p-6">
           <Skeleton className="mb-2 h-4 w-20" />
           <Skeleton className="h-8 w-24" />
         </Card>

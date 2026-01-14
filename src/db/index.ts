@@ -4,16 +4,25 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql";
 import * as schema from "./schema";
 
-// Singleton da conexão
-let dbInstance: ReturnType<typeof drizzle> | null = null;
-let sqlConnection: SQL | null = null;
+// Type for the drizzle instance
+type DrizzleDatabase = ReturnType<typeof drizzle>;
 
-export function getDatabase() {
+// Singleton da conexão
+let dbInstance: DrizzleDatabase | null = null;
+let sqlConnection: SQL | null = null;
+let connectionError: Error | null = null;
+
+export function getDatabase(): DrizzleDatabase {
+  if (connectionError) {
+    throw connectionError;
+  }
+
   if (dbInstance) return dbInstance;
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    throw new Error("DATABASE_URL environment variable is not set");
+    connectionError = new Error("DATABASE_URL environment variable is not set");
+    throw connectionError;
   }
 
   try {
@@ -24,12 +33,29 @@ export function getDatabase() {
     console.log("✅ Database connection established (Bun SQL)");
     return dbInstance;
   } catch (error) {
+    connectionError =
+      error instanceof Error
+        ? error
+        : new Error("Failed to connect to database");
     console.error("❌ Failed to connect to database:", error);
-    throw error;
+    throw connectionError;
   }
 }
 
-export const db = getDatabase();
+// Create a proxy that lazily initializes the database connection
+// This allows tests to mock the database before it's actually used
+const dbProxy = new Proxy({} as DrizzleDatabase, {
+  get(_, prop: string) {
+    const database = getDatabase();
+    const value = database[prop as keyof DrizzleDatabase];
+    if (typeof value === "function") {
+      return value.bind(database);
+    }
+    return value;
+  },
+});
+
+export const db = dbProxy;
 
 // Exporta conexão SQL bruta para queries customizadas
 export function getSqlConnection(): SQL {

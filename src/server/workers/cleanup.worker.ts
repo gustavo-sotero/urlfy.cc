@@ -6,16 +6,12 @@ import { db } from "@/db";
 import { analyticsEvents } from "@/db/schema";
 import { PartitionManager } from "@/db/scripts/partition-manager";
 import { recordMetric } from "@/server/lib/metrics";
+import { bullmqConnection } from "@/server/lib/queue";
 import { createLogger } from "@/server/lib/telemetry";
 
 const logger = createLogger("cleanup-worker");
 
-const connection = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: Number.parseInt(process.env.REDIS_PORT || "6379", 10),
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-};
+const connection = bullmqConnection;
 
 const RETENTION_DAYS = 90; // Manter dados por 90 dias
 const partitionManager = new PartitionManager();

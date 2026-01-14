@@ -1,9 +1,14 @@
 // src/components/layout/dashboard-skeleton.tsx
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-6" role="status" aria-label="Carregando dashboard">
+    <div
+      className="space-y-6"
+      role="status"
+      aria-busy="true"
+      aria-label="Carregando dashboard"
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <Skeleton className="h-8 w-48" />
@@ -12,7 +17,7 @@ export function DashboardSkeleton() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
+        {Array.from({ length: 4 }, (_, i) => (
           <div key={`dashboard-stat-${i}`} className="rounded-lg border p-6">
             <Skeleton className="mb-2 h-4 w-20" />
             <Skeleton className="h-8 w-24" />
@@ -22,7 +27,7 @@ export function DashboardSkeleton() {
 
       {/* Content Area */}
       <div className="space-y-4">
-        {[...Array(3)].map((_, i) => (
+        {Array.from({ length: 3 }, (_, i) => (
           <Skeleton key={`dashboard-content-${i}`} className="h-32 w-full" />
         ))}
       </div>

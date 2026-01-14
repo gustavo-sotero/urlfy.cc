@@ -883,18 +883,18 @@ export const linksRouter = new Elysia({ prefix: '/links' })
 
 | Item | Descrição                                  | Status |
 | ---- | ------------------------------------------ | ------ |
-| 3.1  | Schema de links com Drizzle                | ⬜     |
-| 3.2  | Short code generator (NanoID)              | ⬜     |
-| 3.3  | Slugs reservados (seed + validação)        | ⬜     |
-| 3.4  | URL validator (protocolo, blacklist)       | ⬜     |
-| 3.5  | Features premium (alias, senha, expiração) | ⬜     |
-| 3.6  | Meta tags sanitization (DOMPurify)         | ⬜     |
-| 3.7  | QR Code service                            | ⬜     |
-| 3.8  | UTM tracking                               | ⬜     |
-| 3.9  | Idempotency keys                           | ⬜     |
-| 3.10 | Tags & Notes                               | ⬜     |
-| 3.11 | API routes (CRUD + duplicate)              | ⬜     |
-| 3.12 | Testes unitários                           | ⬜     |
+| 3.1  | Schema de links com Drizzle                | ✅     |
+| 3.2  | Short code generator (NanoID)              | ✅     |
+| 3.3  | Slugs reservados (seed + validação)        | ✅     |
+| 3.4  | URL validator (protocolo, blacklist)       | ✅     |
+| 3.5  | Features premium (alias, senha, expiração) | ✅     |
+| 3.6  | Meta tags sanitization (DOMPurify)         | ✅     |
+| 3.7  | QR Code service                            | ✅     |
+| 3.8  | UTM tracking                               | ✅     |
+| 3.9  | Idempotency keys                           | ✅     |
+| 3.10 | Tags & Notes                               | ✅     |
+| 3.11 | API routes (CRUD + duplicate)              | ✅     |
+| 3.12 | Testes unitários                           | ✅     |
 
 ---
 
@@ -1253,23 +1253,23 @@ describe('Custom Alias Validator', () => {
 
 | Item | Descrição                                  | Status |
 | ---- | ------------------------------------------ | ------ |
-| 3.1  | Tipos TypeScript (input/response)          | ⬜     |
-| 3.2  | Schema de links com Drizzle + Relations    | ⬜     |
-| 3.3  | Migração SQL                               | ⬜     |
-| 3.4  | Short code generator (NanoID)              | ⬜     |
-| 3.5  | Slugs reservados (seed + validação)        | ⬜     |
-| 3.6  | URL validator (protocolo, blacklist)       | ⬜     |
-| 3.7  | Features premium (alias, senha, expiração) | ⬜     |
-| 3.8  | Meta tags sanitization (DOMPurify)         | ⬜     |
-| 3.9  | QR Code service com cache                  | ⬜     |
-| 3.10 | UTM tracking                               | ⬜     |
-| 3.11 | Idempotency keys                           | ⬜     |
-| 3.12 | Tags & Notes                               | ⬜     |
-| 3.13 | Link Service (CRUD completo)               | ⬜     |
-| 3.14 | Toggle active status                       | ⬜     |
-| 3.15 | Error handling com códigos HTTP            | ⬜     |
-| 3.16 | API routes ElysiaJS                        | ⬜     |
-| 3.17 | Testes unitários                           | ⬜     |
+| 3.1  | Tipos TypeScript (input/response)          | ✅     |
+| 3.2  | Schema de links com Drizzle + Relations    | ✅     |
+| 3.3  | Migração SQL                               | ✅     |
+| 3.4  | Short code generator (NanoID)              | ✅     |
+| 3.5  | Slugs reservados (seed + validação)        | ✅     |
+| 3.6  | URL validator (protocolo, blacklist)       | ✅     |
+| 3.7  | Features premium (alias, senha, expiração) | ✅     |
+| 3.8  | Meta tags sanitization (DOMPurify)         | ✅     |
+| 3.9  | QR Code service com cache                  | ✅     |
+| 3.10 | UTM tracking                               | ✅     |
+| 3.11 | Idempotency keys                           | ✅     |
+| 3.12 | Tags & Notes                               | ✅     |
+| 3.13 | Link Service (CRUD completo)               | ✅     |
+| 3.14 | Toggle active status                       | ✅     |
+| 3.15 | Error handling com códigos HTTP            | ✅     |
+| 3.16 | API routes ElysiaJS                        | ✅     |
+| 3.17 | Testes unitários                           | ✅     |
 
 ---
 

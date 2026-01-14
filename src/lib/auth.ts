@@ -1,46 +1,46 @@
-import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin } from "better-auth/plugins/admin";
-import { twoFactor } from "better-auth/plugins/two-factor";
-import { db } from "@/db";
-import * as schema from "@/db/schema/auth";
+import { db } from '@/db';
+import * as schema from '@/db/schema/auth';
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { admin, apiKey, openAPI, twoFactor } from 'better-auth/plugins';
 
 export const auth = betterAuth({
   // ═══════════════════════════════════════════════════════════════════
   // DATABASE ADAPTER
   // ═══════════════════════════════════════════════════════════════════
   database: drizzleAdapter(db, {
-    provider: "pg",
+    provider: 'pg',
     schema: {
       user: schema.user,
       session: schema.session,
       account: schema.account,
-      verification: schema.verification,
-    },
+      verification: schema.verification
+    }
   }),
 
   // ═══════════════════════════════════════════════════════════════════
   // APP INFO
   // ═══════════════════════════════════════════════════════════════════
-  appName: "urlfy.cc",
+  appName: 'urlfy.cc',
   baseURL:
     process.env.BETTER_AUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:3000",
+    'http://localhost:3000',
   secret:
-    process.env.BETTER_AUTH_SECRET || "development-secret-min-32-chars-long",
+    process.env.BETTER_AUTH_SECRET || 'development-secret-min-32-chars-long',
 
   // ═══════════════════════════════════════════════════════════════════
   // EMAIL & PASSWORD
   // ═══════════════════════════════════════════════════════════════════
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    // Disable email verification in test environment
+    requireEmailVerification: process.env.NODE_ENV !== 'test',
     minPasswordLength: 8,
     maxPasswordLength: 128,
     sendResetPassword: async ({
       user,
-      url,
+      url
     }: {
       user: { email: string };
       url: string;
@@ -50,14 +50,14 @@ export const auth = betterAuth({
     },
     sendVerificationEmail: async ({
       user,
-      url,
+      url
     }: {
       user: { email: string };
       url: string;
     }) => {
       // TODO: Implement email sending in Module 7
       console.log(`Email verification for ${user.email}: ${url}`);
-    },
+    }
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -65,19 +65,19 @@ export const auth = betterAuth({
   // ═══════════════════════════════════════════════════════════════════
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
       enabled: !!(
         process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      ),
+      )
     },
     github: {
-      clientId: process.env.GITHUB_CLIENT_ID || "",
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+      clientId: process.env.GITHUB_CLIENT_ID || '',
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
       enabled: !!(
         process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-      ),
-    },
+      )
+    }
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -88,19 +88,24 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // 1 day
     cookieCache: {
       enabled: true,
-      maxAge: 60 * 5, // 5 minutes
-    },
+      maxAge: 60 * 5 // 5 minutes
+    }
   },
 
   // ═══════════════════════════════════════════════════════════════════
   // COOKIE CONFIGURATION
   // ═══════════════════════════════════════════════════════════════════
   advanced: {
-    cookiePrefix: "urlfy",
-    useSecureCookies: process.env.NODE_ENV === "production",
+    cookiePrefix: 'urlfy',
+    useSecureCookies: process.env.NODE_ENV === 'production',
     crossSubDomainCookies: {
-      enabled: false,
+      enabled: false
     },
+    defaultCookieAttributes: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    }
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -109,33 +114,33 @@ export const auth = betterAuth({
   user: {
     additionalFields: {
       role: {
-        type: "string",
-        defaultValue: "user",
-        required: true,
+        type: 'string',
+        defaultValue: 'user',
+        required: true
       },
       linksQuota: {
-        type: "number",
+        type: 'number',
         defaultValue: 100,
-        required: true,
+        required: true
       },
       linksCount: {
-        type: "number",
+        type: 'number',
         defaultValue: 0,
-        required: true,
+        required: true
       },
       bannedAt: {
-        type: "date",
-        required: false,
+        type: 'date',
+        required: false
       },
       bannedReason: {
-        type: "string",
-        required: false,
+        type: 'string',
+        required: false
       },
       deletedAt: {
-        type: "date",
-        required: false,
-      },
-    },
+        type: 'date',
+        required: false
+      }
+    }
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -144,7 +149,7 @@ export const auth = betterAuth({
   rateLimit: {
     enabled: true,
     window: 60, // 1 minute
-    max: 100, // 100 requests per minute
+    max: 100 // 100 requests per minute
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -156,20 +161,27 @@ export const auth = betterAuth({
   plugins: [
     // Two-Factor Authentication
     twoFactor({
-      issuer: "urlfy.cc",
-      totpWindow: 1,
+      issuer: 'urlfy.cc',
+      totpWindow: 1
     }),
 
     // Admin Plugin
     admin({
-      impersonationSessionDuration: 60 * 60, // 1 hour
+      impersonationSessionDuration: 60 * 60 // 1 hour
     }),
+
+    // API Keys (RF-29)
+    apiKey(),
+
+    // Better-Auth OpenAPI docs (RF-30)
+    // Served under /api/auth/reference by default.
+    openAPI()
   ],
 
   // ═══════════════════════════════════════════════════════════════════
   // TRUST PROXY (for production behind load balancer)
   // ═══════════════════════════════════════════════════════════════════
-  trustedOrigins: process.env.TRUSTED_ORIGINS?.split(",") || [],
+  trustedOrigins: process.env.TRUSTED_ORIGINS?.split(',') || []
 });
 
 // ═══════════════════════════════════════════════════════════════════

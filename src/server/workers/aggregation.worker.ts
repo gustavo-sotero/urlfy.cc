@@ -11,16 +11,12 @@ import {
   linkClicksDaily,
 } from "@/db/schema";
 import { recordMetric } from "@/server/lib/metrics";
+import { bullmqConnection } from "@/server/lib/queue";
 import { createLogger } from "@/server/lib/telemetry";
 
 const logger = createLogger("aggregation-worker");
 
-const connection = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: Number.parseInt(process.env.REDIS_PORT || "6379", 10),
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-};
+const connection = bullmqConnection;
 
 interface AggregationJob {
   date: string; // YYYY-MM-DD

@@ -9,13 +9,17 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { adminClient, twoFactorClient } from "better-auth/client/plugins";
-import { createAuthClient } from "better-auth/react";
+import {
+  adminClient,
+  apiKeyClient,
+  twoFactorClient
+} from 'better-auth/client/plugins';
+import { createAuthClient } from 'better-auth/react';
 
 export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  baseURL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
 
-  plugins: [twoFactorClient(), adminClient()],
+  plugins: [twoFactorClient(), adminClient(), apiKeyClient()]
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -31,7 +35,7 @@ export const {
   getSession,
   resetPassword,
   changePassword,
-  verifyEmail,
+  verifyEmail
 } = authClient;
 
 // Two-Factor (using actual Better-Auth API names)

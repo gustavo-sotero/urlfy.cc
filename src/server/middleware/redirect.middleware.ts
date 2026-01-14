@@ -1,13 +1,77 @@
 // src/server/middleware/redirect.middleware.ts
+/**
+ * Edge Runtime compatible redirect middleware
+ * Makes internal API calls instead of direct DB access
+ */
 
 import type { NextRequest, NextResponse } from "next/server";
 import { NextResponse as Response } from "next/server";
-import { analyticsQueue } from "@/server/lib/queue";
-import { createLogger } from "@/server/lib/telemetry";
-import { redirectService } from "@/server/services/redirect.service";
-import type { ClickEvent as AnalyticsClickEvent } from "@/types/analytics.types";
+import { createLogger } from "@/server/lib/telemetry.edge";
+import type { ClickEvent } from "@/types/analytics.types";
 
 const logger = createLogger("redirect-middleware");
+
+interface ResolveResult {
+  success: boolean;
+  url?: string;
+  redirectType?: number;
+  linkId?: string;
+  error?: string;
+}
+
+/**
+ * Resolve link via internal API call (Edge Runtime compatible)
+ */
+async function resolveLink(
+  request: NextRequest,
+  shortCode: string,
+  depth: number,
+  hasPasswordCookie: boolean,
+): Promise<ResolveResult> {
+  try {
+    // Construct internal API URL
+    const baseUrl = request.nextUrl.origin;
+    const apiUrl = new URL(`/api/internal/resolve/${shortCode}`, baseUrl);
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-api": process.env.INTERNAL_API_SECRET || "dev-secret",
+      },
+      body: JSON.stringify({
+        depth,
+        hasPasswordCookie,
+        ip:
+          request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          request.headers.get("x-real-ip") ||
+          "unknown",
+        userAgent: request.headers.get("user-agent") || "unknown",
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ error: "UNKNOWN_ERROR" }));
+      return {
+        success: false,
+        error: error.error || "RESOLVE_FAILED",
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    logger.error("Failed to resolve link via API", {
+      shortCode,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      success: false,
+      error: "INTERNAL_ERROR",
+    };
+  }
+}
 
 /**
  * Handler principal de redirecionamento
@@ -30,8 +94,9 @@ export async function handleRedirect(
     // Verifica se há cookie de senha válido
     const hasPasswordCookie = await checkPasswordCookie(request, shortCode);
 
-    // Resolve o link (com bypass de senha se cookie válido)
-    const result = await redirectService.resolve(
+    // Resolve o link via internal API (Edge Runtime compatible)
+    const result = await resolveLink(
+      request,
       shortCode,
       currentDepth,
       hasPasswordCookie,
@@ -204,7 +269,8 @@ function handleError(
 }
 
 /**
- * Enfileira evento de clique para processamento assíncrono
+ * Enfileira evento de clique via API interna
+ * Usa fetch para chamar endpoint que roda no Node.js runtime (não Edge)
  */
 async function enqueueClickEvent(
   shortCode: string,
@@ -226,7 +292,7 @@ async function enqueueClickEvent(
     const utmContent = searchParams.get("utm_content");
     const utmTerm = searchParams.get("utm_term");
 
-    const event: AnalyticsClickEvent = {
+    const event: ClickEvent = {
       linkId,
       shortCode,
       timestamp: new Date(),
@@ -242,19 +308,33 @@ async function enqueueClickEvent(
       utmTerm,
     };
 
-    // Adiciona à fila
-    await analyticsQueue.add("click", event, {
-      removeOnComplete: true,
-      attempts: 3,
-      backoff: {
-        type: "exponential",
-        delay: 1000,
+    // Chama API interna de forma assíncrona (não aguarda resposta)
+    const baseUrl = request.nextUrl.origin;
+    const internalToken = process.env.BETTER_AUTH_SECRET;
+
+    // Fire and forget - não aguardamos resposta para não bloquear redirect
+    fetch(`${baseUrl}/api/internal/analytics`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-token": internalToken || "",
       },
+      body: JSON.stringify(event),
+    }).catch((error) => {
+      // Log erro mas não propaga (já estamos no catch do handleRedirect)
+      logger.error("Failed to call internal analytics API", {
+        shortCode,
+        requestId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     });
 
-    logger.debug("Click event enqueued", { shortCode, requestId });
+    logger.debug("Click event dispatched to internal API", {
+      shortCode,
+      requestId,
+    });
   } catch (error) {
-    logger.error("Failed to enqueue click event", {
+    logger.error("Failed to prepare click event", {
       shortCode,
       requestId,
       error: error instanceof Error ? error.message : String(error),

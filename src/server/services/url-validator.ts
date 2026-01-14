@@ -1,5 +1,9 @@
 // src/server/services/url-validator.ts
 
+import { eq } from "drizzle-orm";
+import { bannedUrls } from "@/db/schema";
+import { db } from "@/server/lib/db";
+
 const BLOCKED_SHORTENERS = new Set([
   "bit.ly",
   "tinyurl.com",
@@ -18,10 +22,15 @@ const BLOCKED_SHORTENERS = new Set([
   "bl.ink",
 ]);
 
-// TODO: Carregar de tabela banned_urls no futuro
+// In-memory cache for banned domains (loaded from database)
 const BLOCKED_DOMAINS = new Set<string>([
-  // Malicious/Phishing domains serão adicionados dinamicamente
+  // Loaded from banned_urls table on init
 ]);
+
+// Cache state
+let bannedDomainsLoaded = false;
+let bannedDomainsLastLoad = 0;
+const CACHE_TTL_MS = 60_000; // Reload every minute
 
 export type ValidationResult =
   | { valid: true }
@@ -33,6 +42,50 @@ export type ValidationError =
   | "SHORTENER_BLOCKED"
   | "DOMAIN_BANNED"
   | "URL_TOO_LONG";
+
+/**
+ * Loads banned domains from the database into memory cache.
+ * Called automatically by validateUrl when cache is stale.
+ */
+async function loadBannedDomainsFromDb(): Promise<void> {
+  const now = Date.now();
+
+  // Skip if recently loaded
+  if (bannedDomainsLoaded && now - bannedDomainsLastLoad < CACHE_TTL_MS) {
+    return;
+  }
+
+  try {
+    const results = await db
+      .select({
+        urlPattern: bannedUrls.urlPattern,
+        matchType: bannedUrls.matchType,
+      })
+      .from(bannedUrls)
+      .where(eq(bannedUrls.matchType, "domain"));
+
+    // Clear and reload
+    BLOCKED_DOMAINS.clear();
+    for (const row of results) {
+      const normalized = row.urlPattern.replace(/^www\./, "").toLowerCase();
+      BLOCKED_DOMAINS.add(normalized);
+    }
+
+    bannedDomainsLoaded = true;
+    bannedDomainsLastLoad = now;
+  } catch (error) {
+    // Log but don't fail - continue with in-memory cache
+    console.warn("Failed to load banned domains from database:", error);
+  }
+}
+
+/**
+ * Force reload of banned domains cache
+ */
+export async function reloadBannedDomains(): Promise<void> {
+  bannedDomainsLastLoad = 0; // Force reload
+  await loadBannedDomainsFromDb();
+}
 
 /**
  * Valida uma URL de destino
@@ -59,12 +112,12 @@ export function validateUrl(url: string): ValidationResult {
   }
 
   // 4. Bloqueio de outros encurtadores
-  const domain = parsed.hostname.replace(/^www\./, "");
+  const domain = parsed.hostname.replace(/^www\./, "").toLowerCase();
   if (BLOCKED_SHORTENERS.has(domain)) {
     return { valid: false, error: "SHORTENER_BLOCKED" };
   }
 
-  // 5. Blacklist manual de domínios
+  // 5. Blacklist de domínios (from memory cache)
   if (BLOCKED_DOMAINS.has(domain)) {
     return { valid: false, error: "DOMAIN_BANNED" };
   }
@@ -73,7 +126,45 @@ export function validateUrl(url: string): ValidationResult {
 }
 
 /**
- * Adiciona um domínio à blacklist (runtime)
+ * Async version of validateUrl that ensures banned domains are loaded
+ * Use this when you need to guarantee the latest banned domains are checked
+ */
+export async function validateUrlAsync(url: string): Promise<ValidationResult> {
+  await loadBannedDomainsFromDb();
+  return validateUrl(url);
+}
+
+/**
+ * Adiciona um domínio à blacklist (runtime + database)
+ * @param domain - Domínio a ser bloqueado
+ * @param reason - Reason for blocking
+ * @param createdBy - User ID who created the ban
+ */
+export async function blockDomainPersistent(
+  domain: string,
+  reason: string,
+  createdBy?: string,
+): Promise<void> {
+  const normalized = domain.replace(/^www\./, "").toLowerCase();
+
+  // Add to database
+  await db
+    .insert(bannedUrls)
+    .values({
+      urlPattern: normalized,
+      matchType: "domain",
+      reason,
+      source: "manual",
+      createdBy,
+    })
+    .onConflictDoNothing();
+
+  // Add to memory cache
+  BLOCKED_DOMAINS.add(normalized);
+}
+
+/**
+ * Adiciona um domínio à blacklist (runtime only)
  * @param domain - Domínio a ser bloqueado
  */
 export function blockDomain(domain: string): void {
@@ -82,7 +173,7 @@ export function blockDomain(domain: string): void {
 }
 
 /**
- * Remove um domínio da blacklist (runtime)
+ * Remove um domínio da blacklist (runtime only)
  * @param domain - Domínio a ser desbloqueado
  */
 export function unblockDomain(domain: string): void {
