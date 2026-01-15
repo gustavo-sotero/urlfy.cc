@@ -31,6 +31,7 @@ Este módulo implementa todo o sistema de **autenticação e gerenciamento de id
 | **Plugin Admin** | `admin`               | Gestão de usuários e roles             |
 | **Plugin API**   | `apiKey`              | Geração e validação de API keys        |
 | **Plugin Docs**  | `openAPI`             | Documentação automática                |
+| **Email**        | Resend                | Envio de emails transacionais          |
 | **Hashing**      | Bun.password (Argon2) | Hash seguro de senhas                  |
 | **JWT**          | jose                  | Tokens para unlock de links protegidos |
 
@@ -1367,13 +1368,10 @@ GITHUB_CLIENT_ID=your-github-client-id
 GITHUB_CLIENT_SECRET=your-github-client-secret
 
 # ═══════════════════════════════════════════════════════════════════
-# EMAIL (para verificação e reset)
+# EMAIL (Resend - verificação e reset)
 # ═══════════════════════════════════════════════════════════════════
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_USER=your-email@example.com
-SMTP_PASS=your-smtp-password
-SMTP_FROM=noreply@urlfy.cc
+RESEND_API_KEY=re_...
+RESEND_FROM=noreply@urlfy.cc
 ```
 
 ---

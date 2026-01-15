@@ -9,16 +9,18 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, isNull } from "drizzle-orm";
-import { Elysia, t } from "elysia";
-import { nanoid } from "nanoid";
-import { db } from "@/db";
-import { apiKey as apiKeyTable } from "@/db/schema/auth";
-import { requireAuth } from "@/server/middleware/auth.middleware";
+import { db } from '@/db';
+import { apiKey as apiKeyTable } from '@/db/schema/auth';
+import { redis } from '@/server/lib/redis';
+import { requireAuth } from '@/server/middleware/auth.middleware';
+import { auditLogService } from '@/server/services/audit.service';
 import type {
   ApiKeyPermissions,
-  NormalizedApiKeyPermissions,
-} from "@/types/auth.types";
+  NormalizedApiKeyPermissions
+} from '@/types/auth.types';
+import { and, desc, eq, isNull } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
+import { nanoid } from 'nanoid';
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPER: GENERATE API KEY
@@ -31,7 +33,7 @@ async function generateApiKey(
     rateLimitMax: number;
     rateLimitTimeWindow: number;
     expiresAt: Date | null;
-  },
+  }
 ) {
   // Generate the actual API key: urlfy_sk_<32 random chars>
   const key = `urlfy_sk_${nanoid(32)}`;
@@ -42,11 +44,11 @@ async function generateApiKey(
   // Hash the full key for storage (SHA-256)
   const encoder = new TextEncoder();
   const data = encoder.encode(key);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const keyHash = hashArray
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 
   // Normalize permissions to ensure all required fields are present
   const normalizedPermissions = normalizePermissions(permissions);
@@ -71,7 +73,7 @@ async function generateApiKey(
       usageCount: 0,
       expiresAt: options.expiresAt,
       revokedAt: null,
-      deletedAt: null,
+      deletedAt: null
     })
     .returning();
 
@@ -81,14 +83,14 @@ async function generateApiKey(
 // ═══════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════
-export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
+export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
   .use(requireAuth)
 
   // ───────────────────────────────────────────────────────────────────
   // LIST API KEYS
   // ───────────────────────────────────────────────────────────────────
   .get(
-    "/",
+    '/',
     async (context) => {
       const { user } = context as typeof context & {
         user: { id: string };
@@ -104,11 +106,15 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
           lastUsedAt: apiKeyTable.lastUsedAt,
           usageCount: apiKeyTable.usageCount,
           expiresAt: apiKeyTable.expiresAt,
-          createdAt: apiKeyTable.createdAt,
+          createdAt: apiKeyTable.createdAt
         })
         .from(apiKeyTable)
         .where(
-          and(eq(apiKeyTable.userId, user.id), isNull(apiKeyTable.deletedAt)),
+          and(
+            eq(apiKeyTable.userId, user.id),
+            isNull(apiKeyTable.deletedAt),
+            isNull(apiKeyTable.revokedAt)
+          )
         )
         .orderBy(desc(apiKeyTable.createdAt));
 
@@ -123,25 +129,25 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
           lastUsedAt: key.lastUsedAt,
           usageCount: key.usageCount,
           expiresAt: key.expiresAt,
-          createdAt: key.createdAt,
-        })),
+          createdAt: key.createdAt
+        }))
       };
     },
     {
       detail: {
-        tags: ["API Keys"],
-        summary: "List API keys",
+        tags: ['API Keys'],
+        summary: 'List API keys',
         description:
-          "Get all API keys for the current user (keys are never returned)",
-      },
-    },
+          'Get all API keys for the current user (keys are never returned)'
+      }
+    }
   )
 
   // ───────────────────────────────────────────────────────────────────
   // CREATE API KEY
   // ───────────────────────────────────────────────────────────────────
   .post(
-    "/",
+    '/',
     async (context) => {
       const { user, body } = context as typeof context & {
         user: { id: string };
@@ -166,8 +172,8 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
         {
           rateLimitMax,
           rateLimitTimeWindow,
-          expiresAt,
-        },
+          expiresAt
+        }
       );
 
       return {
@@ -181,8 +187,8 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
           rateLimit: created.rateLimitMax ?? rateLimitMax,
           expiresAt: created.expiresAt ?? expiresAt,
           createdAt: created.createdAt,
-          warning: "⚠️ Save this key securely. It will not be shown again.",
-        },
+          warning: '⚠️ Save this key securely. It will not be shown again.'
+        }
       };
     },
     {
@@ -195,38 +201,38 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
                 create: t.Optional(t.Boolean()),
                 read: t.Optional(t.Boolean()),
                 update: t.Optional(t.Boolean()),
-                delete: t.Optional(t.Boolean()),
-              }),
+                delete: t.Optional(t.Boolean())
+              })
             ),
             analytics: t.Optional(
               t.Object({
-                read: t.Optional(t.Boolean()),
-              }),
-            ),
-          }),
+                read: t.Optional(t.Boolean())
+              })
+            )
+          })
         ),
         rateLimit: t.Optional(t.Number({ minimum: 100, maximum: 10000 })),
-        expiresInDays: t.Optional(t.Number({ minimum: 1, maximum: 365 })),
+        expiresInDays: t.Optional(t.Number({ minimum: 1, maximum: 365 }))
       }),
       detail: {
-        tags: ["API Keys"],
-        summary: "Create API key",
+        tags: ['API Keys'],
+        summary: 'Create API key',
         description:
-          "Generate a new API key with specified permissions. The key is only shown once.",
-      },
-    },
+          'Generate a new API key with specified permissions. The key is only shown once.'
+      }
+    }
   )
 
   // ───────────────────────────────────────────────────────────────────
   // UPDATE API KEY (name/permissions only)
   // ───────────────────────────────────────────────────────────────────
   .patch(
-    "/:keyId",
+    '/:keyId',
     async (context) => {
       const {
         user,
         params: { keyId },
-        body,
+        body
       } = context as typeof context & {
         user: { id: string };
         params: { keyId: string };
@@ -247,14 +253,15 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
           name: body.name,
           permissions: normalizedPermissions
             ? JSON.stringify(normalizedPermissions)
-            : undefined,
+            : undefined
         })
         .where(
           and(
             eq(apiKeyTable.id, keyId),
             eq(apiKeyTable.userId, user.id),
             isNull(apiKeyTable.deletedAt),
-          ),
+            isNull(apiKeyTable.revokedAt)
+          )
         )
         .returning();
 
@@ -262,9 +269,9 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
         return {
           success: false,
           error: {
-            code: "API_KEY_NOT_FOUND",
-            message: "API key not found",
-          },
+            code: 'API_KEY_NOT_FOUND',
+            message: 'API key not found'
+          }
         };
       }
 
@@ -274,13 +281,13 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
           id: updated.id,
           name: updated.name,
           permissions: parsePermissions(updated.permissions),
-          updatedAt: updated.updatedAt,
-        },
+          updatedAt: updated.updatedAt
+        }
       };
     },
     {
       params: t.Object({
-        keyId: t.String(),
+        keyId: t.String()
       }),
       body: t.Object({
         name: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
@@ -291,35 +298,35 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
                 create: t.Optional(t.Boolean()),
                 read: t.Optional(t.Boolean()),
                 update: t.Optional(t.Boolean()),
-                delete: t.Optional(t.Boolean()),
-              }),
+                delete: t.Optional(t.Boolean())
+              })
             ),
             analytics: t.Optional(
               t.Object({
-                read: t.Optional(t.Boolean()),
-              }),
-            ),
-          }),
-        ),
+                read: t.Optional(t.Boolean())
+              })
+            )
+          })
+        )
       }),
       detail: {
-        tags: ["API Keys"],
-        summary: "Update API key",
+        tags: ['API Keys'],
+        summary: 'Update API key',
         description:
-          "Update API key name or permissions (key itself cannot be changed)",
-      },
-    },
+          'Update API key name or permissions (key itself cannot be changed)'
+      }
+    }
   )
 
   // ───────────────────────────────────────────────────────────────────
   // DELETE API KEY (soft delete)
   // ───────────────────────────────────────────────────────────────────
   .delete(
-    "/:keyId",
+    '/:keyId',
     async (context) => {
       const {
         user,
-        params: { keyId },
+        params: { keyId }
       } = context as typeof context & {
         user: { id: string };
         params: { keyId: string };
@@ -328,14 +335,16 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
       const [deleted] = await db
         .update(apiKeyTable)
         .set({
-          deletedAt: new Date(),
+          revokedAt: new Date(),
+          deletedAt: new Date()
         })
         .where(
           and(
             eq(apiKeyTable.id, keyId),
             eq(apiKeyTable.userId, user.id),
             isNull(apiKeyTable.deletedAt),
-          ),
+            isNull(apiKeyTable.revokedAt)
+          )
         )
         .returning();
 
@@ -343,33 +352,49 @@ export const apiKeysRoutes = new Elysia({ prefix: "/api-keys" })
         return {
           success: false,
           error: {
-            code: "API_KEY_NOT_FOUND",
-            message: "API key not found",
-          },
+            code: 'API_KEY_NOT_FOUND',
+            message: 'API key not found'
+          }
         };
+      }
+
+      // Invalidate rate limit cache for this key
+      await redis.del(`rl:apikey:${keyId}`);
+
+      // Audit log
+      try {
+        await auditLogService.log({
+          userId: user.id,
+          action: 'revoke_api_key',
+          entityType: 'api_key',
+          entityId: keyId,
+          metadata: { name: deleted.name ?? null }
+        });
+      } catch (error) {
+        console.warn('Failed to log API key revocation', error);
       }
 
       return {
         success: true,
         data: {
-          message: "API key deleted successfully",
-        },
+          message: 'API key deleted successfully'
+        }
       };
     },
     {
       params: t.Object({
-        keyId: t.String(),
+        keyId: t.String()
       }),
       detail: {
-        tags: ["API Keys"],
-        summary: "Delete API key",
-        description: "Soft delete an API key (revokes access immediately)",
-      },
-    },
+        tags: ['API Keys'],
+        summary: 'Delete API key',
+        description: 'Soft delete an API key (revokes access immediately)'
+      }
+    }
   );
 
 function parsePermissions(
-  permissions: string | null,
+  permissions: string | null
 ): NormalizedApiKeyPermissions {
   if (!permissions) {
     return normalizePermissions({});
@@ -384,17 +409,17 @@ function parsePermissions(
 }
 
 function normalizePermissions(
-  permissions: ApiKeyPermissions,
+  permissions: ApiKeyPermissions
 ): NormalizedApiKeyPermissions {
   return {
     links: {
       create: permissions.links?.create ?? false,
       read: permissions.links?.read ?? false,
       update: permissions.links?.update ?? false,
-      delete: permissions.links?.delete ?? false,
+      delete: permissions.links?.delete ?? false
     },
     analytics: {
-      read: permissions.analytics?.read ?? false,
-    },
+      read: permissions.analytics?.read ?? false
+    }
   };
 }
