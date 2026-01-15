@@ -1,10 +1,14 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * USERS MODELS - Validation schemas for user endpoints
+ * USERS SCHEMA - Validation schemas for user endpoints
+ * ═════════════════════════════════════════════════════════════════════
+ *
+ * Module: Users (Feature-based modular architecture)
+ * Pattern: TypeBox Single Source of Truth
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { type Static, t } from 'elysia';
+import { Elysia, type Static, t } from 'elysia';
 
 // ═══════════════════════════════════════════════════════════════════
 // USER PROFILE
@@ -122,15 +126,15 @@ export type DeletionRequestListItemType = Static<
 // MODEL REGISTRY FOR INJECTION
 // ═══════════════════════════════════════════════════════════════════
 
-export const usersModels = {
-  UserProfileResponse,
-  UserQuotaResponse,
-  UserListQuery,
-  UserListItemResponse,
-  UserIdParam,
-  UserBanBody,
-  UserRoleUpdateBody,
-  UserQuotaUpdateBody,
-  DeletionRequestResponse,
-  DeletionRequestListItem
-};
+export const UsersModel = new Elysia({ name: 'users.model' }).model({
+  'users.profile': UserProfileResponse,
+  'users.quota': UserQuotaResponse,
+  'users.list.query': UserListQuery,
+  'users.list.item': UserListItemResponse,
+  'users.id.param': UserIdParam,
+  'users.ban.body': UserBanBody,
+  'users.role.body': UserRoleUpdateBody,
+  'users.quota.body': UserQuotaUpdateBody,
+  'users.deletion.response': DeletionRequestResponse,
+  'users.deletion.item': DeletionRequestListItem
+});

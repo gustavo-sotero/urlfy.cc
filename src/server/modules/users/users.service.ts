@@ -1,8 +1,11 @@
 /**
- * @deprecated This service is deprecated. Use the modular architecture instead:
- * import { UserService } from '@/server/modules/users';
+ * ═════════════════════════════════════════════════════════════════════
+ * USERS SERVICE - Business logic for user management
+ * ═════════════════════════════════════════════════════════════════════
  *
- * This file is kept for backward compatibility and will be removed in a future version.
+ * Module: Users (Feature-based modular architecture)
+ * Pattern: Abstract class with static methods (stateless)
+ * ═════════════════════════════════════════════════════════════════════
  */
 
 import { and, eq, isNull, sql } from 'drizzle-orm';
@@ -15,12 +18,18 @@ import {
   user as userTable
 } from '@/db/schema/auth';
 import { db } from '@/server/lib/db';
-import { auditLogService } from './audit.service';
+import { auditLogService } from '@/server/services/audit.service';
 
 /**
  * User Service - Handles user-related operations
+ *
+ * Uses abstract class with static methods per Elysia best practices:
+ * - No instantiation needed
+ * - Clean import namespace (UserService.create)
+ * - Stateless methods
  */
-export class UserService {
+// biome-ignore lint/complexity/noStaticOnlyClass: Intentional pattern per ElysiaJS best practices for stateless services
+export abstract class UserService {
   // ═══════════════════════════════════════════════════════════════════
   // USER CRUD OPERATIONS
   // ═══════════════════════════════════════════════════════════════════
@@ -28,7 +37,7 @@ export class UserService {
   /**
    * Get user by ID (excluding deleted users)
    */
-  async getUserById(userId: string): Promise<User | null> {
+  static async getUserById(userId: string): Promise<User | null> {
     const [user] = await db
       .select()
       .from(userTable)
@@ -41,7 +50,7 @@ export class UserService {
   /**
    * Get user by email (excluding deleted users)
    */
-  async getUserByEmail(email: string): Promise<User | null> {
+  static async getUserByEmail(email: string): Promise<User | null> {
     const [user] = await db
       .select()
       .from(userTable)
@@ -54,7 +63,7 @@ export class UserService {
   /**
    * Update user profile
    */
-  async updateUser(
+  static async updateUser(
     userId: string,
     data: {
       name?: string;
@@ -82,7 +91,7 @@ export class UserService {
   /**
    * Increment user's link count
    */
-  async incrementLinksCount(userId: string): Promise<void> {
+  static async incrementLinksCount(userId: string): Promise<void> {
     await db
       .update(userTable)
       .set({
@@ -94,7 +103,7 @@ export class UserService {
   /**
    * Decrement user's link count
    */
-  async decrementLinksCount(userId: string): Promise<void> {
+  static async decrementLinksCount(userId: string): Promise<void> {
     await db
       .update(userTable)
       .set({
@@ -106,7 +115,7 @@ export class UserService {
   /**
    * Check if user has available quota
    */
-  async hasAvailableQuota(userId: string): Promise<boolean> {
+  static async hasAvailableQuota(userId: string): Promise<boolean> {
     const [user] = await db
       .select({
         linksCount: userTable.linksCount,
@@ -128,7 +137,7 @@ export class UserService {
   /**
    * Ban a user
    */
-  async banUser(
+  static async banUser(
     userId: string,
     reason: string,
     adminId: string
@@ -168,7 +177,7 @@ export class UserService {
   /**
    * Unban a user
    */
-  async unbanUser(userId: string, adminId: string): Promise<User> {
+  static async unbanUser(userId: string, adminId: string): Promise<User> {
     const [user] = await db
       .update(userTable)
       .set({
@@ -200,7 +209,7 @@ export class UserService {
   /**
    * Update user role
    */
-  async updateUserRole(
+  static async updateUserRole(
     userId: string,
     role: 'user' | 'admin',
     adminId: string
@@ -238,7 +247,9 @@ export class UserService {
   /**
    * Export all user data (LGPD/GDPR)
    */
-  async exportUserData(userId: string): Promise<Record<string, unknown>> {
+  static async exportUserData(
+    userId: string
+  ): Promise<Record<string, unknown>> {
     // Get user data
     const [user] = await db
       .select()
@@ -321,7 +332,7 @@ export class UserService {
   /**
    * Soft delete user account (LGPD/GDPR)
    */
-  async softDeleteUser(userId: string): Promise<void> {
+  static async softDeleteUser(userId: string): Promise<void> {
     await db
       .update(userTable)
       .set({
@@ -347,7 +358,7 @@ export class UserService {
   /**
    * Hard delete user account (permanent, use with caution)
    */
-  async hardDeleteUser(userId: string): Promise<void> {
+  static async hardDeleteUser(userId: string): Promise<void> {
     // Delete in order due to foreign key constraints
     await db.delete(sessionTable).where(eq(sessionTable.userId, userId));
     await db.delete(accountTable).where(eq(accountTable.userId, userId));
@@ -363,7 +374,7 @@ export class UserService {
   /**
    * Check if user can be deleted (has no active dependencies)
    */
-  async canDeleteUser(userId: string): Promise<{
+  static async canDeleteUser(userId: string): Promise<{
     canDelete: boolean;
     blockers: string[];
   }> {
@@ -392,6 +403,3 @@ export class UserService {
     };
   }
 }
-
-// Export singleton instance
-export const userService = new UserService();

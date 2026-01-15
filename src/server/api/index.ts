@@ -1,13 +1,13 @@
 import { swagger } from '@elysiajs/swagger';
 import { Elysia } from 'elysia';
 import { auth } from '@/lib/auth';
+// Import from feature-based modules
+import { analyticsController } from '@/server/modules/analytics';
+import { authController } from '@/server/modules/auth';
+import { linksController } from '@/server/modules/links';
+import { usersController } from '@/server/modules/users';
 import { healthRoutes } from './health';
 import { adminAuditRoutes } from './v1/admin/audit';
-import { analyticsRoutes } from './v1/analytics/index';
-import { apiKeysRoutes } from './v1/auth/api-keys';
-import { authRoutes } from './v1/auth/index';
-import { linksRouter } from './v1/links/index';
-import { usersRoutes } from './v1/users/index';
 import { userDataRoutes } from './v1/users/me';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -90,12 +90,11 @@ export const api = new Elysia({ prefix: '/api' })
   // API v1 routes
   .group('/v1', (app) =>
     app
-      .use(authRoutes)
-      .use(apiKeysRoutes)
+      .use(authController)
       .use(userDataRoutes)
-      .use(usersRoutes)
-      .use(linksRouter)
-      .use(analyticsRoutes)
+      .use(usersController)
+      .use(linksController)
+      .use(analyticsController)
       // Admin routes
       .group('/admin', (admin) => admin.use(adminAuditRoutes))
   )

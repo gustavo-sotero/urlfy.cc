@@ -17,8 +17,8 @@ import { type DeletionStatus, dataDeletionRequest } from '@/db/schema/audit';
 import type { User } from '@/lib/auth';
 import { sendEmail } from '@/server/lib/email';
 import { requireAuth } from '@/server/middleware/auth.middleware';
+import { UserService } from '@/server/modules/users';
 import { auditLogService } from '@/server/services/audit.service';
-import { userService } from '@/server/services/user.service';
 
 export const userDataRoutes = new Elysia({ prefix: '/me' })
   .use(requireAuth)
@@ -83,7 +83,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
 
     try {
       // Export all user data
-      const exportData = await userService.exportUserData(user.id);
+      const exportData = await UserService.exportUserData(user.id);
 
       // Log the export action
       await auditLogService.log({

@@ -16,7 +16,7 @@ import { auditLog } from '@/db/schema/audit';
 import type { User } from '@/lib/auth';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import { AuditLogQuery, adminModels } from '../../models';
+import { AdminModel, AuditLogQuery } from '@/server/modules/admin';
 
 const logger = createLogger('admin-audit');
 
@@ -31,7 +31,7 @@ async function _requireAdmin(context: { user?: User }): Promise<boolean> {
 export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   .use(requireAuth)
   // Inject shared models for type inference and OpenAPI docs
-  .model(adminModels)
+  .model(AdminModel)
 
   // ═══════════════════════════════════════════════════════════════════
   // GET AUDIT LOGS

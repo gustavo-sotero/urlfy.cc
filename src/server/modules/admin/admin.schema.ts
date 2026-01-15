@@ -1,7 +1,8 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * ADMIN MODELS - Validation schemas for admin endpoints
+ * ADMIN MODULE - Validation Schemas
  * ═════════════════════════════════════════════════════════════════════
+ * TypeBox schemas for admin endpoints
  */
 
 import { type Static, t } from 'elysia';
@@ -62,7 +63,7 @@ export type AdminStatsResponseType = Static<typeof AdminStatsResponse>;
 // MODEL REGISTRY FOR INJECTION
 // ═══════════════════════════════════════════════════════════════════
 
-export const adminModels = {
+export const AdminModel = {
   AuditLogQuery,
   AuditLogResponse,
   AdminBanLinkBody,

@@ -1,15 +1,9 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * AUTH SERVICE
+ * AUTH SERVICE - Business logic for authentication
  * ═════════════════════════════════════════════════════════════════════
- * Custom authentication logic that wraps or extends Better-Auth
- *
- * @deprecated This service is deprecated. Use the modular architecture instead:
- * import { AuthService } from '@/server/modules/auth';
- *
- * This file is kept for backward compatibility and will be removed in a future version.
- *
- * Module: Authentication & Identity (Module 2)
+ * Module: Authentication & Identity
+ * Pattern: Abstract class with static methods (non-request dependent)
  * Spec: module-02-authentication.md
  * ═════════════════════════════════════════════════════════════════════
  */
@@ -49,10 +43,15 @@ interface ApiKeyValidationResult {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// AUTH SERVICE
+// AUTH SERVICE - Abstract class with static methods
 // ═══════════════════════════════════════════════════════════════════
 
-export class AuthService {
+/**
+ * AuthService - Handles all authentication-related business logic
+ * Uses abstract class with static methods pattern for non-request dependent logic
+ */
+// biome-ignore lint/complexity/noStaticOnlyClass: Intentional pattern per ElysiaJS best practices for stateless services
+export abstract class AuthService {
   // ─────────────────────────────────────────────────────────────────
   // SESSION MANAGEMENT
   // ─────────────────────────────────────────────────────────────────
@@ -60,7 +59,9 @@ export class AuthService {
   /**
    * Validate a session from request headers
    */
-  async validateSession(headers: Headers): Promise<SessionValidationResult> {
+  static async validateSession(
+    headers: Headers
+  ): Promise<SessionValidationResult> {
     try {
       const sessionData = await auth.api.getSession({ headers });
 
@@ -112,14 +113,17 @@ export class AuthService {
   /**
    * Get session data from headers
    */
-  async getSession(headers: Headers) {
+  static async getSession(headers: Headers) {
     return await auth.api.getSession({ headers });
   }
 
   /**
    * Revoke a specific session
    */
-  async revokeSession(sessionId: string, userId: string): Promise<boolean> {
+  static async revokeSession(
+    sessionId: string,
+    userId: string
+  ): Promise<boolean> {
     const deleted = await db
       .delete(sessionTable)
       .where(
@@ -133,7 +137,7 @@ export class AuthService {
   /**
    * Revoke all sessions for a user (logout from all devices)
    */
-  async revokeAllSessions(userId: string): Promise<number> {
+  static async revokeAllSessions(userId: string): Promise<number> {
     const deleted = await db
       .delete(sessionTable)
       .where(eq(sessionTable.userId, userId))
@@ -144,11 +148,8 @@ export class AuthService {
 
   /**
    * Revoke all sessions except the current one
-   *
-   * Note: This uses a subquery approach. The caller should use the
-   * route-level implementation with ne() for proper exclusion.
    */
-  async revokeOtherSessions(
+  static async revokeOtherSessions(
     userId: string,
     currentSessionId: string
   ): Promise<number> {
@@ -186,7 +187,7 @@ export class AuthService {
   /**
    * Validate an API key
    */
-  async validateApiKey(apiKey: string): Promise<ApiKeyValidationResult> {
+  static async validateApiKey(apiKey: string): Promise<ApiKeyValidationResult> {
     // Check format
     if (!apiKey.startsWith('urlfy_sk_')) {
       return {
@@ -199,7 +200,7 @@ export class AuthService {
     }
 
     // Hash the key
-    const keyHash = await this.hashApiKey(apiKey);
+    const keyHash = await AuthService.hashApiKey(apiKey);
 
     // Look up the key
     const [result] = await db
@@ -248,7 +249,7 @@ export class AuthService {
     }
 
     // Parse permissions
-    const permissions = this.parsePermissions(result.permissions);
+    const permissions = AuthService.parsePermissions(result.permissions);
 
     return {
       valid: true,
@@ -261,7 +262,7 @@ export class AuthService {
   /**
    * Generate a new API key
    */
-  async generateApiKey(
+  static async generateApiKey(
     userId: string,
     name: string,
     permissions: ApiKeyPermissions
@@ -269,10 +270,10 @@ export class AuthService {
     // Generate the key
     const key = `urlfy_sk_${nanoid(32)}`;
     const keyPrefix = key.slice(0, 12);
-    const keyHash = await this.hashApiKey(key);
+    const keyHash = await AuthService.hashApiKey(key);
 
     // Normalize permissions
-    const normalizedPermissions = this.normalizePermissions(permissions);
+    const normalizedPermissions = AuthService.normalizePermissions(permissions);
 
     // Insert into database
     const [created] = await db
@@ -302,7 +303,7 @@ export class AuthService {
   /**
    * Revoke an API key
    */
-  async revokeApiKey(keyId: string, userId: string): Promise<boolean> {
+  static async revokeApiKey(keyId: string, userId: string): Promise<boolean> {
     const [updated] = await db
       .update(apiKeyTable)
       .set({ revokedAt: new Date() })
@@ -315,7 +316,7 @@ export class AuthService {
   /**
    * Update API key last used timestamp
    */
-  async updateApiKeyUsage(keyId: string): Promise<void> {
+  static async updateApiKeyUsage(keyId: string): Promise<void> {
     await db
       .update(apiKeyTable)
       .set({
@@ -332,7 +333,7 @@ export class AuthService {
   /**
    * Check if 2FA is enabled for a user
    */
-  async isTwoFactorEnabled(userId: string): Promise<boolean> {
+  static async isTwoFactorEnabled(userId: string): Promise<boolean> {
     const result = await db
       .select({ verified: twoFactorTable.verified })
       .from(twoFactorTable)
@@ -345,7 +346,7 @@ export class AuthService {
   /**
    * Check if 2FA is required for admin access
    */
-  async isAdminWithTwoFactor(userId: string): Promise<{
+  static async isAdminWithTwoFactor(userId: string): Promise<{
     isAdmin: boolean;
     hasTwoFactor: boolean;
     canAccess: boolean;
@@ -366,7 +367,7 @@ export class AuthService {
       return { isAdmin: false, hasTwoFactor: false, canAccess: true };
     }
 
-    const hasTwoFactor = await this.isTwoFactorEnabled(userId);
+    const hasTwoFactor = await AuthService.isTwoFactorEnabled(userId);
 
     return {
       isAdmin: true,
@@ -382,7 +383,7 @@ export class AuthService {
   /**
    * Hash an API key using SHA-256
    */
-  private async hashApiKey(key: string): Promise<string> {
+  private static async hashApiKey(key: string): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(key);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -393,7 +394,7 @@ export class AuthService {
   /**
    * Normalize permissions (fill in defaults)
    */
-  private normalizePermissions(
+  private static normalizePermissions(
     permissions: ApiKeyPermissions
   ): NormalizedApiKeyPermissions {
     return {
@@ -412,21 +413,18 @@ export class AuthService {
   /**
    * Parse permissions from database string
    */
-  private parsePermissions(
+  private static parsePermissions(
     permissions: string | null
   ): NormalizedApiKeyPermissions {
     if (!permissions) {
-      return this.normalizePermissions({});
+      return AuthService.normalizePermissions({});
     }
 
     try {
       const parsed = JSON.parse(permissions) as ApiKeyPermissions;
-      return this.normalizePermissions(parsed);
+      return AuthService.normalizePermissions(parsed);
     } catch {
-      return this.normalizePermissions({});
+      return AuthService.normalizePermissions({});
     }
   }
 }
-
-// Export singleton instance
-export const authService = new AuthService();

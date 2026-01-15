@@ -1102,18 +1102,18 @@ src/server/api/v1/
 ```typescript
 // ✅ Correto: 1 Elysia instance = 1 Controller
 import { Elysia } from 'elysia';
-import { linksModels } from '../../models';
-import * as linkService from '../../../services/link.service';
+import { LinkModel } from './links.schema';
+import { LinkService } from './links.service';
 
-export const linksRouter = new Elysia({ prefix: '/links' })
-  .use(linksModels) // Injeção de models para type cache e OpenAPI
+export const linksController = new Elysia({ prefix: '/links' })
+  .model(LinkModel) // Injeção de models para type cache e OpenAPI
   .post(
     '/',
     async ({ body, user }) => {
-      const link = await linkService.createLink(body, user?.id);
+      const link = await LinkService.createLink(body, user?.id);
       return { success: true, data: link };
     },
-    { body: 'links.create' }
+    { body: 'link.create' }
   ); // Referência por nome registrado
 
 // ❌ Incorreto: Passar Context inteiro para service
@@ -1126,7 +1126,7 @@ export const badController = new Elysia().get('/', (context) =>
 
 ```typescript
 // ✅ Non-request dependent: abstract class + static
-// src/server/services/link.service.ts
+// src/server/modules/links/links.service.ts
 abstract class LinkService {
   static async create(input: CreateLinkInput): Promise<Link> {
     // Lógica de negócio pura, sem HTTP

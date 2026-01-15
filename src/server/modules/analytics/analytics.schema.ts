@@ -1,10 +1,14 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * ANALYTICS MODELS - Validation schemas for analytics endpoints
+ * ANALYTICS SCHEMA - Validation schemas for analytics endpoints
+ * ═════════════════════════════════════════════════════════════════════
+ *
+ * Module: Analytics (Feature-based modular architecture)
+ * Pattern: TypeBox Single Source of Truth
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { type Static, t } from 'elysia';
+import { Elysia, type Static, t } from 'elysia';
 
 // ═══════════════════════════════════════════════════════════════════
 // ANALYTICS PARAMS
@@ -127,18 +131,18 @@ export type AnalyticsDetailedResponseType = Static<
 // MODEL REGISTRY FOR INJECTION
 // ═══════════════════════════════════════════════════════════════════
 
-export const analyticsModels = {
-  AnalyticsLinkIdParam,
-  AnalyticsQuery,
-  AnalyticsDaysQuery,
-  AnalyticsDaysWithLimitQuery,
-  AnalyticsSummary,
-  AnalyticsBreakdown,
-  AnalyticsTimeseries,
-  AnalyticsDetailedResponse,
-  TimeseriesDataPoint,
-  CountryBreakdownItem,
-  DeviceBreakdownItem,
-  ReferrerBreakdownItem,
-  BreakdownItem
-};
+export const AnalyticsModel = new Elysia({ name: 'analytics.model' }).model({
+  'analytics.linkId.param': AnalyticsLinkIdParam,
+  'analytics.query': AnalyticsQuery,
+  'analytics.days.query': AnalyticsDaysQuery,
+  'analytics.daysWithLimit.query': AnalyticsDaysWithLimitQuery,
+  'analytics.summary': AnalyticsSummary,
+  'analytics.breakdown': AnalyticsBreakdown,
+  'analytics.timeseries': AnalyticsTimeseries,
+  'analytics.detailed': AnalyticsDetailedResponse,
+  'analytics.timeseries.datapoint': TimeseriesDataPoint,
+  'analytics.country.item': CountryBreakdownItem,
+  'analytics.device.item': DeviceBreakdownItem,
+  'analytics.referrer.item': ReferrerBreakdownItem,
+  'analytics.breakdown.item': BreakdownItem
+});

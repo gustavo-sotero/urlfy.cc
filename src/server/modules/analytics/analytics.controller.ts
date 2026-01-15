@@ -1,32 +1,40 @@
-// src/server/api/v1/analytics/index.ts
+/**
+ * ═════════════════════════════════════════════════════════════════════
+ * ANALYTICS CONTROLLER - HTTP endpoints for analytics
+ * ═════════════════════════════════════════════════════════════════════
+ *
+ * Module: Analytics (Feature-based modular architecture)
+ * Pattern: Elysia Controller (1 instance = 1 controller)
+ * ═════════════════════════════════════════════════════════════════════
+ */
 
 import { Elysia } from 'elysia';
 import { handleLinkError } from '@/server/lib/errors';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import { analyticsService } from '@/server/services/analytics.service';
 import {
   AnalyticsDaysQuery,
   AnalyticsDaysWithLimitQuery,
   AnalyticsLinkIdParam,
-  analyticsModels
-} from '../../models';
+  AnalyticsModel
+} from './analytics.schema';
+import { AnalyticsService } from './analytics.service';
 
 const logger = createLogger('analytics-api');
 
 /**
  * Analytics API endpoints
- * GET /v1/analytics/:linkId/summary - Resumo de analytics
- * GET /v1/analytics/:linkId/breakdown - Breakdown completo
- * GET /v1/analytics/:linkId/timeseries - Dados por período
+ * GET /v1/analytics/:linkId/summary - Analytics summary
+ * GET /v1/analytics/:linkId/breakdown - Complete breakdown
+ * GET /v1/analytics/:linkId/timeseries - Time series data
  */
-export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
+export const analyticsController = new Elysia({ prefix: '/analytics' })
   .use(requireAuth)
-  // Inject shared models for type inference and OpenAPI docs
-  .model(analyticsModels)
+  // Inject model schemas for type inference and OpenAPI docs
+  .use(AnalyticsModel)
 
   // ═══════════════════════════════════════════════════════════════
-  // GET /analytics/:linkId/summary - Resumo de Analytics
+  // GET /analytics/:linkId/summary - Analytics Summary
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/:linkId/summary',
@@ -40,12 +48,12 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
             success: false,
             error: {
               code: 'INVALID_DAYS_RANGE',
-              message: 'Days deve estar entre 1 e 365'
+              message: 'Days must be between 1 and 365'
             }
           };
         }
 
-        const summary = await analyticsService.getSummary(params.linkId, days);
+        const summary = await AnalyticsService.getSummary(params.linkId, days);
 
         if (!summary) {
           set.status = 404;
@@ -53,7 +61,7 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
             success: false,
             error: {
               code: 'LINK_NOT_FOUND',
-              message: 'Link não encontrado ou sem dados'
+              message: 'Link not found or no data'
             }
           };
         }
@@ -83,7 +91,7 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
   )
 
   // ═══════════════════════════════════════════════════════════════
-  // GET /analytics/:linkId/breakdown - Breakdown Completo
+  // GET /analytics/:linkId/breakdown - Complete Breakdown
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/:linkId/breakdown',
@@ -97,12 +105,12 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
             success: false,
             error: {
               code: 'INVALID_DAYS_RANGE',
-              message: 'Days deve estar entre 1 e 365'
+              message: 'Days must be between 1 and 365'
             }
           };
         }
 
-        const breakdown = await analyticsService.getCompleteBreakdown(
+        const breakdown = await AnalyticsService.getCompleteBreakdown(
           params.linkId,
           days
         );
@@ -147,12 +155,12 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
             success: false,
             error: {
               code: 'INVALID_DAYS_RANGE',
-              message: 'Days deve estar entre 1 e 365'
+              message: 'Days must be between 1 and 365'
             }
           };
         }
 
-        const timeSeries = await analyticsService.getDailyStats(
+        const timeSeries = await AnalyticsService.getDailyStats(
           params.linkId,
           days
         );
@@ -201,12 +209,12 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
             success: false,
             error: {
               code: 'INVALID_LIMIT',
-              message: 'Limit deve estar entre 1 e 100'
+              message: 'Limit must be between 1 and 100'
             }
           };
         }
 
-        const countries = await analyticsService.getCountryBreakdown(
+        const countries = await AnalyticsService.getCountryBreakdown(
           params.linkId,
           limit,
           days
@@ -251,12 +259,12 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
             success: false,
             error: {
               code: 'INVALID_DAYS_RANGE',
-              message: 'Days deve estar entre 1 e 365'
+              message: 'Days must be between 1 and 365'
             }
           };
         }
 
-        const devices = await analyticsService.getDeviceBreakdown(
+        const devices = await AnalyticsService.getDeviceBreakdown(
           params.linkId,
           days
         );
@@ -302,12 +310,12 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
             success: false,
             error: {
               code: 'INVALID_LIMIT',
-              message: 'Limit deve estar entre 1 e 100'
+              message: 'Limit must be between 1 and 100'
             }
           };
         }
 
-        const browsers = await analyticsService.getBrowserBreakdown(
+        const browsers = await AnalyticsService.getBrowserBreakdown(
           params.linkId,
           limit,
           days
@@ -344,7 +352,7 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
     '/health',
     async () => {
       try {
-        const health = await analyticsService.healthCheck();
+        const health = await AnalyticsService.healthCheck();
 
         return {
           success: true,

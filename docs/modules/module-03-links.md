@@ -802,20 +802,20 @@ src/server/
 ```typescript
 // ✅ Correto: Instância Elysia como controller
 import { Elysia } from 'elysia';
-import { linksModels } from '../../models';
-import * as linkService from '../../../services/link.service';
+import { LinkModel } from './links.schema';
+import { LinkService } from './links.service';
 
-export const linksRouter = new Elysia({ prefix: '/links' })
+export const linksController = new Elysia({ prefix: '/links' })
   // Injeta models para cache de tipos e OpenAPI
-  .use(linksModels)
+  .model(LinkModel)
   // Handlers delegam para services
   .post(
     '/',
     async ({ body, user }) => {
-      const link = await linkService.createLink(body, user?.id);
+      const link = await LinkService.createLink(body, user?.id);
       return { success: true, data: link };
     },
-    { body: 'links.create' }
+    { body: 'link.create' }
   );
 
 // ❌ Incorreto: Classe controller tradicional
@@ -903,12 +903,12 @@ describe('Links Controller', () => {
 ## 12. API Routes (ElysiaJS)
 
 ```typescript
-// src/server/api/v1/links/index.ts
+// src/server/modules/links/links.controller.ts
 import { Elysia, t } from 'elysia';
 import { authMiddleware, optionalAuth } from '../../middleware/auth';
-import * as linkService from '../../services/link.service';
+import { LinkService } from './links.service';
 
-export const linksRouter = new Elysia({ prefix: '/links' })
+export const linksController = new Elysia({ prefix: '/links' })
   // ═══════════════════════════════════════════════════════════════
   // POST /links - Criar link
   // ═══════════════════════════════════════════════════════════════
@@ -922,14 +922,14 @@ export const linksRouter = new Elysia({ prefix: '/links' })
         if (cached) return { success: true, data: JSON.parse(cached) };
       }
 
-      const link = await linkService.createLink(body, user?.id);
+      const link = await LinkService.createLink(body, user?.id);
 
       if (idempotencyKey) {
         await setIdempotency(idempotencyKey, JSON.stringify(link));
       }
 
       set.status = 201;
-      return { success: true, data: formatLinkResponse(link) };
+      return { success: true, data: LinkService.formatLinkResponse(link) };
     },
     {
       beforeHandle: [optionalAuth],

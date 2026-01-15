@@ -1,5 +1,5 @@
-import type { ClickEvent } from '@/types/analytics.types';
 import { type ConnectionOptions, Queue } from 'bullmq';
+import type { ClickEvent } from '@/types/analytics.types';
 
 /**
  * NOTA: BullMQ requer ioredis internamente para gerenciar filas.

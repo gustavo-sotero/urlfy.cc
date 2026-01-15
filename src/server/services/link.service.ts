@@ -1,5 +1,12 @@
 // src/server/services/link.service.ts
 
+/**
+ * @deprecated This service is deprecated. Use the modular architecture instead:
+ * import { LinkService } from '@/server/modules/links';
+ *
+ * This file is kept for backward compatibility and will be removed in a future version.
+ */
+
 import {
   and,
   arrayContains,

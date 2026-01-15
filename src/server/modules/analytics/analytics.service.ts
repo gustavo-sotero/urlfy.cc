@@ -1,10 +1,11 @@
-// src/server/services/analytics.service.ts
-
 /**
- * @deprecated This service is deprecated. Use the modular architecture instead:
- * import { AnalyticsService } from '@/server/modules/analytics';
+ * ═════════════════════════════════════════════════════════════════════
+ * ANALYTICS SERVICE - Business logic for analytics
+ * ═════════════════════════════════════════════════════════════════════
  *
- * This file is kept for backward compatibility and will be removed in a future version.
+ * Module: Analytics (Feature-based modular architecture)
+ * Pattern: Abstract class with static methods (stateless)
+ * ═════════════════════════════════════════════════════════════════════
  */
 
 import { and, count as countFn, desc, eq, gte, sql, sum } from 'drizzle-orm';
@@ -25,11 +26,20 @@ import type {
 
 const logger = createLogger('analytics-service');
 
-export class AnalyticsService {
+/**
+ * Analytics Service - Handles analytics-related operations
+ *
+ * Uses abstract class with static methods per Elysia best practices:
+ * - No instantiation needed
+ * - Clean import namespace (AnalyticsService.getDailyStats)
+ * - Stateless methods
+ */
+// biome-ignore lint/complexity/noStaticOnlyClass: Intentional pattern per ElysiaJS best practices for stateless services
+export abstract class AnalyticsService {
   /**
-   * Obtém estatísticas diárias para um link
+   * Get daily stats for a link
    */
-  async getDailyStats(
+  static async getDailyStats(
     linkId: string,
     days: number = 30
   ): Promise<TimeSeries[]> {
@@ -67,9 +77,9 @@ export class AnalyticsService {
   }
 
   /**
-   * Obtém breakdown por país
+   * Get country breakdown
    */
-  async getCountryBreakdown(
+  static async getCountryBreakdown(
     linkId: string,
     limit: number = 10,
     days: number = 30
@@ -85,7 +95,7 @@ export class AnalyticsService {
       startDate.setDate(startDate.getDate() - days);
       const dateStr = startDate.toISOString().split('T')[0];
 
-      // Total de cliques no período
+      // Total clicks in period
       const totalResult = await db
         .select({
           total: sum(analyticsCountryBreakdown.clicks).as('total')
@@ -100,7 +110,7 @@ export class AnalyticsService {
 
       const total = Number(totalResult[0]?.total) || 0;
 
-      // Top países
+      // Top countries
       const countries = await db
         .select({
           country: analyticsCountryBreakdown.country,
@@ -133,9 +143,9 @@ export class AnalyticsService {
   }
 
   /**
-   * Obtém breakdown por dispositivo
+   * Get device breakdown
    */
-  async getDeviceBreakdown(
+  static async getDeviceBreakdown(
     linkId: string,
     days: number = 30
   ): Promise<
@@ -165,7 +175,7 @@ export class AnalyticsService {
 
       const total = Number(totalResult[0]?.total) || 0;
 
-      // Por dispositivo
+      // By device
       const devices = await db
         .select({
           type: analyticsDeviceBreakdown.deviceType,
@@ -197,9 +207,9 @@ export class AnalyticsService {
   }
 
   /**
-   * Obtém breakdown por browser
+   * Get browser breakdown
    */
-  async getBrowserBreakdown(
+  static async getBrowserBreakdown(
     linkId: string,
     limit: number = 10,
     days: number = 30
@@ -263,9 +273,9 @@ export class AnalyticsService {
   }
 
   /**
-   * Obtém referrer domain breakdown
+   * Get referrer domain breakdown
    */
-  async getReferrerBreakdown(
+  static async getReferrerBreakdown(
     linkId: string,
     limit: number = 10,
     days: number = 30
@@ -330,9 +340,9 @@ export class AnalyticsService {
   }
 
   /**
-   * Obtém resumo completo de analytics
+   * Get complete analytics summary
    */
-  async getSummary(
+  static async getSummary(
     linkId: string,
     days: number = 30
   ): Promise<AnalyticsSummary | null> {
@@ -341,7 +351,7 @@ export class AnalyticsService {
       startDate.setDate(startDate.getDate() - days);
       const dateStr = startDate.toISOString().split('T')[0];
 
-      // Total de cliques e visitantes únicos
+      // Total clicks and unique visitors
       const summary = await db
         .select({
           totalClicks: sum(linkClicksDaily.clicks).as('totalClicks'),
@@ -366,7 +376,7 @@ export class AnalyticsService {
 
       const totalClicks = Number(summary[0].totalClicks) || 0;
       const uniqueVisitors = Number(summary[0].uniqueVisitors) || 0;
-      const daysWithData = days; // Simplificação
+      const daysWithData = days; // Simplification
 
       return {
         totalClicks,
@@ -387,24 +397,24 @@ export class AnalyticsService {
   }
 
   /**
-   * Obtém breakdown completo para um período
+   * Get complete breakdown for a period
    */
-  async getCompleteBreakdown(
+  static async getCompleteBreakdown(
     linkId: string,
     days: number = 30
   ): Promise<AnalyticsBreakdown> {
     try {
       const [countries, devices, browsers, referrers] = await Promise.all([
-        this.getCountryBreakdown(linkId, 10, days),
-        this.getDeviceBreakdown(linkId, days),
-        this.getBrowserBreakdown(linkId, 10, days),
-        this.getReferrerBreakdown(linkId, 10, days)
+        AnalyticsService.getCountryBreakdown(linkId, 10, days),
+        AnalyticsService.getDeviceBreakdown(linkId, days),
+        AnalyticsService.getBrowserBreakdown(linkId, 10, days),
+        AnalyticsService.getReferrerBreakdown(linkId, 10, days)
       ]);
 
       return {
         countries: countries.map((c) => ({
           code: c.country,
-          name: c.country, // TODO: Adicionar nome completo do país
+          name: c.country, // TODO: Add full country name
           clicks: c.clicks,
           percentage: c.percentage
         })),
@@ -428,10 +438,10 @@ export class AnalyticsService {
   }
 
   /**
-   * Verifica saúde dos dados de analytics
-   * Útil para monitoramento
+   * Health check for analytics data
+   * Useful for monitoring
    */
-  async healthCheck(): Promise<{
+  static async healthCheck(): Promise<{
     status: 'ok' | 'error';
     totalEvents: number;
     latestEvent: Date | null;
@@ -467,5 +477,3 @@ export class AnalyticsService {
     }
   }
 }
-
-export const analyticsService = new AnalyticsService();

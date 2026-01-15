@@ -1,6 +1,9 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * COMMON MODELS - Shared validation schemas
+ * COMMON SCHEMAS - Shared validation schemas
+ * ═════════════════════════════════════════════════════════════════════
+ * Module: Common (Shared utilities)
+ * Pattern: TypeBox schemas as Single Source of Truth
  * ═════════════════════════════════════════════════════════════════════
  */
 
@@ -106,7 +109,7 @@ export const UUIDString = t.String({
 // MODEL REGISTRY FOR INJECTION
 // ═══════════════════════════════════════════════════════════════════
 
-export const commonModels = {
+export const CommonModel = {
   PaginationQuery,
   PaginationMeta,
   ApiError,

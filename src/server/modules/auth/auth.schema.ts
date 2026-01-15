@@ -1,6 +1,10 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * AUTH MODELS - Validation schemas for authentication endpoints
+ * AUTH SCHEMA - Validation schemas for authentication endpoints
+ * ═════════════════════════════════════════════════════════════════════
+ * Module: Authentication & Identity
+ * Pattern: TypeBox schemas as Single Source of Truth
+ * Spec: module-02-authentication.md
  * ═════════════════════════════════════════════════════════════════════
  */
 
@@ -149,7 +153,7 @@ export type SessionListResponseType = Static<typeof SessionListResponse>;
 // MODEL REGISTRY FOR INJECTION
 // ═══════════════════════════════════════════════════════════════════
 
-export const authModels = {
+export const AuthModel = {
   ApiKeyPermissions,
   ApiKeyCreateBody,
   ApiKeyUpdateBody,

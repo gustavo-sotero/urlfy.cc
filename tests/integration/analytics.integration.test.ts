@@ -1,13 +1,13 @@
 // tests/integration/analytics.integration.test.ts
 
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { analyticsEvents, linkClicksDaily, links } from '@/db/schema';
 import { hashVisitor } from '@/server/lib/privacy';
 import { analyticsQueue } from '@/server/lib/queue';
-import { analyticsService } from '@/server/services/analytics.service';
+import { AnalyticsService } from '@/server/modules/analytics';
 import type { ClickEvent } from '@/types/analytics.types';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { eq } from 'drizzle-orm';
 
 describe('Analytics Integration', () => {
   let testLinkId: string;
@@ -215,13 +215,13 @@ describe('Analytics Integration', () => {
         });
 
       // Obtém stats
-      const stats = await analyticsService.getDailyStats(testLinkId, 1);
+      const stats = await AnalyticsService.getDailyStats(testLinkId, 1);
 
       expect(stats.length).toBeGreaterThan(0);
     });
 
     it('should get country breakdown', async () => {
-      const breakdown = await analyticsService.getCountryBreakdown(
+      const breakdown = await AnalyticsService.getCountryBreakdown(
         testLinkId,
         10,
         7
@@ -231,7 +231,7 @@ describe('Analytics Integration', () => {
     });
 
     it('should get device breakdown', async () => {
-      const breakdown = await analyticsService.getDeviceBreakdown(
+      const breakdown = await AnalyticsService.getDeviceBreakdown(
         testLinkId,
         7
       );
@@ -240,7 +240,7 @@ describe('Analytics Integration', () => {
     });
 
     it('should get summary', async () => {
-      const summary = await analyticsService.getSummary(testLinkId, 7);
+      const summary = await AnalyticsService.getSummary(testLinkId, 7);
 
       if (summary) {
         expect(summary).toHaveProperty('totalClicks');
@@ -250,7 +250,7 @@ describe('Analytics Integration', () => {
     });
 
     it('should pass health check', async () => {
-      const health = await analyticsService.healthCheck();
+      const health = await AnalyticsService.healthCheck();
 
       expect(health.status).toBe('ok');
       expect(health).toHaveProperty('totalEvents');

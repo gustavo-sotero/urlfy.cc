@@ -1,39 +1,52 @@
-// src/server/api/v1/links/index.ts
+/**
+ * ═════════════════════════════════════════════════════════════════════
+ * LINKS CONTROLLER - HTTP routes for link management
+ * ═════════════════════════════════════════════════════════════════════
+ * Module: Links (Core Domain)
+ * Pattern: Elysia instance as controller, delegates to service
+ * Spec: module-03-links.md
+ * ═════════════════════════════════════════════════════════════════════
+ */
 
 import { createHash } from 'node:crypto';
 import { Elysia } from 'elysia';
 
-import { handleLinkError } from '../../../lib/errors';
+import { handleLinkError } from '@/server/lib/errors';
 import {
   checkIdempotency,
   setIdempotency,
   validateIdempotencyKey
-} from '../../../lib/idempotency';
-import { optionalAuth, requireAuth } from '../../../middleware/auth.middleware';
-import * as linkService from '../../../services/link.service';
-import * as qrService from '../../../services/qr.service';
-import { validateUrlAsync } from '../../../services/url-validator';
+} from '@/server/lib/idempotency';
+import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
+import * as qrService from '@/server/services/qr.service';
+import { validateUrlAsync } from '@/server/services/url-validator';
+
 import {
   LinkBulkCreateBody,
   LinkCodeParam,
   LinkCreateBody,
   LinkIdParam,
   LinkListQuery,
+  LinkModel,
   LinkUpdateBody,
-  linksModels,
   QrCodeQuery,
   ValidateUrlBody,
   VerifyPasswordBody
-} from '../../models';
+} from './links.schema';
+import { LinkService } from './links.service';
 
-// Routes públicas/opcionais (guest allowed)
+// ═══════════════════════════════════════════════════════════════════
+// PUBLIC ROUTES (guest allowed)
+// ═══════════════════════════════════════════════════════════════════
+
 const publicRoutes = new Elysia()
   .use(optionalAuth)
   // Inject shared models for type inference and OpenAPI docs
-  .model(linksModels)
-  // ═══════════════════════════════════════════════════════════════
+  .model(LinkModel)
+
+  // ─────────────────────────────────────────────────────────────────
   // POST /links/validate - Validar URL
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .post(
     '/validate',
     async ({ body }) => {
@@ -66,14 +79,15 @@ const publicRoutes = new Elysia()
       }
     }
   )
-  // ═══════════════════════════════════════════════════════════════
-  // POST /links/by-code/:code/verify-password - Verificar senha de link protegido
-  // ═══════════════════════════════════════════════════════════════
+
+  // ─────────────────────────────────────────────────────────────────
+  // POST /links/by-code/:code/verify-password
+  // ─────────────────────────────────────────────────────────────────
   .post(
     '/by-code/:code/verify-password',
     async ({ params, body, set }) => {
       try {
-        const isValid = await linkService.verifyLinkPassword(
+        const isValid = await LinkService.verifyLinkPassword(
           params.code,
           body.password
         );
@@ -114,14 +128,15 @@ const publicRoutes = new Elysia()
       }
     }
   )
-  // ═══════════════════════════════════════════════════════════════
+
+  // ─────────────────────────────────────────────────────────────────
   // GET /links/by-code/:code/qr - Gerar QR Code (público)
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .get(
     '/by-code/:code/qr',
     async ({ params, query, set }) => {
       try {
-        const link = await linkService.getLinkByCode(params.code);
+        const link = await LinkService.getLinkByCode(params.code);
         if (!link) {
           set.status = 404;
           return {
@@ -167,14 +182,15 @@ const publicRoutes = new Elysia()
       }
     }
   )
-  // ═══════════════════════════════════════════════════════════════
+
+  // ─────────────────────────────────────────────────────────────────
   // GET /links/by-code/:code/preview - Preview de link (público)
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .get(
     '/by-code/:code/preview',
     async ({ params, set }) => {
       try {
-        const link = await linkService.getLinkByCode(params.code);
+        const link = await LinkService.getLinkByCode(params.code);
         if (!link) {
           set.status = 404;
           return {
@@ -211,9 +227,10 @@ const publicRoutes = new Elysia()
       }
     }
   )
-  // ═══════════════════════════════════════════════════════════════
+
+  // ─────────────────────────────────────────────────────────────────
   // POST /links - Criar link (guest ou autenticado)
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .post(
     '/',
     async (ctx) => {
@@ -237,11 +254,11 @@ const publicRoutes = new Elysia()
           const cached = await checkIdempotency(idempotencyKey);
           if (cached) {
             const link = user
-              ? await linkService.getLinkById(cached, user.id)
-              : await linkService.getLinkByIdUnsafe(cached);
+              ? await LinkService.getLinkById(cached, user.id)
+              : await LinkService.getLinkByIdUnsafe(cached);
             return {
               success: true,
-              data: linkService.formatLinkResponse(link)
+              data: LinkService.formatLinkResponse(link)
             };
           }
         }
@@ -252,7 +269,7 @@ const publicRoutes = new Elysia()
         const ipHash = createHash('sha256').update(clientIp).digest('hex');
 
         // Criar link
-        const link = await linkService.createLink(
+        const link = await LinkService.createLink(
           body,
           user?.id ?? undefined,
           ipHash
@@ -265,7 +282,7 @@ const publicRoutes = new Elysia()
 
         return {
           success: true,
-          data: linkService.formatLinkResponse(link),
+          data: LinkService.formatLinkResponse(link),
           status: 201
         };
       } catch (error) {
@@ -282,14 +299,18 @@ const publicRoutes = new Elysia()
     }
   );
 
-// Routes autenticadas (requer login)
+// ═══════════════════════════════════════════════════════════════════
+// AUTHENTICATED ROUTES (requires login)
+// ═══════════════════════════════════════════════════════════════════
+
 const authenticatedRoutes = new Elysia()
   .use(requireAuth)
   // Inject shared models
-  .model(linksModels)
-  // ═══════════════════════════════════════════════════════════════
+  .model(LinkModel)
+
+  // ─────────────────────────────────────────────────────────────────
   // POST /links/bulk - Criar múltiplos links
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .post(
     '/bulk',
     async (ctx) => {
@@ -326,20 +347,20 @@ const authenticatedRoutes = new Elysia()
 
         const results: Array<{
           success: boolean;
-          data?: ReturnType<typeof linkService.formatLinkResponse>;
+          data?: ReturnType<typeof LinkService.formatLinkResponse>;
           error?: string;
         }> = [];
 
         for (const linkInput of body.links) {
           try {
-            const link = await linkService.createLink(
+            const link = await LinkService.createLink(
               linkInput,
               user.id,
               ipHash
             );
             results.push({
               success: true,
-              data: linkService.formatLinkResponse(link)
+              data: LinkService.formatLinkResponse(link)
             });
           } catch (error) {
             results.push({
@@ -375,15 +396,16 @@ const authenticatedRoutes = new Elysia()
       }
     }
   )
-  // ═══════════════════════════════════════════════════════════════
+
+  // ─────────────────────────────────────────────────────────────────
   // GET /links - Listar links do usuário
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .get(
     '/',
     async (ctx) => {
       const { query, user } = ctx as typeof ctx & { user: { id: string } };
       try {
-        const result = await linkService.listUserLinks(user.id, {
+        const result = await LinkService.listUserLinks(user.id, {
           page: query.page ? parseInt(query.page, 10) : 1,
           perPage: query.perPage ? parseInt(query.perPage, 10) : 20,
           search: query.search,
@@ -404,7 +426,7 @@ const authenticatedRoutes = new Elysia()
 
         return {
           success: true,
-          data: result.data.map(linkService.formatLinkResponse),
+          data: result.data.map(LinkService.formatLinkResponse),
           meta: result.meta
         };
       } catch (error) {
@@ -421,18 +443,18 @@ const authenticatedRoutes = new Elysia()
     }
   )
 
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   // GET /links/:id - Obter link específico
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .get(
     '/:id',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
-        const link = await linkService.getLinkById(params.id, user.id);
+        const link = await LinkService.getLinkById(params.id, user.id);
         return {
           success: true,
-          data: linkService.formatLinkResponse(link)
+          data: LinkService.formatLinkResponse(link)
         };
       } catch (error) {
         return handleLinkError(error);
@@ -448,9 +470,9 @@ const authenticatedRoutes = new Elysia()
     }
   )
 
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   // PATCH /links/:id - Atualizar link
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .patch(
     '/:id',
     async (ctx) => {
@@ -458,10 +480,10 @@ const authenticatedRoutes = new Elysia()
         user: { id: string };
       };
       try {
-        const link = await linkService.updateLink(params.id, user.id, body);
+        const link = await LinkService.updateLink(params.id, user.id, body);
         return {
           success: true,
-          data: linkService.formatLinkResponse(link)
+          data: LinkService.formatLinkResponse(link)
         };
       } catch (error) {
         return handleLinkError(error);
@@ -478,15 +500,15 @@ const authenticatedRoutes = new Elysia()
     }
   )
 
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   // DELETE /links/:id - Soft delete
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .delete(
     '/:id',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
-        await linkService.softDeleteLink(params.id, user.id);
+        await LinkService.softDeleteLink(params.id, user.id);
         return {
           success: true,
           status: 204
@@ -505,18 +527,18 @@ const authenticatedRoutes = new Elysia()
     }
   )
 
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   // POST /links/:id/restore - Restaurar link deletado
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .post(
     '/:id/restore',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
-        const link = await linkService.restoreLink(params.id, user.id);
+        const link = await LinkService.restoreLink(params.id, user.id);
         return {
           success: true,
-          data: linkService.formatLinkResponse(link)
+          data: LinkService.formatLinkResponse(link)
         };
       } catch (error) {
         return handleLinkError(error);
@@ -532,18 +554,18 @@ const authenticatedRoutes = new Elysia()
     }
   )
 
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   // POST /links/:id/duplicate - Duplicar link
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .post(
     '/:id/duplicate',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
-        const link = await linkService.duplicateLink(params.id, user.id);
+        const link = await LinkService.duplicateLink(params.id, user.id);
         return {
           success: true,
-          data: linkService.formatLinkResponse(link),
+          data: LinkService.formatLinkResponse(link),
           status: 201
         };
       } catch (error) {
@@ -560,18 +582,18 @@ const authenticatedRoutes = new Elysia()
     }
   )
 
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   // POST /links/:id/toggle - Toggle ativo/inativo
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .post(
     '/:id/toggle',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
-        const link = await linkService.toggleLinkActive(params.id, user.id);
+        const link = await LinkService.toggleLinkActive(params.id, user.id);
         return {
           success: true,
-          data: linkService.formatLinkResponse(link)
+          data: LinkService.formatLinkResponse(link)
         };
       } catch (error) {
         return handleLinkError(error);
@@ -587,15 +609,15 @@ const authenticatedRoutes = new Elysia()
     }
   )
 
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   // GET /links/:id/stats - Stats rápidas do link
-  // ═══════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────
   .get(
     '/:id/stats',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
-        const link = await linkService.getLinkById(params.id, user.id);
+        const link = await LinkService.getLinkById(params.id, user.id);
         return {
           success: true,
           data: {
@@ -618,7 +640,10 @@ const authenticatedRoutes = new Elysia()
     }
   );
 
-// Combina rotas públicas e autenticadas
-export const linksRouter = new Elysia({ prefix: '/links' })
+// ═══════════════════════════════════════════════════════════════════
+// LINKS CONTROLLER - Combined public and authenticated routes
+// ═══════════════════════════════════════════════════════════════════
+
+export const linksController = new Elysia({ prefix: '/links' })
   .use(publicRoutes)
   .use(authenticatedRoutes);

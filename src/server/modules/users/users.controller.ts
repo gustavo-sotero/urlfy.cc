@@ -1,10 +1,10 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * USERS ADMIN ROUTES
+ * USERS CONTROLLER - HTTP endpoints for user management
  * ═════════════════════════════════════════════════════════════════════
- * Admin endpoints for user management
  *
- * Module: Authentication & Identity (Module 2)
+ * Module: Users (Feature-based modular architecture)
+ * Pattern: Elysia Controller (1 instance = 1 controller)
  * Spec: module-02-authentication.md (RF-31 to RF-34)
  * ═════════════════════════════════════════════════════════════════════
  */
@@ -14,20 +14,20 @@ import { Elysia } from 'elysia';
 import { db } from '@/db';
 import { user as userTable } from '@/db/schema/auth';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
-import { userService } from '@/server/services/user.service';
 import {
   UserBanBody,
   UserIdParam,
   UserListQuery,
   UserQuotaUpdateBody,
   UserRoleUpdateBody,
-  usersModels
-} from '../../models';
+  UsersModel
+} from './users.schema';
+import { UserService } from './users.service';
 
-export const usersRoutes = new Elysia({ prefix: '/users' })
+export const usersController = new Elysia({ prefix: '/users' })
   .use(requireAdmin)
-  // Inject shared models for type inference and OpenAPI docs
-  .model(usersModels)
+  // Inject model schemas for type inference and OpenAPI docs
+  .use(UsersModel)
 
   // ═══════════════════════════════════════════════════════════════════
   // LIST USERS (ADMIN)
@@ -103,7 +103,7 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
   .get(
     '/:userId',
     async ({ params: { userId } }) => {
-      const user = await userService.getUserById(userId);
+      const user = await UserService.getUserById(userId);
 
       if (!user) {
         return {
@@ -147,7 +147,7 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
       };
 
       try {
-        const bannedUser = await userService.banUser(
+        const bannedUser = await UserService.banUser(
           userId,
           reason,
           adminUser.id
@@ -199,7 +199,7 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
       };
 
       try {
-        const unbannedUser = await userService.unbanUser(userId, adminUser.id);
+        const unbannedUser = await UserService.unbanUser(userId, adminUser.id);
 
         return {
           success: true,
@@ -247,7 +247,7 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
       };
 
       try {
-        const updatedUser = await userService.updateUserRole(
+        const updatedUser = await UserService.updateUserRole(
           userId,
           role,
           adminUser.id

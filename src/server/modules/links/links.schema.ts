@@ -1,6 +1,10 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * LINKS MODELS - Validation schemas for link endpoints
+ * LINKS SCHEMA - Validation schemas for link endpoints
+ * ═════════════════════════════════════════════════════════════════════
+ * Module: Links (Core Domain)
+ * Pattern: TypeBox schemas as Single Source of Truth
+ * Spec: module-03-links.md
  * ═════════════════════════════════════════════════════════════════════
  */
 
@@ -223,7 +227,7 @@ export type LinkStatsResponseType = Static<typeof LinkStatsResponse>;
 // MODEL REGISTRY FOR INJECTION
 // ═══════════════════════════════════════════════════════════════════
 
-export const linksModels = {
+export const LinkModel = {
   LinkCreateBody,
   LinkUpdateBody,
   LinkBulkCreateBody,

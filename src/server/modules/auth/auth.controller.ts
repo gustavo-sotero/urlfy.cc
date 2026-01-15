@@ -1,0 +1,661 @@
+/**
+ * ═════════════════════════════════════════════════════════════════════
+ * AUTH CONTROLLER - HTTP routes for authentication
+ * ═════════════════════════════════════════════════════════════════════
+ * Module: Authentication & Identity
+ * Pattern: Elysia instance as controller, delegates to service
+ * Spec: module-02-authentication.md
+ * ═════════════════════════════════════════════════════════════════════
+ */
+
+import { and, desc, eq, isNull, ne } from 'drizzle-orm';
+import { Elysia } from 'elysia';
+import { nanoid } from 'nanoid';
+import { db } from '@/db';
+import {
+  apiKey as apiKeyTable,
+  session as sessionTable,
+  twoFactor as twoFactorTable
+} from '@/db/schema/auth';
+import type { Session, User } from '@/lib/auth';
+import { redis } from '@/server/lib/redis';
+import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
+import { auditLogService } from '@/server/services/audit.service';
+import type {
+  ApiKeyPermissions,
+  NormalizedApiKeyPermissions
+} from '@/types/auth.types';
+
+import {
+  ApiKeyCreateBody,
+  ApiKeyIdParam,
+  ApiKeyUpdateBody,
+  AuthModel,
+  SessionIdParam
+} from './auth.schema';
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+async function generateApiKey(
+  userId: string,
+  name: string,
+  permissions: ApiKeyPermissions,
+  options: {
+    rateLimitMax: number;
+    rateLimitTimeWindow: number;
+    expiresAt: Date | null;
+  }
+) {
+  const key = `urlfy_sk_${nanoid(32)}`;
+  const keyPrefix = key.slice(0, 12);
+
+  const encoder = new TextEncoder();
+  const data = encoder.encode(key);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const keyHash = hashArray
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  const normalizedPermissions = normalizePermissions(permissions);
+
+  const [created] = await db
+    .insert(apiKeyTable)
+    .values({
+      id: nanoid(),
+      userId,
+      name,
+      key: keyHash,
+      keyHash,
+      keyPrefix,
+      permissions: JSON.stringify(normalizedPermissions),
+      rateLimit: true,
+      rateLimitEnabled: true,
+      rateLimitTimeWindow: options.rateLimitTimeWindow,
+      rateLimitMax: options.rateLimitMax,
+      lastUsedAt: null,
+      usageCount: 0,
+      expiresAt: options.expiresAt,
+      revokedAt: null,
+      deletedAt: null
+    })
+    .returning();
+
+  return { created, plainKey: key };
+}
+
+function parsePermissions(
+  permissions: string | null
+): NormalizedApiKeyPermissions {
+  if (!permissions) {
+    return normalizePermissions({});
+  }
+
+  try {
+    const parsed = JSON.parse(permissions) as ApiKeyPermissions;
+    return normalizePermissions(parsed);
+  } catch {
+    return normalizePermissions({});
+  }
+}
+
+function normalizePermissions(
+  permissions: ApiKeyPermissions
+): NormalizedApiKeyPermissions {
+  return {
+    links: {
+      create: permissions.links?.create ?? false,
+      read: permissions.links?.read ?? false,
+      update: permissions.links?.update ?? false,
+      delete: permissions.links?.delete ?? false
+    },
+    analytics: {
+      read: permissions.analytics?.read ?? false
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTH ROUTES
+// ═══════════════════════════════════════════════════════════════════
+
+const sessionRoutes = new Elysia({ prefix: '/auth' })
+  .use(optionalAuth)
+  .model(AuthModel)
+
+  // ─────────────────────────────────────────────────────────────────
+  // GET /auth/session - Get current session with full user details
+  // ─────────────────────────────────────────────────────────────────
+  .get(
+    '/session',
+    async (context) => {
+      const { user, session, isAuthenticated } = context as typeof context & {
+        user: User | null;
+        session: Session | null;
+        isAuthenticated: boolean;
+      };
+
+      if (!isAuthenticated || !user || !session) {
+        return {
+          success: true,
+          data: {
+            user: null,
+            session: null
+          }
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            emailVerified: user.emailVerified,
+            image: user.image,
+            role: user.role,
+            linksQuota: user.linksQuota,
+            linksCount: user.linksCount,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+          },
+          session: {
+            id: session.id,
+            expiresAt: session.expiresAt,
+            ipAddress: session.ipAddress,
+            userAgent: session.userAgent
+          }
+        }
+      };
+    },
+    {
+      detail: {
+        tags: ['Auth'],
+        summary: 'Get current session details',
+        description: 'Returns the current user session with full user details'
+      }
+    }
+  )
+
+  // Require authentication for remaining routes
+  .use(requireAuth)
+
+  // ─────────────────────────────────────────────────────────────────
+  // GET /auth/two-factor/status - 2FA status
+  // ─────────────────────────────────────────────────────────────────
+  .get(
+    '/two-factor/status',
+    async (context) => {
+      const { user } = context as typeof context & {
+        user: { id: string };
+      };
+      try {
+        const result = await db
+          .select({
+            verified: twoFactorTable.verified,
+            createdAt: twoFactorTable.createdAt
+          })
+          .from(twoFactorTable)
+          .where(eq(twoFactorTable.userId, user.id))
+          .limit(1);
+
+        const enabled = result.length > 0 && result[0].verified;
+
+        return {
+          success: true,
+          data: {
+            enabled,
+            verified: enabled,
+            setupAt: result[0]?.createdAt ?? null
+          }
+        };
+      } catch {
+        return {
+          success: true,
+          data: {
+            enabled: false,
+            verified: false,
+            setupAt: null
+          }
+        };
+      }
+    },
+    {
+      detail: {
+        tags: ['Auth', '2FA'],
+        summary: 'Get 2FA status',
+        description:
+          'Check if two-factor authentication is enabled for the current user'
+      }
+    }
+  )
+
+  // ─────────────────────────────────────────────────────────────────
+  // GET /auth/sessions - List user sessions
+  // ─────────────────────────────────────────────────────────────────
+  .get(
+    '/sessions',
+    async (context) => {
+      const { user } = context as typeof context & {
+        user: { id: string };
+      };
+      const sessions = await db
+        .select()
+        .from(sessionTable)
+        .where(eq(sessionTable.userId, user.id))
+        .orderBy(desc(sessionTable.createdAt));
+
+      return {
+        success: true,
+        data: sessions.map((s) => ({
+          id: s.id,
+          ipAddress: s.ipAddress,
+          userAgent: s.userAgent,
+          expiresAt: s.expiresAt,
+          createdAt: s.createdAt
+        }))
+      };
+    },
+    {
+      detail: {
+        tags: ['Auth', 'Sessions'],
+        summary: 'List user sessions',
+        description: 'Get all active sessions for the current user'
+      }
+    }
+  )
+
+  // ─────────────────────────────────────────────────────────────────
+  // DELETE /auth/sessions/:sessionId - Revoke session
+  // ─────────────────────────────────────────────────────────────────
+  .delete(
+    '/sessions/:sessionId',
+    async (context) => {
+      const {
+        params: { sessionId },
+        user
+      } = context as typeof context & {
+        params: { sessionId: string };
+        user: { id: string };
+      };
+
+      const deleted = await db
+        .delete(sessionTable)
+        .where(
+          and(eq(sessionTable.id, sessionId), eq(sessionTable.userId, user.id))
+        )
+        .returning();
+
+      if (deleted.length === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'SESSION_NOT_FOUND',
+            message: 'Session not found or already revoked'
+          }
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          message: 'Session revoked successfully'
+        }
+      };
+    },
+    {
+      params: SessionIdParam,
+      detail: {
+        tags: ['Auth', 'Sessions'],
+        summary: 'Revoke session',
+        description: 'Revoke a specific session (logout from that device)'
+      }
+    }
+  )
+
+  // ─────────────────────────────────────────────────────────────────
+  // DELETE /auth/sessions - Revoke all other sessions
+  // ─────────────────────────────────────────────────────────────────
+  .delete(
+    '/sessions',
+    async (context) => {
+      const { user, session } = context as typeof context & {
+        user: { id: string };
+        session: { id: string };
+      };
+
+      await db
+        .delete(sessionTable)
+        .where(
+          and(eq(sessionTable.userId, user.id), ne(sessionTable.id, session.id))
+        );
+
+      return {
+        success: true,
+        data: {
+          message: 'All other sessions revoked successfully'
+        }
+      };
+    },
+    {
+      detail: {
+        tags: ['Auth', 'Sessions'],
+        summary: 'Revoke all other sessions',
+        description: 'Logout from all devices except the current one'
+      }
+    }
+  )
+
+  // ─────────────────────────────────────────────────────────────────
+  // POST /auth/sessions/revoke-others - Revoke all other sessions (alias)
+  // ─────────────────────────────────────────────────────────────────
+  .post(
+    '/sessions/revoke-others',
+    async (context) => {
+      const { user, session } = context as typeof context & {
+        user: { id: string };
+        session: { id: string };
+      };
+
+      await db
+        .delete(sessionTable)
+        .where(
+          and(eq(sessionTable.userId, user.id), ne(sessionTable.id, session.id))
+        );
+
+      return {
+        success: true,
+        data: {
+          message: 'All other sessions revoked successfully'
+        }
+      };
+    },
+    {
+      detail: {
+        tags: ['Auth', 'Sessions'],
+        summary: 'Revoke all other sessions',
+        description: 'Logout from all devices except the current one'
+      }
+    }
+  );
+
+// ═══════════════════════════════════════════════════════════════════
+// API KEYS ROUTES
+// ═══════════════════════════════════════════════════════════════════
+
+const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
+  .use(requireAuth)
+  .model(AuthModel)
+
+  // ─────────────────────────────────────────────────────────────────
+  // GET /api-keys - List API keys
+  // ─────────────────────────────────────────────────────────────────
+  .get(
+    '/',
+    async (context) => {
+      const { user } = context as typeof context & {
+        user: { id: string };
+      };
+
+      const keys = await db
+        .select({
+          id: apiKeyTable.id,
+          name: apiKeyTable.name,
+          keyPrefix: apiKeyTable.keyPrefix,
+          permissions: apiKeyTable.permissions,
+          rateLimitMax: apiKeyTable.rateLimitMax,
+          lastUsedAt: apiKeyTable.lastUsedAt,
+          usageCount: apiKeyTable.usageCount,
+          expiresAt: apiKeyTable.expiresAt,
+          createdAt: apiKeyTable.createdAt
+        })
+        .from(apiKeyTable)
+        .where(
+          and(
+            eq(apiKeyTable.userId, user.id),
+            isNull(apiKeyTable.deletedAt),
+            isNull(apiKeyTable.revokedAt)
+          )
+        )
+        .orderBy(desc(apiKeyTable.createdAt));
+
+      return {
+        success: true,
+        data: keys.map((key) => ({
+          id: key.id,
+          name: key.name,
+          keyPrefix: key.keyPrefix,
+          permissions: parsePermissions(key.permissions),
+          rateLimit: key.rateLimitMax ?? 1000,
+          lastUsedAt: key.lastUsedAt,
+          usageCount: key.usageCount,
+          expiresAt: key.expiresAt,
+          createdAt: key.createdAt
+        }))
+      };
+    },
+    {
+      detail: {
+        tags: ['API Keys'],
+        summary: 'List API keys',
+        description:
+          'Get all API keys for the current user (keys are never returned)'
+      }
+    }
+  )
+
+  // ─────────────────────────────────────────────────────────────────
+  // POST /api-keys - Create API key
+  // ─────────────────────────────────────────────────────────────────
+  .post(
+    '/',
+    async (context) => {
+      const { user, body } = context as typeof context & {
+        user: { id: string };
+        body: {
+          name: string;
+          permissions?: ApiKeyPermissions;
+          rateLimit?: number;
+          expiresInDays?: number;
+        };
+      };
+
+      const rateLimitMax = body.rateLimit ?? 1000;
+      const rateLimitTimeWindow = 60 * 60 * 1000; // 1 hour
+      const expiresAt = body.expiresInDays
+        ? new Date(Date.now() + body.expiresInDays * 24 * 60 * 60 * 1000)
+        : null;
+
+      const { created, plainKey } = await generateApiKey(
+        user.id,
+        body.name,
+        body.permissions || {},
+        {
+          rateLimitMax,
+          rateLimitTimeWindow,
+          expiresAt
+        }
+      );
+
+      return {
+        success: true,
+        data: {
+          id: created.id,
+          name: created.name,
+          keyPrefix: created.keyPrefix,
+          key: plainKey,
+          permissions: parsePermissions(created.permissions),
+          rateLimit: created.rateLimitMax ?? rateLimitMax,
+          expiresAt: created.expiresAt ?? expiresAt,
+          createdAt: created.createdAt,
+          warning: '⚠️ Save this key securely. It will not be shown again.'
+        }
+      };
+    },
+    {
+      body: ApiKeyCreateBody,
+      detail: {
+        tags: ['API Keys'],
+        summary: 'Create API key',
+        description:
+          'Generate a new API key with specified permissions. The key is only shown once.'
+      }
+    }
+  )
+
+  // ─────────────────────────────────────────────────────────────────
+  // PATCH /api-keys/:keyId - Update API key
+  // ─────────────────────────────────────────────────────────────────
+  .patch(
+    '/:keyId',
+    async (context) => {
+      const {
+        user,
+        params: { keyId },
+        body
+      } = context as typeof context & {
+        user: { id: string };
+        params: { keyId: string };
+        body: {
+          name?: string;
+          permissions?: ApiKeyPermissions;
+        };
+      };
+
+      const normalizedPermissions = body.permissions
+        ? normalizePermissions(body.permissions)
+        : undefined;
+
+      const [updated] = await db
+        .update(apiKeyTable)
+        .set({
+          name: body.name,
+          permissions: normalizedPermissions
+            ? JSON.stringify(normalizedPermissions)
+            : undefined
+        })
+        .where(
+          and(
+            eq(apiKeyTable.id, keyId),
+            eq(apiKeyTable.userId, user.id),
+            isNull(apiKeyTable.deletedAt),
+            isNull(apiKeyTable.revokedAt)
+          )
+        )
+        .returning();
+
+      if (!updated) {
+        return {
+          success: false,
+          error: {
+            code: 'API_KEY_NOT_FOUND',
+            message: 'API key not found'
+          }
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          id: updated.id,
+          name: updated.name,
+          permissions: parsePermissions(updated.permissions),
+          updatedAt: updated.updatedAt
+        }
+      };
+    },
+    {
+      params: ApiKeyIdParam,
+      body: ApiKeyUpdateBody,
+      detail: {
+        tags: ['API Keys'],
+        summary: 'Update API key',
+        description:
+          'Update API key name or permissions (key itself cannot be changed)'
+      }
+    }
+  )
+
+  // ─────────────────────────────────────────────────────────────────
+  // DELETE /api-keys/:keyId - Delete API key
+  // ─────────────────────────────────────────────────────────────────
+  .delete(
+    '/:keyId',
+    async (context) => {
+      const {
+        user,
+        params: { keyId }
+      } = context as typeof context & {
+        user: { id: string };
+        params: { keyId: string };
+      };
+
+      const [deleted] = await db
+        .update(apiKeyTable)
+        .set({
+          revokedAt: new Date(),
+          deletedAt: new Date()
+        })
+        .where(
+          and(
+            eq(apiKeyTable.id, keyId),
+            eq(apiKeyTable.userId, user.id),
+            isNull(apiKeyTable.deletedAt),
+            isNull(apiKeyTable.revokedAt)
+          )
+        )
+        .returning();
+
+      if (!deleted) {
+        return {
+          success: false,
+          error: {
+            code: 'API_KEY_NOT_FOUND',
+            message: 'API key not found'
+          }
+        };
+      }
+
+      // Invalidate rate limit cache
+      await redis.del(`rl:apikey:${keyId}`);
+
+      // Audit log
+      try {
+        await auditLogService.log({
+          userId: user.id,
+          action: 'revoke_api_key',
+          entityType: 'api_key',
+          entityId: keyId,
+          metadata: { name: deleted.name ?? null }
+        });
+      } catch (error) {
+        console.warn('Failed to log API key revocation', error);
+      }
+
+      return {
+        success: true,
+        data: {
+          message: 'API key deleted successfully'
+        }
+      };
+    },
+    {
+      params: ApiKeyIdParam,
+      detail: {
+        tags: ['API Keys'],
+        summary: 'Delete API key',
+        description: 'Soft delete an API key (revokes access immediately)'
+      }
+    }
+  );
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTH CONTROLLER - Combined session and API keys routes
+// ═══════════════════════════════════════════════════════════════════
+
+export const authController = new Elysia()
+  .use(sessionRoutes)
+  .use(apiKeysRoutes);
