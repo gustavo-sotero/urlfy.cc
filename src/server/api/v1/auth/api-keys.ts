@@ -12,7 +12,10 @@
 import { db } from '@/db';
 import { apiKey as apiKeyTable } from '@/db/schema/auth';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import type { ApiKeyPermissions } from '@/types/auth.types';
+import type {
+  ApiKeyPermissions,
+  NormalizedApiKeyPermissions
+} from '@/types/auth.types';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { Elysia, t } from 'elysia';
 import { nanoid } from 'nanoid';
@@ -23,7 +26,12 @@ import { nanoid } from 'nanoid';
 async function generateApiKey(
   userId: string,
   name: string,
-  permissions: ApiKeyPermissions
+  permissions: ApiKeyPermissions,
+  options: {
+    rateLimitMax: number;
+    rateLimitTimeWindow: number;
+    expiresAt: Date | null;
+  }
 ) {
   // Generate the actual API key: urlfy_sk_<32 random chars>
   const key = `urlfy_sk_${nanoid(32)}`;
@@ -41,17 +49,7 @@ async function generateApiKey(
     .join('');
 
   // Normalize permissions to ensure all required fields are present
-  const normalizedPermissions = {
-    links: {
-      create: permissions.links?.create ?? false,
-      read: permissions.links?.read ?? false,
-      update: permissions.links?.update ?? false,
-      delete: permissions.links?.delete ?? false
-    },
-    analytics: {
-      read: permissions.analytics?.read ?? false
-    }
-  };
+  const normalizedPermissions = normalizePermissions(permissions);
 
   const [created] = await db
     .insert(apiKeyTable)
@@ -66,10 +64,12 @@ async function generateApiKey(
       keyPrefix,
       permissions: JSON.stringify(normalizedPermissions),
       rateLimit: true,
-      rateLimitMax: 1000,
+      rateLimitEnabled: true,
+      rateLimitTimeWindow: options.rateLimitTimeWindow,
+      rateLimitMax: options.rateLimitMax,
       lastUsedAt: null,
       usageCount: 0,
-      expiresAt: null,
+      expiresAt: options.expiresAt,
       revokedAt: null,
       deletedAt: null
     })
@@ -98,9 +98,12 @@ export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
         .select({
           id: apiKeyTable.id,
           name: apiKeyTable.name,
+          keyPrefix: apiKeyTable.keyPrefix,
           permissions: apiKeyTable.permissions,
+          rateLimitMax: apiKeyTable.rateLimitMax,
           lastUsedAt: apiKeyTable.lastUsedAt,
           usageCount: apiKeyTable.usageCount,
+          expiresAt: apiKeyTable.expiresAt,
           createdAt: apiKeyTable.createdAt
         })
         .from(apiKeyTable)
@@ -111,7 +114,17 @@ export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
 
       return {
         success: true,
-        data: keys
+        data: keys.map((key) => ({
+          id: key.id,
+          name: key.name,
+          keyPrefix: key.keyPrefix,
+          permissions: parsePermissions(key.permissions),
+          rateLimit: key.rateLimitMax ?? 1000,
+          lastUsedAt: key.lastUsedAt,
+          usageCount: key.usageCount,
+          expiresAt: key.expiresAt,
+          createdAt: key.createdAt
+        }))
       };
     },
     {
@@ -135,13 +148,26 @@ export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
         body: {
           name: string;
           permissions?: ApiKeyPermissions;
+          rateLimit?: number;
+          expiresInDays?: number;
         };
       };
+
+      const rateLimitMax = body.rateLimit ?? 1000;
+      const rateLimitTimeWindow = 60 * 60 * 1000; // 1 hour
+      const expiresAt = body.expiresInDays
+        ? new Date(Date.now() + body.expiresInDays * 24 * 60 * 60 * 1000)
+        : null;
 
       const { created, plainKey } = await generateApiKey(
         user.id,
         body.name,
-        body.permissions || {}
+        body.permissions || {},
+        {
+          rateLimitMax,
+          rateLimitTimeWindow,
+          expiresAt
+        }
       );
 
       return {
@@ -149,8 +175,11 @@ export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
         data: {
           id: created.id,
           name: created.name,
+          keyPrefix: created.keyPrefix,
           key: plainKey,
-          permissions: created.permissions,
+          permissions: parsePermissions(created.permissions),
+          rateLimit: created.rateLimitMax ?? rateLimitMax,
+          expiresAt: created.expiresAt ?? expiresAt,
           createdAt: created.createdAt,
           warning: '⚠️ Save this key securely. It will not be shown again.'
         }
@@ -175,7 +204,9 @@ export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
               })
             )
           })
-        )
+        ),
+        rateLimit: t.Optional(t.Number({ minimum: 100, maximum: 10000 })),
+        expiresInDays: t.Optional(t.Number({ minimum: 1, maximum: 365 }))
       }),
       detail: {
         tags: ['API Keys'],
@@ -207,17 +238,7 @@ export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
 
       // Normalize permissions if provided
       const normalizedPermissions = body.permissions
-        ? {
-            links: {
-              create: body.permissions.links?.create ?? false,
-              read: body.permissions.links?.read ?? false,
-              update: body.permissions.links?.update ?? false,
-              delete: body.permissions.links?.delete ?? false
-            },
-            analytics: {
-              read: body.permissions.analytics?.read ?? false
-            }
-          }
+        ? normalizePermissions(body.permissions)
         : undefined;
 
       const [updated] = await db
@@ -252,7 +273,7 @@ export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
         data: {
           id: updated.id,
           name: updated.name,
-          permissions: updated.permissions,
+          permissions: parsePermissions(updated.permissions),
           updatedAt: updated.updatedAt
         }
       };
@@ -346,3 +367,34 @@ export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
       }
     }
   );
+
+function parsePermissions(
+  permissions: string | null
+): NormalizedApiKeyPermissions {
+  if (!permissions) {
+    return normalizePermissions({});
+  }
+
+  try {
+    const parsed = JSON.parse(permissions) as ApiKeyPermissions;
+    return normalizePermissions(parsed);
+  } catch {
+    return normalizePermissions({});
+  }
+}
+
+function normalizePermissions(
+  permissions: ApiKeyPermissions
+): NormalizedApiKeyPermissions {
+  return {
+    links: {
+      create: permissions.links?.create ?? false,
+      read: permissions.links?.read ?? false,
+      update: permissions.links?.update ?? false,
+      delete: permissions.links?.delete ?? false
+    },
+    analytics: {
+      read: permissions.analytics?.read ?? false
+    }
+  };
+}

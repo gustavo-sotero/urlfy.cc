@@ -38,6 +38,24 @@ export const auth = betterAuth({
     requireEmailVerification: process.env.NODE_ENV !== 'test',
     minPasswordLength: 8,
     maxPasswordLength: 128,
+    password: {
+      hash: async (password: string) => {
+        return Bun.password.hash(password, {
+          algorithm: 'argon2id',
+          memoryCost: 65536,
+          timeCost: 3
+        });
+      },
+      verify: async ({
+        hash,
+        password
+      }: {
+        hash: string;
+        password: string;
+      }) => {
+        return Bun.password.verify(password, hash);
+      }
+    },
     sendResetPassword: async ({
       user,
       url
@@ -175,7 +193,7 @@ export const auth = betterAuth({
 
     // Better-Auth OpenAPI docs (RF-30)
     // Served under /api/auth/reference by default.
-    openAPI()
+    openAPI({ path: '/api/auth/reference' })
   ],
 
   // ═══════════════════════════════════════════════════════════════════

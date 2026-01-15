@@ -114,6 +114,6 @@ export const auth = betterAuth({
     }),
     admin(),
     apiKey(),
-    openAPI()
+    openAPI({ path: '/api/auth/reference' })
   ]
 });

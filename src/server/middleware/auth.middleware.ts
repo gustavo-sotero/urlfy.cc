@@ -6,7 +6,9 @@ import {
 import type { Session, User } from '@/lib/auth';
 import { auth } from '@/lib/auth';
 import { db } from '@/server/lib/db';
+import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
+import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 
@@ -139,6 +141,9 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
         name: apiKeyTable.name,
         permissions: apiKeyTable.permissions,
         rateLimit: apiKeyTable.rateLimit,
+        rateLimitEnabled: apiKeyTable.rateLimitEnabled,
+        rateLimitTimeWindow: apiKeyTable.rateLimitTimeWindow,
+        rateLimitMax: apiKeyTable.rateLimitMax,
         userId: apiKeyTable.userId
       })
       .from(apiKeyTable)
@@ -175,6 +180,40 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
       });
     }
 
+    if (user.deletedAt || user.bannedAt) {
+      throw status(403, {
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Account is not accessible' }
+      });
+    }
+
+    const rateLimitEnabled =
+      apiKeyResult.rateLimitEnabled ?? apiKeyResult.rateLimit ?? true;
+
+    if (rateLimitEnabled) {
+      const maxRequests = apiKeyResult.rateLimitMax ?? 1000;
+      const timeWindowMs = apiKeyResult.rateLimitTimeWindow ?? 60 * 60 * 1000;
+
+      const rateLimitResult = await enforceApiKeyRateLimit(
+        apiKeyResult.id,
+        maxRequests,
+        timeWindowMs
+      );
+
+      if (!rateLimitResult.allowed) {
+        throw status(429, {
+          success: false,
+          error: {
+            code: 'RATE_LIMITED',
+            message: 'API key rate limit exceeded',
+            retryAfter: rateLimitResult.retryAfter
+          }
+        });
+      }
+    }
+
+    const permissions = parsePermissions(apiKeyResult.permissions);
+
     // Update last used timestamp asynchronously
     updateApiKeyUsage(apiKeyResult.id).catch(console.error);
 
@@ -183,8 +222,8 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
       apiKey: {
         id: apiKeyResult.id,
         name: apiKeyResult.name,
-        permissions: apiKeyResult.permissions,
-        rateLimit: apiKeyResult.rateLimit
+        permissions,
+        rateLimit: apiKeyResult.rateLimitMax ?? 1000
       },
       isAuthenticated: true as const
     };
@@ -254,6 +293,90 @@ async function updateApiKeyUsage(keyId: string): Promise<void> {
       usageCount: sql`${apiKeyTable.usageCount} + 1`
     })
     .where(eq(apiKeyTable.id, keyId));
+}
+
+/**
+ * Enforce per-API key rate limit using Redis (sliding window via counter)
+ */
+async function enforceApiKeyRateLimit(
+  apiKeyId: string,
+  maxRequests: number,
+  timeWindowMs: number
+): Promise<{ allowed: boolean; retryAfter?: number }> {
+  if (redis.status !== 'ready') {
+    return { allowed: true };
+  }
+
+  const key = `rl:apikey:${apiKeyId}`;
+
+  try {
+    const current = await redis.incr(key);
+
+    if (current === 1) {
+      await redis.pexpire(key, timeWindowMs);
+    }
+
+    if (current > maxRequests) {
+      const ttl = await redis.pttl(key);
+      const retryAfter = ttl > 0 ? Math.ceil(ttl / 1000) : undefined;
+      return { allowed: false, retryAfter };
+    }
+  } catch (error) {
+    logger.warn('API key rate limit check failed', {
+      error: error instanceof Error ? error.message : String(error),
+      apiKeyId
+    });
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Normalize API key permissions from DB
+ */
+function parsePermissions(
+  permissions: string | null
+): NormalizedApiKeyPermissions {
+  if (!permissions) {
+    return normalizePermissions({});
+  }
+
+  try {
+    const parsed = JSON.parse(permissions) as {
+      links?: {
+        create?: boolean;
+        read?: boolean;
+        update?: boolean;
+        delete?: boolean;
+      };
+      analytics?: { read?: boolean };
+    };
+    return normalizePermissions(parsed);
+  } catch {
+    return normalizePermissions({});
+  }
+}
+
+function normalizePermissions(input: {
+  links?: {
+    create?: boolean;
+    read?: boolean;
+    update?: boolean;
+    delete?: boolean;
+  };
+  analytics?: { read?: boolean };
+}): NormalizedApiKeyPermissions {
+  return {
+    links: {
+      create: input.links?.create ?? false,
+      read: input.links?.read ?? false,
+      update: input.links?.update ?? false,
+      delete: input.links?.delete ?? false
+    },
+    analytics: {
+      read: input.analytics?.read ?? false
+    }
+  };
 }
 
 /**

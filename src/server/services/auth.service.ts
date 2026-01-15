@@ -9,20 +9,20 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { and, eq, sql } from "drizzle-orm";
+import { nanoid } from "nanoid";
 import {
   apiKey as apiKeyTable,
   session as sessionTable,
   twoFactor as twoFactorTable,
-  user as userTable
-} from '@/db/schema/auth';
-import { auth } from '@/lib/auth';
-import { db } from '@/server/lib/db';
+  user as userTable,
+} from "@/db/schema/auth";
+import { auth } from "@/lib/auth";
+import { db } from "@/server/lib/db";
 import type {
   ApiKeyPermissions,
-  NormalizedApiKeyPermissions
-} from '@/types/auth.types';
-import { and, eq, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
+  NormalizedApiKeyPermissions,
+} from "@/types/auth.types";
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -64,7 +64,7 @@ export class AuthService {
           valid: false,
           userId: null,
           expired: true,
-          reason: 'No valid session found'
+          reason: "No valid session found",
         };
       }
 
@@ -75,7 +75,7 @@ export class AuthService {
           valid: false,
           userId: sessionData.user.id,
           expired: true,
-          reason: 'Session expired'
+          reason: "Session expired",
         };
       }
 
@@ -85,21 +85,21 @@ export class AuthService {
           valid: false,
           userId: sessionData.user.id,
           expired: false,
-          reason: 'User account is not accessible'
+          reason: "User account is not accessible",
         };
       }
 
       return {
         valid: true,
         userId: sessionData.user.id,
-        expired: false
+        expired: false,
       };
     } catch {
       return {
         valid: false,
         userId: null,
         expired: false,
-        reason: 'Session validation failed'
+        reason: "Session validation failed",
       };
     }
   }
@@ -118,7 +118,7 @@ export class AuthService {
     const deleted = await db
       .delete(sessionTable)
       .where(
-        and(eq(sessionTable.id, sessionId), eq(sessionTable.userId, userId))
+        and(eq(sessionTable.id, sessionId), eq(sessionTable.userId, userId)),
       )
       .returning();
 
@@ -145,7 +145,7 @@ export class AuthService {
    */
   async revokeOtherSessions(
     userId: string,
-    currentSessionId: string
+    currentSessionId: string,
   ): Promise<number> {
     // Get all sessions except the current one
     const sessionsToDelete = await db
@@ -183,13 +183,13 @@ export class AuthService {
    */
   async validateApiKey(apiKey: string): Promise<ApiKeyValidationResult> {
     // Check format
-    if (!apiKey.startsWith('urlfy_sk_')) {
+    if (!apiKey.startsWith("urlfy_sk_")) {
       return {
         valid: false,
         userId: null,
         keyId: null,
         permissions: null,
-        reason: 'Invalid API key format'
+        reason: "Invalid API key format",
       };
     }
 
@@ -204,7 +204,7 @@ export class AuthService {
         permissions: apiKeyTable.permissions,
         expiresAt: apiKeyTable.expiresAt,
         revokedAt: apiKeyTable.revokedAt,
-        deletedAt: apiKeyTable.deletedAt
+        deletedAt: apiKeyTable.deletedAt,
       })
       .from(apiKeyTable)
       .where(eq(apiKeyTable.keyHash, keyHash))
@@ -216,7 +216,7 @@ export class AuthService {
         userId: null,
         keyId: null,
         permissions: null,
-        reason: 'API key not found'
+        reason: "API key not found",
       };
     }
 
@@ -227,7 +227,7 @@ export class AuthService {
         userId: result.userId,
         keyId: result.id,
         permissions: null,
-        reason: 'API key has been revoked'
+        reason: "API key has been revoked",
       };
     }
 
@@ -238,7 +238,7 @@ export class AuthService {
         userId: result.userId,
         keyId: result.id,
         permissions: null,
-        reason: 'API key has expired'
+        reason: "API key has expired",
       };
     }
 
@@ -249,7 +249,7 @@ export class AuthService {
       valid: true,
       userId: result.userId,
       keyId: result.id,
-      permissions
+      permissions,
     };
   }
 
@@ -259,7 +259,7 @@ export class AuthService {
   async generateApiKey(
     userId: string,
     name: string,
-    permissions: ApiKeyPermissions
+    permissions: ApiKeyPermissions,
   ): Promise<{ keyId: string; plainKey: string }> {
     // Generate the key
     const key = `urlfy_sk_${nanoid(32)}`;
@@ -284,13 +284,13 @@ export class AuthService {
         rateLimit: true,
         rateLimitMax: 1000,
         lastUsedAt: null,
-        usageCount: 0
+        usageCount: 0,
       })
       .returning();
 
     return {
       keyId: created.id,
-      plainKey: key
+      plainKey: key,
     };
   }
 
@@ -315,7 +315,7 @@ export class AuthService {
       .update(apiKeyTable)
       .set({
         lastUsedAt: new Date(),
-        usageCount: sql`${apiKeyTable.usageCount} + 1`
+        usageCount: sql`${apiKeyTable.usageCount} + 1`,
       })
       .where(eq(apiKeyTable.id, keyId));
   }
@@ -355,7 +355,7 @@ export class AuthService {
       return { isAdmin: false, hasTwoFactor: false, canAccess: false };
     }
 
-    const isAdmin = user.role === 'admin';
+    const isAdmin = user.role === "admin";
 
     if (!isAdmin) {
       return { isAdmin: false, hasTwoFactor: false, canAccess: true };
@@ -366,7 +366,7 @@ export class AuthService {
     return {
       isAdmin: true,
       hasTwoFactor,
-      canAccess: hasTwoFactor // Admins must have 2FA
+      canAccess: hasTwoFactor, // Admins must have 2FA
     };
   }
 
@@ -380,27 +380,27 @@ export class AuthService {
   private async hashApiKey(key: string): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(key);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
   /**
    * Normalize permissions (fill in defaults)
    */
   private normalizePermissions(
-    permissions: ApiKeyPermissions
+    permissions: ApiKeyPermissions,
   ): NormalizedApiKeyPermissions {
     return {
       links: {
         create: permissions.links?.create ?? false,
         read: permissions.links?.read ?? false,
         update: permissions.links?.update ?? false,
-        delete: permissions.links?.delete ?? false
+        delete: permissions.links?.delete ?? false,
       },
       analytics: {
-        read: permissions.analytics?.read ?? false
-      }
+        read: permissions.analytics?.read ?? false,
+      },
     };
   }
 
@@ -408,7 +408,7 @@ export class AuthService {
    * Parse permissions from database string
    */
   private parsePermissions(
-    permissions: string | null
+    permissions: string | null,
   ): NormalizedApiKeyPermissions {
     if (!permissions) {
       return this.normalizePermissions({});
