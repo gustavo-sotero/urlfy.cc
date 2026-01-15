@@ -28,13 +28,20 @@ export const LinkCreateBody = t.Object({
     })
   ),
   expiresAt: t.Optional(
-    t.String({ description: 'Expiration date (ISO 8601 format)' })
+    t.String({
+      format: 'date-time',
+      description: 'Expiration date (ISO 8601 format)'
+    })
   ),
   maxClicks: t.Optional(
     t.Integer({ minimum: 1, description: 'Maximum allowed clicks' })
   ),
   password: t.Optional(
-    t.String({ minLength: 8, description: 'Password protection (min 8 chars)' })
+    t.String({
+      minLength: 8,
+      maxLength: 64,
+      description: 'Password protection (8-64 chars)'
+    })
   ),
   redirectType: t.Optional(
     t.Union([t.Literal(301), t.Literal(302)], {
@@ -42,10 +49,10 @@ export const LinkCreateBody = t.Object({
     })
   ),
   metaTitle: t.Optional(
-    t.String({ maxLength: 255, description: 'Custom OG title' })
+    t.String({ maxLength: 60, description: 'Custom OG title' })
   ),
   metaDescription: t.Optional(
-    t.String({ maxLength: 500, description: 'Custom OG description' })
+    t.String({ maxLength: 160, description: 'Custom OG description' })
   ),
   metaImage: t.Optional(
     t.String({ maxLength: 500, description: 'Custom OG image URL' })
@@ -64,7 +71,7 @@ export const LinkCreateBody = t.Object({
       description: 'Tags for organization'
     })
   ),
-  notes: t.Optional(t.String({ maxLength: 1000, description: 'Private notes' }))
+  notes: t.Optional(t.String({ maxLength: 500, description: 'Private notes' }))
 });
 export type LinkCreateBodyType = Static<typeof LinkCreateBody>;
 
@@ -75,18 +82,18 @@ export type LinkCreateBodyType = Static<typeof LinkCreateBody>;
 export const LinkUpdateBody = t.Object({
   customAlias: t.Optional(t.String({ minLength: 3, maxLength: 20 })),
   isActive: t.Optional(t.Boolean({ description: 'Toggle link active status' })),
-  expiresAt: t.Optional(t.Nullable(t.String())),
+  expiresAt: t.Optional(t.Nullable(t.String({ format: 'date-time' }))),
   maxClicks: t.Optional(t.Nullable(t.Integer({ minimum: 1 }))),
-  password: t.Optional(t.Nullable(t.String({ minLength: 8 }))),
+  password: t.Optional(t.Nullable(t.String({ minLength: 8, maxLength: 64 }))),
   redirectType: t.Optional(t.Union([t.Literal(301), t.Literal(302)])),
-  metaTitle: t.Optional(t.Nullable(t.String({ maxLength: 255 }))),
-  metaDescription: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+  metaTitle: t.Optional(t.Nullable(t.String({ maxLength: 60 }))),
+  metaDescription: t.Optional(t.Nullable(t.String({ maxLength: 160 }))),
   metaImage: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
   utmSource: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),
   utmMedium: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),
   utmCampaign: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),
   tags: t.Optional(t.Nullable(t.Array(t.String({ maxLength: 50 })))),
-  notes: t.Optional(t.Nullable(t.String({ maxLength: 1000 })))
+  notes: t.Optional(t.Nullable(t.String({ maxLength: 500 })))
 });
 export type LinkUpdateBodyType = Static<typeof LinkUpdateBody>;
 

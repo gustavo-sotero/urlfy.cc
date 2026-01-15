@@ -85,8 +85,9 @@ export class RedirectService {
           }
 
           // 2. Busca link (cache-first com fallback)
-          const link = await this.getLink(code);
-          cacheHit = link !== null;
+          const resolved = await this.getLink(code);
+          const link = resolved.link;
+          cacheHit = resolved.cacheHit;
 
           if (!link) {
             span.setStatus({ code: 1, message: 'NOT_FOUND' });
@@ -181,12 +182,16 @@ export class RedirectService {
    * Busca link com estratégia Cache-Aside
    * Inclui proteção contra Cache Stampede
    */
-  private async getLink(code: string): Promise<CachedLink | null> {
+  private async getLink(code: string): Promise<{
+    link: CachedLink | null;
+    cacheHit: boolean;
+  }> {
     return tracer.startActiveSpan(
       'redirect.getLink',
       { attributes: { code } },
       async (span) => {
         try {
+          let cacheHit = false;
           // L1: Verifica cache negativo primeiro (404)
           const is404 = await cacheService.isNotFound(code);
           if (is404) {
@@ -194,7 +199,8 @@ export class RedirectService {
             span.setAttribute('cache.type', 'negative');
             span.setAttribute('cache.hit', true);
             cacheHits.add(1, { type: 'negative' });
-            return null;
+            cacheHit = true;
+            return { link: null, cacheHit };
           }
 
           // L2: Verifica cache de link banido
@@ -206,19 +212,23 @@ export class RedirectService {
             cacheHits.add(1, { type: 'banned' });
             // Retorna um link "fantasma" para validação retornar BANNED
             // IMPORTANTE: isActive DEVE ser true para que validateLink chegue na checagem de isBanned
+            cacheHit = true;
             return {
-              id: 'banned',
-              originalUrl: '',
-              redirectType: 302 as const,
-              isActive: true,
-              isBanned: true,
-              expiresAt: null,
-              maxClicks: null,
-              clicksCount: 0,
-              passwordHash: null,
-              utmSource: null,
-              utmMedium: null,
-              utmCampaign: null
+              link: {
+                id: 'banned',
+                originalUrl: '',
+                redirectType: 302 as const,
+                isActive: true,
+                isBanned: true,
+                expiresAt: null,
+                maxClicks: null,
+                clicksCount: 0,
+                passwordHash: null,
+                utmSource: null,
+                utmMedium: null,
+                utmCampaign: null
+              },
+              cacheHit
             };
           }
 
@@ -229,14 +239,18 @@ export class RedirectService {
             span.setAttribute('cache.type', 'link');
             span.setAttribute('cache.hit', true);
             cacheHits.add(1, { type: 'link' });
-            return cached;
+            cacheHit = true;
+            return { link: cached, cacheHit };
           }
 
           // L4: Cache miss - busca no banco com stampede protection
           logger.debug('Cache miss', { code });
           span.setAttribute('cache.hit', false);
           cacheMisses.add(1);
-          return await this.fetchWithStampedeProtection(code);
+          return {
+            link: await this.fetchWithStampedeProtection(code),
+            cacheHit
+          };
         } catch (error) {
           // Fallback: busca direto no banco em caso de erro no Redis
           logger.warn('Redis error, falling back to database', {
@@ -246,7 +260,7 @@ export class RedirectService {
           span.recordException(error as Error);
           span.setAttribute('fallback', true);
           redisFallbacks.add(1);
-          return this.fetchFromDatabase(code);
+          return { link: await this.fetchFromDatabase(code), cacheHit: false };
         } finally {
           span.end();
         }

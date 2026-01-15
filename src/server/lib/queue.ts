@@ -1,5 +1,5 @@
-import { type ConnectionOptions, Queue } from 'bullmq';
 import type { ClickEvent } from '@/types/analytics.types';
+import { type ConnectionOptions, Queue } from 'bullmq';
 
 /**
  * NOTA: BullMQ requer ioredis internamente para gerenciar filas.
@@ -134,8 +134,13 @@ export interface AggregationJobData {
 
 export async function addAnalyticsJob(data: ClickEvent) {
   try {
+    const timestamp =
+      data.timestamp instanceof Date
+        ? data.timestamp
+        : new Date(data.timestamp);
+
     const job = await analyticsQueue.add('click', data, {
-      jobId: `${data.linkId}-${data.timestamp.getTime()}`, // Previne duplicatas
+      jobId: `${data.linkId}-${timestamp.getTime()}`, // Previne duplicatas
       removeOnComplete: true
     });
 

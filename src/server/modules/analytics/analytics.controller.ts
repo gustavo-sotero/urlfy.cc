@@ -8,10 +8,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia } from 'elysia';
 import { handleLinkError } from '@/server/lib/errors';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia } from 'elysia';
 import {
   AnalyticsDaysQuery,
   AnalyticsDaysWithLimitQuery,
@@ -188,6 +188,59 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
       detail: {
         tags: ['Analytics'],
         summary: 'Get analytics timeseries',
+        description: 'Get daily click statistics for a link'
+      }
+    }
+  )
+
+  // ═══════════════════════════════════════════════════════════════
+  // GET /analytics/:linkId/daily - Daily Stats (alias)
+  // ═══════════════════════════════════════════════════════════════
+  .get(
+    '/:linkId/daily',
+    async ({ params, query, set }) => {
+      try {
+        const days = query.days ? parseInt(query.days, 10) : 30;
+
+        if (days < 1 || days > 365) {
+          set.status = 400;
+          return {
+            success: false,
+            error: {
+              code: 'INVALID_DAYS_RANGE',
+              message: 'Days must be between 1 and 365'
+            }
+          };
+        }
+
+        const dailyStats = await AnalyticsService.getDailyStats(
+          params.linkId,
+          days
+        );
+
+        return {
+          success: true,
+          data: dailyStats,
+          meta: {
+            period: `last_${days}_days`,
+            count: dailyStats.length
+          }
+        };
+      } catch (error) {
+        logger.error('[AnalyticsAPI] Error getting daily stats', {
+          error: error instanceof Error ? error.message : String(error),
+          linkId: params.linkId
+        });
+
+        return handleLinkError(error);
+      }
+    },
+    {
+      params: AnalyticsLinkIdParam,
+      query: AnalyticsDaysQuery,
+      detail: {
+        tags: ['Analytics'],
+        summary: 'Get daily analytics stats',
         description: 'Get daily click statistics for a link'
       }
     }

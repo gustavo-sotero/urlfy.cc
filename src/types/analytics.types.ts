@@ -13,7 +13,7 @@ export interface ClickEvent {
   utmCampaign?: string | null;
   utmContent?: string | null;
   utmTerm?: string | null;
-  timestamp: Date;
+  timestamp: Date | string;
 }
 
 export interface EnrichedClickEvent extends ClickEvent {
@@ -106,5 +106,5 @@ export interface AnalyticsSummary {
 export interface TimeSeries {
   date: string;
   clicks: number;
-  unique: number;
+  uniqueVisitors: number;
 }

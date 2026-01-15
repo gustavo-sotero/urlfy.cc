@@ -8,7 +8,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, isNull, ne } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 import { nanoid } from 'nanoid';
 import { db } from '@/db';
@@ -251,19 +251,24 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
   .get(
     '/sessions',
     async (context) => {
-      const { user } = context as typeof context & {
+      const { user, session } = context as typeof context & {
         user: { id: string };
+        session: { id: string };
       };
+      const now = new Date();
       const sessions = await db
         .select()
         .from(sessionTable)
-        .where(eq(sessionTable.userId, user.id))
+        .where(
+          and(eq(sessionTable.userId, user.id), gt(sessionTable.expiresAt, now))
+        )
         .orderBy(desc(sessionTable.createdAt));
 
       return {
         success: true,
         data: sessions.map((s) => ({
           id: s.id,
+          isCurrent: s.id === session.id,
           ipAddress: s.ipAddress,
           userAgent: s.userAgent,
           expiresAt: s.expiresAt,
@@ -394,16 +399,49 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
     }
   );
 
+// ─────────────────────────────────────────────────────────────────
+// POST /auth/sessions/revoke-all - Revoke all other sessions (legacy alias)
+// ─────────────────────────────────────────────────────────────────
+sessionRoutes.post(
+  '/sessions/revoke-all',
+  async (context) => {
+    const { user, session } = context as typeof context & {
+      user: { id: string };
+      session: { id: string };
+    };
+
+    await db
+      .delete(sessionTable)
+      .where(
+        and(eq(sessionTable.userId, user.id), ne(sessionTable.id, session.id))
+      );
+
+    return {
+      success: true,
+      data: {
+        message: 'All other sessions revoked successfully'
+      }
+    };
+  },
+  {
+    detail: {
+      tags: ['Auth', 'Sessions'],
+      summary: 'Revoke all other sessions',
+      description: 'Logout from all devices except the current one'
+    }
+  }
+);
+
 // ═══════════════════════════════════════════════════════════════════
 // API KEYS ROUTES
 // ═══════════════════════════════════════════════════════════════════
 
-const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
+const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
   .use(requireAuth)
   .model(AuthModel)
 
   // ─────────────────────────────────────────────────────────────────
-  // GET /api-keys - List API keys
+  // GET /auth/api-keys - List API keys
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/',
@@ -460,7 +498,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
   )
 
   // ─────────────────────────────────────────────────────────────────
-  // POST /api-keys - Create API key
+  // POST /auth/api-keys - Create API key
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/',
@@ -519,7 +557,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
   )
 
   // ─────────────────────────────────────────────────────────────────
-  // PATCH /api-keys/:keyId - Update API key
+  // PATCH /auth/api-keys/:keyId - Update API key
   // ─────────────────────────────────────────────────────────────────
   .patch(
     '/:keyId',
@@ -592,7 +630,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
   )
 
   // ─────────────────────────────────────────────────────────────────
-  // DELETE /api-keys/:keyId - Delete API key
+  // DELETE /auth/api-keys/:keyId - Delete API key
   // ─────────────────────────────────────────────────────────────────
   .delete(
     '/:keyId',

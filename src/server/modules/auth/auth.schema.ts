@@ -71,7 +71,7 @@ export const ApiKeyResponse = t.Object({
   name: t.String(),
   keyPrefix: t.String({ description: 'First 12 chars of key' }),
   permissions: ApiKeyPermissions,
-  rateLimitMax: t.Number(),
+  rateLimit: t.Number(),
   lastUsedAt: t.Nullable(t.String()),
   usageCount: t.Number(),
   expiresAt: t.Nullable(t.String()),
@@ -85,7 +85,7 @@ export const ApiKeyCreateResponse = t.Object({
   key: t.String({ description: 'Full API key (only shown once)' }),
   keyPrefix: t.String(),
   permissions: ApiKeyPermissions,
-  rateLimitMax: t.Number(),
+  rateLimit: t.Number(),
   expiresAt: t.Nullable(t.String()),
   createdAt: t.String()
 });

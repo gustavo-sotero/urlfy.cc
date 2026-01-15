@@ -85,7 +85,7 @@ mock.module('@/db/schema', () => ({
   }
 }));
 
-mock.module('../url-validator', () => ({
+mock.module('@/server/services/url-validator', () => ({
   validateUrlAsync: async (url: string) => {
     if (url.length > 2048) {
       return { valid: false, error: 'URL_TOO_LONG' };
@@ -125,9 +125,9 @@ mock.module('../url-validator', () => ({
   }
 }));
 
+import { LinkService } from '@/server/modules/links';
 import type { CreateLinkInput, Link } from '@/types/links.types';
 import { LinkError } from '../../lib/errors';
-import * as linkService from '../link.service';
 
 // Mock link factory for tests
 function createMockLink(overrides: Partial<Link> = {}): Link {
@@ -171,7 +171,7 @@ describe('Link Service', () => {
       };
 
       try {
-        await linkService.createLink(input, undefined);
+        await LinkService.createLink(input, undefined);
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
         expect(error).toBeInstanceOf(LinkError);
@@ -185,7 +185,7 @@ describe('Link Service', () => {
       };
 
       try {
-        await linkService.createLink(input, undefined);
+        await LinkService.createLink(input, undefined);
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
         expect(error).toBeInstanceOf(LinkError);
@@ -200,7 +200,7 @@ describe('Link Service', () => {
       };
 
       try {
-        await linkService.createLink(input, undefined);
+        await LinkService.createLink(input, undefined);
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
         expect(error).toBeInstanceOf(LinkError);
@@ -215,7 +215,7 @@ describe('Link Service', () => {
       };
 
       try {
-        await linkService.createLink(input, undefined);
+        await LinkService.createLink(input, undefined);
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
         expect(error).toBeInstanceOf(LinkError);
@@ -230,7 +230,7 @@ describe('Link Service', () => {
       };
 
       try {
-        await linkService.createLink(input, 'user-id');
+        await LinkService.createLink(input, 'user-id');
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
         expect(error).toBeInstanceOf(LinkError);
@@ -244,7 +244,7 @@ describe('Link Service', () => {
       };
 
       try {
-        await linkService.createLink(input, undefined);
+        await LinkService.createLink(input, undefined);
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
         expect(error).toBeInstanceOf(LinkError);
@@ -258,7 +258,7 @@ describe('Link Service', () => {
       };
 
       try {
-        await linkService.createLink(input, undefined);
+        await LinkService.createLink(input, undefined);
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
         expect(error).toBeInstanceOf(LinkError);
@@ -274,7 +274,7 @@ describe('Link Service', () => {
         clicksCount: 10
       });
 
-      const response = linkService.formatLinkResponse(mockLink);
+      const response = LinkService.formatLinkResponse(mockLink);
 
       expect(response.shortUrl).toContain(mockLink.shortCode);
       expect(response.isProtected).toBe(false);
@@ -286,7 +286,7 @@ describe('Link Service', () => {
         passwordHash: '$argon2id$v=19$m=19456,t=2,p=1$...'
       });
 
-      const response = linkService.formatLinkResponse(mockLink);
+      const response = LinkService.formatLinkResponse(mockLink);
 
       expect(response.isProtected).toBe(true);
     });
@@ -295,10 +295,10 @@ describe('Link Service', () => {
       const mockLink301 = createMockLink({ redirectType: 301 });
       const mockLink302 = createMockLink({ redirectType: 302 });
 
-      expect(linkService.formatLinkResponse(mockLink301).redirectType).toBe(
+      expect(LinkService.formatLinkResponse(mockLink301).redirectType).toBe(
         301
       );
-      expect(linkService.formatLinkResponse(mockLink302).redirectType).toBe(
+      expect(LinkService.formatLinkResponse(mockLink302).redirectType).toBe(
         302
       );
     });
@@ -312,7 +312,7 @@ describe('Link Service', () => {
         lastClickedAt: testDate
       });
 
-      const response = linkService.formatLinkResponse(mockLink);
+      const response = LinkService.formatLinkResponse(mockLink);
 
       expect(response.createdAt).toBe(testDate.toISOString());
       expect(response.updatedAt).toBe(testDate.toISOString());
@@ -326,7 +326,7 @@ describe('Link Service', () => {
         lastClickedAt: null
       });
 
-      const response = linkService.formatLinkResponse(mockLink);
+      const response = LinkService.formatLinkResponse(mockLink);
 
       expect(response.expiresAt).toBeNull();
       expect(response.lastClickedAt).toBeNull();
@@ -338,7 +338,7 @@ describe('Link Service', () => {
         notes: 'Important campaign link'
       });
 
-      const response = linkService.formatLinkResponse(mockLink);
+      const response = LinkService.formatLinkResponse(mockLink);
 
       expect(response.tags).toEqual(['marketing', 'social']);
       expect(response.notes).toBe('Important campaign link');
@@ -351,7 +351,7 @@ describe('Link Service', () => {
         utmCampaign: 'launch2026'
       });
 
-      const response = linkService.formatLinkResponse(mockLink);
+      const response = LinkService.formatLinkResponse(mockLink);
 
       expect(response.utmSource).toBe('twitter');
       expect(response.utmMedium).toBe('social');
@@ -365,7 +365,7 @@ describe('Link Service', () => {
         metaImage: 'https://cdn.example.com/image.png'
       });
 
-      const response = linkService.formatLinkResponse(mockLink);
+      const response = LinkService.formatLinkResponse(mockLink);
 
       expect(response.metaTitle).toBe('Custom Title');
       expect(response.metaDescription).toBe('Custom description for SEO');
@@ -378,7 +378,7 @@ describe('Link Service', () => {
         bannedReason: 'Spam content'
       });
 
-      const response = linkService.formatLinkResponse(mockLink);
+      const response = LinkService.formatLinkResponse(mockLink);
 
       expect(response.isBanned).toBe(true);
       expect(response.bannedReason).toBe('Spam content');

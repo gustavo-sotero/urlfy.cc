@@ -35,6 +35,17 @@ import {
 } from './links.schema';
 import { LinkService } from './links.service';
 
+type ElysiaSet = { status?: number | string };
+
+const handleControllerError = (
+  error: unknown,
+  set: ElysiaSet
+): { success: false; error: { code: string; message: string } } => {
+  const { status, ...body } = handleLinkError(error);
+  set.status = status;
+  return body;
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // PUBLIC ROUTES (guest allowed)
 // ═══════════════════════════════════════════════════════════════════
@@ -115,7 +126,7 @@ const publicRoutes = new Elysia()
           }
         };
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -169,7 +180,7 @@ const publicRoutes = new Elysia()
 
         return qrCode;
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -215,7 +226,7 @@ const publicRoutes = new Elysia()
           }
         };
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -234,14 +245,16 @@ const publicRoutes = new Elysia()
   .post(
     '/',
     async (ctx) => {
-      const { body, headers, user } = ctx as typeof ctx & {
+      const { body, headers, user, set } = ctx as typeof ctx & {
         user: { id: string } | null;
+        set: ElysiaSet;
       };
       try {
         // Verificar idempotency key
         const idempotencyKey = headers['idempotency-key'];
         if (idempotencyKey) {
           if (!validateIdempotencyKey(idempotencyKey)) {
+            set.status = 400;
             return {
               success: false,
               error: {
@@ -280,13 +293,13 @@ const publicRoutes = new Elysia()
           await setIdempotency(idempotencyKey, link.id);
         }
 
+        set.status = 201;
         return {
           success: true,
-          data: LinkService.formatLinkResponse(link),
-          status: 201
+          data: LinkService.formatLinkResponse(link)
         };
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -314,29 +327,30 @@ const authenticatedRoutes = new Elysia()
   .post(
     '/bulk',
     async (ctx) => {
-      const { body, user, headers } = ctx as typeof ctx & {
+      const { body, user, headers, set } = ctx as typeof ctx & {
         user: { id: string };
+        set: ElysiaSet;
       };
       try {
         if (!body.links || body.links.length === 0) {
+          set.status = 400;
           return {
             success: false,
             error: {
               code: 'VALIDATION_ERROR',
               message: 'Nenhum link fornecido'
-            },
-            status: 400
+            }
           };
         }
 
         if (body.links.length > 100) {
+          set.status = 400;
           return {
             success: false,
             error: {
               code: 'VALIDATION_ERROR',
               message: 'Máximo de 100 links por requisição'
-            },
-            status: 400
+            }
           };
         }
 
@@ -373,17 +387,17 @@ const authenticatedRoutes = new Elysia()
         const created = results.filter((r) => r.success).length;
         const failed = results.length - created;
 
+        set.status = 201;
         return {
           success: true,
           data: {
             created,
             failed,
             results: results.filter((r) => r.success).map((r) => r.data)
-          },
-          status: 201
+          }
         };
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -403,7 +417,10 @@ const authenticatedRoutes = new Elysia()
   .get(
     '/',
     async (ctx) => {
-      const { query, user } = ctx as typeof ctx & { user: { id: string } };
+      const { query, user, set } = ctx as typeof ctx & {
+        user: { id: string };
+        set: ElysiaSet;
+      };
       try {
         const result = await LinkService.listUserLinks(user.id, {
           page: query.page ? parseInt(query.page, 10) : 1,
@@ -430,7 +447,7 @@ const authenticatedRoutes = new Elysia()
           meta: result.meta
         };
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -449,7 +466,10 @@ const authenticatedRoutes = new Elysia()
   .get(
     '/:id',
     async (ctx) => {
-      const { params, user } = ctx as typeof ctx & { user: { id: string } };
+      const { params, user, set } = ctx as typeof ctx & {
+        user: { id: string };
+        set: ElysiaSet;
+      };
       try {
         const link = await LinkService.getLinkById(params.id, user.id);
         return {
@@ -457,7 +477,7 @@ const authenticatedRoutes = new Elysia()
           data: LinkService.formatLinkResponse(link)
         };
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -476,8 +496,9 @@ const authenticatedRoutes = new Elysia()
   .patch(
     '/:id',
     async (ctx) => {
-      const { params, body, user } = ctx as typeof ctx & {
+      const { params, body, user, set } = ctx as typeof ctx & {
         user: { id: string };
+        set: ElysiaSet;
       };
       try {
         const link = await LinkService.updateLink(params.id, user.id, body);
@@ -486,7 +507,7 @@ const authenticatedRoutes = new Elysia()
           data: LinkService.formatLinkResponse(link)
         };
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -506,15 +527,16 @@ const authenticatedRoutes = new Elysia()
   .delete(
     '/:id',
     async (ctx) => {
-      const { params, user } = ctx as typeof ctx & { user: { id: string } };
+      const { params, user, set } = ctx as typeof ctx & {
+        user: { id: string };
+        set: ElysiaSet;
+      };
       try {
         await LinkService.softDeleteLink(params.id, user.id);
-        return {
-          success: true,
-          status: 204
-        };
+        set.status = 204;
+        return null;
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -533,7 +555,10 @@ const authenticatedRoutes = new Elysia()
   .post(
     '/:id/restore',
     async (ctx) => {
-      const { params, user } = ctx as typeof ctx & { user: { id: string } };
+      const { params, user, set } = ctx as typeof ctx & {
+        user: { id: string };
+        set: ElysiaSet;
+      };
       try {
         const link = await LinkService.restoreLink(params.id, user.id);
         return {
@@ -541,7 +566,7 @@ const authenticatedRoutes = new Elysia()
           data: LinkService.formatLinkResponse(link)
         };
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -560,16 +585,19 @@ const authenticatedRoutes = new Elysia()
   .post(
     '/:id/duplicate',
     async (ctx) => {
-      const { params, user } = ctx as typeof ctx & { user: { id: string } };
+      const { params, user, set } = ctx as typeof ctx & {
+        user: { id: string };
+        set: ElysiaSet;
+      };
       try {
         const link = await LinkService.duplicateLink(params.id, user.id);
+        set.status = 201;
         return {
           success: true,
-          data: LinkService.formatLinkResponse(link),
-          status: 201
+          data: LinkService.formatLinkResponse(link)
         };
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -588,7 +616,10 @@ const authenticatedRoutes = new Elysia()
   .post(
     '/:id/toggle',
     async (ctx) => {
-      const { params, user } = ctx as typeof ctx & { user: { id: string } };
+      const { params, user, set } = ctx as typeof ctx & {
+        user: { id: string };
+        set: ElysiaSet;
+      };
       try {
         const link = await LinkService.toggleLinkActive(params.id, user.id);
         return {
@@ -596,7 +627,7 @@ const authenticatedRoutes = new Elysia()
           data: LinkService.formatLinkResponse(link)
         };
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {
@@ -615,7 +646,10 @@ const authenticatedRoutes = new Elysia()
   .get(
     '/:id/stats',
     async (ctx) => {
-      const { params, user } = ctx as typeof ctx & { user: { id: string } };
+      const { params, user, set } = ctx as typeof ctx & {
+        user: { id: string };
+        set: { status: number };
+      };
       try {
         const link = await LinkService.getLinkById(params.id, user.id);
         return {
@@ -627,7 +661,7 @@ const authenticatedRoutes = new Elysia()
           }
         };
       } catch (error) {
-        return handleLinkError(error);
+        return handleControllerError(error, set);
       }
     },
     {

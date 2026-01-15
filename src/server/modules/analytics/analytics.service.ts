@@ -8,7 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, count as countFn, desc, eq, gte, sql, sum } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   analyticsBrowserBreakdown,
@@ -23,6 +22,7 @@ import type {
   AnalyticsSummary,
   TimeSeries
 } from '@/types/analytics.types';
+import { and, count as countFn, desc, eq, gte, sql, sum } from 'drizzle-orm';
 
 const logger = createLogger('analytics-service');
 
@@ -51,7 +51,7 @@ export abstract class AnalyticsService {
         .select({
           date: linkClicksDaily.date,
           clicks: linkClicksDaily.clicks,
-          unique: linkClicksDaily.uniqueVisitors
+          uniqueVisitors: linkClicksDaily.uniqueVisitors
         })
         .from(linkClicksDaily)
         .where(
@@ -65,7 +65,7 @@ export abstract class AnalyticsService {
       return stats.map((s) => ({
         date: s.date,
         clicks: s.clicks,
-        unique: s.unique
+        uniqueVisitors: s.uniqueVisitors
       }));
     } catch (error) {
       logger.error('[AnalyticsService] Error getting daily stats', {
@@ -357,10 +357,7 @@ export abstract class AnalyticsService {
           totalClicks: sum(linkClicksDaily.clicks).as('totalClicks'),
           uniqueVisitors: sum(linkClicksDaily.uniqueVisitors).as(
             'uniqueVisitors'
-          ),
-          topCountry: linkClicksDaily.topCountry,
-          topBrowser: linkClicksDaily.topBrowser,
-          topReferrer: linkClicksDaily.topReferrer
+          )
         })
         .from(linkClicksDaily)
         .where(
@@ -378,14 +375,63 @@ export abstract class AnalyticsService {
       const uniqueVisitors = Number(summary[0].uniqueVisitors) || 0;
       const daysWithData = days; // Simplification
 
+      const [topCountryRow, topBrowserRow, topReferrerRow] = await Promise.all([
+        db
+          .select({
+            country: analyticsCountryBreakdown.country,
+            clicks: sum(analyticsCountryBreakdown.clicks).as('clicks')
+          })
+          .from(analyticsCountryBreakdown)
+          .where(
+            and(
+              eq(analyticsCountryBreakdown.linkId, linkId),
+              gte(analyticsCountryBreakdown.date, dateStr)
+            )
+          )
+          .groupBy(analyticsCountryBreakdown.country)
+          .orderBy(desc(sql`clicks`))
+          .limit(1),
+        db
+          .select({
+            browser: analyticsBrowserBreakdown.browser,
+            clicks: sum(analyticsBrowserBreakdown.clicks).as('clicks')
+          })
+          .from(analyticsBrowserBreakdown)
+          .where(
+            and(
+              eq(analyticsBrowserBreakdown.linkId, linkId),
+              gte(analyticsBrowserBreakdown.date, dateStr)
+            )
+          )
+          .groupBy(analyticsBrowserBreakdown.browser)
+          .orderBy(desc(sql`clicks`))
+          .limit(1),
+        db
+          .select({
+            domain: analyticsEvents.referrerDomain,
+            clicks: countFn().as('clicks')
+          })
+          .from(analyticsEvents)
+          .where(
+            and(
+              eq(analyticsEvents.linkId, linkId),
+              gte(analyticsEvents.createdAt, new Date(dateStr)),
+              eq(analyticsEvents.isBot, false)
+            )
+          )
+          .groupBy(analyticsEvents.referrerDomain)
+          .orderBy(desc(sql`clicks`))
+          .limit(1)
+      ]);
+
       return {
         totalClicks,
         uniqueVisitors,
         avgClicksPerDay:
           daysWithData > 0 ? Math.round(totalClicks / daysWithData) : 0,
-        topCountry: summary[0].topCountry || null,
-        topBrowser: summary[0].topBrowser || null,
-        topReferrer: summary[0].topReferrer || null
+        topCountry: topCountryRow[0]?.country ?? null,
+        topBrowser: topBrowserRow[0]?.browser ?? null,
+        topReferrer: topReferrerRow[0]?.domain ?? null
       };
     } catch (error) {
       logger.error('[AnalyticsService] Error getting summary', {

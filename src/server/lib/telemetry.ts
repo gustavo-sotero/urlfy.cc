@@ -375,15 +375,9 @@ export function recordRedirectMetrics(metrics: {
 
   // Total
   redirectTotal.add(1, {
-    success: String(metrics.success)
+    success: String(metrics.success),
+    cacheHit: String(metrics.cacheHit)
   });
-
-  // Cache
-  if (metrics.cacheHit) {
-    cacheHits.add(1);
-  } else {
-    cacheMisses.add(1);
-  }
 
   // Erros
   if (!metrics.success && metrics.errorType) {
