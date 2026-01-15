@@ -11,8 +11,8 @@ services:
     ports:
       - '3000:3000'
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgres://urlfy:urlfy@postgres:5432/urlfy
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=postgres://urlfy:${DB_PASSWORD:-urlfy}@postgres:5432/urlfy
       - REDIS_URL=redis://redis:6379
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
       - OTEL_SERVICE_NAME=urlfy-api
@@ -23,7 +23,6 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ../src:/app/src:ro
       - geoip_data:/app/geoip:ro
     networks:
       - urlfy-network
@@ -36,7 +35,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: urlfy
-      POSTGRES_PASSWORD: urlfy
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-urlfy}
       POSTGRES_DB: urlfy
       POSTGRES_INITDB_ARGS: '--encoding=UTF-8 --lc-collate=C --lc-ctype=C'
     ports:
@@ -165,7 +164,7 @@ services:
       - PGHOST=postgres
       - PGDATABASE=urlfy
       - PGUSER=urlfy
-      - PGPASSWORD=urlfy
+      - PGPASSWORD=${DB_PASSWORD:-urlfy}
       - BACKUP_RETENTION_DAYS=7
     volumes:
       - ../scripts/backup.sh:/backup.sh:ro

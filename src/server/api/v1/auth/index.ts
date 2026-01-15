@@ -9,17 +9,17 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { db } from '@/db';
+import { and, desc, eq, ne } from "drizzle-orm";
+import { Elysia, t } from "elysia";
+import { db } from "@/db";
 import {
   session as sessionTable,
-  twoFactor as twoFactorTable
-} from '@/db/schema/auth';
-import type { Session, User } from '@/lib/auth';
-import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
-import { and, desc, eq, ne } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
+  twoFactor as twoFactorTable,
+} from "@/db/schema/auth";
+import type { Session, User } from "@/lib/auth";
+import { optionalAuth, requireAuth } from "@/server/middleware/auth.middleware";
 
-export const authRoutes = new Elysia({ prefix: '/auth' })
+export const authRoutes = new Elysia({ prefix: "/auth" })
   // Allow optional authentication for session lookup
   .use(optionalAuth)
 
@@ -27,7 +27,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   // GET CURRENT SESSION WITH FULL USER DETAILS
   // ═══════════════════════════════════════════════════════════════════
   .get(
-    '/session',
+    "/session",
     async (context) => {
       const { user, session, isAuthenticated } = context as typeof context & {
         user: User | null;
@@ -40,8 +40,8 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
           success: true,
           data: {
             user: null,
-            session: null
-          }
+            session: null,
+          },
         };
       }
 
@@ -58,24 +58,24 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
             linksQuota: user.linksQuota,
             linksCount: user.linksCount,
             createdAt: user.createdAt,
-            updatedAt: user.updatedAt
+            updatedAt: user.updatedAt,
           },
           session: {
             id: session.id,
             expiresAt: session.expiresAt,
             ipAddress: session.ipAddress,
-            userAgent: session.userAgent
-          }
-        }
+            userAgent: session.userAgent,
+          },
+        },
       };
     },
     {
       detail: {
-        tags: ['Auth'],
-        summary: 'Get current session details',
-        description: 'Returns the current user session with full user details'
-      }
-    }
+        tags: ["Auth"],
+        summary: "Get current session details",
+        description: "Returns the current user session with full user details",
+      },
+    },
   )
 
   // Require authentication for the remaining routes
@@ -85,7 +85,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   // TWO-FACTOR STATUS
   // ═══════════════════════════════════════════════════════════════════
   .get(
-    '/two-factor/status',
+    "/two-factor/status",
     async (context) => {
       const { user } = context as typeof context & {
         user: { id: string };
@@ -95,7 +95,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         const result = await db
           .select({
             verified: twoFactorTable.verified,
-            createdAt: twoFactorTable.createdAt
+            createdAt: twoFactorTable.createdAt,
           })
           .from(twoFactorTable)
           .where(eq(twoFactorTable.userId, user.id))
@@ -108,8 +108,8 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
           data: {
             enabled,
             verified: enabled,
-            setupAt: result[0]?.createdAt ?? null
-          }
+            setupAt: result[0]?.createdAt ?? null,
+          },
         };
       } catch {
         // If error, assume 2FA is not enabled
@@ -118,26 +118,26 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
           data: {
             enabled: false,
             verified: false,
-            setupAt: null
-          }
+            setupAt: null,
+          },
         };
       }
     },
     {
       detail: {
-        tags: ['Auth', '2FA'],
-        summary: 'Get 2FA status',
+        tags: ["Auth", "2FA"],
+        summary: "Get 2FA status",
         description:
-          'Check if two-factor authentication is enabled for the current user'
-      }
-    }
+          "Check if two-factor authentication is enabled for the current user",
+      },
+    },
   )
 
   // ═══════════════════════════════════════════════════════════════════
   // LIST USER SESSIONS
   // ═══════════════════════════════════════════════════════════════════
   .get(
-    '/sessions',
+    "/sessions",
     async (context) => {
       const { user } = context as typeof context & {
         user: { id: string };
@@ -155,28 +155,28 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
           ipAddress: s.ipAddress,
           userAgent: s.userAgent,
           expiresAt: s.expiresAt,
-          createdAt: s.createdAt
-        }))
+          createdAt: s.createdAt,
+        })),
       };
     },
     {
       detail: {
-        tags: ['Auth', 'Sessions'],
-        summary: 'List user sessions',
-        description: 'Get all active sessions for the current user'
-      }
-    }
+        tags: ["Auth", "Sessions"],
+        summary: "List user sessions",
+        description: "Get all active sessions for the current user",
+      },
+    },
   )
 
   // ═══════════════════════════════════════════════════════════════════
   // REVOKE SESSION
   // ═══════════════════════════════════════════════════════════════════
   .delete(
-    '/sessions/:sessionId',
+    "/sessions/:sessionId",
     async (context) => {
       const {
         params: { sessionId },
-        user
+        user,
       } = context as typeof context & {
         params: { sessionId: string };
         user: { id: string };
@@ -185,7 +185,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       const deleted = await db
         .delete(sessionTable)
         .where(
-          and(eq(sessionTable.id, sessionId), eq(sessionTable.userId, user.id))
+          and(eq(sessionTable.id, sessionId), eq(sessionTable.userId, user.id)),
         )
         .returning();
 
@@ -193,36 +193,36 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         return {
           success: false,
           error: {
-            code: 'SESSION_NOT_FOUND',
-            message: 'Session not found or already revoked'
-          }
+            code: "SESSION_NOT_FOUND",
+            message: "Session not found or already revoked",
+          },
         };
       }
 
       return {
         success: true,
         data: {
-          message: 'Session revoked successfully'
-        }
+          message: "Session revoked successfully",
+        },
       };
     },
     {
       params: t.Object({
-        sessionId: t.String()
+        sessionId: t.String(),
       }),
       detail: {
-        tags: ['Auth', 'Sessions'],
-        summary: 'Revoke session',
-        description: 'Revoke a specific session (logout from that device)'
-      }
-    }
+        tags: ["Auth", "Sessions"],
+        summary: "Revoke session",
+        description: "Revoke a specific session (logout from that device)",
+      },
+    },
   )
 
   // ═══════════════════════════════════════════════════════════════════
   // REVOKE ALL OTHER SESSIONS
   // ═══════════════════════════════════════════════════════════════════
   .delete(
-    '/sessions',
+    "/sessions",
     async (context) => {
       const { user, session } = context as typeof context & {
         user: { id: string };
@@ -233,31 +233,31 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         and(
           eq(sessionTable.userId, user.id),
           // Don't delete current session
-          ne(sessionTable.id, session.id)
-        )
+          ne(sessionTable.id, session.id),
+        ),
       );
 
       return {
         success: true,
         data: {
-          message: 'All other sessions revoked successfully'
-        }
+          message: "All other sessions revoked successfully",
+        },
       };
     },
     {
       detail: {
-        tags: ['Auth', 'Sessions'],
-        summary: 'Revoke all other sessions',
-        description: 'Logout from all devices except the current one'
-      }
-    }
+        tags: ["Auth", "Sessions"],
+        summary: "Revoke all other sessions",
+        description: "Logout from all devices except the current one",
+      },
+    },
   )
 
   // ═══════════════════════════════════════════════════════════════════
   // REVOKE ALL OTHER SESSIONS (alias)
   // ═══════════════════════════════════════════════════════════════════
   .post(
-    '/sessions/revoke-others',
+    "/sessions/revoke-others",
     async (context) => {
       const { user, session } = context as typeof context & {
         user: { id: string };
@@ -267,21 +267,24 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       await db
         .delete(sessionTable)
         .where(
-          and(eq(sessionTable.userId, user.id), ne(sessionTable.id, session.id))
+          and(
+            eq(sessionTable.userId, user.id),
+            ne(sessionTable.id, session.id),
+          ),
         );
 
       return {
         success: true,
         data: {
-          message: 'All other sessions revoked successfully'
-        }
+          message: "All other sessions revoked successfully",
+        },
       };
     },
     {
       detail: {
-        tags: ['Auth', 'Sessions'],
-        summary: 'Revoke all other sessions',
-        description: 'Logout from all devices except the current one'
-      }
-    }
+        tags: ["Auth", "Sessions"],
+        summary: "Revoke all other sessions",
+        description: "Logout from all devices except the current one",
+      },
+    },
   );
