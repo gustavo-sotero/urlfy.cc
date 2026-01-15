@@ -9,23 +9,24 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq } from "drizzle-orm";
-import { Elysia } from "elysia";
-import { nanoid } from "nanoid";
-import { db } from "@/db";
-import { type DeletionStatus, dataDeletionRequest } from "@/db/schema/audit";
-import type { User } from "@/lib/auth";
-import { requireAuth } from "@/server/middleware/auth.middleware";
-import { auditLogService } from "@/server/services/audit.service";
-import { userService } from "@/server/services/user.service";
+import { db } from '@/db';
+import { type DeletionStatus, dataDeletionRequest } from '@/db/schema/audit';
+import type { User } from '@/lib/auth';
+import { sendEmail } from '@/server/lib/email';
+import { requireAuth } from '@/server/middleware/auth.middleware';
+import { auditLogService } from '@/server/services/audit.service';
+import { userService } from '@/server/services/user.service';
+import { and, desc, eq } from 'drizzle-orm';
+import { Elysia } from 'elysia';
+import { nanoid } from 'nanoid';
 
-export const userDataRoutes = new Elysia({ prefix: "/me" })
+export const userDataRoutes = new Elysia({ prefix: '/me' })
   .use(requireAuth)
 
   // ═══════════════════════════════════════════════════════════════════
   // GET USER PROFILE
   // ═══════════════════════════════════════════════════════════════════
-  .get("/", async (context) => {
+  .get('/', async (context) => {
     const { user } = context as typeof context & {
       user: User;
     };
@@ -42,15 +43,15 @@ export const userDataRoutes = new Elysia({ prefix: "/me" })
         linksQuota: user.linksQuota,
         linksCount: user.linksCount,
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
+        updatedAt: user.updatedAt
+      }
     };
   })
 
   // ═══════════════════════════════════════════════════════════════════
   // GET QUOTA INFORMATION
   // ═══════════════════════════════════════════════════════════════════
-  .get("/quota", async (context) => {
+  .get('/quota', async (context) => {
     const { user } = context as typeof context & {
       user: User;
     };
@@ -66,15 +67,15 @@ export const userDataRoutes = new Elysia({ prefix: "/me" })
         used,
         limit,
         remaining,
-        percentUsed,
-      },
+        percentUsed
+      }
     };
   })
 
   // ═══════════════════════════════════════════════════════════════════
   // EXPORT USER DATA (LGPD/GDPR - RF-36)
   // ═══════════════════════════════════════════════════════════════════
-  .get("/export", async (context) => {
+  .get('/export', async (context) => {
     const { user, request } = context as typeof context & {
       user: User;
       request: Request;
@@ -87,27 +88,27 @@ export const userDataRoutes = new Elysia({ prefix: "/me" })
       // Log the export action
       await auditLogService.log({
         userId: user.id,
-        action: "export_user_data",
-        entityType: "user",
+        action: 'export_user_data',
+        entityType: 'user',
         entityId: user.id,
         metadata: {
-          exportedAt: new Date().toISOString(),
+          exportedAt: new Date().toISOString()
         },
-        ipAddress: request.headers.get("x-forwarded-for") || undefined,
-        userAgent: request.headers.get("user-agent") || undefined,
+        ipAddress: request.headers.get('x-forwarded-for') || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
       });
 
       return {
         success: true,
-        data: exportData,
+        data: exportData
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: "EXPORT_FAILED",
-          message: error instanceof Error ? error.message : "Export failed",
-        },
+          code: 'EXPORT_FAILED',
+          message: error instanceof Error ? error.message : 'Export failed'
+        }
       };
     }
   })
@@ -115,7 +116,7 @@ export const userDataRoutes = new Elysia({ prefix: "/me" })
   // ═══════════════════════════════════════════════════════════════════
   // REQUEST DATA DELETION (LGPD/GDPR - RF-37)
   // ═══════════════════════════════════════════════════════════════════
-  .delete("/data", async (context) => {
+  .delete('/data', async (context) => {
     const { user } = context as typeof context & {
       user: User;
       request: Request;
@@ -129,8 +130,8 @@ export const userDataRoutes = new Elysia({ prefix: "/me" })
         .where(
           and(
             eq(dataDeletionRequest.userId, user.id),
-            eq(dataDeletionRequest.status, "pending" as DeletionStatus),
-          ),
+            eq(dataDeletionRequest.status, 'pending' as DeletionStatus)
+          )
         )
         .limit(1);
 
@@ -138,14 +139,14 @@ export const userDataRoutes = new Elysia({ prefix: "/me" })
         return {
           success: false,
           error: {
-            code: "REQUEST_ALREADY_EXISTS",
-            message: "You already have a pending deletion request",
+            code: 'REQUEST_ALREADY_EXISTS',
+            message: 'You already have a pending deletion request',
             details: {
               requestId: existingRequest[0].id,
               requestedAt: existingRequest[0].requestedAt,
-              deadlineAt: existingRequest[0].deadlineAt,
-            },
-          },
+              deadlineAt: existingRequest[0].deadlineAt
+            }
+          }
         };
       }
 
@@ -158,26 +159,41 @@ export const userDataRoutes = new Elysia({ prefix: "/me" })
         .values({
           id: nanoid(),
           userId: user.id,
-          status: "pending",
+          status: 'pending',
           requestedAt,
           deadlineAt,
-          dataExported: "no",
+          dataExported: 'no'
         })
         .returning();
 
       // Log the deletion request
       await auditLogService.log({
         userId: user.id,
-        action: "request_data_deletion",
-        entityType: "user",
+        action: 'request_data_deletion',
+        entityType: 'user',
         entityId: user.id,
         metadata: {
           requestId: request.id,
-          deadlineAt: deadlineAt.toISOString(),
+          deadlineAt: deadlineAt.toISOString()
         },
-        ipAddress: context.request.headers.get("x-forwarded-for") || undefined,
-        userAgent: context.request.headers.get("user-agent") || undefined,
+        ipAddress: context.request.headers.get('x-forwarded-for') || undefined,
+        userAgent: context.request.headers.get('user-agent') || undefined
       });
+
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: 'Solicitação de exclusão de dados - urlfy.cc',
+          template: 'data-deletion-request',
+          data: {
+            name: user.name,
+            requestId: request.id,
+            deadline: deadlineAt.toISOString()
+          }
+        });
+      } catch (error) {
+        console.warn('Failed to send data deletion email', error);
+      }
 
       return {
         success: true,
@@ -186,16 +202,16 @@ export const userDataRoutes = new Elysia({ prefix: "/me" })
           requestedAt: request.requestedAt,
           deadlineAt: request.deadlineAt,
           message:
-            "Your data deletion request has been received. Your data will be permanently deleted within 72 hours.",
-        },
+            'Your data deletion request has been received. Your data will be permanently deleted within 72 hours.'
+        }
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: "REQUEST_FAILED",
-          message: error instanceof Error ? error.message : "Request failed",
-        },
+          code: 'REQUEST_FAILED',
+          message: error instanceof Error ? error.message : 'Request failed'
+        }
       };
     }
   })
@@ -203,7 +219,7 @@ export const userDataRoutes = new Elysia({ prefix: "/me" })
   // ═══════════════════════════════════════════════════════════════════
   // GET DELETION REQUEST STATUS
   // ═══════════════════════════════════════════════════════════════════
-  .get("/deletion-request", async (context) => {
+  .get('/deletion-request', async (context) => {
     const { user } = context as typeof context & {
       user: User;
     };
@@ -217,12 +233,12 @@ export const userDataRoutes = new Elysia({ prefix: "/me" })
     if (requests.length === 0) {
       return {
         success: true,
-        data: null,
+        data: null
       };
     }
 
     return {
       success: true,
-      data: requests[0],
+      data: requests[0]
     };
   });

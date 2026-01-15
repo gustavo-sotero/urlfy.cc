@@ -1,34 +1,34 @@
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { Elysia } from "elysia";
 import {
   apiKey as apiKeyTable,
   twoFactor as twoFactorTable,
-  user as userTable
-} from '@/db/schema/auth';
-import type { Session, User } from '@/lib/auth';
-import { auth } from '@/lib/auth';
-import { db } from '@/server/lib/db';
-import { redis } from '@/server/lib/redis';
-import { createLogger } from '@/server/lib/telemetry';
-import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
-import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
-import { Elysia } from 'elysia';
+  user as userTable,
+} from "@/db/schema/auth";
+import type { Session, User } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import { db } from "@/server/lib/db";
+import { redis } from "@/server/lib/redis";
+import { createLogger } from "@/server/lib/telemetry";
+import type { NormalizedApiKeyPermissions } from "@/types/auth.types";
 
-const logger = createLogger('auth-middleware');
+const logger = createLogger("auth-middleware");
 
 // ═══════════════════════════════════════════════════════════════════
 // OPTIONAL AUTH MIDDLEWARE (populates context if authenticated)
 // ═══════════════════════════════════════════════════════════════════
-export const optionalAuth = new Elysia({ name: 'optional-auth' })
-  .derive({ as: 'scoped' }, async ({ request }) => {
+export const optionalAuth = new Elysia({ name: "optional-auth" })
+  .derive({ as: "scoped" }, async ({ request }) => {
     try {
       const sessionData = await auth.api.getSession({
-        headers: request.headers
+        headers: request.headers,
       });
 
       if (sessionData?.user && sessionData?.session) {
         return {
           user: sessionData.user as User,
           session: sessionData.session as Session,
-          isAuthenticated: true as const
+          isAuthenticated: true as const,
         };
       }
     } catch {
@@ -38,96 +38,96 @@ export const optionalAuth = new Elysia({ name: 'optional-auth' })
     return {
       user: null,
       session: null,
-      isAuthenticated: false as const
+      isAuthenticated: false as const,
     };
   })
-  .as('scoped');
+  .as("scoped");
 
 // ═══════════════════════════════════════════════════════════════════
 // REQUIRE AUTH MIDDLEWARE (requires authentication)
 // ═══════════════════════════════════════════════════════════════════
-export const requireAuth = new Elysia({ name: 'require-auth' })
-  .derive({ as: 'scoped' }, async ({ request }) => {
+export const requireAuth = new Elysia({ name: "require-auth" })
+  .derive({ as: "scoped" }, async ({ request }) => {
     try {
       const sessionData = await auth.api.getSession({
-        headers: request.headers
+        headers: request.headers,
       });
 
-      logger.debug('Session validation', {
+      logger.debug("Session validation", {
         hasUser: !!sessionData?.user,
         hasSession: !!sessionData?.session,
-        userId: sessionData?.user?.id
+        userId: sessionData?.user?.id,
       });
 
       return {
         user: sessionData?.user as User | null,
         session: sessionData?.session as Session | null,
-        isAuthenticated: !!(sessionData?.user && sessionData?.session)
+        isAuthenticated: !!(sessionData?.user && sessionData?.session),
       };
     } catch {
       // If session validation throws, treat as unauthenticated
-      logger.debug('Session fetch failed, treating as unauthenticated');
+      logger.debug("Session fetch failed, treating as unauthenticated");
       return {
         user: null,
         session: null,
-        isAuthenticated: false as const
+        isAuthenticated: false as const,
       };
     }
   })
-  .onBeforeHandle({ as: 'scoped' }, ({ user, session, status }) => {
-    logger.debug('Auth check', {
+  .onBeforeHandle({ as: "scoped" }, ({ user, session, status }) => {
+    logger.debug("Auth check", {
       hasUser: !!user,
-      hasSession: !!session
+      hasSession: !!session,
     });
 
     if (!user || !session) {
-      logger.debug('Returning 401 - no user or session');
+      logger.debug("Returning 401 - no user or session");
       return status(401, {
         success: false,
         error: {
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required'
-        }
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+        },
       });
     }
 
     // Check if user is deleted or banned
     if (user.deletedAt || user.bannedAt) {
-      logger.debug('Returning 403 - user deleted or banned', {
-        userId: user.id
+      logger.debug("Returning 403 - user deleted or banned", {
+        userId: user.id,
       });
       return status(403, {
         success: false,
         error: {
-          code: 'FORBIDDEN',
-          message: 'Account is not accessible'
-        }
+          code: "FORBIDDEN",
+          message: "Account is not accessible",
+        },
       });
     }
 
-    logger.debug('Auth check passed', { userId: user.id });
+    logger.debug("Auth check passed", { userId: user.id });
   })
-  .as('scoped');
+  .as("scoped");
 
 // ═══════════════════════════════════════════════════════════════════
 // API KEY AUTH MIDDLEWARE
 // ═══════════════════════════════════════════════════════════════════
-export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
-  .derive({ as: 'scoped' }, async ({ headers, status }) => {
-    const apiKey = headers['x-api-key'];
+export const apiKeyAuth = new Elysia({ name: "api-key-auth" })
+  .derive({ as: "scoped" }, async ({ headers, status }) => {
+    const apiKey = headers["x-api-key"];
 
-    if (!apiKey || typeof apiKey !== 'string') {
+    if (!apiKey || typeof apiKey !== "string") {
       throw status(401, {
         success: false,
-        error: { code: 'UNAUTHORIZED', message: 'API key required' }
+        error: { code: "UNAUTHORIZED", message: "API key required" },
       });
     }
 
     // Validate API key format (should start with urlfy_sk_)
-    if (!apiKey.startsWith('urlfy_sk_')) {
+    if (!apiKey.startsWith("urlfy_sk_")) {
       throw status(401, {
         success: false,
-        error: { code: 'UNAUTHORIZED', message: 'Invalid API key format' }
+        error: { code: "UNAUTHORIZED", message: "Invalid API key format" },
       });
     }
 
@@ -144,7 +144,7 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
         rateLimitEnabled: apiKeyTable.rateLimitEnabled,
         rateLimitTimeWindow: apiKeyTable.rateLimitTimeWindow,
         rateLimitMax: apiKeyTable.rateLimitMax,
-        userId: apiKeyTable.userId
+        userId: apiKeyTable.userId,
       })
       .from(apiKeyTable)
       .where(
@@ -154,16 +154,16 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
           isNull(apiKeyTable.deletedAt),
           or(
             isNull(apiKeyTable.expiresAt),
-            gt(apiKeyTable.expiresAt, new Date())
-          )
-        )
+            gt(apiKeyTable.expiresAt, new Date()),
+          ),
+        ),
       )
       .limit(1);
 
     if (!apiKeyResult) {
       throw status(401, {
         success: false,
-        error: { code: 'UNAUTHORIZED', message: 'Invalid or revoked API key' }
+        error: { code: "UNAUTHORIZED", message: "Invalid or revoked API key" },
       });
     }
 
@@ -177,14 +177,14 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
     if (!user) {
       throw status(401, {
         success: false,
-        error: { code: 'UNAUTHORIZED', message: 'User not found' }
+        error: { code: "UNAUTHORIZED", message: "User not found" },
       });
     }
 
     if (user.deletedAt || user.bannedAt) {
       throw status(403, {
         success: false,
-        error: { code: 'FORBIDDEN', message: 'Account is not accessible' }
+        error: { code: "FORBIDDEN", message: "Account is not accessible" },
       });
     }
 
@@ -198,17 +198,17 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
       const rateLimitResult = await enforceApiKeyRateLimit(
         apiKeyResult.id,
         maxRequests,
-        timeWindowMs
+        timeWindowMs,
       );
 
       if (!rateLimitResult.allowed) {
         throw status(429, {
           success: false,
           error: {
-            code: 'RATE_LIMITED',
-            message: 'API key rate limit exceeded',
-            retryAfter: rateLimitResult.retryAfter
-          }
+            code: "RATE_LIMITED",
+            message: "API key rate limit exceeded",
+            retryAfter: rateLimitResult.retryAfter,
+          },
         });
       }
     }
@@ -224,24 +224,24 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
         id: apiKeyResult.id,
         name: apiKeyResult.name,
         permissions,
-        rateLimit: apiKeyResult.rateLimitMax ?? 1000
+        rateLimit: apiKeyResult.rateLimitMax ?? 1000,
       },
-      isAuthenticated: true as const
+      isAuthenticated: true as const,
     };
   })
-  .as('scoped');
+  .as("scoped");
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN MIDDLEWARE (requires admin role)
 // ═══════════════════════════════════════════════════════════════════
-export const requireAdmin = new Elysia({ name: 'require-admin' })
+export const requireAdmin = new Elysia({ name: "require-admin" })
   .use(requireAuth)
-  .onBeforeHandle({ as: 'scoped' }, async ({ user, status }) => {
+  .onBeforeHandle({ as: "scoped" }, async ({ user, status }) => {
     // Check if user has admin role
-    if ((user as User).role !== 'admin') {
+    if ((user as User).role !== "admin") {
       return status(403, {
         success: false,
-        error: { code: 'FORBIDDEN', message: 'Admin access required' }
+        error: { code: "FORBIDDEN", message: "Admin access required" },
       });
     }
 
@@ -252,21 +252,21 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
       return status(403, {
         success: false,
         error: {
-          code: 'FORBIDDEN',
-          message: 'Two-factor authentication is required for admin access'
-        }
+          code: "FORBIDDEN",
+          message: "Two-factor authentication is required for admin access",
+        },
       });
     }
   })
-  .derive({ as: 'scoped' }, ({ user, session }) => {
+  .derive({ as: "scoped" }, ({ user, session }) => {
     return {
-      user: user as User & { role: 'admin' },
+      user: user as User & { role: "admin" },
       session: session as Session,
       isAuthenticated: true as const,
-      isAdmin: true as const
+      isAdmin: true as const,
     };
   })
-  .as('scoped');
+  .as("scoped");
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
@@ -278,9 +278,9 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
 async function hashApiKey(key: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(key);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /**
@@ -291,7 +291,7 @@ async function updateApiKeyUsage(keyId: string): Promise<void> {
     .update(apiKeyTable)
     .set({
       lastUsedAt: new Date(),
-      usageCount: sql`${apiKeyTable.usageCount} + 1`
+      usageCount: sql`${apiKeyTable.usageCount} + 1`,
     })
     .where(eq(apiKeyTable.id, keyId));
 }
@@ -302,9 +302,9 @@ async function updateApiKeyUsage(keyId: string): Promise<void> {
 async function enforceApiKeyRateLimit(
   apiKeyId: string,
   maxRequests: number,
-  timeWindowMs: number
+  timeWindowMs: number,
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
-  if (redis.status !== 'ready') {
+  if (redis.status !== "ready") {
     return { allowed: true };
   }
 
@@ -323,9 +323,9 @@ async function enforceApiKeyRateLimit(
       return { allowed: false, retryAfter };
     }
   } catch (error) {
-    logger.warn('API key rate limit check failed', {
+    logger.warn("API key rate limit check failed", {
       error: error instanceof Error ? error.message : String(error),
-      apiKeyId
+      apiKeyId,
     });
   }
 
@@ -336,7 +336,7 @@ async function enforceApiKeyRateLimit(
  * Normalize API key permissions from DB
  */
 function parsePermissions(
-  permissions: string | null
+  permissions: string | null,
 ): NormalizedApiKeyPermissions {
   if (!permissions) {
     return normalizePermissions({});
@@ -372,11 +372,11 @@ function normalizePermissions(input: {
       create: input.links?.create ?? false,
       read: input.links?.read ?? false,
       update: input.links?.update ?? false,
-      delete: input.links?.delete ?? false
+      delete: input.links?.delete ?? false,
     },
     analytics: {
-      read: input.analytics?.read ?? false
-    }
+      read: input.analytics?.read ?? false,
+    },
   };
 }
 

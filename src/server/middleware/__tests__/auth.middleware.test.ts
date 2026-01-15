@@ -16,57 +16,57 @@
 
 // Set test environment before imports
 // @ts-expect-error - NODE_ENV assignment is needed for test setup
-process.env.NODE_ENV = 'test';
+process.env.NODE_ENV = "test";
 
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { eq } from 'drizzle-orm';
-import { Elysia } from 'elysia';
-import { nanoid } from 'nanoid';
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { eq } from "drizzle-orm";
+import { Elysia } from "elysia";
+import { nanoid } from "nanoid";
 
 // Flag to track if infrastructure is available
 let infrastructureAvailable = false;
 let setupError: Error | null = null;
 
 // Try to import database - this will fail if db not available
-let db: typeof import('@/db').db | null = null;
-let apiKeyTable: typeof import('@/db/schema/auth').apiKey | null = null;
-let sessionTable: typeof import('@/db/schema/auth').session | null = null;
-let twoFactorTable: typeof import('@/db/schema/auth').twoFactor | null = null;
-let userTable: typeof import('@/db/schema/auth').user | null = null;
-let auth: typeof import('@/lib/auth').auth | null = null;
+let db: typeof import("@/db").db | null = null;
+let apiKeyTable: typeof import("@/db/schema/auth").apiKey | null = null;
+let sessionTable: typeof import("@/db/schema/auth").session | null = null;
+let twoFactorTable: typeof import("@/db/schema/auth").twoFactor | null = null;
+let userTable: typeof import("@/db/schema/auth").user | null = null;
+let auth: typeof import("@/lib/auth").auth | null = null;
 let apiKeyAuth:
-  | typeof import('@/server/middleware/auth.middleware').apiKeyAuth
+  | typeof import("@/server/middleware/auth.middleware").apiKeyAuth
   | null = null;
 let optionalAuth:
-  | typeof import('@/server/middleware/auth.middleware').optionalAuth
+  | typeof import("@/server/middleware/auth.middleware").optionalAuth
   | null = null;
 let requireAdmin:
-  | typeof import('@/server/middleware/auth.middleware').requireAdmin
+  | typeof import("@/server/middleware/auth.middleware").requireAdmin
   | null = null;
 let requireAuth:
-  | typeof import('@/server/middleware/auth.middleware').requireAuth
+  | typeof import("@/server/middleware/auth.middleware").requireAuth
   | null = null;
 
 try {
-  const dbModule = await import('@/db');
+  const dbModule = await import("@/db");
   db = dbModule.db;
 
   // Test actual database connectivity before marking as available
   const healthResult = await dbModule.checkDatabaseHealth();
-  if (healthResult.status !== 'ok') {
+  if (healthResult.status !== "ok") {
     throw new Error(
-      `Database connection failed: ${healthResult.error || 'Unknown error'}`
+      `Database connection failed: ${healthResult.error || "Unknown error"}`,
     );
   }
 
-  const schemaModule = await import('@/db/schema/auth');
+  const schemaModule = await import("@/db/schema/auth");
   apiKeyTable = schemaModule.apiKey;
   sessionTable = schemaModule.session;
   twoFactorTable = schemaModule.twoFactor;
   userTable = schemaModule.user;
-  const authModule = await import('@/lib/auth');
+  const authModule = await import("@/lib/auth");
   auth = authModule.auth;
-  const middlewareModule = await import('@/server/middleware/auth.middleware');
+  const middlewareModule = await import("@/server/middleware/auth.middleware");
   apiKeyAuth = middlewareModule.apiKeyAuth;
   optionalAuth = middlewareModule.optionalAuth;
   requireAdmin = middlewareModule.requireAdmin;
@@ -75,18 +75,18 @@ try {
 } catch (error) {
   setupError = error instanceof Error ? error : new Error(String(error));
   console.warn(
-    '⚠️  Auth Middleware tests skipped: Infrastructure not available',
-    setupError.message
+    "⚠️  Auth Middleware tests skipped: Infrastructure not available",
+    setupError.message,
   );
 }
 
-describe('Auth Middleware', () => {
+describe("Auth Middleware", () => {
   // Skip entire test suite if infrastructure is not available
   if (!infrastructureAvailable) {
-    it('should skip tests when infrastructure is unavailable', () => {
+    it("should skip tests when infrastructure is unavailable", () => {
       console.log(
-        '⚠️  Auth Middleware tests skipped - infrastructure unavailable:',
-        setupError?.message
+        "⚠️  Auth Middleware tests skipped - infrastructure unavailable:",
+        setupError?.message,
       );
       expect(true).toBe(true); // Dummy assertion to pass
     });
@@ -117,7 +117,7 @@ describe('Auth Middleware', () => {
     // Infrastructure is guaranteed available at this point due to early return above
     if (!auth || !db) {
       throw new Error(
-        'Unexpected: auth or db is null after infrastructure check'
+        "Unexpected: auth or db is null after infrastructure check",
       );
     }
 
@@ -125,16 +125,16 @@ describe('Auth Middleware', () => {
     testUser = {
       id: nanoid(),
       email: `test-middleware-${nanoid()}@urlfy.test`,
-      password: 'TestPassword123!'
+      password: "TestPassword123!",
     };
 
     const signUpResult = await auth.api.signUpEmail({
       body: {
         email: testUser.email,
         password: testUser.password,
-        name: 'Test User'
+        name: "Test User",
       },
-      headers: new Headers()
+      headers: new Headers(),
     });
 
     if (signUpResult?.user) {
@@ -144,9 +144,9 @@ describe('Auth Middleware', () => {
     const signInResult = await auth.api.signInEmail({
       body: {
         email: testUser.email,
-        password: testUser.password
+        password: testUser.password,
       },
-      headers: new Headers()
+      headers: new Headers(),
     });
 
     if (signInResult?.token) {
@@ -157,16 +157,16 @@ describe('Auth Middleware', () => {
     adminUser = {
       id: nanoid(),
       email: `admin-middleware-${nanoid()}@urlfy.test`,
-      password: 'AdminPassword123!'
+      password: "AdminPassword123!",
     };
 
     const adminSignUpResult = await auth.api.signUpEmail({
       body: {
         email: adminUser.email,
         password: adminUser.password,
-        name: 'Admin User'
+        name: "Admin User",
       },
-      headers: new Headers()
+      headers: new Headers(),
     });
 
     if (adminSignUpResult?.user) {
@@ -177,7 +177,7 @@ describe('Auth Middleware', () => {
       await db!
         // biome-ignore lint/style/noNonNullAssertion: Infrastructure check guarantees non-null
         .update(userTable!)
-        .set({ role: 'admin' })
+        .set({ role: "admin" })
         // biome-ignore lint/style/noNonNullAssertion: Infrastructure check guarantees non-null
         .where(eq(userTable!.id, adminUser.id));
 
@@ -186,18 +186,18 @@ describe('Auth Middleware', () => {
       await db!.insert(twoFactorTable!).values({
         id: nanoid(),
         userId: adminUser.id,
-        secret: 'test-secret',
-        backupCodes: JSON.stringify(['code1', 'code2']),
-        verified: true
+        secret: "test-secret",
+        backupCodes: JSON.stringify(["code1", "code2"]),
+        verified: true,
       });
     }
 
     const adminSignInResult = await auth.api.signInEmail({
       body: {
         email: adminUser.email,
-        password: adminUser.password
+        password: adminUser.password,
       },
-      headers: new Headers()
+      headers: new Headers(),
     });
 
     if (adminSignInResult?.token) {
@@ -208,27 +208,27 @@ describe('Auth Middleware', () => {
     const encoder = new TextEncoder();
     testApiKey = `urlfy_sk_${nanoid(32)}`;
     const data = encoder.encode(testApiKey);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const keyHash = hashArray
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('');
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
 
     // biome-ignore lint/style/noNonNullAssertion: Infrastructure check guarantees non-null
     await db!.insert(apiKeyTable!).values({
       id: nanoid(),
       userId: testUser.id,
-      name: 'Test API Key',
+      name: "Test API Key",
       // Never store plaintext keys; store hash only.
       key: keyHash,
       keyHash,
       keyPrefix: testApiKey.slice(0, 12),
       permissions: JSON.stringify({
         links: { create: true, read: true, update: true, delete: true },
-        analytics: { read: true }
+        analytics: { read: true },
       }),
       rateLimit: true,
-      rateLimitMax: 1000
+      rateLimitMax: 1000,
     });
   });
 
@@ -258,23 +258,23 @@ describe('Auth Middleware', () => {
   // OPTIONAL AUTH MIDDLEWARE
   // ═══════════════════════════════════════════════════════════════════
 
-  describe('optionalAuth middleware', () => {
+  describe("optionalAuth middleware", () => {
     function createApp() {
-      if (!optionalAuth) throw new Error('Middleware not available');
-      return new Elysia().use(optionalAuth).get('/test', (context) => ({
+      if (!optionalAuth) throw new Error("Middleware not available");
+      return new Elysia().use(optionalAuth).get("/test", (context) => ({
         isAuth: (context as { isAuthenticated?: boolean }).isAuthenticated,
-        userId: (context as { user?: { id: string } }).user?.id
+        userId: (context as { user?: { id: string } }).user?.id,
       }));
     }
 
-    it('should populate user context when authenticated', async () => {
+    it("should populate user context when authenticated", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test', {
+        new Request("http://localhost:3000/test", {
           headers: {
-            Cookie: `urlfy.session=${testUser.sessionToken}`
-          }
-        })
+            Cookie: `urlfy.session=${testUser.sessionToken}`,
+          },
+        }),
       );
 
       const data = await response.json();
@@ -282,10 +282,10 @@ describe('Auth Middleware', () => {
       expect(data.userId).toBe(testUser.id);
     });
 
-    it('should allow request without authentication', async () => {
+    it("should allow request without authentication", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test')
+        new Request("http://localhost:3000/test"),
       );
 
       const data = await response.json();
@@ -298,23 +298,23 @@ describe('Auth Middleware', () => {
   // REQUIRE AUTH MIDDLEWARE
   // ═══════════════════════════════════════════════════════════════════
 
-  describe('requireAuth middleware', () => {
+  describe("requireAuth middleware", () => {
     function createApp() {
-      if (!requireAuth) throw new Error('Middleware not available');
-      return new Elysia().use(requireAuth).get('/test', (context) => ({
+      if (!requireAuth) throw new Error("Middleware not available");
+      return new Elysia().use(requireAuth).get("/test", (context) => ({
         // biome-ignore lint/suspicious/noExplicitAny: Test context typing
-        userId: (context as any).user.id
+        userId: (context as any).user.id,
       }));
     }
 
-    it('should allow authenticated requests', async () => {
+    it("should allow authenticated requests", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test', {
+        new Request("http://localhost:3000/test", {
           headers: {
-            Cookie: `urlfy.session=${testUser.sessionToken}`
-          }
-        })
+            Cookie: `urlfy.session=${testUser.sessionToken}`,
+          },
+        }),
       );
 
       expect(response.status).toBe(200);
@@ -322,23 +322,23 @@ describe('Auth Middleware', () => {
       expect(data.userId).toBe(testUser.id);
     });
 
-    it('should reject unauthenticated requests', async () => {
+    it("should reject unauthenticated requests", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test')
+        new Request("http://localhost:3000/test"),
       );
 
       expect(response.status).toBe(401);
     });
 
-    it('should reject requests with invalid session token', async () => {
+    it("should reject requests with invalid session token", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test', {
+        new Request("http://localhost:3000/test", {
           headers: {
-            Cookie: 'urlfy.session=invalid-token'
-          }
-        })
+            Cookie: "urlfy.session=invalid-token",
+          },
+        }),
       );
 
       expect(response.status).toBe(401);
@@ -349,105 +349,105 @@ describe('Auth Middleware', () => {
   // API KEY AUTH MIDDLEWARE
   // ═══════════════════════════════════════════════════════════════════
 
-  describe('apiKeyAuth middleware', () => {
+  describe("apiKeyAuth middleware", () => {
     function createApp() {
-      if (!apiKeyAuth) throw new Error('Middleware not available');
-      return new Elysia().use(apiKeyAuth).get('/test', (context) => ({
+      if (!apiKeyAuth) throw new Error("Middleware not available");
+      return new Elysia().use(apiKeyAuth).get("/test", (context) => ({
         // biome-ignore lint/suspicious/noExplicitAny: Test context typing
         userId: (context as any).user.id,
         // biome-ignore lint/suspicious/noExplicitAny: Test context typing
-        keyName: (context as any).apiKey?.name
+        keyName: (context as any).apiKey?.name,
       }));
     }
 
-    it('should authenticate with valid API key', async () => {
+    it("should authenticate with valid API key", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test', {
+        new Request("http://localhost:3000/test", {
           headers: {
-            'x-api-key': testApiKey
-          }
-        })
+            "x-api-key": testApiKey,
+          },
+        }),
       );
 
       expect(response.status).toBe(200);
       const data = await response.json();
       expect(data.userId).toBe(testUser.id);
-      expect(data.keyName).toBe('Test API Key');
+      expect(data.keyName).toBe("Test API Key");
     });
 
-    it('should reject requests without API key', async () => {
+    it("should reject requests without API key", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test')
+        new Request("http://localhost:3000/test"),
       );
 
       expect(response.status).toBe(401);
     });
 
-    it('should reject requests with invalid API key', async () => {
+    it("should reject requests with invalid API key", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test', {
+        new Request("http://localhost:3000/test", {
           headers: {
-            'x-api-key': 'urlfy_sk_invalid_key'
-          }
-        })
+            "x-api-key": "urlfy_sk_invalid_key",
+          },
+        }),
       );
 
       expect(response.status).toBe(401);
     });
 
-    it('should reject requests with malformed API key', async () => {
+    it("should reject requests with malformed API key", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test', {
+        new Request("http://localhost:3000/test", {
           headers: {
-            'x-api-key': 'invalid-format'
-          }
-        })
+            "x-api-key": "invalid-format",
+          },
+        }),
       );
 
       expect(response.status).toBe(401);
     });
 
-    it('should reject expired API keys', async () => {
-      if (!db || !apiKeyTable) throw new Error('DB not available');
+    it("should reject expired API keys", async () => {
+      if (!db || !apiKeyTable) throw new Error("DB not available");
 
       const expiredKey = `urlfy_sk_${nanoid(32)}`;
       const encoder = new TextEncoder();
       const data = encoder.encode(expiredKey);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const keyHash = hashArray
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
 
       const expiredKeyId = nanoid();
       await db.insert(apiKeyTable).values({
         id: expiredKeyId,
         userId: testUser.id,
-        name: 'Expired API Key',
+        name: "Expired API Key",
         key: keyHash,
         keyHash,
         keyPrefix: expiredKey.slice(0, 12),
         permissions: JSON.stringify({
           links: { create: true, read: true, update: true, delete: true },
-          analytics: { read: true }
+          analytics: { read: true },
         }),
         rateLimit: true,
         rateLimitMax: 1000,
-        expiresAt: new Date(Date.now() - 60_000)
+        expiresAt: new Date(Date.now() - 60_000),
       });
 
       try {
         const app = createApp();
         const response = await app.handle(
-          new Request('http://localhost:3000/test', {
+          new Request("http://localhost:3000/test", {
             headers: {
-              'x-api-key': expiredKey
-            }
-          })
+              "x-api-key": expiredKey,
+            },
+          }),
         );
 
         expect(response.status).toBe(401);
@@ -456,43 +456,43 @@ describe('Auth Middleware', () => {
       }
     });
 
-    it('should reject revoked API keys', async () => {
-      if (!db || !apiKeyTable) throw new Error('DB not available');
+    it("should reject revoked API keys", async () => {
+      if (!db || !apiKeyTable) throw new Error("DB not available");
 
       const revokedKey = `urlfy_sk_${nanoid(32)}`;
       const encoder = new TextEncoder();
       const data = encoder.encode(revokedKey);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const keyHash = hashArray
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
 
       const revokedKeyId = nanoid();
       await db.insert(apiKeyTable).values({
         id: revokedKeyId,
         userId: testUser.id,
-        name: 'Revoked API Key',
+        name: "Revoked API Key",
         key: keyHash,
         keyHash,
         keyPrefix: revokedKey.slice(0, 12),
         permissions: JSON.stringify({
           links: { create: true, read: true, update: true, delete: true },
-          analytics: { read: true }
+          analytics: { read: true },
         }),
         rateLimit: true,
         rateLimitMax: 1000,
-        revokedAt: new Date()
+        revokedAt: new Date(),
       });
 
       try {
         const app = createApp();
         const response = await app.handle(
-          new Request('http://localhost:3000/test', {
+          new Request("http://localhost:3000/test", {
             headers: {
-              'x-api-key': revokedKey
-            }
-          })
+              "x-api-key": revokedKey,
+            },
+          }),
         );
 
         expect(response.status).toBe(401);
@@ -501,43 +501,43 @@ describe('Auth Middleware', () => {
       }
     });
 
-    it('should reject deleted API keys', async () => {
-      if (!db || !apiKeyTable) throw new Error('DB not available');
+    it("should reject deleted API keys", async () => {
+      if (!db || !apiKeyTable) throw new Error("DB not available");
 
       const deletedKey = `urlfy_sk_${nanoid(32)}`;
       const encoder = new TextEncoder();
       const data = encoder.encode(deletedKey);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const keyHash = hashArray
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
 
       const deletedKeyId = nanoid();
       await db.insert(apiKeyTable).values({
         id: deletedKeyId,
         userId: testUser.id,
-        name: 'Deleted API Key',
+        name: "Deleted API Key",
         key: keyHash,
         keyHash,
         keyPrefix: deletedKey.slice(0, 12),
         permissions: JSON.stringify({
           links: { create: true, read: true, update: true, delete: true },
-          analytics: { read: true }
+          analytics: { read: true },
         }),
         rateLimit: true,
         rateLimitMax: 1000,
-        deletedAt: new Date()
+        deletedAt: new Date(),
       });
 
       try {
         const app = createApp();
         const response = await app.handle(
-          new Request('http://localhost:3000/test', {
+          new Request("http://localhost:3000/test", {
             headers: {
-              'x-api-key': deletedKey
-            }
-          })
+              "x-api-key": deletedKey,
+            },
+          }),
         );
 
         expect(response.status).toBe(401);
@@ -551,25 +551,25 @@ describe('Auth Middleware', () => {
   // REQUIRE ADMIN MIDDLEWARE
   // ═══════════════════════════════════════════════════════════════════
 
-  describe('requireAdmin middleware', () => {
+  describe("requireAdmin middleware", () => {
     function createApp() {
-      if (!requireAdmin) throw new Error('Middleware not available');
-      return new Elysia().use(requireAdmin).get('/test', (context) => ({
+      if (!requireAdmin) throw new Error("Middleware not available");
+      return new Elysia().use(requireAdmin).get("/test", (context) => ({
         // biome-ignore lint/suspicious/noExplicitAny: Test context typing
         userId: (context as any).user.id,
         // biome-ignore lint/suspicious/noExplicitAny: Test context typing
-        isAdmin: (context as any).isAdmin
+        isAdmin: (context as any).isAdmin,
       }));
     }
 
-    it('should allow admin users with 2FA enabled', async () => {
+    it("should allow admin users with 2FA enabled", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test', {
+        new Request("http://localhost:3000/test", {
           headers: {
-            Cookie: `urlfy.session=${adminUser.sessionToken}`
-          }
-        })
+            Cookie: `urlfy.session=${adminUser.sessionToken}`,
+          },
+        }),
       );
 
       expect(response.status).toBe(200);
@@ -578,23 +578,23 @@ describe('Auth Middleware', () => {
       expect(data.isAdmin).toBe(true);
     });
 
-    it('should reject regular users', async () => {
+    it("should reject regular users", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test', {
+        new Request("http://localhost:3000/test", {
           headers: {
-            Cookie: `urlfy.session=${testUser.sessionToken}`
-          }
-        })
+            Cookie: `urlfy.session=${testUser.sessionToken}`,
+          },
+        }),
       );
 
       expect(response.status).toBe(403);
     });
 
-    it('should reject unauthenticated requests', async () => {
+    it("should reject unauthenticated requests", async () => {
       const app = createApp();
       const response = await app.handle(
-        new Request('http://localhost:3000/test')
+        new Request("http://localhost:3000/test"),
       );
 
       expect(response.status).toBe(401);

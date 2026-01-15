@@ -13,20 +13,20 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { db } from '@/db/cli';
-import * as schema from '@/db/schema/auth';
-import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { admin, apiKey, openAPI, twoFactor } from 'better-auth/plugins';
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { admin, apiKey, openAPI, twoFactor } from "better-auth/plugins";
+import { db } from "@/db/cli";
+import * as schema from "@/db/schema/auth";
 
 const authSecret =
   process.env.BETTER_AUTH_SECRET ||
-  (process.env.NODE_ENV === 'test'
-    ? 'test-secret-min-32-chars-long'
+  (process.env.NODE_ENV === "test"
+    ? "test-secret-min-32-chars-long"
     : undefined);
 
 if (!authSecret) {
-  throw new Error('BETTER_AUTH_SECRET is required');
+  throw new Error("BETTER_AUTH_SECRET is required");
 }
 
 // This config is for the better-auth CLI which runs with Node.js
@@ -35,22 +35,22 @@ export const auth = betterAuth({
   // DATABASE ADAPTER (Node.js compatible)
   // ═══════════════════════════════════════════════════════════════════
   database: drizzleAdapter(db, {
-    provider: 'pg',
+    provider: "pg",
     schema: {
       user: schema.user,
       session: schema.session,
       account: schema.account,
       verification: schema.verification,
       twoFactor: schema.twoFactor,
-      apiKey: schema.apiKey
-    }
+      apiKey: schema.apiKey,
+    },
   }),
 
   // ═══════════════════════════════════════════════════════════════════
   // APP INFO
   // ═══════════════════════════════════════════════════════════════════
-  appName: 'urlfy.cc',
-  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+  appName: "urlfy.cc",
+  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   secret: authSecret,
 
   // ═══════════════════════════════════════════════════════════════════
@@ -58,7 +58,7 @@ export const auth = betterAuth({
   // ═══════════════════════════════════════════════════════════════════
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true
+    requireEmailVerification: true,
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -66,19 +66,19 @@ export const auth = betterAuth({
   // ═══════════════════════════════════════════════════════════════════
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       enabled: !!(
         process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      )
+      ),
     },
     github: {
-      clientId: process.env.GITHUB_CLIENT_ID || '',
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+      clientId: process.env.GITHUB_CLIENT_ID || "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
       enabled: !!(
         process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-      )
-    }
+      ),
+    },
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -87,39 +87,39 @@ export const auth = betterAuth({
   user: {
     additionalFields: {
       role: {
-        type: 'string',
-        defaultValue: 'user',
+        type: "string",
+        defaultValue: "user",
         required: true,
-        input: false
+        input: false,
       },
       linksQuota: {
-        type: 'number',
+        type: "number",
         defaultValue: 100,
         required: true,
-        input: false
+        input: false,
       },
       linksCount: {
-        type: 'number',
+        type: "number",
         defaultValue: 0,
         required: true,
-        input: false
+        input: false,
       },
       bannedAt: {
-        type: 'date',
+        type: "date",
         required: false,
-        input: false
+        input: false,
       },
       bannedReason: {
-        type: 'string',
+        type: "string",
         required: false,
-        input: false
+        input: false,
       },
       deletedAt: {
-        type: 'date',
+        type: "date",
         required: false,
-        input: false
-      }
-    }
+        input: false,
+      },
+    },
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -127,10 +127,10 @@ export const auth = betterAuth({
   // ═══════════════════════════════════════════════════════════════════
   plugins: [
     twoFactor({
-      issuer: 'urlfy.cc'
+      issuer: "urlfy.cc",
     }),
     admin(),
     apiKey(),
-    openAPI({ path: '/api/auth/reference' })
-  ]
+    openAPI({ path: "/api/auth/reference" }),
+  ],
 });

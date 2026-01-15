@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 export interface SendEmailOptions {
   to: string;
@@ -9,33 +9,23 @@ export interface SendEmailOptions {
   data?: Record<string, unknown>;
 }
 
-let cachedTransporter: nodemailer.Transporter | null = null;
+let cachedResend: Resend | null = null;
 
-function getTransporter(): nodemailer.Transporter | null {
-  if (cachedTransporter) return cachedTransporter;
+function getResendClient(): Resend | null {
+  if (cachedResend) return cachedResend;
 
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT
-    ? Number.parseInt(process.env.SMTP_PORT, 10)
-    : 587;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const apiKey = process.env.RESEND_API_KEY;
 
-  if (!host || !user || !pass) {
+  if (!apiKey) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('SMTP configuration is missing');
+      throw new Error('RESEND_API_KEY is required');
     }
     return null;
   }
 
-  cachedTransporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass }
-  });
+  cachedResend = new Resend(apiKey);
 
-  return cachedTransporter;
+  return cachedResend;
 }
 
 function buildFallbackText(options: SendEmailOptions): string {
@@ -50,27 +40,31 @@ function buildFallbackText(options: SendEmailOptions): string {
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
-  const from = process.env.SMTP_FROM;
+  const from = process.env.RESEND_FROM;
 
   if (!from) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('SMTP_FROM is required');
+      throw new Error('RESEND_FROM is required');
     }
-    console.warn('SMTP_FROM is not set. Email skipped.');
+    console.warn('RESEND_FROM is not set. Email skipped.');
     return;
   }
 
-  const transporter = getTransporter();
-  if (!transporter) {
-    console.warn('SMTP is not configured. Email skipped.');
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn('Resend is not configured. Email skipped.');
     return;
   }
 
-  await transporter.sendMail({
+  const { error } = await resend.emails.send({
     from,
     to: options.to,
     subject: options.subject,
     text: buildFallbackText(options),
     html: options.html
   });
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
