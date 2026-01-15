@@ -1,5 +1,5 @@
 // src/components/shared/link-card.tsx
-"use client";
+'use client';
 
 import {
   BarChart2,
@@ -9,20 +9,20 @@ import {
   Lock,
   MoreHorizontal,
   MousePointer,
-  Trash,
-} from "lucide-react";
-import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+  Trash
+} from 'lucide-react';
+import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import type { LinkResponse } from "@/types/links.types";
-import { CopyButton } from "./copy-button";
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import type { LinkResponse } from '@/types/links.types';
+import { CopyButton } from './copy-button';
 
 interface Props {
   link: LinkResponse;
@@ -128,7 +128,7 @@ export function LinkCard({ link, onDelete }: Props) {
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
               <span>
-                Expira em {new Date(link.expiresAt).toLocaleDateString("pt-BR")}
+                Expira em {new Date(link.expiresAt).toLocaleDateString('pt-BR')}
               </span>
             </div>
           )}

@@ -1,42 +1,42 @@
 // src/components/shared/qr-code-button.tsx
-"use client";
+'use client';
 
-import { QrCode } from "lucide-react";
-import Image from "next/image";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { QrCode } from 'lucide-react';
+import Image from 'next/image';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  DialogTrigger
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue
+} from '@/components/ui/select';
 
 interface Props {
   code?: string;
   shortCode?: string;
-  variant?: "default" | "ghost" | "outline";
-  size?: "default" | "sm" | "lg" | "icon";
+  variant?: 'default' | 'ghost' | 'outline';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
 }
 
 export function QRCodeButton({
   code,
   shortCode: shortCodeProp,
-  variant = "ghost",
-  size = "sm",
+  variant = 'ghost',
+  size = 'sm'
 }: Props) {
   const shortCode = code || shortCodeProp;
-  const [qrSize, setQrSize] = useState("300");
-  const [qrFormat, setQrFormat] = useState<"png" | "svg">("png");
+  const [qrSize, setQrSize] = useState('300');
+  const [qrFormat, setQrFormat] = useState<'png' | 'svg'>('png');
   const [isOpen, setIsOpen] = useState(false);
 
   if (!shortCode) {
@@ -46,7 +46,7 @@ export function QRCodeButton({
   const qrUrl = `/api/v1/links/by-code/${shortCode}/qr?size=${qrSize}&format=${qrFormat}`;
 
   const handleDownload = () => {
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = qrUrl;
     link.download = `qr-${shortCode}.${qrFormat}`;
     document.body.appendChild(link);
@@ -106,7 +106,7 @@ export function QRCodeButton({
               </label>
               <Select
                 value={qrFormat}
-                onValueChange={(value) => setQrFormat(value as "png" | "svg")}
+                onValueChange={(value) => setQrFormat(value as 'png' | 'svg')}
               >
                 <SelectTrigger id="qr-format">
                   <SelectValue />

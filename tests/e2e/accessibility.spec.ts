@@ -4,18 +4,18 @@
  * Tests WCAG 2.1 AA compliance for UI components
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from '@playwright/test';
 
-test.describe("Accessibility - Landing Page", () => {
-  test("should have proper heading hierarchy", async ({ page }) => {
-    await page.goto("/");
+test.describe('Accessibility - Landing Page', () => {
+  test('should have proper heading hierarchy', async ({ page }) => {
+    await page.goto('/');
 
     // Check h1 exists and is unique
-    const h1Count = await page.locator("h1").count();
+    const h1Count = await page.locator('h1').count();
     expect(h1Count).toBe(1);
 
     // Check heading levels are sequential
-    const headings = await page.locator("h1, h2, h3, h4, h5, h6").all();
+    const headings = await page.locator('h1, h2, h3, h4, h5, h6').all();
     let previousLevel = 0;
 
     for (const heading of headings) {
@@ -28,17 +28,17 @@ test.describe("Accessibility - Landing Page", () => {
     }
   });
 
-  test("should have skip link for keyboard navigation", async ({ page }) => {
-    await page.goto("/");
+  test('should have skip link for keyboard navigation', async ({ page }) => {
+    await page.goto('/');
 
     // Skip link should be present
     const skipLink = page.getByText(
-      /pular para o conte\u00fado|skip to content/i,
+      /pular para o conte\u00fado|skip to content/i
     );
     await expect(skipLink).toBeAttached();
 
     // Focus skip link with Tab
-    await page.keyboard.press("Tab");
+    await page.keyboard.press('Tab');
 
     // Skip link should become visible on focus
     await expect(skipLink).toBeVisible();
@@ -46,11 +46,11 @@ test.describe("Accessibility - Landing Page", () => {
     // Clicking should jump to main content
     await skipLink.click();
     const focused = await page.evaluate(() => document.activeElement?.id);
-    expect(focused).toBe("main-content");
+    expect(focused).toBe('main-content');
   });
 
-  test("should have accessible form inputs", async ({ page }) => {
-    await page.goto("/");
+  test('should have accessible form inputs', async ({ page }) => {
+    await page.goto('/');
 
     const urlInput = page.getByLabel(/url/i);
 
@@ -58,19 +58,19 @@ test.describe("Accessibility - Landing Page", () => {
     await expect(urlInput).toBeVisible();
 
     // Input should have accessible name
-    const ariaLabel = await urlInput.getAttribute("aria-label");
+    const ariaLabel = await urlInput.getAttribute('aria-label');
     const labelFor = await page
-      .locator(`label[for="${await urlInput.getAttribute("id")}"]`)
+      .locator(`label[for="${await urlInput.getAttribute('id')}"]`)
       .count();
 
     expect(ariaLabel || labelFor > 0).toBeTruthy();
   });
 
-  test("should announce form errors to screen readers", async ({ page }) => {
-    await page.goto("/");
+  test('should announce form errors to screen readers', async ({ page }) => {
+    await page.goto('/');
 
     // Submit empty form
-    const submitButton = page.getByRole("button", { name: /encurtar/i });
+    const submitButton = page.getByRole('button', { name: /encurtar/i });
     await submitButton.click();
 
     // Error should have aria-live or role="alert"
@@ -79,15 +79,15 @@ test.describe("Accessibility - Landing Page", () => {
 
     // Error should be associated with input
     const urlInput = page.getByLabel(/url/i);
-    const ariaInvalid = await urlInput.getAttribute("aria-invalid");
-    expect(ariaInvalid).toBe("true");
+    const ariaInvalid = await urlInput.getAttribute('aria-invalid');
+    expect(ariaInvalid).toBe('true');
   });
 
-  test("should have sufficient color contrast", async ({ page }) => {
-    await page.goto("/");
+  test('should have sufficient color contrast', async ({ page }) => {
+    await page.goto('/');
 
     // Test primary text contrast
-    const heading = page.getByRole("heading", { level: 1 });
+    const heading = page.getByRole('heading', { level: 1 });
     const contrast = await heading.evaluate((el) => {
       const style = window.getComputedStyle(el);
       const color = style.color;
@@ -118,38 +118,38 @@ test.describe("Accessibility - Landing Page", () => {
   });
 });
 
-test.describe("Accessibility - Keyboard Navigation", () => {
-  test("should navigate form with Tab key", async ({ page }) => {
-    await page.goto("/");
+test.describe('Accessibility - Keyboard Navigation', () => {
+  test('should navigate form with Tab key', async ({ page }) => {
+    await page.goto('/');
 
     // Press Tab to focus first interactive element
-    await page.keyboard.press("Tab");
+    await page.keyboard.press('Tab');
 
     // Skip link should be focused
     let focused = await page.evaluate(
-      () => document.activeElement?.textContent,
+      () => document.activeElement?.textContent
     );
-    expect(focused).toContain("Pular");
+    expect(focused).toContain('Pular');
 
     // Tab to URL input
-    await page.keyboard.press("Tab");
+    await page.keyboard.press('Tab');
     focused = await page.evaluate(() => document.activeElement?.tagName);
-    expect(focused).toBe("INPUT");
+    expect(focused).toBe('INPUT');
 
     // Tab to submit button
-    await page.keyboard.press("Tab");
+    await page.keyboard.press('Tab');
     focused = await page.evaluate(
       () =>
-        document.activeElement?.getAttribute("type") ||
-        document.activeElement?.tagName,
+        document.activeElement?.getAttribute('type') ||
+        document.activeElement?.tagName
     );
-    expect(["submit", "BUTTON"]).toContain(focused);
+    expect(['submit', 'BUTTON']).toContain(focused);
   });
 
-  test("should have visible focus indicators", async ({ page }) => {
-    await page.goto("/");
+  test('should have visible focus indicators', async ({ page }) => {
+    await page.goto('/');
 
-    const submitButton = page.getByRole("button", { name: /encurtar/i });
+    const submitButton = page.getByRole('button', { name: /encurtar/i });
 
     // Focus button
     await submitButton.focus();
@@ -160,29 +160,29 @@ test.describe("Accessibility - Keyboard Navigation", () => {
       const outline = style.outline;
       const boxShadow = style.boxShadow;
 
-      return outline !== "none" || boxShadow !== "none";
+      return outline !== 'none' || boxShadow !== 'none';
     });
 
     expect(hasFocusStyle).toBeTruthy();
   });
 
-  test("should trap focus in modals", async ({ page }) => {
-    await page.goto("/dashboard/links");
+  test('should trap focus in modals', async ({ page }) => {
+    await page.goto('/dashboard/links');
 
     // Open delete confirmation dialog
-    const deleteButton = page.getByRole("button", { name: /deletar/i }).first();
+    const deleteButton = page.getByRole('button', { name: /deletar/i }).first();
     await deleteButton.click();
 
     // Modal should be visible
-    const modal = page.getByRole("dialog");
+    const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible();
 
     // Tab through modal elements
-    await page.keyboard.press("Tab");
+    await page.keyboard.press('Tab');
 
     // Focus should stay within modal
     for (let i = 0; i < 5; i++) {
-      await page.keyboard.press("Tab");
+      await page.keyboard.press('Tab');
       const focusedElement = await page.evaluate(() => document.activeElement);
       const modalElement = await modal.elementHandle();
 
@@ -190,7 +190,7 @@ test.describe("Accessibility - Keyboard Navigation", () => {
 
       const isInsideModal = await page.evaluate(
         ({ modal, focused }) => modal?.contains(focused),
-        { modal: modalElement, focused: focusedElement },
+        { modal: modalElement, focused: focusedElement }
       );
 
       expect(isInsideModal).toBeTruthy();
@@ -198,14 +198,14 @@ test.describe("Accessibility - Keyboard Navigation", () => {
   });
 });
 
-test.describe("Accessibility - ARIA Attributes", () => {
-  test("should have aria-label on icon-only buttons", async ({ page }) => {
-    await page.goto("/dashboard/links");
+test.describe('Accessibility - ARIA Attributes', () => {
+  test('should have aria-label on icon-only buttons', async ({ page }) => {
+    await page.goto('/dashboard/links');
 
     // Find icon-only buttons (e.g., more options)
-    const iconButtons = page.getByRole("button").filter({
-      has: page.locator("svg"),
-      hasNot: page.locator("span, text"),
+    const iconButtons = page.getByRole('button').filter({
+      has: page.locator('svg'),
+      hasNot: page.locator('span, text')
     });
 
     const count = await iconButtons.count();
@@ -213,30 +213,30 @@ test.describe("Accessibility - ARIA Attributes", () => {
     for (let i = 0; i < count; i++) {
       const button = iconButtons.nth(i);
       const hasLabel =
-        (await button.getAttribute("aria-label")) ||
-        (await button.getAttribute("aria-labelledby"));
+        (await button.getAttribute('aria-label')) ||
+        (await button.getAttribute('aria-labelledby'));
 
       expect(hasLabel).toBeTruthy();
     }
   });
 
-  test("should use aria-busy during loading states", async ({ page }) => {
-    await page.goto("/");
+  test('should use aria-busy during loading states', async ({ page }) => {
+    await page.goto('/');
 
     const urlInput = page.getByLabel(/url/i);
-    const submitButton = page.getByRole("button", { name: /encurtar/i });
+    const submitButton = page.getByRole('button', { name: /encurtar/i });
 
     // Fill and submit
-    await urlInput.fill("https://example.com");
+    await urlInput.fill('https://example.com');
     await submitButton.click();
 
     // Button should have aria-busy during request
-    const ariaBusy = await submitButton.getAttribute("aria-busy");
-    expect(["true", null]).toContain(ariaBusy);
+    const ariaBusy = await submitButton.getAttribute('aria-busy');
+    expect(['true', null]).toContain(ariaBusy);
   });
 
-  test("should have proper role for lists", async ({ page }) => {
-    await page.goto("/dashboard/links");
+  test('should have proper role for lists', async ({ page }) => {
+    await page.goto('/dashboard/links');
 
     // Links list should have proper structure
     const list = page.locator('[role="list"], ul, ol').first();
@@ -248,12 +248,12 @@ test.describe("Accessibility - ARIA Attributes", () => {
     expect(count).toBeGreaterThan(0);
   });
 
-  test("should announce dynamic content changes", async ({ page }) => {
-    await page.goto("/dashboard/links");
+  test('should announce dynamic content changes', async ({ page }) => {
+    await page.goto('/dashboard/links');
 
     // Check for live regions
     const liveRegions = page.locator(
-      '[aria-live="polite"], [aria-live="assertive"]',
+      '[aria-live="polite"], [aria-live="assertive"]'
     );
     const count = await liveRegions.count();
 
@@ -261,62 +261,62 @@ test.describe("Accessibility - ARIA Attributes", () => {
   });
 });
 
-test.describe("Accessibility - Screen Reader Support", () => {
-  test("should have descriptive link text", async ({ page }) => {
-    await page.goto("/");
+test.describe('Accessibility - Screen Reader Support', () => {
+  test('should have descriptive link text', async ({ page }) => {
+    await page.goto('/');
 
     // Find all links
-    const links = await page.getByRole("link").all();
+    const links = await page.getByRole('link').all();
 
     for (const link of links) {
       const text = await link.textContent();
 
       // Links should not have vague text
       const vagueTerms = [
-        "clique aqui",
-        "click here",
-        "saiba mais",
-        "leia mais",
-        "aqui",
-        "here",
+        'clique aqui',
+        'click here',
+        'saiba mais',
+        'leia mais',
+        'aqui',
+        'here'
       ];
 
       const hasVagueText = vagueTerms.some(
-        (term) => text?.toLowerCase().trim() === term.toLowerCase(),
+        (term) => text?.toLowerCase().trim() === term.toLowerCase()
       );
 
       expect(hasVagueText).toBeFalsy();
     }
   });
 
-  test("should have alt text for images", async ({ page }) => {
-    await page.goto("/");
+  test('should have alt text for images', async ({ page }) => {
+    await page.goto('/');
 
-    const images = await page.locator("img").all();
+    const images = await page.locator('img').all();
 
     for (const img of images) {
-      const alt = await img.getAttribute("alt");
+      const alt = await img.getAttribute('alt');
       expect(alt).toBeDefined();
     }
   });
 
-  test("should use semantic HTML", async ({ page }) => {
-    await page.goto("/");
+  test('should use semantic HTML', async ({ page }) => {
+    await page.goto('/');
 
     // Check for semantic landmarks
-    await expect(page.locator("main")).toBeVisible();
-    await expect(page.locator("header, [role=banner]")).toBeAttached();
-    await expect(page.locator("footer, [role=contentinfo]")).toBeAttached();
+    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('header, [role=banner]')).toBeAttached();
+    await expect(page.locator('footer, [role=contentinfo]')).toBeAttached();
   });
 });
 
-test.describe("Accessibility - Mobile Support", () => {
+test.describe('Accessibility - Mobile Support', () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
-  test("should have touch-friendly targets", async ({ page }) => {
-    await page.goto("/");
+  test('should have touch-friendly targets', async ({ page }) => {
+    await page.goto('/');
 
-    const submitButton = page.getByRole("button", { name: /encurtar/i });
+    const submitButton = page.getByRole('button', { name: /encurtar/i });
 
     // Get button size
     const box = await submitButton.boundingBox();
@@ -326,15 +326,15 @@ test.describe("Accessibility - Mobile Support", () => {
     expect(box?.height).toBeGreaterThanOrEqual(44);
   });
 
-  test("should be responsive", async ({ page }) => {
-    await page.goto("/");
+  test('should be responsive', async ({ page }) => {
+    await page.goto('/');
 
     // Check if viewport meta tag exists
     const viewportMeta = await page
       .locator('meta[name="viewport"]')
-      .getAttribute("content");
+      .getAttribute('content');
 
-    expect(viewportMeta).toContain("width=device-width");
+    expect(viewportMeta).toContain('width=device-width');
 
     // Check if content is visible without horizontal scroll
     const hasHorizontalScroll = await page.evaluate(() => {

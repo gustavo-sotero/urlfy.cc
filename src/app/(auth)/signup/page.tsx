@@ -1,42 +1,42 @@
 // src/app/(auth)/signup/page.tsx
-"use client";
+'use client';
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Github, Loader2, UserPlus } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { AccessibleFormField } from "@/components/forms/accessible-form-field";
-import { Button } from "@/components/ui/button";
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Github, Loader2, UserPlus } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { AccessibleFormField } from '@/components/forms/accessible-form-field';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { authClient } from "@/lib/auth.client";
+  CardTitle
+} from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { authClient } from '@/lib/auth.client';
 
 const schema = z
   .object({
-    name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
-    email: z.string().email("Email inválido"),
-    password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres"),
+    name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
+    email: z.string().email('Email inválido'),
+    password: z.string().min(8, 'Senha deve ter no mínimo 8 caracteres'),
     confirmPassword: z.string(),
     acceptTerms: z.boolean().refine((val) => val === true, {
-      message: "Você deve aceitar os termos de uso",
-    }),
+      message: 'Você deve aceitar os termos de uso'
+    })
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "As senhas não coincidem",
-    path: ["confirmPassword"],
+    message: 'As senhas não coincidem',
+    path: ['confirmPassword']
   });
 
 type FormData = z.infer<typeof schema>;
@@ -49,12 +49,12 @@ export default function SignupPage() {
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-      acceptTerms: false,
-    },
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      acceptTerms: false
+    }
   });
 
   const onSubmit = async (data: FormData) => {
@@ -65,32 +65,32 @@ export default function SignupPage() {
       const result = await authClient.signUp.email({
         email: data.email,
         password: data.password,
-        name: data.name,
+        name: data.name
       });
 
       if (result.error) {
-        setError(result.error.message || "Erro ao criar conta");
+        setError(result.error.message || 'Erro ao criar conta');
         return;
       }
 
       // Redirect to dashboard or email verification page
-      router.push("/dashboard?welcome=true");
+      router.push('/dashboard?welcome=true');
     } catch {
-      setError("Erro ao criar conta. Tente novamente.");
+      setError('Erro ao criar conta. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOAuthSignup = async (provider: "google" | "github") => {
+  const handleOAuthSignup = async (provider: 'google' | 'github') => {
     setIsLoading(true);
     try {
       await authClient.signIn.social({
         provider,
-        callbackURL: "/dashboard?welcome=true",
+        callbackURL: '/dashboard?welcome=true'
       });
     } catch {
-      setError("Erro ao criar conta. Tente novamente.");
+      setError('Erro ao criar conta. Tente novamente.');
       setIsLoading(false);
     }
   };
@@ -108,7 +108,7 @@ export default function SignupPage() {
         <div className="grid grid-cols-2 gap-4">
           <Button
             variant="outline"
-            onClick={() => handleOAuthSignup("google")}
+            onClick={() => handleOAuthSignup('google')}
             disabled={isLoading}
           >
             <svg
@@ -137,7 +137,7 @@ export default function SignupPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={() => handleOAuthSignup("github")}
+            onClick={() => handleOAuthSignup('github')}
             disabled={isLoading}
           >
             <Github className="mr-2 h-4 w-4" />
@@ -168,7 +168,7 @@ export default function SignupPage() {
               id="name"
               type="text"
               placeholder="Seu nome"
-              {...form.register("name")}
+              {...form.register('name')}
               disabled={isLoading}
               aria-invalid={!!form.formState.errors.name}
             />
@@ -184,7 +184,7 @@ export default function SignupPage() {
               id="email"
               type="email"
               placeholder="seu@email.com"
-              {...form.register("email")}
+              {...form.register('email')}
               disabled={isLoading}
               aria-invalid={!!form.formState.errors.email}
             />
@@ -201,7 +201,7 @@ export default function SignupPage() {
               id="password"
               type="password"
               placeholder="••••••••"
-              {...form.register("password")}
+              {...form.register('password')}
               disabled={isLoading}
               aria-invalid={!!form.formState.errors.password}
             />
@@ -217,7 +217,7 @@ export default function SignupPage() {
               id="confirmPassword"
               type="password"
               placeholder="••••••••"
-              {...form.register("confirmPassword")}
+              {...form.register('confirmPassword')}
               disabled={isLoading}
               aria-invalid={!!form.formState.errors.confirmPassword}
             />
@@ -226,19 +226,19 @@ export default function SignupPage() {
           <div className="flex items-start space-x-2">
             <Checkbox
               id="acceptTerms"
-              checked={form.watch("acceptTerms")}
+              checked={form.watch('acceptTerms')}
               onCheckedChange={(checked) =>
-                form.setValue("acceptTerms", checked as boolean)
+                form.setValue('acceptTerms', checked as boolean)
               }
               disabled={isLoading}
             />
             <div className="space-y-1 leading-none">
               <Label htmlFor="acceptTerms" className="text-sm font-normal">
-                Li e aceito os{" "}
+                Li e aceito os{' '}
                 <Link href="/terms" className="text-primary hover:underline">
                   termos de uso
-                </Link>{" "}
-                e a{" "}
+                </Link>{' '}
+                e a{' '}
                 <Link href="/privacy" className="text-primary hover:underline">
                   política de privacidade
                 </Link>
@@ -277,7 +277,7 @@ export default function SignupPage() {
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
-          Já tem conta?{" "}
+          Já tem conta?{' '}
           <Link href="/login" className="text-primary hover:underline">
             Fazer login
           </Link>

@@ -8,8 +8,8 @@ import {
   sanitizeNotes,
   sanitizeSearchQuery,
   sanitizeTags,
-  sanitizeText,
-} from "@/server/lib/sanitize";
+  sanitizeText
+} from '@/server/lib/sanitize';
 
 /**
  * Sanitizer Service Class
@@ -32,7 +32,7 @@ export class SanitizerService {
    */
   sanitizeText(
     text: string | null | undefined,
-    maxLength: number,
+    maxLength: number
   ): string | null {
     return sanitizeText(text, maxLength);
   }

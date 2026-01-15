@@ -1,7 +1,7 @@
 // src/components/admin/stats-cards.tsx
 
-import { BarChart2, Link2, MousePointerClick, Users } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart2, Link2, MousePointerClick, Users } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface AdminStats {
   totalLinks: number;

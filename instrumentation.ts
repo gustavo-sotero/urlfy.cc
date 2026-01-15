@@ -7,7 +7,7 @@
 // Suppress BullMQ eviction policy warning BEFORE any imports
 // This warning appears because managed Redis (like Redis Cloud) uses volatile-lru
 // but we can't change the server configuration.
-if (typeof console !== "undefined") {
+if (typeof console !== 'undefined') {
   const originalLog = console.log;
   const originalWarn = console.warn;
 
@@ -15,8 +15,8 @@ if (typeof console !== "undefined") {
     return (...args: unknown[]) => {
       const message = args[0];
       if (
-        typeof message === "string" &&
-        message.includes("Eviction policy is volatile-lru")
+        typeof message === 'string' &&
+        message.includes('Eviction policy is volatile-lru')
       ) {
         return; // Suppress this warning
       }
@@ -30,7 +30,7 @@ if (typeof console !== "undefined") {
 
 export async function register() {
   // Only run in Node.js server environment
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    await import("@/server/init");
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    await import('@/server/init');
   }
 }

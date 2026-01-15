@@ -1,30 +1,30 @@
 // src/server/workers/__tests__/cleanup.worker.test.ts
 
-import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { Job } from "bullmq";
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { Job } from 'bullmq';
 
 interface CleanupJob {
-  type: "retention" | "partitions" | "full";
+  type: 'retention' | 'partitions' | 'full';
 }
 
-describe("Cleanup Worker", () => {
+describe('Cleanup Worker', () => {
   const mockDb = {
     select: mock(() => ({
       from: mock(() => ({
         where: mock(() => ({
           limit: mock(() =>
             Promise.resolve([
-              { id: "event-1" },
-              { id: "event-2" },
-              { id: "event-3" },
-            ]),
-          ),
-        })),
-      })),
+              { id: 'event-1' },
+              { id: 'event-2' },
+              { id: 'event-3' }
+            ])
+          )
+        }))
+      }))
     })),
     delete: mock(() => ({
-      where: mock(() => Promise.resolve()),
-    })),
+      where: mock(() => Promise.resolve())
+    }))
   };
 
   const mockPartitionManager = {
@@ -32,17 +32,17 @@ describe("Cleanup Worker", () => {
     listPartitions: mock(() =>
       Promise.resolve([
         {
-          name: "analytics_events_2025_10",
-          startDate: new Date("2025-10-01"),
-          endDate: new Date("2025-11-01"),
+          name: 'analytics_events_2025_10',
+          startDate: new Date('2025-10-01'),
+          endDate: new Date('2025-11-01')
         },
         {
-          name: "analytics_events_2026_01",
-          startDate: new Date("2026-01-01"),
-          endDate: new Date("2026-02-01"),
-        },
-      ]),
-    ),
+          name: 'analytics_events_2026_01',
+          startDate: new Date('2026-01-01'),
+          endDate: new Date('2026-02-01')
+        }
+      ])
+    )
   };
 
   beforeEach(() => {
@@ -52,8 +52,8 @@ describe("Cleanup Worker", () => {
     mockPartitionManager.listPartitions.mockClear();
   });
 
-  describe("retention cleanup", () => {
-    it("should delete events older than 90 days", async () => {
+  describe('retention cleanup', () => {
+    it('should delete events older than 90 days', async () => {
       const RETENTION_DAYS = 90;
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
@@ -62,7 +62,7 @@ describe("Cleanup Worker", () => {
       expect(cutoffDate.getTime()).toBeLessThan(Date.now());
     });
 
-    it("should delete in batches", async () => {
+    it('should delete in batches', async () => {
       const BATCH_SIZE = 10000;
       let totalDeleted = 0;
 
@@ -75,7 +75,7 @@ describe("Cleanup Worker", () => {
       expect(totalDeleted).toBe(25000);
     });
 
-    it("should stop when no more rows to delete", async () => {
+    it('should stop when no more rows to delete', async () => {
       // Simulate batches until empty
       const batches = [10000, 10000, 5000, 0]; // 0 means no more rows
 
@@ -88,22 +88,22 @@ describe("Cleanup Worker", () => {
       expect(deleted).toBe(25000);
     });
 
-    it("should log progress after each batch", async () => {
+    it('should log progress after each batch', async () => {
       const logs: string[] = [];
 
       for (let i = 1; i <= 3; i++) {
         const batchDeleted = 10000;
         const totalDeleted = i * batchDeleted;
         logs.push(
-          `Batch ${i}: deleted ${batchDeleted}, total: ${totalDeleted}`,
+          `Batch ${i}: deleted ${batchDeleted}, total: ${totalDeleted}`
         );
       }
 
       expect(logs).toHaveLength(3);
-      expect(logs[2]).toContain("total: 30000");
+      expect(logs[2]).toContain('total: 30000');
     });
 
-    it("should pause between batches", async () => {
+    it('should pause between batches', async () => {
       const PAUSE_MS = 100;
 
       const startTime = Date.now();
@@ -114,10 +114,10 @@ describe("Cleanup Worker", () => {
     });
   });
 
-  describe("partition maintenance", () => {
-    it("should call partition manager", async () => {
+  describe('partition maintenance', () => {
+    it('should call partition manager', async () => {
       const _jobData: CleanupJob = {
-        type: "partitions",
+        type: 'partitions'
       };
 
       // Simulate calling partition manager
@@ -126,7 +126,7 @@ describe("Cleanup Worker", () => {
       expect(called).toBe(true);
     });
 
-    it("should create future partitions", async () => {
+    it('should create future partitions', async () => {
       const LOOKAHEAD_MONTHS = 3;
       const currentDate = new Date();
 
@@ -135,21 +135,21 @@ describe("Cleanup Worker", () => {
         const date = new Date(currentDate);
         date.setMonth(date.getMonth() + i);
         const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, '0');
         futurePartitions.push(`analytics_events_${year}_${month}`);
       }
 
       expect(futurePartitions).toHaveLength(3);
     });
 
-    it("should drop old partitions", async () => {
+    it('should drop old partitions', async () => {
       const RETENTION_DAYS = 90;
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
 
       const partitions = [
-        { name: "analytics_events_2025_10", date: new Date("2025-10-01") },
-        { name: "analytics_events_2026_01", date: new Date("2026-01-01") },
+        { name: 'analytics_events_2025_10', date: new Date('2025-10-01') },
+        { name: 'analytics_events_2026_01', date: new Date('2026-01-01') }
       ];
 
       const oldPartitions = partitions.filter((p) => p.date < cutoffDate);
@@ -157,62 +157,62 @@ describe("Cleanup Worker", () => {
       expect(oldPartitions.length).toBeGreaterThanOrEqual(0);
     });
 
-    it("should log dropped partitions", async () => {
+    it('should log dropped partitions', async () => {
       const droppedPartitions = [
-        "analytics_events_2025_10",
-        "analytics_events_2025_11",
+        'analytics_events_2025_10',
+        'analytics_events_2025_11'
       ];
 
       expect(droppedPartitions).toHaveLength(2);
     });
   });
 
-  describe("cleanup types", () => {
-    it("should handle retention-only cleanup", async () => {
+  describe('cleanup types', () => {
+    it('should handle retention-only cleanup', async () => {
       const jobData: CleanupJob = {
-        type: "retention",
+        type: 'retention'
       };
 
       const mockJob = {
-        id: "cleanup-123",
-        data: jobData,
+        id: 'cleanup-123',
+        data: jobData
       } as Job<CleanupJob>;
 
-      expect(mockJob.data.type).toBe("retention");
+      expect(mockJob.data.type).toBe('retention');
     });
 
-    it("should handle partitions-only cleanup", async () => {
+    it('should handle partitions-only cleanup', async () => {
       const jobData: CleanupJob = {
-        type: "partitions",
+        type: 'partitions'
       };
 
       const mockJob = {
-        id: "cleanup-123",
-        data: jobData,
+        id: 'cleanup-123',
+        data: jobData
       } as Job<CleanupJob>;
 
-      expect(mockJob.data.type).toBe("partitions");
+      expect(mockJob.data.type).toBe('partitions');
     });
 
-    it("should handle full cleanup", async () => {
+    it('should handle full cleanup', async () => {
       const jobData: CleanupJob = {
-        type: "full",
+        type: 'full'
       };
 
       const mockJob = {
-        id: "cleanup-123",
-        data: jobData,
+        id: 'cleanup-123',
+        data: jobData
       } as Job<CleanupJob>;
 
-      expect(mockJob.data.type).toBe("full");
+      expect(mockJob.data.type).toBe('full');
       // Full cleanup should do both retention and partitions
     });
   });
 
-  describe("date calculations", () => {
-    it("should calculate cutoff date correctly", () => {
+  describe('date calculations', () => {
+    it('should calculate cutoff date correctly', () => {
       const RETENTION_DAYS = 90;
-      const now = new Date("2026-01-08");
+      const now = new Date('2026-01-08');
       const cutoff = new Date(now);
       cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
 
@@ -221,17 +221,17 @@ describe("Cleanup Worker", () => {
       expect(cutoff.getDate()).toBe(10);
     });
 
-    it("should handle leap years", () => {
-      const leapYear = new Date("2024-03-01");
-      const before = new Date("2024-02-29"); // Leap day
+    it('should handle leap years', () => {
+      const leapYear = new Date('2024-03-01');
+      const before = new Date('2024-02-29'); // Leap day
 
       expect(before.getDate()).toBe(29);
       expect(leapYear.getDate()).toBe(1);
     });
 
-    it("should handle year boundaries", () => {
+    it('should handle year boundaries', () => {
       const RETENTION_DAYS = 90;
-      const now = new Date("2026-01-15");
+      const now = new Date('2026-01-15');
       const cutoff = new Date(now);
       cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
 
@@ -240,27 +240,27 @@ describe("Cleanup Worker", () => {
     });
   });
 
-  describe("partition naming", () => {
-    it("should generate correct partition name", () => {
-      const date = new Date("2026-01-08");
+  describe('partition naming', () => {
+    it('should generate correct partition name', () => {
+      const date = new Date('2026-01-08');
       const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, '0');
       const partitionName = `analytics_events_${year}_${month}`;
 
-      expect(partitionName).toBe("analytics_events_2026_01");
+      expect(partitionName).toBe('analytics_events_2026_01');
     });
 
-    it("should pad month with zero", () => {
+    it('should pad month with zero', () => {
       const dates = [
-        { date: new Date("2026-01-01"), expected: "2026_01" },
-        { date: new Date("2026-09-01"), expected: "2026_09" },
-        { date: new Date("2026-10-01"), expected: "2026_10" },
-        { date: new Date("2026-12-01"), expected: "2026_12" },
+        { date: new Date('2026-01-01'), expected: '2026_01' },
+        { date: new Date('2026-09-01'), expected: '2026_09' },
+        { date: new Date('2026-10-01'), expected: '2026_10' },
+        { date: new Date('2026-12-01'), expected: '2026_12' }
       ];
 
       for (const { date, expected } of dates) {
         const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, '0');
         const result = `${year}_${month}`;
 
         expect(result).toBe(expected);
@@ -268,8 +268,8 @@ describe("Cleanup Worker", () => {
     });
   });
 
-  describe("performance", () => {
-    it("should delete 100k events in under 30 seconds", async () => {
+  describe('performance', () => {
+    it('should delete 100k events in under 30 seconds', async () => {
       const BATCH_SIZE = 10000;
       const TOTAL_TO_DELETE = 100000;
       const batches = Math.ceil(TOTAL_TO_DELETE / BATCH_SIZE);
@@ -287,39 +287,39 @@ describe("Cleanup Worker", () => {
       expect(duration).toBeLessThan(30000);
     });
 
-    it("should handle concurrent cleanup jobs", async () => {
+    it('should handle concurrent cleanup jobs', async () => {
       // Multiple cleanup jobs should not conflict
       const jobs = [
-        { id: "cleanup-1", type: "retention" as const },
-        { id: "cleanup-2", type: "partitions" as const },
+        { id: 'cleanup-1', type: 'retention' as const },
+        { id: 'cleanup-2', type: 'partitions' as const }
       ];
 
       // Both can run independently
-      expect(jobs[0].type).toBe("retention");
-      expect(jobs[1].type).toBe("partitions");
+      expect(jobs[0].type).toBe('retention');
+      expect(jobs[1].type).toBe('partitions');
     });
   });
 
-  describe("error handling", () => {
-    it("should handle deletion errors", async () => {
+  describe('error handling', () => {
+    it('should handle deletion errors', async () => {
       try {
-        throw new Error("Database error during deletion");
+        throw new Error('Database error during deletion');
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toContain("deletion");
+        expect((error as Error).message).toContain('deletion');
       }
     });
 
-    it("should continue after partition drop errors", async () => {
-      const partitions = ["partition_1", "partition_2", "partition_3"];
+    it('should continue after partition drop errors', async () => {
+      const partitions = ['partition_1', 'partition_2', 'partition_3'];
 
       const dropped: string[] = [];
       const failed: string[] = [];
 
       for (const partition of partitions) {
         try {
-          if (partition === "partition_2") {
-            throw new Error("Cannot drop partition");
+          if (partition === 'partition_2') {
+            throw new Error('Cannot drop partition');
           }
           dropped.push(partition);
         } catch {
@@ -331,11 +331,11 @@ describe("Cleanup Worker", () => {
       expect(failed).toHaveLength(1);
     });
 
-    it("should log errors and continue", async () => {
+    it('should log errors and continue', async () => {
       const errors: string[] = [];
 
       try {
-        throw new Error("Cleanup error");
+        throw new Error('Cleanup error');
       } catch (error) {
         errors.push((error as Error).message);
       }
@@ -344,36 +344,36 @@ describe("Cleanup Worker", () => {
     });
   });
 
-  describe("metrics recording", () => {
-    it("should record deleted count", async () => {
+  describe('metrics recording', () => {
+    it('should record deleted count', async () => {
       const result = {
         deletedCount: 25000,
         duration: 5000,
-        type: "full" as const,
+        type: 'full' as const
       };
 
       expect(result.deletedCount).toBeGreaterThan(0);
       expect(result.duration).toBeGreaterThan(0);
     });
 
-    it("should record cleanup completion", async () => {
+    it('should record cleanup completion', async () => {
       const metrics = {
-        name: "analytics_cleanup_completed",
+        name: 'analytics_cleanup_completed',
         value: 25000,
         attributes: {
-          type: "full",
-          duration: "5000",
-        },
+          type: 'full',
+          duration: '5000'
+        }
       };
 
-      expect(metrics.name).toBe("analytics_cleanup_completed");
+      expect(metrics.name).toBe('analytics_cleanup_completed');
       expect(metrics.value).toBe(25000);
     });
 
-    it("should track partition operations", async () => {
+    it('should track partition operations', async () => {
       const partitionOps = {
         created: 3,
-        dropped: 2,
+        dropped: 2
       };
 
       expect(partitionOps.created).toBeGreaterThan(0);
@@ -381,25 +381,25 @@ describe("Cleanup Worker", () => {
     });
   });
 
-  describe("job completion", () => {
-    it("should return cleanup summary", async () => {
+  describe('job completion', () => {
+    it('should return cleanup summary', async () => {
       const result = {
         deletedCount: 25000,
-        type: "full" as const,
-        duration: 5000,
+        type: 'full' as const,
+        duration: 5000
       };
 
-      expect(result).toHaveProperty("deletedCount");
-      expect(result).toHaveProperty("type");
-      expect(result).toHaveProperty("duration");
+      expect(result).toHaveProperty('deletedCount');
+      expect(result).toHaveProperty('type');
+      expect(result).toHaveProperty('duration');
     });
 
-    it("should log success message", async () => {
-      const jobId = "cleanup-123";
+    it('should log success message', async () => {
+      const jobId = 'cleanup-123';
       const message = `Cleanup job ${jobId} completed successfully`;
 
       expect(message).toContain(jobId);
-      expect(message).toContain("completed");
+      expect(message).toContain('completed');
     });
   });
 });

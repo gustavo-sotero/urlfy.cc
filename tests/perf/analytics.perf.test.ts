@@ -1,22 +1,22 @@
 // tests/perf/analytics.perf.test.ts
 
-import { describe, expect, it } from "bun:test";
-import type { ClickEvent } from "@/types/analytics.types";
+import { describe, expect, it } from 'bun:test';
+import type { ClickEvent } from '@/types/analytics.types';
 
-describe("Analytics Performance Tests", () => {
-  describe("Event Processing Throughput", () => {
-    it("should handle 1000 events in under 5 seconds", async () => {
+describe('Analytics Performance Tests', () => {
+  describe('Event Processing Throughput', () => {
+    it('should handle 1000 events in under 5 seconds', async () => {
       const events: ClickEvent[] = Array.from({ length: 1000 }, (_, i) => ({
         linkId: `link-${i % 100}`, // 100 different links
         shortCode: `code-${i % 100}`,
         requestId: `req-${i}`,
         ip: `203.0.113.${i % 256}`,
-        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
-        referer: i % 2 === 0 ? "https://twitter.com" : null,
-        acceptLanguage: "en-US,en;q=0.9",
-        utmSource: i % 3 === 0 ? "twitter" : undefined,
-        utmMedium: i % 3 === 0 ? "social" : undefined,
-        timestamp: new Date(),
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0',
+        referer: i % 2 === 0 ? 'https://twitter.com' : null,
+        acceptLanguage: 'en-US,en;q=0.9',
+        utmSource: i % 3 === 0 ? 'twitter' : undefined,
+        utmMedium: i % 3 === 0 ? 'social' : undefined,
+        timestamp: new Date()
       }));
 
       const startTime = Date.now();
@@ -30,7 +30,7 @@ describe("Analytics Performance Tests", () => {
             // Simulate processing time (enrichment + DB insert)
             await new Promise((resolve) => setTimeout(resolve, 2));
             return event;
-          }),
+          })
         );
       }
 
@@ -39,11 +39,11 @@ describe("Analytics Performance Tests", () => {
       expect(duration).toBeLessThan(5000);
       console.log(`✓ Processed 1000 events in ${duration}ms`);
       console.log(
-        `  Throughput: ${Math.round((1000 / duration) * 1000)} events/sec`,
+        `  Throughput: ${Math.round((1000 / duration) * 1000)} events/sec`
       );
     });
 
-    it("should maintain < 100ms P99 latency under load", async () => {
+    it('should maintain < 100ms P99 latency under load', async () => {
       const iterations = 100;
       const latencies: number[] = [];
 
@@ -66,7 +66,7 @@ describe("Analytics Performance Tests", () => {
       console.log(`✓ P99 latency: ${p99}ms`);
     });
 
-    it("should handle burst traffic (1000 events/second)", async () => {
+    it('should handle burst traffic (1000 events/second)', async () => {
       const eventsPerSecond = 1000;
       const durationSeconds = 1;
       const totalEvents = eventsPerSecond * durationSeconds;
@@ -78,7 +78,7 @@ describe("Analytics Performance Tests", () => {
         Array.from({ length: totalEvents }, async (_, i) => {
           await new Promise((resolve) => setTimeout(resolve, 1));
           return { eventId: i };
-        }),
+        })
       );
 
       const duration = Date.now() - startTime;
@@ -86,13 +86,13 @@ describe("Analytics Performance Tests", () => {
 
       expect(actualThroughput).toBeGreaterThanOrEqual(eventsPerSecond * 0.8); // 80% tolerance
       console.log(
-        `✓ Burst throughput: ${Math.round(actualThroughput)} events/sec`,
+        `✓ Burst throughput: ${Math.round(actualThroughput)} events/sec`
       );
     });
   });
 
-  describe("Aggregation Performance", () => {
-    it("should aggregate 100 links in under 10 seconds", async () => {
+  describe('Aggregation Performance', () => {
+    it('should aggregate 100 links in under 10 seconds', async () => {
       const linkCount = 100;
       const eventsPerLink = 1000;
 
@@ -107,9 +107,9 @@ describe("Analytics Performance Tests", () => {
           return {
             linkId: `link-${i}`,
             clicks: eventsPerLink,
-            uniqueVisitors: Math.floor(eventsPerLink * 0.8),
+            uniqueVisitors: Math.floor(eventsPerLink * 0.8)
           };
-        }),
+        })
       );
 
       const duration = Date.now() - startTime;
@@ -118,7 +118,7 @@ describe("Analytics Performance Tests", () => {
       console.log(`✓ Aggregated ${linkCount} links in ${duration}ms`);
     });
 
-    it("should handle aggregation of 1M events", async () => {
+    it('should handle aggregation of 1M events', async () => {
       const totalEvents = 1000000;
       const links = 1000;
       const _eventsPerLink = totalEvents / links;
@@ -136,11 +136,11 @@ describe("Analytics Performance Tests", () => {
       // Should complete in reasonable time (< 30s)
       expect(duration).toBeLessThan(30000);
       console.log(
-        `✓ Aggregated ${totalEvents.toLocaleString()} events in ${duration}ms`,
+        `✓ Aggregated ${totalEvents.toLocaleString()} events in ${duration}ms`
       );
     });
 
-    it("should efficiently calculate unique visitors", async () => {
+    it('should efficiently calculate unique visitors', async () => {
       const events = 10000;
       const uniqueRatio = 0.7; // 70% unique
 
@@ -161,13 +161,13 @@ describe("Analytics Performance Tests", () => {
       expect(visitorHashes.size).toBeCloseTo(events * uniqueRatio, -2);
       expect(duration).toBeLessThan(100);
       console.log(
-        `✓ Counted ${visitorHashes.size} unique visitors from ${events} events in ${duration}ms`,
+        `✓ Counted ${visitorHashes.size} unique visitors from ${events} events in ${duration}ms`
       );
     });
   });
 
-  describe("GeoIP Lookup Performance", () => {
-    it("should lookup 1000 IPs in under 1 second", async () => {
+  describe('GeoIP Lookup Performance', () => {
+    it('should lookup 1000 IPs in under 1 second', async () => {
       const ipCount = 1000;
 
       const startTime = Date.now();
@@ -182,10 +182,10 @@ describe("Analytics Performance Tests", () => {
 
           return {
             ip,
-            country: "BR",
-            city: "São Paulo",
+            country: 'BR',
+            city: 'São Paulo'
           };
-        }),
+        })
       );
 
       const duration = Date.now() - startTime;
@@ -193,12 +193,12 @@ describe("Analytics Performance Tests", () => {
       expect(duration).toBeLessThan(1000);
       console.log(
         `✓ Looked up ${ipCount} IPs in ${duration}ms (${Math.round(
-          (ipCount / duration) * 1000,
-        )} lookups/sec)`,
+          (ipCount / duration) * 1000
+        )} lookups/sec)`
       );
     });
 
-    it("should benefit from /24 prefix caching", async () => {
+    it('should benefit from /24 prefix caching', async () => {
       const ipsPerPrefix = 100;
       const prefixes = 10;
       const totalIps = ipsPerPrefix * prefixes;
@@ -231,19 +231,19 @@ describe("Analytics Performance Tests", () => {
       expect(duration).toBeLessThan(200);
       expect(cacheLookups.size).toBe(prefixes);
       console.log(
-        `✓ ${totalIps} IPs, ${prefixes} cache lookups in ${duration}ms`,
+        `✓ ${totalIps} IPs, ${prefixes} cache lookups in ${duration}ms`
       );
     });
   });
 
-  describe("User-Agent Parsing Performance", () => {
-    it("should parse 100 user agents in under 500ms", async () => {
+  describe('User-Agent Parsing Performance', () => {
+    it('should parse 100 user agents in under 500ms', async () => {
       const userAgents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/537.36",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1",
-        "Mozilla/5.0 (Android 14) Chrome/120.0.0.0 Mobile",
-        "Mozilla/5.0 (X11; Linux x86_64) Firefox/121.0",
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/537.36',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1',
+        'Mozilla/5.0 (Android 14) Chrome/120.0.0.0 Mobile',
+        'Mozilla/5.0 (X11; Linux x86_64) Firefox/121.0'
       ];
 
       const iterations = 100;
@@ -254,10 +254,10 @@ describe("Analytics Performance Tests", () => {
 
         // Simulate UA parsing (very fast operation)
         const _parsed = {
-          browser: "Chrome",
-          os: "Windows",
-          deviceType: "desktop" as const,
-          isBot: false,
+          browser: 'Chrome',
+          os: 'Windows',
+          deviceType: 'desktop' as const,
+          isBot: false
         };
       }
 
@@ -266,15 +266,15 @@ describe("Analytics Performance Tests", () => {
       expect(duration).toBeLessThan(2000);
       console.log(
         `✓ Parsed ${iterations} user agents in ${duration}ms (${Math.round(
-          (iterations / duration) * 1000,
-        )} parses/sec)`,
+          (iterations / duration) * 1000
+        )} parses/sec)`
       );
     });
 
-    it("should detect bots efficiently", async () => {
+    it('should detect bots efficiently', async () => {
       const mixedUserAgents = [
-        ...Array(700).fill("Mozilla/5.0 Chrome/120.0"), // Real users
-        ...Array(300).fill("Googlebot/2.1"), // Bots
+        ...Array(700).fill('Mozilla/5.0 Chrome/120.0'), // Real users
+        ...Array(300).fill('Googlebot/2.1') // Bots
       ];
 
       const startTime = Date.now();
@@ -291,8 +291,8 @@ describe("Analytics Performance Tests", () => {
     });
   });
 
-  describe("Database Query Performance", () => {
-    it("should insert 1000 events in under 2 seconds", async () => {
+  describe('Database Query Performance', () => {
+    it('should insert 1000 events in under 2 seconds', async () => {
       const eventCount = 1000;
       const batchSize = 100;
 
@@ -308,13 +308,13 @@ describe("Analytics Performance Tests", () => {
       expect(duration).toBeLessThan(2000);
       console.log(
         `✓ Inserted ${eventCount} events in ${duration}ms (${Math.round(
-          (eventCount / duration) * 1000,
-        )} inserts/sec)`,
+          (eventCount / duration) * 1000
+        )} inserts/sec)`
       );
     });
 
-    it("should query daily stats in under 100ms", async () => {
-      const _linkId = "test-link";
+    it('should query daily stats in under 100ms', async () => {
+      const _linkId = 'test-link';
       const days = 30;
 
       const startTime = Date.now();
@@ -323,9 +323,9 @@ describe("Analytics Performance Tests", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       const stats = Array.from({ length: days }, (_, i) => ({
-        date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
+        date: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
         clicks: Math.floor(Math.random() * 1000),
-        unique: Math.floor(Math.random() * 800),
+        unique: Math.floor(Math.random() * 800)
       }));
 
       const duration = Date.now() - startTime;
@@ -335,8 +335,8 @@ describe("Analytics Performance Tests", () => {
       console.log(`✓ Queried ${days} days of stats in ${duration}ms`);
     });
 
-    it("should aggregate country breakdown in under 200ms", async () => {
-      const _linkId = "test-link";
+    it('should aggregate country breakdown in under 200ms', async () => {
+      const _linkId = 'test-link';
       const countries = 50;
 
       const startTime = Date.now();
@@ -347,7 +347,7 @@ describe("Analytics Performance Tests", () => {
       const breakdown = Array.from({ length: countries }, (_, i) => ({
         country: `C${i}`,
         clicks: Math.floor(Math.random() * 1000),
-        percentage: 0,
+        percentage: 0
       }));
 
       const duration = Date.now() - startTime;
@@ -358,8 +358,8 @@ describe("Analytics Performance Tests", () => {
     });
   });
 
-  describe("Memory Efficiency", () => {
-    it("should handle large event batch without memory spike", () => {
+  describe('Memory Efficiency', () => {
+    it('should handle large event batch without memory spike', () => {
       const eventCount = 10000;
       const events: ClickEvent[] = [];
 
@@ -372,10 +372,10 @@ describe("Analytics Performance Tests", () => {
           shortCode: `code-${i % 100}`,
           requestId: `req-${i}`,
           ip: `203.0.113.${i % 256}`,
-          userAgent: "Chrome/120.0",
+          userAgent: 'Chrome/120.0',
           referer: null,
-          acceptLanguage: "en-US",
-          timestamp: new Date(),
+          acceptLanguage: 'en-US',
+          timestamp: new Date()
         });
       }
 
@@ -385,11 +385,11 @@ describe("Analytics Performance Tests", () => {
       // Should use < 50MB for 10k events
       expect(memoryIncreaseMB).toBeLessThan(50);
       console.log(
-        `✓ ${eventCount} events used ${memoryIncreaseMB.toFixed(2)}MB`,
+        `✓ ${eventCount} events used ${memoryIncreaseMB.toFixed(2)}MB`
       );
     });
 
-    it("should efficiently stream large result sets", async () => {
+    it('should efficiently stream large result sets', async () => {
       const resultCount = 100000;
       const batchSize = 1000;
 
@@ -404,13 +404,13 @@ describe("Analytics Performance Tests", () => {
 
       expect(processed).toBe(resultCount);
       console.log(
-        `✓ Streamed ${resultCount.toLocaleString()} results in batches`,
+        `✓ Streamed ${resultCount.toLocaleString()} results in batches`
       );
     });
   });
 
-  describe("Concurrency", () => {
-    it("should handle concurrent aggregations", async () => {
+  describe('Concurrency', () => {
+    it('should handle concurrent aggregations', async () => {
       const concurrentJobs = 10;
       const linksPerJob = 10;
 
@@ -425,11 +425,11 @@ describe("Analytics Performance Tests", () => {
               return {
                 jobId,
                 linkId,
-                aggregated: true,
+                aggregated: true
               };
-            }),
+            })
           );
-        }),
+        })
       );
 
       const duration = Date.now() - startTime;
@@ -437,11 +437,11 @@ describe("Analytics Performance Tests", () => {
       // Should benefit from concurrency
       expect(duration).toBeLessThan(1000);
       console.log(
-        `✓ ${concurrentJobs} concurrent jobs (${linksPerJob} links each) in ${duration}ms`,
+        `✓ ${concurrentJobs} concurrent jobs (${linksPerJob} links each) in ${duration}ms`
       );
     });
 
-    it("should maintain throughput under concurrent load", async () => {
+    it('should maintain throughput under concurrent load', async () => {
       const concurrentStreams = 5;
       const eventsPerStream = 200;
 
@@ -455,7 +455,7 @@ describe("Analytics Performance Tests", () => {
             processed.push(i);
           }
           return processed.length;
-        }),
+        })
       );
 
       const duration = Date.now() - startTime;
@@ -465,8 +465,8 @@ describe("Analytics Performance Tests", () => {
       expect(throughput).toBeGreaterThan(200); // > 200 events/sec
       console.log(
         `✓ ${concurrentStreams} concurrent streams: ${totalEvents} events in ${duration}ms (${Math.round(
-          throughput,
-        )} events/sec)`,
+          throughput
+        )} events/sec)`
       );
     });
   });

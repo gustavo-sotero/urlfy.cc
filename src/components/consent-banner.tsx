@@ -3,11 +3,11 @@
  * LGPD/GDPR compliant cookie and analytics consent banner
  */
 
-"use client";
+'use client';
 
-import { X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 interface ConsentPreferences {
   analytics: boolean;
@@ -25,7 +25,7 @@ export function ConsentBanner() {
 
   useEffect(() => {
     // Check if consent was already given
-    const consent = localStorage.getItem("consent_preferences");
+    const consent = localStorage.getItem('consent_preferences');
 
     if (!consent) {
       // Wait a bit before showing to avoid jarring appearance
@@ -43,14 +43,14 @@ export function ConsentBanner() {
     const preferences: ConsentPreferences = {
       analytics: true,
       marketing: true,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     };
 
-    localStorage.setItem("consent_preferences", JSON.stringify(preferences));
+    localStorage.setItem('consent_preferences', JSON.stringify(preferences));
 
     // Trigger analytics enable event
     window.dispatchEvent(
-      new CustomEvent("consent-updated", { detail: preferences }),
+      new CustomEvent('consent-updated', { detail: preferences })
     );
 
     setShowBanner(false);
@@ -63,14 +63,14 @@ export function ConsentBanner() {
     const preferences: ConsentPreferences = {
       analytics: false,
       marketing: false,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     };
 
-    localStorage.setItem("consent_preferences", JSON.stringify(preferences));
+    localStorage.setItem('consent_preferences', JSON.stringify(preferences));
 
     // Trigger analytics disable event
     window.dispatchEvent(
-      new CustomEvent("consent-updated", { detail: preferences }),
+      new CustomEvent('consent-updated', { detail: preferences })
     );
 
     setShowBanner(false);
@@ -109,7 +109,7 @@ export function ConsentBanner() {
             >
               Usamos cookies e rastreamento para melhorar sua experiência. Você
               pode aceitar tudo, rejeitar tudo ou personalizar suas
-              preferências. Leia nossa{" "}
+              preferências. Leia nossa{' '}
               <a
                 href="/privacy"
                 className="text-primary underline hover:text-primary/80"
@@ -179,7 +179,7 @@ export function ConsentBanner() {
           </Button>
 
           <Button onClick={handleAcceptAll} disabled={isLoading}>
-            {isLoading ? "Salvando..." : "Aceitar Tudo"}
+            {isLoading ? 'Salvando...' : 'Aceitar Tudo'}
           </Button>
         </div>
       </div>

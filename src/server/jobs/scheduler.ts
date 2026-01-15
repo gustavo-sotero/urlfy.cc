@@ -1,17 +1,17 @@
 // src/server/jobs/scheduler.ts
 
-import { CronJob } from "cron";
-import { and, eq, lt } from "drizzle-orm";
-import { db } from "@/db";
-import { dataDeletionRequest } from "@/db/schema/audit";
+import { CronJob } from 'cron';
+import { and, eq, lt } from 'drizzle-orm';
+import { db } from '@/db';
+import { dataDeletionRequest } from '@/db/schema/audit';
 import {
   aggregationQueue,
   cleanupQueue,
-  deletionQueue,
-} from "@/server/lib/queue";
-import { createLogger } from "@/server/lib/telemetry";
+  deletionQueue
+} from '@/server/lib/queue';
+import { createLogger } from '@/server/lib/telemetry';
 
-const logger = createLogger("scheduler");
+const logger = createLogger('scheduler');
 
 /**
  * Scheduler para jobs agendados (cron)
@@ -29,7 +29,7 @@ const logger = createLogger("scheduler");
  * Agrega eventos brutos do dia anterior em tabelas de agregação
  */
 export const aggregationJob = new CronJob(
-  "0 2 * * *", // 02:00 UTC = 23:00 BRT (véspera)
+  '0 2 * * *', // 02:00 UTC = 23:00 BRT (véspera)
   async () => {
     try {
       const yesterday = getYesterday();
@@ -37,24 +37,24 @@ export const aggregationJob = new CronJob(
       logger.info(`[Scheduler] Running daily aggregation for ${yesterday}`);
 
       await aggregationQueue.add(
-        "daily-aggregation",
+        'daily-aggregation',
         { date: yesterday },
         {
           jobId: `aggregation-${yesterday}`,
-          removeOnComplete: { age: 3600 }, // Remove após 1h
-        },
+          removeOnComplete: { age: 3600 } // Remove após 1h
+        }
       );
 
       logger.info(`[Scheduler] Aggregation job queued for ${yesterday}`);
     } catch (error) {
-      logger.error("[Scheduler] Error scheduling aggregation job", {
-        error: error instanceof Error ? error.message : String(error),
+      logger.error('[Scheduler] Error scheduling aggregation job', {
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   },
   null,
   false,
-  "UTC",
+  'UTC'
 );
 
 // ═══════════════════════════════════════════════════════════════════
@@ -67,30 +67,30 @@ export const aggregationJob = new CronJob(
  * - Gerencia partições (cria futuras, remove antigas)
  */
 export const cleanupJob = new CronJob(
-  "0 3 * * 0", // 03:00 UTC todo domingo
+  '0 3 * * 0', // 03:00 UTC todo domingo
   async () => {
     try {
-      logger.info("[Scheduler] Running weekly cleanup job");
+      logger.info('[Scheduler] Running weekly cleanup job');
 
       await cleanupQueue.add(
-        "weekly-cleanup",
-        { type: "full" }, // Retention + partitions
+        'weekly-cleanup',
+        { type: 'full' }, // Retention + partitions
         {
           jobId: `cleanup-${getToday()}`,
-          removeOnComplete: { age: 3600 },
-        },
+          removeOnComplete: { age: 3600 }
+        }
       );
 
-      logger.info("[Scheduler] Cleanup job queued");
+      logger.info('[Scheduler] Cleanup job queued');
     } catch (error) {
-      logger.error("[Scheduler] Error scheduling cleanup job", {
-        error: error instanceof Error ? error.message : String(error),
+      logger.error('[Scheduler] Error scheduling cleanup job', {
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   },
   null,
   false,
-  "UTC",
+  'UTC'
 );
 
 // ═══════════════════════════════════════════════════════════════════
@@ -102,10 +102,10 @@ export const cleanupJob = new CronJob(
  * Busca deletion requests com deadline atingido e enfileira para processamento
  */
 export const dataDeletionJob = new CronJob(
-  "1,31 * * * *", // A cada 30 minutos
+  '1,31 * * * *', // A cada 30 minutos
   async () => {
     try {
-      logger.info("[Scheduler] Running data deletion check");
+      logger.info('[Scheduler] Running data deletion check');
 
       // Buscar requests pendentes com deadline atingido
       const pendingRequests = await db
@@ -113,64 +113,64 @@ export const dataDeletionJob = new CronJob(
         .from(dataDeletionRequest)
         .where(
           and(
-            eq(dataDeletionRequest.status, "pending" as const),
-            lt(dataDeletionRequest.deadlineAt, new Date()),
-          ),
+            eq(dataDeletionRequest.status, 'pending' as const),
+            lt(dataDeletionRequest.deadlineAt, new Date())
+          )
         );
 
       if (pendingRequests.length === 0) {
-        logger.debug("[Scheduler] No pending deletion requests due");
+        logger.debug('[Scheduler] No pending deletion requests due');
         return;
       }
 
       logger.info(
-        `[Scheduler] Found ${pendingRequests.length} deletion requests due`,
+        `[Scheduler] Found ${pendingRequests.length} deletion requests due`
       );
 
       // Enfileira cada request para processamento
       for (const request of pendingRequests) {
         try {
           await deletionQueue.add(
-            "process-deletion",
+            'process-deletion',
             {
               requestId: request.id,
-              userId: request.userId,
+              userId: request.userId
             },
             {
               jobId: `deletion-${request.id}`,
               removeOnComplete: { age: 86400 }, // Remove após 24h
               attempts: 3,
               backoff: {
-                type: "exponential",
-                delay: 2000, // 2s inicial
-              },
-            },
+                type: 'exponential',
+                delay: 2000 // 2s inicial
+              }
+            }
           );
 
-          logger.info("[Scheduler] Data deletion job enqueued", {
+          logger.info('[Scheduler] Data deletion job enqueued', {
             requestId: request.id,
-            userId: request.userId,
+            userId: request.userId
           });
         } catch (error) {
-          logger.error("[Scheduler] Error enqueueing deletion job", {
+          logger.error('[Scheduler] Error enqueueing deletion job', {
             error: error instanceof Error ? error.message : String(error),
-            requestId: request.id,
+            requestId: request.id
           });
         }
       }
 
       logger.info(
-        `[Scheduler] Enqueued ${pendingRequests.length} deletion jobs`,
+        `[Scheduler] Enqueued ${pendingRequests.length} deletion jobs`
       );
     } catch (error) {
-      logger.error("[Scheduler] Error in data deletion job", {
-        error: error instanceof Error ? error.message : String(error),
+      logger.error('[Scheduler] Error in data deletion job', {
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   },
   null,
   false,
-  "UTC",
+  'UTC'
 );
 
 // ═══════════════════════════════════════════════════════════════════
@@ -181,13 +181,13 @@ function getYesterday(): string {
   const d = new Date();
   d.setDate(d.getDate() - 1);
   d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString().split("T")[0];
+  return d.toISOString().split('T')[0];
 }
 
 function getToday(): string {
   const d = new Date();
   d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString().split("T")[0];
+  return d.toISOString().split('T')[0];
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -204,13 +204,13 @@ export function startScheduler(): void {
     cleanupJob.start();
     dataDeletionJob.start();
 
-    logger.info("[Scheduler] ✅ All scheduled jobs started");
-    logger.debug("[Scheduler] - Aggregation: 02:00 UTC daily");
-    logger.debug("[Scheduler] - Cleanup: 03:00 UTC every Sunday");
-    logger.debug("[Scheduler] - Data Deletion: every 30 minutes");
+    logger.info('[Scheduler] ✅ All scheduled jobs started');
+    logger.debug('[Scheduler] - Aggregation: 02:00 UTC daily');
+    logger.debug('[Scheduler] - Cleanup: 03:00 UTC every Sunday');
+    logger.debug('[Scheduler] - Data Deletion: every 30 minutes');
   } catch (error) {
-    logger.error("[Scheduler] Failed to start scheduler", {
-      error: error instanceof Error ? error.message : String(error),
+    logger.error('[Scheduler] Failed to start scheduler', {
+      error: error instanceof Error ? error.message : String(error)
     });
 
     throw error;
@@ -227,10 +227,10 @@ export function stopScheduler(): void {
     cleanupJob.stop();
     dataDeletionJob.stop();
 
-    logger.info("[Scheduler] ✅ All scheduled jobs stopped");
+    logger.info('[Scheduler] ✅ All scheduled jobs stopped');
   } catch (error) {
-    logger.error("[Scheduler] Error stopping scheduler", {
-      error: error instanceof Error ? error.message : String(error),
+    logger.error('[Scheduler] Error stopping scheduler', {
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 }
@@ -243,19 +243,19 @@ export async function triggerAggregationNow(date?: string): Promise<void> {
   const dateToAggregate = date || getYesterday();
 
   logger.info(
-    `[Scheduler] Triggering aggregation immediately for ${dateToAggregate}`,
+    `[Scheduler] Triggering aggregation immediately for ${dateToAggregate}`
   );
 
   await aggregationQueue.add(
-    "manual-aggregation",
+    'manual-aggregation',
     { date: dateToAggregate },
     {
-      jobId: `manual-aggregation-${dateToAggregate}-${Date.now()}`,
-    },
+      jobId: `manual-aggregation-${dateToAggregate}-${Date.now()}`
+    }
   );
 
   logger.info(
-    `[Scheduler] Manual aggregation triggered for ${dateToAggregate}`,
+    `[Scheduler] Manual aggregation triggered for ${dateToAggregate}`
   );
 }
 
@@ -263,16 +263,16 @@ export async function triggerAggregationNow(date?: string): Promise<void> {
  * Função de teste: dispara cleanup imediatamente
  */
 export async function triggerCleanupNow(
-  type: "retention" | "partitions" | "full" = "full",
+  type: 'retention' | 'partitions' | 'full' = 'full'
 ): Promise<void> {
   logger.info(`[Scheduler] Triggering cleanup immediately (type: ${type})`);
 
   await cleanupQueue.add(
-    "manual-cleanup",
+    'manual-cleanup',
     { type },
     {
-      jobId: `manual-cleanup-${type}-${Date.now()}`,
-    },
+      jobId: `manual-cleanup-${type}-${Date.now()}`
+    }
   );
 
   logger.info(`[Scheduler] Manual cleanup triggered (type: ${type})`);
@@ -282,5 +282,5 @@ export default {
   startScheduler,
   stopScheduler,
   triggerAggregationNow,
-  triggerCleanupNow,
+  triggerCleanupNow
 };

@@ -1,9 +1,9 @@
 // src/server/lib/distributed-lock.ts
 
-import { getRedisClient } from "./redis";
-import { createLogger } from "./telemetry";
+import { getRedisClient } from './redis';
+import { createLogger } from './telemetry';
 
-const logger = createLogger("distributed-lock");
+const logger = createLogger('distributed-lock');
 const redis = getRedisClient();
 
 /**
@@ -19,7 +19,7 @@ export async function acquireLock(
   key: string,
   ttlMs: number,
   retries = 0,
-  retryDelayMs = 50,
+  retryDelayMs = 50
 ): Promise<boolean> {
   let attempts = 0;
   const maxAttempts = retries + 1;
@@ -27,10 +27,10 @@ export async function acquireLock(
   while (attempts < maxAttempts) {
     try {
       // SET NX PX: Set if Not eXists + Expiration in milliseconds
-      const result = await redis.set(key, "1", "PX", ttlMs, "NX");
+      const result = await redis.set(key, '1', 'PX', ttlMs, 'NX');
 
-      if (result === "OK") {
-        logger.debug("Lock acquired", { key, ttlMs, attempt: attempts + 1 });
+      if (result === 'OK') {
+        logger.debug('Lock acquired', { key, ttlMs, attempt: attempts + 1 });
         return true;
       }
 
@@ -41,12 +41,12 @@ export async function acquireLock(
         continue;
       }
 
-      logger.debug("Lock not acquired", { key, attempts: attempts + 1 });
+      logger.debug('Lock not acquired', { key, attempts: attempts + 1 });
       return false;
     } catch (error) {
-      logger.error("Error acquiring lock", {
+      logger.error('Error acquiring lock', {
         key,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
       throw error;
     }
@@ -64,14 +64,14 @@ export async function releaseLock(key: string): Promise<void> {
   try {
     const result = await redis.del(key);
     if (result === 1) {
-      logger.debug("Lock released", { key });
+      logger.debug('Lock released', { key });
     } else {
-      logger.warn("Lock not found when releasing", { key });
+      logger.warn('Lock not found when releasing', { key });
     }
   } catch (error) {
-    logger.error("Error releasing lock", {
+    logger.error('Error releasing lock', {
       key,
-      error: error instanceof Error ? error.message : String(error),
+      error: error instanceof Error ? error.message : String(error)
     });
     throw error;
   }
@@ -89,12 +89,12 @@ export async function releaseLock(key: string): Promise<void> {
 export async function withLock<T>(
   key: string,
   ttlMs: number,
-  fn: () => Promise<T>,
+  fn: () => Promise<T>
 ): Promise<T | null> {
   const acquired = await acquireLock(key, ttlMs);
 
   if (!acquired) {
-    logger.warn("Failed to acquire lock, skipping execution", { key });
+    logger.warn('Failed to acquire lock, skipping execution', { key });
     return null;
   }
 
@@ -116,9 +116,9 @@ export async function hasLock(key: string): Promise<boolean> {
     const exists = await redis.exists(key);
     return exists === 1;
   } catch (error) {
-    logger.error("Error checking lock", {
+    logger.error('Error checking lock', {
       key,
-      error: error instanceof Error ? error.message : String(error),
+      error: error instanceof Error ? error.message : String(error)
     });
     return false;
   }
@@ -135,9 +135,9 @@ export async function getLockTTL(key: string): Promise<number> {
     const ttl = await redis.pttl(key);
     return ttl;
   } catch (error) {
-    logger.error("Error getting lock TTL", {
+    logger.error('Error getting lock TTL', {
       key,
-      error: error instanceof Error ? error.message : String(error),
+      error: error instanceof Error ? error.message : String(error)
     });
     return -1;
   }

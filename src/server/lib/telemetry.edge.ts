@@ -33,12 +33,12 @@ export function createLogger(name: string): EdgeLogger {
       message,
       timestamp: new Date().toISOString(),
       logger: name,
-      ...ctx,
+      ...ctx
     };
 
     // In production, these logs can be collected by services like Vercel Analytics,
     // Datadog, or other edge-compatible logging solutions
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV === 'development') {
       console.log(JSON.stringify(logRecord, null, 2));
     } else {
       // Structured JSON for log aggregators
@@ -47,14 +47,14 @@ export function createLogger(name: string): EdgeLogger {
   };
 
   return {
-    info: (message: string, ctx?: LogContext) => log("info", message, ctx),
-    warn: (message: string, ctx?: LogContext) => log("warn", message, ctx),
-    error: (message: string, ctx?: LogContext) => log("error", message, ctx),
+    info: (message: string, ctx?: LogContext) => log('info', message, ctx),
+    warn: (message: string, ctx?: LogContext) => log('warn', message, ctx),
+    error: (message: string, ctx?: LogContext) => log('error', message, ctx),
     debug: (message: string, ctx?: LogContext) => {
-      if (process.env.NODE_ENV === "development") {
-        log("debug", message, ctx);
+      if (process.env.NODE_ENV === 'development') {
+        log('debug', message, ctx);
       }
-    },
+    }
   };
 }
 
@@ -65,7 +65,7 @@ export function createLogger(name: string): EdgeLogger {
 export function createTraceContext(requestId: string) {
   return {
     traceId: requestId,
-    spanId: requestId.substring(0, 16),
+    spanId: requestId.substring(0, 16)
   };
 }
 
@@ -76,6 +76,6 @@ export function measureTime() {
   const start = performance.now();
 
   return {
-    end: () => performance.now() - start,
+    end: () => performance.now() - start
   };
 }

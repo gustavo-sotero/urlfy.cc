@@ -1,6 +1,6 @@
 // src/components/shared/link-card-skeleton.tsx
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function LinkCardSkeleton() {
   return (

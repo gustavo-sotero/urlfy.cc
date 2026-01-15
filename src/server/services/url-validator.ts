@@ -1,25 +1,25 @@
 // src/server/services/url-validator.ts
 
-import { eq } from "drizzle-orm";
-import { bannedUrls } from "@/db/schema";
-import { db } from "@/server/lib/db";
+import { eq } from 'drizzle-orm';
+import { bannedUrls } from '@/db/schema';
+import { db } from '@/server/lib/db';
 
 const BLOCKED_SHORTENERS = new Set([
-  "bit.ly",
-  "tinyurl.com",
-  "t.co",
-  "goo.gl",
-  "ow.ly",
-  "is.gd",
-  "buff.ly",
-  "adf.ly",
-  "shorturl.at",
-  "tiny.cc",
-  "rb.gy",
-  "cutt.ly",
-  "short.io",
-  "rebrand.ly",
-  "bl.ink",
+  'bit.ly',
+  'tinyurl.com',
+  't.co',
+  'goo.gl',
+  'ow.ly',
+  'is.gd',
+  'buff.ly',
+  'adf.ly',
+  'shorturl.at',
+  'tiny.cc',
+  'rb.gy',
+  'cutt.ly',
+  'short.io',
+  'rebrand.ly',
+  'bl.ink'
 ]);
 
 // In-memory cache for banned domains (loaded from database)
@@ -37,11 +37,11 @@ export type ValidationResult =
   | { valid: false; error: ValidationError };
 
 export type ValidationError =
-  | "INVALID_FORMAT"
-  | "INVALID_PROTOCOL"
-  | "SHORTENER_BLOCKED"
-  | "DOMAIN_BANNED"
-  | "URL_TOO_LONG";
+  | 'INVALID_FORMAT'
+  | 'INVALID_PROTOCOL'
+  | 'SHORTENER_BLOCKED'
+  | 'DOMAIN_BANNED'
+  | 'URL_TOO_LONG';
 
 /**
  * Loads banned domains from the database into memory cache.
@@ -59,15 +59,15 @@ async function loadBannedDomainsFromDb(): Promise<void> {
     const results = await db
       .select({
         urlPattern: bannedUrls.urlPattern,
-        matchType: bannedUrls.matchType,
+        matchType: bannedUrls.matchType
       })
       .from(bannedUrls)
-      .where(eq(bannedUrls.matchType, "domain"));
+      .where(eq(bannedUrls.matchType, 'domain'));
 
     // Clear and reload
     BLOCKED_DOMAINS.clear();
     for (const row of results) {
-      const normalized = row.urlPattern.replace(/^www\./, "").toLowerCase();
+      const normalized = row.urlPattern.replace(/^www\./, '').toLowerCase();
       BLOCKED_DOMAINS.add(normalized);
     }
 
@@ -75,7 +75,7 @@ async function loadBannedDomainsFromDb(): Promise<void> {
     bannedDomainsLastLoad = now;
   } catch (error) {
     // Log but don't fail - continue with in-memory cache
-    console.warn("Failed to load banned domains from database:", error);
+    console.warn('Failed to load banned domains from database:', error);
   }
 }
 
@@ -95,7 +95,7 @@ export async function reloadBannedDomains(): Promise<void> {
 export function validateUrl(url: string): ValidationResult {
   // 1. Tamanho máximo (2048 chars é padrão de navegadores)
   if (url.length > 2048) {
-    return { valid: false, error: "URL_TOO_LONG" };
+    return { valid: false, error: 'URL_TOO_LONG' };
   }
 
   // 2. Formato válido
@@ -103,23 +103,23 @@ export function validateUrl(url: string): ValidationResult {
   try {
     parsed = new URL(url);
   } catch {
-    return { valid: false, error: "INVALID_FORMAT" };
+    return { valid: false, error: 'INVALID_FORMAT' };
   }
 
   // 3. Protocolo permitido (apenas http/https)
-  if (!["http:", "https:"].includes(parsed.protocol)) {
-    return { valid: false, error: "INVALID_PROTOCOL" };
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return { valid: false, error: 'INVALID_PROTOCOL' };
   }
 
   // 4. Bloqueio de outros encurtadores
-  const domain = parsed.hostname.replace(/^www\./, "").toLowerCase();
+  const domain = parsed.hostname.replace(/^www\./, '').toLowerCase();
   if (BLOCKED_SHORTENERS.has(domain)) {
-    return { valid: false, error: "SHORTENER_BLOCKED" };
+    return { valid: false, error: 'SHORTENER_BLOCKED' };
   }
 
   // 5. Blacklist de domínios (from memory cache)
   if (BLOCKED_DOMAINS.has(domain)) {
-    return { valid: false, error: "DOMAIN_BANNED" };
+    return { valid: false, error: 'DOMAIN_BANNED' };
   }
 
   return { valid: true };
@@ -143,19 +143,19 @@ export async function validateUrlAsync(url: string): Promise<ValidationResult> {
 export async function blockDomainPersistent(
   domain: string,
   reason: string,
-  createdBy?: string,
+  createdBy?: string
 ): Promise<void> {
-  const normalized = domain.replace(/^www\./, "").toLowerCase();
+  const normalized = domain.replace(/^www\./, '').toLowerCase();
 
   // Add to database
   await db
     .insert(bannedUrls)
     .values({
       urlPattern: normalized,
-      matchType: "domain",
+      matchType: 'domain',
       reason,
-      source: "manual",
-      createdBy,
+      source: 'manual',
+      createdBy
     })
     .onConflictDoNothing();
 
@@ -168,7 +168,7 @@ export async function blockDomainPersistent(
  * @param domain - Domínio a ser bloqueado
  */
 export function blockDomain(domain: string): void {
-  const normalized = domain.replace(/^www\./, "").toLowerCase();
+  const normalized = domain.replace(/^www\./, '').toLowerCase();
   BLOCKED_DOMAINS.add(normalized);
 }
 
@@ -177,7 +177,7 @@ export function blockDomain(domain: string): void {
  * @param domain - Domínio a ser desbloqueado
  */
 export function unblockDomain(domain: string): void {
-  const normalized = domain.replace(/^www\./, "").toLowerCase();
+  const normalized = domain.replace(/^www\./, '').toLowerCase();
   BLOCKED_DOMAINS.delete(normalized);
 }
 
@@ -187,6 +187,6 @@ export function unblockDomain(domain: string): void {
  * @returns true se bloqueado
  */
 export function isDomainBlocked(domain: string): boolean {
-  const normalized = domain.replace(/^www\./, "").toLowerCase();
+  const normalized = domain.replace(/^www\./, '').toLowerCase();
   return BLOCKED_DOMAINS.has(normalized) || BLOCKED_SHORTENERS.has(normalized);
 }

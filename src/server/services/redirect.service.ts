@@ -1,14 +1,14 @@
 // src/server/services/redirect.service.ts
 
-import { db } from "@/db";
-import * as schema from "@/db/schema";
+import { db } from '@/db';
+import * as schema from '@/db/schema';
 
 const { links } = schema;
 
-import { trace } from "@opentelemetry/api";
-import { eq } from "drizzle-orm";
-import { CircuitBreaker } from "@/server/lib/circuit-breaker";
-import { acquireLock, releaseLock } from "@/server/lib/distributed-lock";
+import { trace } from '@opentelemetry/api';
+import { eq } from 'drizzle-orm';
+import { CircuitBreaker } from '@/server/lib/circuit-breaker';
+import { acquireLock, releaseLock } from '@/server/lib/distributed-lock';
 import {
   cacheHits,
   cacheMisses,
@@ -16,28 +16,28 @@ import {
   recordRedirectMetrics,
   redisFallbacks,
   stampedeLocksAcquired,
-  stampedeLocksWaited,
-} from "@/server/lib/telemetry";
+  stampedeLocksWaited
+} from '@/server/lib/telemetry';
 import type {
   CachedLink,
   RedirectError,
-  RedirectResult,
-} from "@/types/redirect.types";
-import { CACHE_PREFIX, cacheService } from "./cache.service";
+  RedirectResult
+} from '@/types/redirect.types';
+import { CACHE_PREFIX, cacheService } from './cache.service';
 
-const logger = createLogger("redirect-service");
-const tracer = trace.getTracer("redirect-service");
+const logger = createLogger('redirect-service');
+const tracer = trace.getTracer('redirect-service');
 
 // Lock TTL para stampede protection (5 segundos)
 const LOCK_TTL = 5000;
 
 // Circuit breaker para PostgreSQL
 const dbCircuitBreaker = new CircuitBreaker({
-  name: "postgres-redirect",
+  name: 'postgres-redirect',
   failureThreshold: 5,
   successThreshold: 2,
   timeout: 30000,
-  resetTimeout: 10000,
+  resetTimeout: 10000
 });
 
 /**
@@ -56,32 +56,32 @@ export class RedirectService {
   async resolve(
     code: string,
     currentDepth: number,
-    bypassPassword = false,
+    bypassPassword = false
   ): Promise<RedirectResult> {
     const startTime = performance.now();
     let cacheHit = false;
 
     return tracer.startActiveSpan(
-      "redirect.resolve",
+      'redirect.resolve',
       { attributes: { code, depth: currentDepth } },
       async (span) => {
         try {
           // 1. Verifica profundidade de redirect
           if (currentDepth >= 3) {
-            logger.warn("Redirect loop detected", {
+            logger.warn('Redirect loop detected', {
               code,
-              depth: currentDepth,
+              depth: currentDepth
             });
-            span.setStatus({ code: 1, message: "REDIRECT_LOOP" });
+            span.setStatus({ code: 1, message: 'REDIRECT_LOOP' });
 
             recordRedirectMetrics({
               latencyMs: performance.now() - startTime,
               success: false,
               cacheHit: false,
-              errorType: "REDIRECT_LOOP",
+              errorType: 'REDIRECT_LOOP'
             });
 
-            return { success: false, error: "REDIRECT_LOOP" as RedirectError };
+            return { success: false, error: 'REDIRECT_LOOP' as RedirectError };
           }
 
           // 2. Busca link (cache-first com fallback)
@@ -89,16 +89,16 @@ export class RedirectService {
           cacheHit = link !== null;
 
           if (!link) {
-            span.setStatus({ code: 1, message: "NOT_FOUND" });
+            span.setStatus({ code: 1, message: 'NOT_FOUND' });
 
             recordRedirectMetrics({
               latencyMs: performance.now() - startTime,
               success: false,
               cacheHit: false,
-              errorType: "NOT_FOUND",
+              errorType: 'NOT_FOUND'
             });
 
-            return { success: false, error: "NOT_FOUND" as RedirectError };
+            return { success: false, error: 'NOT_FOUND' as RedirectError };
           }
 
           // 3. Validações de status
@@ -110,13 +110,13 @@ export class RedirectService {
               latencyMs: performance.now() - startTime,
               success: false,
               cacheHit,
-              errorType: validation.error,
+              errorType: validation.error
             });
 
             return {
               success: false,
               error: validation.error,
-              linkId: link.id,
+              linkId: link.id
             };
           }
 
@@ -124,56 +124,56 @@ export class RedirectService {
           const finalUrl = this.buildFinalUrl(link);
 
           const latency = performance.now() - startTime;
-          logger.info("Redirect resolved", {
+          logger.info('Redirect resolved', {
             code,
             linkId: link.id,
             redirectType: link.redirectType,
-            latencyMs: latency.toFixed(2),
+            latencyMs: latency.toFixed(2)
           });
 
           span.setStatus({ code: 0 });
           span.setAttributes({
-            "link.id": link.id,
-            "link.redirectType": link.redirectType,
-            "cache.hit": cacheHit,
+            'link.id': link.id,
+            'link.redirectType': link.redirectType,
+            'cache.hit': cacheHit
           });
 
           recordRedirectMetrics({
             latencyMs: latency,
             success: true,
             cacheHit,
-            errorType: undefined,
+            errorType: undefined
           });
 
           return {
             success: true,
             url: finalUrl,
             redirectType: link.redirectType,
-            linkId: link.id,
+            linkId: link.id
           };
         } catch (error) {
           const latency = performance.now() - startTime;
-          logger.error("Error resolving redirect", {
+          logger.error('Error resolving redirect', {
             code,
             error: error instanceof Error ? error.message : String(error),
-            latencyMs: latency.toFixed(2),
+            latencyMs: latency.toFixed(2)
           });
 
           span.recordException(error as Error);
-          span.setStatus({ code: 2, message: "Internal error" });
+          span.setStatus({ code: 2, message: 'Internal error' });
 
           recordRedirectMetrics({
             latencyMs: latency,
             success: false,
             cacheHit: false,
-            errorType: "INTERNAL_ERROR",
+            errorType: 'INTERNAL_ERROR'
           });
 
           throw error;
         } finally {
           span.end();
         }
-      },
+      }
     );
   }
 
@@ -183,32 +183,32 @@ export class RedirectService {
    */
   private async getLink(code: string): Promise<CachedLink | null> {
     return tracer.startActiveSpan(
-      "redirect.getLink",
+      'redirect.getLink',
       { attributes: { code } },
       async (span) => {
         try {
           // L1: Verifica cache negativo primeiro (404)
           const is404 = await cacheService.isNotFound(code);
           if (is404) {
-            logger.debug("Negative cache hit", { code });
-            span.setAttribute("cache.type", "negative");
-            span.setAttribute("cache.hit", true);
-            cacheHits.add(1, { type: "negative" });
+            logger.debug('Negative cache hit', { code });
+            span.setAttribute('cache.type', 'negative');
+            span.setAttribute('cache.hit', true);
+            cacheHits.add(1, { type: 'negative' });
             return null;
           }
 
           // L2: Verifica cache de link banido
           const isBanned = await cacheService.isBanned(code);
           if (isBanned) {
-            logger.debug("Banned cache hit", { code });
-            span.setAttribute("cache.type", "banned");
-            span.setAttribute("cache.hit", true);
-            cacheHits.add(1, { type: "banned" });
+            logger.debug('Banned cache hit', { code });
+            span.setAttribute('cache.type', 'banned');
+            span.setAttribute('cache.hit', true);
+            cacheHits.add(1, { type: 'banned' });
             // Retorna um link "fantasma" para validação retornar BANNED
             // IMPORTANTE: isActive DEVE ser true para que validateLink chegue na checagem de isBanned
             return {
-              id: "banned",
-              originalUrl: "",
+              id: 'banned',
+              originalUrl: '',
               redirectType: 302 as const,
               isActive: true,
               isBanned: true,
@@ -218,39 +218,39 @@ export class RedirectService {
               passwordHash: null,
               utmSource: null,
               utmMedium: null,
-              utmCampaign: null,
+              utmCampaign: null
             };
           }
 
           // L3: Verifica cache normal de link
           const cached = await cacheService.getLink(code);
           if (cached) {
-            logger.debug("Link cache hit", { code });
-            span.setAttribute("cache.type", "link");
-            span.setAttribute("cache.hit", true);
-            cacheHits.add(1, { type: "link" });
+            logger.debug('Link cache hit', { code });
+            span.setAttribute('cache.type', 'link');
+            span.setAttribute('cache.hit', true);
+            cacheHits.add(1, { type: 'link' });
             return cached;
           }
 
           // L4: Cache miss - busca no banco com stampede protection
-          logger.debug("Cache miss", { code });
-          span.setAttribute("cache.hit", false);
+          logger.debug('Cache miss', { code });
+          span.setAttribute('cache.hit', false);
           cacheMisses.add(1);
           return await this.fetchWithStampedeProtection(code);
         } catch (error) {
           // Fallback: busca direto no banco em caso de erro no Redis
-          logger.warn("Redis error, falling back to database", {
+          logger.warn('Redis error, falling back to database', {
             code,
-            error: error instanceof Error ? error.message : String(error),
+            error: error instanceof Error ? error.message : String(error)
           });
           span.recordException(error as Error);
-          span.setAttribute("fallback", true);
+          span.setAttribute('fallback', true);
           redisFallbacks.add(1);
           return this.fetchFromDatabase(code);
         } finally {
           span.end();
         }
-      },
+      }
     );
   }
 
@@ -261,7 +261,7 @@ export class RedirectService {
    * apenas uma vai buscar no banco enquanto as outras aguardam.
    */
   private async fetchWithStampedeProtection(
-    code: string,
+    code: string
   ): Promise<CachedLink | null> {
     const lockKey = `${CACHE_PREFIX.LOCK}${code}`;
 
@@ -272,7 +272,7 @@ export class RedirectService {
       // Esta request ganhou o lock - busca do banco
       stampedeLocksAcquired.add(1);
       try {
-        logger.debug("Lock acquired, fetching from database", { code });
+        logger.debug('Lock acquired, fetching from database', { code });
 
         const link = await this.fetchFromDatabase(code);
 
@@ -293,7 +293,7 @@ export class RedirectService {
 
     // Outra request está populando o cache - aguarda um pouco
     stampedeLocksWaited.add(1);
-    logger.debug("Lock not acquired, waiting for cache population", { code });
+    logger.debug('Lock not acquired, waiting for cache population', { code });
     await Bun.sleep(50); // 50ms
 
     // Tenta pegar do cache novamente (provavelmente já foi populado)
@@ -303,8 +303,8 @@ export class RedirectService {
     }
 
     // Se ainda não está no cache, faz fallback para busca direta
-    logger.warn("Cache still empty after waiting, fetching from database", {
-      code,
+    logger.warn('Cache still empty after waiting, fetching from database', {
+      code
     });
     return this.fetchFromDatabase(code);
   }
@@ -328,7 +328,7 @@ export class RedirectService {
           passwordHash: links.passwordHash,
           utmSource: links.utmSource,
           utmMedium: links.utmMedium,
-          utmCampaign: links.utmCampaign,
+          utmCampaign: links.utmCampaign
         })
         .from(links)
         .where(eq(links.shortCode, code))
@@ -337,7 +337,7 @@ export class RedirectService {
       const link = results[0];
 
       if (!link) {
-        logger.debug("Link not found in database", { code });
+        logger.debug('Link not found in database', { code });
         return null;
       }
 
@@ -354,7 +354,7 @@ export class RedirectService {
         passwordHash: link.passwordHash,
         utmSource: link.utmSource,
         utmMedium: link.utmMedium,
-        utmCampaign: link.utmCampaign,
+        utmCampaign: link.utmCampaign
       } as CachedLink;
     });
   }
@@ -367,46 +367,46 @@ export class RedirectService {
    */
   private validateLink(
     link: CachedLink,
-    bypassPassword = false,
+    bypassPassword = false
   ): {
     valid: boolean;
     error?: RedirectError;
   } {
     // 1. Link inativo
     if (!link.isActive) {
-      logger.debug("Link is inactive", { linkId: link.id });
-      return { valid: false, error: "INACTIVE" };
+      logger.debug('Link is inactive', { linkId: link.id });
+      return { valid: false, error: 'INACTIVE' };
     }
 
     // 2. Link banido
     if (link.isBanned) {
-      logger.debug("Link is banned", { linkId: link.id });
-      return { valid: false, error: "BANNED" };
+      logger.debug('Link is banned', { linkId: link.id });
+      return { valid: false, error: 'BANNED' };
     }
 
     // 3. Link expirado
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-      logger.debug("Link expired", {
+      logger.debug('Link expired', {
         linkId: link.id,
-        expiresAt: link.expiresAt,
+        expiresAt: link.expiresAt
       });
-      return { valid: false, error: "EXPIRED" };
+      return { valid: false, error: 'EXPIRED' };
     }
 
     // 4. Limite de cliques atingido
     if (link.maxClicks && link.clicksCount >= link.maxClicks) {
-      logger.debug("Max clicks reached", {
+      logger.debug('Max clicks reached', {
         linkId: link.id,
         clicks: link.clicksCount,
-        max: link.maxClicks,
+        max: link.maxClicks
       });
-      return { valid: false, error: "MAX_CLICKS" };
+      return { valid: false, error: 'MAX_CLICKS' };
     }
 
     // 5. Protegido por senha (a menos que bypassPassword seja true)
     if (link.passwordHash && !bypassPassword) {
-      logger.debug("Link requires password", { linkId: link.id });
-      return { valid: false, error: "PASSWORD_REQUIRED" };
+      logger.debug('Link requires password', { linkId: link.id });
+      return { valid: false, error: 'PASSWORD_REQUIRED' };
     }
 
     return { valid: true };
@@ -421,21 +421,21 @@ export class RedirectService {
 
       // Adiciona UTMs se configurados
       if (link.utmSource) {
-        url.searchParams.set("utm_source", link.utmSource);
+        url.searchParams.set('utm_source', link.utmSource);
       }
       if (link.utmMedium) {
-        url.searchParams.set("utm_medium", link.utmMedium);
+        url.searchParams.set('utm_medium', link.utmMedium);
       }
       if (link.utmCampaign) {
-        url.searchParams.set("utm_campaign", link.utmCampaign);
+        url.searchParams.set('utm_campaign', link.utmCampaign);
       }
 
       return url.toString();
     } catch (error) {
-      logger.error("Error building final URL", {
+      logger.error('Error building final URL', {
         linkId: link.id,
         originalUrl: link.originalUrl,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
       // Retorna URL original em caso de erro
       return link.originalUrl;
@@ -463,9 +463,9 @@ export class RedirectService {
 
       return results.length === 0;
     } catch (error) {
-      logger.error("Error checking code availability", {
+      logger.error('Error checking code availability', {
         code,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
       throw error;
     }
@@ -480,7 +480,7 @@ export class RedirectService {
   }> {
     return {
       circuitBreaker: dbCircuitBreaker.getStatus(),
-      cacheStats: await cacheService.getCacheStats(),
+      cacheStats: await cacheService.getCacheStats()
     };
   }
 }

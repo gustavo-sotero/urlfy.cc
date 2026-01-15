@@ -3,35 +3,35 @@
  * Integrates anti-abuse detection into request processing
  */
 
-import { createLogger } from "@/server/lib/telemetry";
-import { antiAbuseService } from "@/server/services/anti-abuse.service";
+import { createLogger } from '@/server/lib/telemetry';
+import { antiAbuseService } from '@/server/services/anti-abuse.service';
 
-const logger = createLogger("anti-abuse-middleware");
+const logger = createLogger('anti-abuse-middleware');
 
 /**
  * Get client IP from request
  */
 function getClientIP(request: Request): string {
-  const forwarded = request.headers.get("X-Forwarded-For");
+  const forwarded = request.headers.get('X-Forwarded-For');
 
-  if (process.env.TRUST_PROXY === "true" && forwarded) {
-    return forwarded.split(",")[0]?.trim() || "127.0.0.1";
+  if (process.env.TRUST_PROXY === 'true' && forwarded) {
+    return forwarded.split(',')[0]?.trim() || '127.0.0.1';
   }
 
-  return "127.0.0.1";
+  return '127.0.0.1';
 }
 
 /**
  * Anti-abuse middleware handler
  */
 export async function antiAbuseMiddleware(
-  request: Request,
+  request: Request
 ): Promise<Response | null> {
   const ip = getClientIP(request);
   const path = new URL(request.url).pathname;
 
   // Skip health checks
-  if (path.startsWith("/api/v1/health")) {
+  if (path.startsWith('/api/v1/health')) {
     return null;
   }
 
@@ -39,22 +39,22 @@ export async function antiAbuseMiddleware(
   const isBlocked = await antiAbuseService.isIPBlocked(ip);
 
   if (isBlocked) {
-    logger.warn("Blocked IP attempted request", { ip, path });
+    logger.warn('Blocked IP attempted request', { ip, path });
     return new Response(
       JSON.stringify({
         success: false,
         error: {
-          code: "BLOCKED",
+          code: 'BLOCKED',
           message:
-            "Your IP has been blocked due to suspicious activity. Please contact support.",
-        },
+            'Your IP has been blocked due to suspicious activity. Please contact support.'
+        }
       }),
       {
         status: 403,
         headers: {
-          "Content-Type": "application/json",
-        },
-      },
+          'Content-Type': 'application/json'
+        }
+      }
     );
   }
 
@@ -69,12 +69,12 @@ export async function recordLoginFailure(ip: string): Promise<void> {
   try {
     const blocked = await antiAbuseService.recordLoginFailure(ip);
     if (blocked) {
-      logger.warn("IP auto-blocked due to excessive login failures", { ip });
+      logger.warn('IP auto-blocked due to excessive login failures', { ip });
     }
   } catch (error) {
-    logger.error("Failed to record login failure", {
+    logger.error('Failed to record login failure', {
       error: error instanceof Error ? error.message : String(error),
-      ip,
+      ip
     });
   }
 }
@@ -84,18 +84,18 @@ export async function recordLoginFailure(ip: string): Promise<void> {
  */
 export async function recordLinkCreation(
   userId: string | null,
-  ip: string,
+  ip: string
 ): Promise<void> {
   try {
     const anomalous = await antiAbuseService.recordLinkCreation(userId, ip);
     if (anomalous) {
-      logger.warn("Anomalous link creation detected", { userId, ip });
+      logger.warn('Anomalous link creation detected', { userId, ip });
     }
   } catch (error) {
-    logger.error("Failed to record link creation", {
+    logger.error('Failed to record link creation', {
       error: error instanceof Error ? error.message : String(error),
       userId,
-      ip,
+      ip
     });
   }
 }

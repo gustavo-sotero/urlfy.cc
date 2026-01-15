@@ -8,26 +8,26 @@ import {
   isNull,
   like,
   or,
-  sql,
-} from "drizzle-orm";
-import { db } from "@/db";
-import { links } from "@/db/schema";
+  sql
+} from 'drizzle-orm';
+import { db } from '@/db';
+import { links } from '@/db/schema';
 import type {
   CreateLinkInput,
   Link,
   LinkResponse,
   ListLinksQuery,
   PaginatedResponse,
-  UpdateLinkInput,
-} from "@/types/links.types";
-import { createLinkError } from "../lib/errors";
-import { redis } from "../lib/redis";
-import { sanitizeMetaTags } from "../lib/sanitize";
-import { invalidateQRCache } from "./qr.service";
-import { generateUniqueCode, validateCustomAlias } from "./shortcode.service";
-import { validateUrl } from "./url-validator";
+  UpdateLinkInput
+} from '@/types/links.types';
+import { createLinkError } from '../lib/errors';
+import { redis } from '../lib/redis';
+import { sanitizeMetaTags } from '../lib/sanitize';
+import { invalidateQRCache } from './qr.service';
+import { generateUniqueCode, validateCustomAlias } from './shortcode.service';
+import { validateUrl } from './url-validator';
 
-const BASE_URL = process.env.PUBLIC_URL || "https://urlfy.cc";
+const BASE_URL = process.env.PUBLIC_URL || 'https://urlfy.cc';
 
 // ═══════════════════════════════════════════════════════════════════
 // PASSWORD VERIFICATION
@@ -41,12 +41,12 @@ const BASE_URL = process.env.PUBLIC_URL || "https://urlfy.cc";
  */
 export async function verifyLinkPassword(
   code: string,
-  password: string,
+  password: string
 ): Promise<boolean> {
   const link = await getLinkByCode(code);
 
   if (!link) {
-    throw createLinkError("LINK_NOT_FOUND");
+    throw createLinkError('LINK_NOT_FOUND');
   }
 
   if (!link.passwordHash) {
@@ -73,7 +73,7 @@ export async function verifyLinkPassword(
 export async function createLink(
   input: CreateLinkInput,
   userId?: string,
-  ipHash?: string,
+  ipHash?: string
 ): Promise<Link> {
   // 1. Validar URL
   const validation = validateUrl(input.url);
@@ -85,11 +85,11 @@ export async function createLink(
   let shortCode: string;
   if (input.customAlias) {
     if (!userId) {
-      throw createLinkError("AUTH_REQUIRED");
+      throw createLinkError('AUTH_REQUIRED');
     }
     const isValid = await validateCustomAlias(input.customAlias);
     if (!isValid) {
-      throw createLinkError("ALIAS_UNAVAILABLE");
+      throw createLinkError('ALIAS_UNAVAILABLE');
     }
     shortCode = input.customAlias;
   } else {
@@ -100,15 +100,15 @@ export async function createLink(
   let passwordHash: string | null = null;
   if (input.password) {
     if (!userId) {
-      throw createLinkError("AUTH_REQUIRED");
+      throw createLinkError('AUTH_REQUIRED');
     }
     if (input.password.length < 8) {
-      throw createLinkError("PASSWORD_TOO_WEAK");
+      throw createLinkError('PASSWORD_TOO_WEAK');
     }
     passwordHash = await Bun.password.hash(input.password, {
-      algorithm: "argon2id",
+      algorithm: 'argon2id',
       memoryCost: 19456,
-      timeCost: 2,
+      timeCost: 2
     });
   }
 
@@ -116,7 +116,7 @@ export async function createLink(
   const meta = sanitizeMetaTags({
     title: input.metaTitle,
     description: input.metaDescription,
-    image: input.metaImage,
+    image: input.metaImage
   });
 
   // 5. Processar expiração
@@ -141,7 +141,7 @@ export async function createLink(
       utmCampaign: input.utmCampaign,
       tags: input.tags,
       notes: input.notes,
-      createdByIpHash: ipHash,
+      createdByIpHash: ipHash
     })
     .returning();
 
@@ -157,7 +157,7 @@ export async function createLink(
  */
 export async function listUserLinks(
   userId: string,
-  query: ListLinksQuery = {},
+  query: ListLinksQuery = {}
 ): Promise<PaginatedResponse<Link>> {
   const page = query.page || 1;
   const perPage = Math.min(query.perPage || 20, 100);
@@ -173,7 +173,7 @@ export async function listUserLinks(
   if (query.search) {
     const searchFilter = or(
       like(links.originalUrl, `%${query.search}%`),
-      like(links.shortCode, `%${query.search}%`),
+      like(links.shortCode, `%${query.search}%`)
     );
     if (searchFilter) {
       filters.push(searchFilter);
@@ -185,15 +185,15 @@ export async function listUserLinks(
   }
 
   // Definir ordenação
-  const sortBy = query.sortBy || "createdAt";
-  const sortOrder = query.sortOrder || "desc";
+  const sortBy = query.sortBy || 'createdAt';
+  const sortOrder = query.sortOrder || 'desc';
   const orderColumn = {
     createdAt: links.createdAt,
     clicksCount: links.clicksCount,
-    lastClickedAt: links.lastClickedAt,
+    lastClickedAt: links.lastClickedAt
   }[sortBy];
 
-  const orderFn = sortOrder === "asc" ? orderColumn : desc(orderColumn);
+  const orderFn = sortOrder === 'asc' ? orderColumn : desc(orderColumn);
 
   // Executar queries em paralelo
   const [items, countResult] = await Promise.all([
@@ -208,7 +208,7 @@ export async function listUserLinks(
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(links)
-      .where(and(...filters)),
+      .where(and(...filters))
   ]);
 
   const total = countResult[0]?.count ?? 0;
@@ -221,8 +221,8 @@ export async function listUserLinks(
       page,
       perPage,
       lastPage,
-      hasMore: page < lastPage,
-    },
+      hasMore: page < lastPage
+    }
   };
 }
 
@@ -238,12 +238,12 @@ export async function getLinkById(id: string, userId: string): Promise<Link> {
     .select()
     .from(links)
     .where(
-      and(eq(links.id, id), eq(links.userId, userId), isNull(links.deletedAt)),
+      and(eq(links.id, id), eq(links.userId, userId), isNull(links.deletedAt))
     )
     .limit(1);
 
   if (!link) {
-    throw createLinkError("LINK_NOT_FOUND");
+    throw createLinkError('LINK_NOT_FOUND');
   }
 
   return link;
@@ -272,23 +272,23 @@ export async function getLinkByCode(code: string): Promise<Link | null> {
 export async function updateLink(
   id: string,
   userId: string,
-  input: UpdateLinkInput,
+  input: UpdateLinkInput
 ): Promise<Link> {
   const link = await getLinkById(id, userId);
 
   // Processar senha se fornecida
   let passwordHash: string | null | undefined;
-  if ("password" in input) {
+  if ('password' in input) {
     if (input.password === null) {
       passwordHash = null; // Remove senha
     } else if (input.password) {
       if (input.password.length < 8) {
-        throw createLinkError("PASSWORD_TOO_WEAK");
+        throw createLinkError('PASSWORD_TOO_WEAK');
       }
       passwordHash = await Bun.password.hash(input.password, {
-        algorithm: "argon2id",
+        algorithm: 'argon2id',
         memoryCost: 19456,
-        timeCost: 2,
+        timeCost: 2
       });
     }
   }
@@ -297,7 +297,7 @@ export async function updateLink(
   const meta = sanitizeMetaTags({
     title: input.metaTitle ?? undefined,
     description: input.metaDescription ?? undefined,
-    image: input.metaImage ?? undefined,
+    image: input.metaImage ?? undefined
   });
 
   // Processar expiração
@@ -324,13 +324,13 @@ export async function updateLink(
       utmMedium: input.utmMedium,
       utmCampaign: input.utmCampaign,
       tags: input.tags,
-      notes: input.notes,
+      notes: input.notes
     })
     .where(eq(links.id, id))
     .returning();
 
   // Invalida cache
-  await invalidateLinkCache(link.shortCode, "update");
+  await invalidateLinkCache(link.shortCode, 'update');
 
   return updated;
 }
@@ -344,13 +344,13 @@ export async function updateLink(
  */
 export async function softDeleteLink(
   id: string,
-  userId: string,
+  userId: string
 ): Promise<void> {
   const link = await getLinkById(id, userId);
 
   await db.update(links).set({ deletedAt: new Date() }).where(eq(links.id, id));
 
-  await invalidateLinkCache(link.shortCode, "delete");
+  await invalidateLinkCache(link.shortCode, 'delete');
 }
 
 /**
@@ -364,7 +364,7 @@ export async function restoreLink(id: string, userId: string): Promise<Link> {
     .limit(1);
 
   if (!link) {
-    throw createLinkError("LINK_NOT_FOUND");
+    throw createLinkError('LINK_NOT_FOUND');
   }
 
   if (!link.deletedAt) {
@@ -377,7 +377,7 @@ export async function restoreLink(id: string, userId: string): Promise<Link> {
     .where(eq(links.id, id))
     .returning();
 
-  await invalidateLinkCache(link.shortCode, "update");
+  await invalidateLinkCache(link.shortCode, 'update');
 
   return restored;
 }
@@ -411,7 +411,7 @@ export async function duplicateLink(id: string, userId: string): Promise<Link> {
       utmMedium: original.utmMedium,
       utmCampaign: original.utmCampaign,
       tags: original.tags,
-      notes: original.notes,
+      notes: original.notes
     })
     .returning();
 
@@ -427,7 +427,7 @@ export async function duplicateLink(id: string, userId: string): Promise<Link> {
  */
 export async function toggleLinkActive(
   id: string,
-  userId: string,
+  userId: string
 ): Promise<Link> {
   const link = await getLinkById(id, userId);
 
@@ -437,7 +437,7 @@ export async function toggleLinkActive(
     .where(eq(links.id, id))
     .returning();
 
-  await invalidateLinkCache(link.shortCode, "update");
+  await invalidateLinkCache(link.shortCode, 'update');
 
   return updated;
 }
@@ -469,7 +469,7 @@ export function formatLinkResponse(link: Link): LinkResponse {
     notes: link.notes,
     lastClickedAt: link.lastClickedAt?.toISOString() ?? null,
     createdAt: link.createdAt.toISOString(),
-    updatedAt: link.updatedAt.toISOString(),
+    updatedAt: link.updatedAt.toISOString()
   };
 }
 
@@ -482,7 +482,7 @@ export function formatLinkResponse(link: Link): LinkResponse {
  */
 async function invalidateLinkCache(
   code: string,
-  reason: "update" | "ban" | "delete",
+  reason: 'update' | 'ban' | 'delete'
 ): Promise<void> {
   try {
     const pipeline = redis.pipeline();
@@ -490,10 +490,10 @@ async function invalidateLinkCache(
     pipeline.del(`link:${code}`);
     pipeline.del(`link:meta:${code}`);
 
-    if (reason === "delete") {
-      pipeline.set(`link:404:${code}`, "1", "EX", 300);
-    } else if (reason === "ban") {
-      pipeline.set(`link:banned:${code}`, "1", "EX", 86400);
+    if (reason === 'delete') {
+      pipeline.set(`link:404:${code}`, '1', 'EX', 300);
+    } else if (reason === 'ban') {
+      pipeline.set(`link:banned:${code}`, '1', 'EX', 86400);
     }
 
     await pipeline.exec();
@@ -501,6 +501,6 @@ async function invalidateLinkCache(
     // Invalida QR codes
     await invalidateQRCache(code);
   } catch (error) {
-    console.warn("Failed to invalidate link cache:", error);
+    console.warn('Failed to invalidate link cache:', error);
   }
 }

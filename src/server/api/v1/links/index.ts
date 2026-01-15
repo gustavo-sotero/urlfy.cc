@@ -1,17 +1,17 @@
 // src/server/api/v1/links/index.ts
 
-import { createHash } from "node:crypto";
-import { Elysia, t } from "elysia";
+import { createHash } from 'node:crypto';
+import { Elysia, t } from 'elysia';
 
-import { handleLinkError } from "../../../lib/errors";
+import { handleLinkError } from '../../../lib/errors';
 import {
   checkIdempotency,
   setIdempotency,
-  validateIdempotencyKey,
-} from "../../../lib/idempotency";
-import { optionalAuth, requireAuth } from "../../../middleware/auth.middleware";
-import * as linkService from "../../../services/link.service";
-import * as qrService from "../../../services/qr.service";
+  validateIdempotencyKey
+} from '../../../lib/idempotency';
+import { optionalAuth, requireAuth } from '../../../middleware/auth.middleware';
+import * as linkService from '../../../services/link.service';
+import * as qrService from '../../../services/qr.service';
 
 // Routes públicas/opcionais (guest allowed)
 const publicRoutes = new Elysia()
@@ -20,10 +20,10 @@ const publicRoutes = new Elysia()
   // POST /links/validate - Validar URL
   // ═══════════════════════════════════════════════════════════════
   .post(
-    "/validate",
+    '/validate',
     async ({ body }: { body: { url: string } }) => {
-      const validation = await import("../../../services/url-validator").then(
-        (m) => m.validateUrl(body.url),
+      const validation = await import('../../../services/url-validator').then(
+        (m) => m.validateUrl(body.url)
       );
 
       if (validation.valid) {
@@ -31,8 +31,8 @@ const publicRoutes = new Elysia()
           success: true,
           data: {
             valid: true,
-            warnings: [],
-          },
+            warnings: []
+          }
         };
       }
 
@@ -40,26 +40,26 @@ const publicRoutes = new Elysia()
         success: true,
         data: {
           valid: false,
-          error: validation.error,
-        },
+          error: validation.error
+        }
       };
     },
     {
       body: t.Object({
-        url: t.String({ minLength: 1, maxLength: 2048 }),
-      }),
-    },
+        url: t.String({ minLength: 1, maxLength: 2048 })
+      })
+    }
   )
   // ═══════════════════════════════════════════════════════════════
   // POST /links/by-code/:code/verify-password - Verificar senha de link protegido
   // ═══════════════════════════════════════════════════════════════
   .post(
-    "/by-code/:code/verify-password",
+    '/by-code/:code/verify-password',
     async ({ params, body, set }) => {
       try {
         const isValid = await linkService.verifyLinkPassword(
           params.code,
-          body.password,
+          body.password
         );
 
         if (!isValid) {
@@ -67,22 +67,22 @@ const publicRoutes = new Elysia()
           return {
             success: false,
             error: {
-              code: "INVALID_PASSWORD",
-              message: "Senha incorreta",
-            },
+              code: 'INVALID_PASSWORD',
+              message: 'Senha incorreta'
+            }
           };
         }
 
         // Retorna URL para redirect
-        const shortUrl = `${process.env.PUBLIC_URL || "https://urlfy.cc"}/${
+        const shortUrl = `${process.env.PUBLIC_URL || 'https://urlfy.cc'}/${
           params.code
         }`;
         return {
           success: true,
           data: {
             redirectUrl: `/${params.code}`,
-            shortUrl,
-          },
+            shortUrl
+          }
         };
       } catch (error) {
         return handleLinkError(error);
@@ -90,18 +90,18 @@ const publicRoutes = new Elysia()
     },
     {
       params: t.Object({
-        code: t.String({ minLength: 1, maxLength: 20 }),
+        code: t.String({ minLength: 1, maxLength: 20 })
       }),
       body: t.Object({
-        password: t.String({ minLength: 1 }),
-      }),
-    },
+        password: t.String({ minLength: 1 })
+      })
+    }
   )
   // ═══════════════════════════════════════════════════════════════
   // GET /links/by-code/:code/qr - Gerar QR Code (público)
   // ═══════════════════════════════════════════════════════════════
   .get(
-    "/by-code/:code/qr",
+    '/by-code/:code/qr',
     async ({ params, query, set }) => {
       try {
         const link = await linkService.getLinkByCode(params.code);
@@ -110,30 +110,30 @@ const publicRoutes = new Elysia()
           return {
             success: false,
             error: {
-              code: "LINK_NOT_FOUND",
-              message: "Link não encontrado",
-            },
+              code: 'LINK_NOT_FOUND',
+              message: 'Link não encontrado'
+            }
           };
         }
 
         const size = qrService.validateQRSize(
-          query.size ? parseInt(query.size, 10) : 200,
+          query.size ? parseInt(query.size, 10) : 200
         );
-        const format = qrService.validateQRFormat(query.format || "png");
+        const format = qrService.validateQRFormat(query.format || 'png');
 
-        const shortUrl = `${process.env.PUBLIC_URL || "https://urlfy.cc"}/${
+        const shortUrl = `${process.env.PUBLIC_URL || 'https://urlfy.cc'}/${
           params.code
         }`;
         const qrCode = await qrService.generateQRCode(
           shortUrl,
           params.code,
           size,
-          format,
+          format
         );
 
-        set.headers["Content-Type"] =
-          format === "svg" ? "image/svg+xml" : "image/png";
-        set.headers["Cache-Control"] = "public, max-age=86400";
+        set.headers['Content-Type'] =
+          format === 'svg' ? 'image/svg+xml' : 'image/png';
+        set.headers['Cache-Control'] = 'public, max-age=86400';
 
         return qrCode;
       } catch (error) {
@@ -142,19 +142,19 @@ const publicRoutes = new Elysia()
     },
     {
       params: t.Object({
-        code: t.String(),
+        code: t.String()
       }),
       query: t.Object({
         size: t.Optional(t.String()),
-        format: t.Optional(t.Union([t.Literal("png"), t.Literal("svg")])),
-      }),
-    },
+        format: t.Optional(t.Union([t.Literal('png'), t.Literal('svg')]))
+      })
+    }
   )
   // ═══════════════════════════════════════════════════════════════
   // GET /links/by-code/:code/preview - Preview de link (público)
   // ═══════════════════════════════════════════════════════════════
   .get(
-    "/by-code/:code/preview",
+    '/by-code/:code/preview',
     async ({ params, set }) => {
       try {
         const link = await linkService.getLinkByCode(params.code);
@@ -163,9 +163,9 @@ const publicRoutes = new Elysia()
           return {
             success: false,
             error: {
-              code: "LINK_NOT_FOUND",
-              message: "Link não encontrado",
-            },
+              code: 'LINK_NOT_FOUND',
+              message: 'Link não encontrado'
+            }
           };
         }
 
@@ -178,8 +178,8 @@ const publicRoutes = new Elysia()
             metaDescription: link.metaDescription,
             metaImage: link.metaImage,
             createdAt: link.createdAt.toISOString(),
-            isPasswordProtected: !!link.passwordHash,
-          },
+            isPasswordProtected: !!link.passwordHash
+          }
         };
       } catch (error) {
         return handleLinkError(error);
@@ -187,53 +187,53 @@ const publicRoutes = new Elysia()
     },
     {
       params: t.Object({
-        code: t.String(),
-      }),
-    },
+        code: t.String()
+      })
+    }
   )
   // ═══════════════════════════════════════════════════════════════
   // POST /links - Criar link (guest ou autenticado)
   // ═══════════════════════════════════════════════════════════════
   .post(
-    "/",
+    '/',
     async (ctx) => {
       const { body, headers, user } = ctx as typeof ctx & {
         user: { id: string } | null;
       };
       try {
         // Verificar idempotency key
-        const idempotencyKey = headers["idempotency-key"];
+        const idempotencyKey = headers['idempotency-key'];
         if (idempotencyKey) {
           if (!validateIdempotencyKey(idempotencyKey)) {
             return {
               success: false,
               error: {
-                code: "INVALID_IDEMPOTENCY_KEY",
-                message: "Chave de idempotência inválida",
-              },
+                code: 'INVALID_IDEMPOTENCY_KEY',
+                message: 'Chave de idempotência inválida'
+              }
             };
           }
 
           const cached = await checkIdempotency(idempotencyKey);
           if (cached) {
-            const link = await linkService.getLinkById(cached, user?.id ?? "");
+            const link = await linkService.getLinkById(cached, user?.id ?? '');
             return {
               success: true,
-              data: linkService.formatLinkResponse(link),
+              data: linkService.formatLinkResponse(link)
             };
           }
         }
 
         // Obter IP hash
         const clientIp =
-          headers["x-forwarded-for"] || headers["x-real-ip"] || "unknown";
-        const ipHash = createHash("sha256").update(clientIp).digest("hex");
+          headers['x-forwarded-for'] || headers['x-real-ip'] || 'unknown';
+        const ipHash = createHash('sha256').update(clientIp).digest('hex');
 
         // Criar link
         const link = await linkService.createLink(
           body,
           user?.id ?? undefined,
-          ipHash,
+          ipHash
         );
 
         // Armazenar idempotency se fornecida
@@ -244,7 +244,7 @@ const publicRoutes = new Elysia()
         return {
           success: true,
           data: linkService.formatLinkResponse(link),
-          status: 201,
+          status: 201
         };
       } catch (error) {
         return handleLinkError(error);
@@ -265,9 +265,9 @@ const publicRoutes = new Elysia()
         utmMedium: t.Optional(t.String({ maxLength: 100 })),
         utmCampaign: t.Optional(t.String({ maxLength: 100 })),
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }))),
-        notes: t.Optional(t.String({ maxLength: 1000 })),
-      }),
-    },
+        notes: t.Optional(t.String({ maxLength: 1000 }))
+      })
+    }
   );
 
 // Routes autenticadas (requer login)
@@ -277,7 +277,7 @@ const authenticatedRoutes = new Elysia()
   // POST /links/bulk - Criar múltiplos links
   // ═══════════════════════════════════════════════════════════════
   .post(
-    "/bulk",
+    '/bulk',
     async (ctx) => {
       const { body, user, headers } = ctx as typeof ctx & {
         user: { id: string };
@@ -287,10 +287,10 @@ const authenticatedRoutes = new Elysia()
           return {
             success: false,
             error: {
-              code: "VALIDATION_ERROR",
-              message: "Nenhum link fornecido",
+              code: 'VALIDATION_ERROR',
+              message: 'Nenhum link fornecido'
             },
-            status: 400,
+            status: 400
           };
         }
 
@@ -298,17 +298,17 @@ const authenticatedRoutes = new Elysia()
           return {
             success: false,
             error: {
-              code: "VALIDATION_ERROR",
-              message: "Máximo de 100 links por requisição",
+              code: 'VALIDATION_ERROR',
+              message: 'Máximo de 100 links por requisição'
             },
-            status: 400,
+            status: 400
           };
         }
 
         // Obter IP hash
         const clientIp =
-          headers["x-forwarded-for"] || headers["x-real-ip"] || "unknown";
-        const ipHash = createHash("sha256").update(clientIp).digest("hex");
+          headers['x-forwarded-for'] || headers['x-real-ip'] || 'unknown';
+        const ipHash = createHash('sha256').update(clientIp).digest('hex');
 
         const results: Array<{
           success: boolean;
@@ -321,16 +321,16 @@ const authenticatedRoutes = new Elysia()
             const link = await linkService.createLink(
               linkInput,
               user.id,
-              ipHash,
+              ipHash
             );
             results.push({
               success: true,
-              data: linkService.formatLinkResponse(link),
+              data: linkService.formatLinkResponse(link)
             });
           } catch (error) {
             results.push({
               success: false,
-              error: error instanceof Error ? error.message : "Unknown error",
+              error: error instanceof Error ? error.message : 'Unknown error'
             });
           }
         }
@@ -343,9 +343,9 @@ const authenticatedRoutes = new Elysia()
           data: {
             created,
             failed,
-            results: results.filter((r) => r.success).map((r) => r.data),
+            results: results.filter((r) => r.success).map((r) => r.data)
           },
-          status: 201,
+          status: 201
         };
       } catch (error) {
         return handleLinkError(error);
@@ -368,18 +368,18 @@ const authenticatedRoutes = new Elysia()
             utmMedium: t.Optional(t.String({ maxLength: 100 })),
             utmCampaign: t.Optional(t.String({ maxLength: 100 })),
             tags: t.Optional(t.Array(t.String({ maxLength: 50 }))),
-            notes: t.Optional(t.String({ maxLength: 1000 })),
+            notes: t.Optional(t.String({ maxLength: 1000 }))
           }),
-          { minItems: 1, maxItems: 100 },
-        ),
-      }),
-    },
+          { minItems: 1, maxItems: 100 }
+        )
+      })
+    }
   )
   // ═══════════════════════════════════════════════════════════════
   // GET /links - Listar links do usuário
   // ═══════════════════════════════════════════════════════════════
   .get(
-    "/",
+    '/',
     async (ctx) => {
       const { query, user } = ctx as typeof ctx & { user: { id: string } };
       try {
@@ -387,25 +387,25 @@ const authenticatedRoutes = new Elysia()
           page: query.page ? parseInt(query.page, 10) : 1,
           perPage: query.perPage ? parseInt(query.perPage, 10) : 20,
           search: query.search,
-          tags: query.tags ? query.tags.split(",") : undefined,
+          tags: query.tags ? query.tags.split(',') : undefined,
           isActive:
-            query.isActive === "true"
+            query.isActive === 'true'
               ? true
-              : query.isActive === "false"
+              : query.isActive === 'false'
                 ? false
                 : undefined,
           sortBy: query.sortBy as
-            | "createdAt"
-            | "clicksCount"
-            | "lastClickedAt"
+            | 'createdAt'
+            | 'clicksCount'
+            | 'lastClickedAt'
             | undefined,
-          sortOrder: query.sortOrder as "asc" | "desc" | undefined,
+          sortOrder: query.sortOrder as 'asc' | 'desc' | undefined
         });
 
         return {
           success: true,
           data: result.data.map(linkService.formatLinkResponse),
-          meta: result.meta,
+          meta: result.meta
         };
       } catch (error) {
         return handleLinkError(error);
@@ -420,28 +420,28 @@ const authenticatedRoutes = new Elysia()
         isActive: t.Optional(t.String()),
         sortBy: t.Optional(
           t.Union([
-            t.Literal("createdAt"),
-            t.Literal("clicksCount"),
-            t.Literal("lastClickedAt"),
-          ]),
+            t.Literal('createdAt'),
+            t.Literal('clicksCount'),
+            t.Literal('lastClickedAt')
+          ])
         ),
-        sortOrder: t.Optional(t.Union([t.Literal("asc"), t.Literal("desc")])),
-      }),
-    },
+        sortOrder: t.Optional(t.Union([t.Literal('asc'), t.Literal('desc')]))
+      })
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════
   // GET /links/:id - Obter link específico
   // ═══════════════════════════════════════════════════════════════
   .get(
-    "/:id",
+    '/:id',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
         const link = await linkService.getLinkById(params.id, user.id);
         return {
           success: true,
-          data: linkService.formatLinkResponse(link),
+          data: linkService.formatLinkResponse(link)
         };
       } catch (error) {
         return handleLinkError(error);
@@ -449,16 +449,16 @@ const authenticatedRoutes = new Elysia()
     },
     {
       params: t.Object({
-        id: t.String(),
-      }),
-    },
+        id: t.String()
+      })
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════
   // PATCH /links/:id - Atualizar link
   // ═══════════════════════════════════════════════════════════════
   .patch(
-    "/:id",
+    '/:id',
     async (ctx) => {
       const { params, body, user } = ctx as typeof ctx & {
         user: { id: string };
@@ -467,7 +467,7 @@ const authenticatedRoutes = new Elysia()
         const link = await linkService.updateLink(params.id, user.id, body);
         return {
           success: true,
-          data: linkService.formatLinkResponse(link),
+          data: linkService.formatLinkResponse(link)
         };
       } catch (error) {
         return handleLinkError(error);
@@ -475,7 +475,7 @@ const authenticatedRoutes = new Elysia()
     },
     {
       params: t.Object({
-        id: t.String(),
+        id: t.String()
       }),
       body: t.Object({
         isActive: t.Optional(t.Boolean()),
@@ -484,43 +484,43 @@ const authenticatedRoutes = new Elysia()
         password: t.Optional(t.Union([t.String({ minLength: 8 }), t.Null()])),
         redirectType: t.Optional(t.Union([t.Literal(301), t.Literal(302)])),
         metaTitle: t.Optional(
-          t.Union([t.String({ maxLength: 255 }), t.Null()]),
+          t.Union([t.String({ maxLength: 255 }), t.Null()])
         ),
         metaDescription: t.Optional(
-          t.Union([t.String({ maxLength: 500 }), t.Null()]),
+          t.Union([t.String({ maxLength: 500 }), t.Null()])
         ),
         metaImage: t.Optional(
-          t.Union([t.String({ maxLength: 500 }), t.Null()]),
+          t.Union([t.String({ maxLength: 500 }), t.Null()])
         ),
         utmSource: t.Optional(
-          t.Union([t.String({ maxLength: 100 }), t.Null()]),
+          t.Union([t.String({ maxLength: 100 }), t.Null()])
         ),
         utmMedium: t.Optional(
-          t.Union([t.String({ maxLength: 100 }), t.Null()]),
+          t.Union([t.String({ maxLength: 100 }), t.Null()])
         ),
         utmCampaign: t.Optional(
-          t.Union([t.String({ maxLength: 100 }), t.Null()]),
+          t.Union([t.String({ maxLength: 100 }), t.Null()])
         ),
         tags: t.Optional(
-          t.Union([t.Array(t.String({ maxLength: 50 })), t.Null()]),
+          t.Union([t.Array(t.String({ maxLength: 50 })), t.Null()])
         ),
-        notes: t.Optional(t.Union([t.String({ maxLength: 1000 }), t.Null()])),
-      }),
-    },
+        notes: t.Optional(t.Union([t.String({ maxLength: 1000 }), t.Null()]))
+      })
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════
   // DELETE /links/:id - Soft delete
   // ═══════════════════════════════════════════════════════════════
   .delete(
-    "/:id",
+    '/:id',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
         await linkService.softDeleteLink(params.id, user.id);
         return {
           success: true,
-          status: 204,
+          status: 204
         };
       } catch (error) {
         return handleLinkError(error);
@@ -528,23 +528,23 @@ const authenticatedRoutes = new Elysia()
     },
     {
       params: t.Object({
-        id: t.String(),
-      }),
-    },
+        id: t.String()
+      })
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════
   // POST /links/:id/restore - Restaurar link deletado
   // ═══════════════════════════════════════════════════════════════
   .post(
-    "/:id/restore",
+    '/:id/restore',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
         const link = await linkService.restoreLink(params.id, user.id);
         return {
           success: true,
-          data: linkService.formatLinkResponse(link),
+          data: linkService.formatLinkResponse(link)
         };
       } catch (error) {
         return handleLinkError(error);
@@ -552,16 +552,16 @@ const authenticatedRoutes = new Elysia()
     },
     {
       params: t.Object({
-        id: t.String(),
-      }),
-    },
+        id: t.String()
+      })
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════
   // POST /links/:id/duplicate - Duplicar link
   // ═══════════════════════════════════════════════════════════════
   .post(
-    "/:id/duplicate",
+    '/:id/duplicate',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
@@ -569,7 +569,7 @@ const authenticatedRoutes = new Elysia()
         return {
           success: true,
           data: linkService.formatLinkResponse(link),
-          status: 201,
+          status: 201
         };
       } catch (error) {
         return handleLinkError(error);
@@ -577,23 +577,23 @@ const authenticatedRoutes = new Elysia()
     },
     {
       params: t.Object({
-        id: t.String(),
-      }),
-    },
+        id: t.String()
+      })
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════
   // POST /links/:id/toggle - Toggle ativo/inativo
   // ═══════════════════════════════════════════════════════════════
   .post(
-    "/:id/toggle",
+    '/:id/toggle',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
         const link = await linkService.toggleLinkActive(params.id, user.id);
         return {
           success: true,
-          data: linkService.formatLinkResponse(link),
+          data: linkService.formatLinkResponse(link)
         };
       } catch (error) {
         return handleLinkError(error);
@@ -601,16 +601,16 @@ const authenticatedRoutes = new Elysia()
     },
     {
       params: t.Object({
-        id: t.String(),
-      }),
-    },
+        id: t.String()
+      })
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════
   // GET /links/:id/stats - Stats rápidas do link
   // ═══════════════════════════════════════════════════════════════
   .get(
-    "/:id/stats",
+    '/:id/stats',
     async (ctx) => {
       const { params, user } = ctx as typeof ctx & { user: { id: string } };
       try {
@@ -620,8 +620,8 @@ const authenticatedRoutes = new Elysia()
           data: {
             clicks: link.clicksCount,
             uniqueVisitors: link.clicksCount, // TODO: Implement unique visitor tracking
-            lastClickedAt: link.lastClickedAt?.toISOString() ?? null,
-          },
+            lastClickedAt: link.lastClickedAt?.toISOString() ?? null
+          }
         };
       } catch (error) {
         return handleLinkError(error);
@@ -629,12 +629,12 @@ const authenticatedRoutes = new Elysia()
     },
     {
       params: t.Object({
-        id: t.String(),
-      }),
-    },
+        id: t.String()
+      })
+    }
   );
 
 // Combina rotas públicas e autenticadas
-export const linksRouter = new Elysia({ prefix: "/links" })
+export const linksRouter = new Elysia({ prefix: '/links' })
   .use(publicRoutes)
   .use(authenticatedRoutes);

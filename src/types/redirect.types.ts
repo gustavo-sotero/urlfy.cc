@@ -34,13 +34,13 @@ export interface RedirectResult {
  * Tipos de erro possíveis no redirecionamento
  */
 export type RedirectError =
-  | "NOT_FOUND"
-  | "EXPIRED"
-  | "BANNED"
-  | "INACTIVE"
-  | "MAX_CLICKS"
-  | "PASSWORD_REQUIRED"
-  | "REDIRECT_LOOP";
+  | 'NOT_FOUND'
+  | 'EXPIRED'
+  | 'BANNED'
+  | 'INACTIVE'
+  | 'MAX_CLICKS'
+  | 'PASSWORD_REQUIRED'
+  | 'REDIRECT_LOOP';
 
 /**
  * Evento de clique para analytics
@@ -71,5 +71,5 @@ export interface CacheMetrics {
 export enum CircuitBreakerState {
   CLOSED = 0,
   HALF_OPEN = 1,
-  OPEN = 2,
+  OPEN = 2
 }

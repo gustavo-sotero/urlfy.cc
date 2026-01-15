@@ -1,5 +1,5 @@
 // src/components/charts/countries-chart.tsx
-"use client";
+'use client';
 
 import {
   Bar,
@@ -9,18 +9,18 @@ import {
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis,
-} from "recharts";
+  YAxis
+} from 'recharts';
 
 const COLORS = [
-  "#0088FE",
-  "#00C49F",
-  "#FFBB28",
-  "#FF8042",
-  "#8884d8",
-  "#82ca9d",
-  "#ffc658",
-  "#ff7c7c",
+  '#0088FE',
+  '#00C49F',
+  '#FFBB28',
+  '#FF8042',
+  '#8884d8',
+  '#82ca9d',
+  '#ffc658',
+  '#ff7c7c'
 ];
 
 interface Props {
@@ -36,10 +36,10 @@ interface Props {
 export function CountriesChart({ data }: Props) {
   // Take top 10 countries and normalize data structure
   const topCountries = data.slice(0, 10).map((item) => ({
-    country: item.country || item.code || "",
+    country: item.country || item.code || '',
     countryName:
-      item.countryName || item.name || item.country || item.code || "Unknown",
-    clicks: item.clicks,
+      item.countryName || item.name || item.country || item.code || 'Unknown',
+    clicks: item.clicks
   }));
 
   return (
@@ -55,11 +55,11 @@ export function CountriesChart({ data }: Props) {
           <YAxis dataKey="countryName" type="category" width={70} />
           <Tooltip
             contentStyle={{
-              backgroundColor: "hsl(var(--background))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "8px",
+              backgroundColor: 'hsl(var(--background))',
+              border: '1px solid hsl(var(--border))',
+              borderRadius: '8px'
             }}
-            labelStyle={{ color: "hsl(var(--foreground))" }}
+            labelStyle={{ color: 'hsl(var(--foreground))' }}
           />
           <Bar dataKey="clicks" radius={[0, 4, 4, 0]}>
             {topCountries.map((entry, index) => (

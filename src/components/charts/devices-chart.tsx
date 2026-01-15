@@ -1,20 +1,20 @@
 // src/components/charts/devices-chart.tsx
-"use client";
+'use client';
 
-import { useMemo } from "react";
+import { useMemo } from 'react';
 import {
   Cell,
   Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
-  Tooltip,
-} from "recharts";
+  Tooltip
+} from 'recharts';
 
 const COLORS = {
-  desktop: "hsl(var(--chart-1))",
-  mobile: "hsl(var(--chart-2))",
-  tablet: "hsl(var(--chart-3))",
+  desktop: 'hsl(var(--chart-1))',
+  mobile: 'hsl(var(--chart-2))',
+  tablet: 'hsl(var(--chart-3))'
 };
 
 interface Props {
@@ -27,15 +27,15 @@ export function DevicesChart({ data }: Props) {
     () =>
       data.map((item) => ({
         name:
-          item.type === "desktop"
-            ? "Desktop"
-            : item.type === "mobile"
-              ? "Mobile"
-              : "Tablet",
+          item.type === 'desktop'
+            ? 'Desktop'
+            : item.type === 'mobile'
+              ? 'Mobile'
+              : 'Tablet',
         value: item.clicks,
-        type: item.type,
+        type: item.type
       })),
-    [data],
+    [data]
   );
 
   return (

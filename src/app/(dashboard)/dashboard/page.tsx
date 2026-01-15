@@ -1,21 +1,21 @@
 // src/app/(dashboard)/dashboard/page.tsx
-"use client";
+'use client';
 
 import {
   ArrowRight,
   Link as LinkIcon,
   MousePointer,
-  TrendingUp,
-} from "lucide-react";
-import Link from "next/link";
-import { toast } from "sonner";
-import { QueryError } from "@/components/query-error";
-import { LinkCard } from "@/components/shared/link-card";
-import { LinkListSkeleton } from "@/components/shared/link-card-skeleton";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useDeleteLink, useLinks, useUserQuota } from "@/lib/hooks/use-links";
+  TrendingUp
+} from 'lucide-react';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { QueryError } from '@/components/query-error';
+import { LinkCard } from '@/components/shared/link-card';
+import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useDeleteLink, useLinks, useUserQuota } from '@/lib/hooks/use-links';
 
 export default function DashboardPage() {
   const {
@@ -23,23 +23,23 @@ export default function DashboardPage() {
     isLoading: linksLoading,
     isError,
     error,
-    refetch,
+    refetch
   } = useLinks({
     page: 1,
-    perPage: 5,
+    perPage: 5
   });
 
   const { data: quotaData, isLoading: quotaLoading } = useUserQuota();
   const deleteLink = useDeleteLink();
 
   const handleDelete = async (id: string) => {
-    if (confirm("Tem certeza que deseja deletar este link?")) {
+    if (confirm('Tem certeza que deseja deletar este link?')) {
       try {
         await deleteLink.mutateAsync(id);
-        toast.success("Link deletado com sucesso");
+        toast.success('Link deletado com sucesso');
       } catch (err) {
-        console.error("Failed to delete link:", err);
-        toast.error("Erro ao deletar link");
+        console.error('Failed to delete link:', err);
+        toast.error('Erro ao deletar link');
       }
     }
   };
@@ -92,7 +92,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {totalClicks.toLocaleString("pt-BR")}
+                  {totalClicks.toLocaleString('pt-BR')}
                 </div>
               </CardContent>
             </Card>

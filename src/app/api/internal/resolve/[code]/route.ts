@@ -4,24 +4,24 @@
  * Called by Edge middleware to resolve links using full Node.js runtime
  */
 
-import { type NextRequest, NextResponse } from "next/server";
-import { redirectService } from "@/server/services/redirect.service";
+import { type NextRequest, NextResponse } from 'next/server';
+import { redirectService } from '@/server/services/redirect.service';
 
 // Verify internal API secret
 function verifyInternalRequest(request: NextRequest): boolean {
-  const secret = request.headers.get("x-internal-api");
-  const expectedSecret = process.env.INTERNAL_API_SECRET || "dev-secret";
+  const secret = request.headers.get('x-internal-api');
+  const expectedSecret = process.env.INTERNAL_API_SECRET || 'dev-secret';
   return secret === expectedSecret;
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ code: string }> },
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
     // Verify this is an internal request
     if (!verifyInternalRequest(request)) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+      return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
 
     const { code } = await params;
@@ -32,16 +32,16 @@ export async function POST(
     const result = await redirectService.resolve(
       code,
       depth ?? 0,
-      hasPasswordCookie ?? false,
+      hasPasswordCookie ?? false
     );
 
     if (!result.success) {
       return NextResponse.json(
         {
           success: false,
-          error: result.error || "UNKNOWN_ERROR",
+          error: result.error || 'UNKNOWN_ERROR'
         },
-        { status: 200 },
+        { status: 200 }
       );
     }
 
@@ -50,16 +50,16 @@ export async function POST(
       success: true,
       url: result.url,
       redirectType: result.redirectType,
-      linkId: result.linkId,
+      linkId: result.linkId
     });
   } catch (error) {
-    console.error("Internal resolve error:", error);
+    console.error('Internal resolve error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: "INTERNAL_ERROR",
+        error: 'INTERNAL_ERROR'
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

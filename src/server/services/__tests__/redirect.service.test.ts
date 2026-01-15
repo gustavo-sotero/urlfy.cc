@@ -12,12 +12,12 @@
 // ═══════════════════════════════════════════════════════════════════
 // CRITICAL: Set environment variables BEFORE ANY imports
 // ═══════════════════════════════════════════════════════════════════
-process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
-process.env.REDIS_URL = "redis://localhost:6379";
-process.env.JWT_SECRET = "test-secret-key-for-testing";
+process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
+process.env.REDIS_URL = 'redis://localhost:6379';
+process.env.JWT_SECRET = 'test-secret-key-for-testing';
 
-import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { CachedLink } from "@/types/redirect.types";
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CachedLink } from '@/types/redirect.types';
 
 // ═══════════════════════════════════════════════════════════════════
 // Helper function for Bun mock compatibility
@@ -35,7 +35,7 @@ function mockResolvedValue<T>(mockFn: ReturnType<typeof mock>, value: T): void {
 // Mock do cache service
 const mockCache = {
   getLink: mock<(code: string) => Promise<CachedLink | null>>(() =>
-    Promise.resolve(null),
+    Promise.resolve(null)
   ),
   setLink: mock(() => Promise.resolve()),
   isNotFound: mock(() => Promise.resolve(false)),
@@ -43,44 +43,42 @@ const mockCache = {
   isBanned: mock(() => Promise.resolve(false)),
   setBanned: mock(() => Promise.resolve()),
   invalidateLink: mock(() => Promise.resolve()),
-  getCacheStats: mock(() =>
-    Promise.resolve({ hits: 0, misses: 0, hitRate: 0 }),
-  ),
+  getCacheStats: mock(() => Promise.resolve({ hits: 0, misses: 0, hitRate: 0 }))
 };
 
 // Mock do database - with configurable limit result for select chain
 const mockLimitFn = mock<() => Promise<Array<{ id: string }>>>(() =>
-  Promise.resolve([]),
+  Promise.resolve([])
 );
 const mockDb = {
   select: mock(() => ({
     from: mock(() => ({
       where: mock(() => ({
-        limit: mockLimitFn,
-      })),
-    })),
+        limit: mockLimitFn
+      }))
+    }))
   })),
   query: {
     links: {
       findFirst: mock<
         (
-          args?: Record<string, unknown>,
+          args?: Record<string, unknown>
         ) => Promise<Record<string, unknown> | null>
-      >(() => Promise.resolve(null)),
-    },
-  },
+      >(() => Promise.resolve(null))
+    }
+  }
 };
 
 // Mock do circuit breaker
 const mockCircuitBreaker = {
   execute: mock(<T>(fn: () => Promise<T>) => fn()),
-  getStatus: mock(() => "CLOSED"),
+  getStatus: mock(() => 'CLOSED')
 };
 
 // Mock distributed lock
 const mockLock = {
   acquireLock: mock(() => Promise.resolve(true)),
-  releaseLock: mock(() => Promise.resolve()),
+  releaseLock: mock(() => Promise.resolve())
 };
 
 // Mock telemetry - must include ALL exports that circuit-breaker.ts needs
@@ -89,7 +87,7 @@ const mockTelemetry = {
     debug: mock(() => {}),
     info: mock(() => {}),
     warn: mock(() => {}),
-    error: mock(() => {}),
+    error: mock(() => {})
   })),
   cacheHits: { add: mock(() => {}) },
   cacheMisses: { add: mock(() => {}) },
@@ -97,89 +95,89 @@ const mockTelemetry = {
   recordRedirectMetrics: mock(() => {}),
   stampedeLocksAcquired: { add: mock(() => {}) },
   stampedeLocksWaited: { add: mock(() => {}) },
-  circuitBreakerTrips: { add: mock(() => {}) },
+  circuitBreakerTrips: { add: mock(() => {}) }
 };
 
 // Mock modules BEFORE importing service
-mock.module("@/server/services/cache.service", () => ({
+mock.module('@/server/services/cache.service', () => ({
   cacheService: mockCache,
   CACHE_PREFIX: {
-    LINK: "link:",
-    NOT_FOUND: "link:404:",
-    BANNED: "link:banned:",
-    LOCK: "lock:link:",
-  },
+    LINK: 'link:',
+    NOT_FOUND: 'link:404:',
+    BANNED: 'link:banned:',
+    LOCK: 'lock:link:'
+  }
 }));
 
-mock.module("@/db", () => ({
-  db: mockDb,
+mock.module('@/db', () => ({
+  db: mockDb
 }));
 
-mock.module("@/db/schema", () => ({
+mock.module('@/db/schema', () => ({
   links: {
-    id: "id",
-    shortCode: "short_code",
-    originalUrl: "original_url",
-  },
+    id: 'id',
+    shortCode: 'short_code',
+    originalUrl: 'original_url'
+  }
 }));
 
-mock.module("@/server/lib/circuit-breaker", () => ({
+mock.module('@/server/lib/circuit-breaker', () => ({
   CircuitBreaker: class MockCircuitBreaker {
     execute = mockCircuitBreaker.execute;
     getStatus = mockCircuitBreaker.getStatus;
-  },
+  }
 }));
 
-mock.module("@/server/lib/distributed-lock", () => ({
+mock.module('@/server/lib/distributed-lock', () => ({
   acquireLock: mockLock.acquireLock,
-  releaseLock: mockLock.releaseLock,
+  releaseLock: mockLock.releaseLock
 }));
 
-mock.module("@/server/lib/telemetry", () => mockTelemetry);
+mock.module('@/server/lib/telemetry', () => mockTelemetry);
 
-mock.module("@opentelemetry/api", () => ({
+mock.module('@opentelemetry/api', () => ({
   trace: {
     getTracer: () => ({
       startActiveSpan: (
         _name: string,
         _opts: unknown,
-        fn: (span: unknown) => unknown,
+        fn: (span: unknown) => unknown
       ) => {
         const mockSpan = {
           setStatus: mock(() => {}),
           setAttributes: mock(() => {}),
           setAttribute: mock(() => {}),
           recordException: mock(() => {}),
-          end: mock(() => {}),
+          end: mock(() => {})
         };
         return fn(mockSpan);
-      },
-    }),
-  },
+      }
+    })
+  }
 }));
 
 // Try to import the service - this may fail if mocks don't work in full test suite
-let RedirectService: typeof import("../redirect.service").RedirectService;
+let RedirectService: typeof import('../redirect.service').RedirectService;
 let redirectService: InstanceType<typeof RedirectService>;
 let testsAvailable = true;
 
 try {
-  const module = await import("../redirect.service");
+  const module = await import('../redirect.service');
   RedirectService = module.RedirectService;
   redirectService = new RedirectService();
 } catch (error) {
   testsAvailable = false;
   console.warn(
-    "⚠️ RedirectService tests skipped: Module mock conflict in full test suite",
-    error instanceof Error ? error.message : error,
+    '⚠️ RedirectService tests skipped: Module mock conflict in full test suite',
+    error instanceof Error ? error.message : error
   );
 }
 
-describe("RedirectService", () => {
+describe('RedirectService', () => {
   if (!testsAvailable) {
-    it("should skip tests when module mocks fail", () => {
+    it('should skip tests when module mocks fail', () => {
       console.warn(
-        "⚠️ Skipping RedirectService tests - run this file in isolation with: bun test redirect.service.test.ts",
+        '⚠️ Skipping RedirectService tests - run this file in isolation with: bun test redirect.service.test.ts'
       );
       expect(true).toBe(true);
     });
@@ -199,11 +197,11 @@ describe("RedirectService", () => {
     mockResolvedValue(mockLimitFn, []);
   });
 
-  describe("resolve()", () => {
-    it("should return URL for valid active link from cache", async () => {
+  describe('resolve()', () => {
+    it('should return URL for valid active link from cache', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-001",
-        originalUrl: "https://example.com",
+        id: 'test-id-001',
+        originalUrl: 'https://example.com',
         redirectType: 301,
         isActive: true,
         isBanned: false,
@@ -213,51 +211,51 @@ describe("RedirectService", () => {
         passwordHash: null,
         utmSource: null,
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.resolve("abc123", 0);
+      const result = await redirectService.resolve('abc123', 0);
 
       expect(result.success).toBe(true);
       expect(result.url).toMatch(/^https:\/\/example\.com\/?$/);
       expect(result.redirectType).toBe(301);
-      expect(mockCache.getLink).toHaveBeenCalledWith("abc123");
+      expect(mockCache.getLink).toHaveBeenCalledWith('abc123');
     });
 
-    it("should return REDIRECT_LOOP when depth >= 3", async () => {
-      const result = await redirectService.resolve("abc123", 3);
+    it('should return REDIRECT_LOOP when depth >= 3', async () => {
+      const result = await redirectService.resolve('abc123', 3);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("REDIRECT_LOOP");
+      expect(result.error).toBe('REDIRECT_LOOP');
     });
 
-    it("should return NOT_FOUND when link does not exist", async () => {
+    it('should return NOT_FOUND when link does not exist', async () => {
       mockResolvedValue(mockCache.isNotFound, false);
       mockResolvedValue(mockCache.getLink, null);
       mockResolvedValue(mockDb.query.links.findFirst, null);
 
-      const result = await redirectService.resolve("nonexistent", 0);
+      const result = await redirectService.resolve('nonexistent', 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("NOT_FOUND");
+      expect(result.error).toBe('NOT_FOUND');
     });
 
-    it("should return NOT_FOUND from negative cache", async () => {
+    it('should return NOT_FOUND from negative cache', async () => {
       mockResolvedValue(mockCache.isNotFound, true);
 
-      const result = await redirectService.resolve("notfound", 0);
+      const result = await redirectService.resolve('notfound', 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("NOT_FOUND");
+      expect(result.error).toBe('NOT_FOUND');
       expect(mockCache.getLink).not.toHaveBeenCalled();
     });
 
-    it("should return INACTIVE for inactive link", async () => {
+    it('should return INACTIVE for inactive link', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-002",
-        originalUrl: "https://example.com",
+        id: 'test-id-002',
+        originalUrl: 'https://example.com',
         redirectType: 302,
         isActive: false,
         isBanned: false,
@@ -267,54 +265,54 @@ describe("RedirectService", () => {
         passwordHash: null,
         utmSource: null,
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.resolve("inactive", 0);
+      const result = await redirectService.resolve('inactive', 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("INACTIVE");
+      expect(result.error).toBe('INACTIVE');
     });
 
-    it("should return BANNED for banned link", async () => {
+    it('should return BANNED for banned link', async () => {
       mockResolvedValue(mockCache.isBanned, true);
 
-      const result = await redirectService.resolve("banned", 0);
+      const result = await redirectService.resolve('banned', 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("BANNED");
+      expect(result.error).toBe('BANNED');
     });
 
-    it("should return EXPIRED for expired link", async () => {
+    it('should return EXPIRED for expired link', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-003",
-        originalUrl: "https://example.com",
+        id: 'test-id-003',
+        originalUrl: 'https://example.com',
         redirectType: 302,
         isActive: true,
         isBanned: false,
-        expiresAt: new Date("2020-01-01").toISOString(),
+        expiresAt: new Date('2020-01-01').toISOString(),
         maxClicks: null,
         clicksCount: 0,
         passwordHash: null,
         utmSource: null,
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.resolve("expired", 0);
+      const result = await redirectService.resolve('expired', 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("EXPIRED");
+      expect(result.error).toBe('EXPIRED');
     });
 
-    it("should return MAX_CLICKS when limit reached", async () => {
+    it('should return MAX_CLICKS when limit reached', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-004",
-        originalUrl: "https://example.com",
+        id: 'test-id-004',
+        originalUrl: 'https://example.com',
         redirectType: 302,
         isActive: true,
         isBanned: false,
@@ -324,45 +322,45 @@ describe("RedirectService", () => {
         passwordHash: null,
         utmSource: null,
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.resolve("maxed", 0);
+      const result = await redirectService.resolve('maxed', 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("MAX_CLICKS");
+      expect(result.error).toBe('MAX_CLICKS');
     });
 
-    it("should return PASSWORD_REQUIRED for password-protected link", async () => {
+    it('should return PASSWORD_REQUIRED for password-protected link', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-005",
-        originalUrl: "https://example.com",
+        id: 'test-id-005',
+        originalUrl: 'https://example.com',
         redirectType: 302,
         isActive: true,
         isBanned: false,
         expiresAt: null,
         maxClicks: null,
         clicksCount: 0,
-        passwordHash: "$2b$10$hashedpassword",
+        passwordHash: '$2b$10$hashedpassword',
         utmSource: null,
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.resolve("protected", 0);
+      const result = await redirectService.resolve('protected', 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("PASSWORD_REQUIRED");
+      expect(result.error).toBe('PASSWORD_REQUIRED');
     });
 
-    it("should append UTM parameters to URL", async () => {
+    it('should append UTM parameters to URL', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-006",
-        originalUrl: "https://example.com",
+        id: 'test-id-006',
+        originalUrl: 'https://example.com',
         redirectType: 301,
         isActive: true,
         isBanned: false,
@@ -370,25 +368,25 @@ describe("RedirectService", () => {
         maxClicks: null,
         clicksCount: 0,
         passwordHash: null,
-        utmSource: "twitter",
-        utmMedium: "social",
-        utmCampaign: "launch",
+        utmSource: 'twitter',
+        utmMedium: 'social',
+        utmCampaign: 'launch'
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.resolve("with-utm", 0);
+      const result = await redirectService.resolve('with-utm', 0);
 
       expect(result.success).toBe(true);
-      expect(result.url).toContain("utm_source=twitter");
-      expect(result.url).toContain("utm_medium=social");
-      expect(result.url).toContain("utm_campaign=launch");
+      expect(result.url).toContain('utm_source=twitter');
+      expect(result.url).toContain('utm_medium=social');
+      expect(result.url).toContain('utm_campaign=launch');
     });
 
-    it("should preserve existing query parameters in URL", async () => {
+    it('should preserve existing query parameters in URL', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-007",
-        originalUrl: "https://example.com?existing=param",
+        id: 'test-id-007',
+        originalUrl: 'https://example.com?existing=param',
         redirectType: 301,
         isActive: true,
         isBanned: false,
@@ -396,26 +394,26 @@ describe("RedirectService", () => {
         maxClicks: null,
         clicksCount: 0,
         passwordHash: null,
-        utmSource: "email",
+        utmSource: 'email',
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.resolve("with-query", 0);
+      const result = await redirectService.resolve('with-query', 0);
 
       expect(result.success).toBe(true);
-      expect(result.url).toContain("existing=param");
-      expect(result.url).toContain("utm_source=email");
+      expect(result.url).toContain('existing=param');
+      expect(result.url).toContain('utm_source=email');
     });
   });
 
-  describe("isCodeAvailable()", () => {
-    it("should return false if code exists in cache", async () => {
+  describe('isCodeAvailable()', () => {
+    it('should return false if code exists in cache', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-008",
-        originalUrl: "https://example.com",
+        id: 'test-id-008',
+        originalUrl: 'https://example.com',
         redirectType: 301,
         isActive: true,
         isBanned: false,
@@ -425,50 +423,50 @@ describe("RedirectService", () => {
         passwordHash: null,
         utmSource: null,
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.isCodeAvailable("taken");
+      const result = await redirectService.isCodeAvailable('taken');
 
       expect(result).toBe(false);
     });
 
-    it("should return false if code exists in database", async () => {
+    it('should return false if code exists in database', async () => {
       mockResolvedValue(mockCache.getLink, null);
-      mockResolvedValue(mockLimitFn, [{ id: "test-id-009" }]);
+      mockResolvedValue(mockLimitFn, [{ id: 'test-id-009' }]);
 
-      const result = await redirectService.isCodeAvailable("taken-db");
+      const result = await redirectService.isCodeAvailable('taken-db');
 
       expect(result).toBe(false);
     });
 
-    it("should return true if code is available", async () => {
+    it('should return true if code is available', async () => {
       mockResolvedValue(mockCache.getLink, null);
       mockResolvedValue(mockLimitFn, []);
 
-      const result = await redirectService.isCodeAvailable("available");
+      const result = await redirectService.isCodeAvailable('available');
 
       expect(result).toBe(true);
     });
   });
 
-  describe("getHealthStats()", () => {
-    it("should return health statistics", async () => {
+  describe('getHealthStats()', () => {
+    it('should return health statistics', async () => {
       const stats = await redirectService.getHealthStats();
 
-      expect(stats).toHaveProperty("circuitBreaker");
-      expect(stats).toHaveProperty("cacheStats");
-      expect(typeof stats.circuitBreaker).toBe("string");
+      expect(stats).toHaveProperty('circuitBreaker');
+      expect(stats).toHaveProperty('cacheStats');
+      expect(typeof stats.circuitBreaker).toBe('string');
     });
   });
 
-  describe("Edge Cases", () => {
-    it("should handle URLs with special characters", async () => {
+  describe('Edge Cases', () => {
+    it('should handle URLs with special characters', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-010",
-        originalUrl: "https://example.com/path?query=value&other=123",
+        id: 'test-id-010',
+        originalUrl: 'https://example.com/path?query=value&other=123',
         redirectType: 301,
         isActive: true,
         isBanned: false,
@@ -478,21 +476,21 @@ describe("RedirectService", () => {
         passwordHash: null,
         utmSource: null,
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.resolve("special", 0);
+      const result = await redirectService.resolve('special', 0);
 
       expect(result.success).toBe(true);
       expect(result.url).toBe(mockLink.originalUrl);
     });
 
-    it("should handle URL building errors gracefully", async () => {
+    it('should handle URL building errors gracefully', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-011",
-        originalUrl: "not-a-valid-url",
+        id: 'test-id-011',
+        originalUrl: 'not-a-valid-url',
         redirectType: 301,
         isActive: true,
         isBanned: false,
@@ -500,23 +498,23 @@ describe("RedirectService", () => {
         maxClicks: null,
         clicksCount: 0,
         passwordHash: null,
-        utmSource: "test",
+        utmSource: 'test',
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.resolve("invalid-url", 0);
+      const result = await redirectService.resolve('invalid-url', 0);
 
       expect(result.success).toBe(true);
       expect(result.url).toBe(mockLink.originalUrl);
     });
 
-    it("should allow clicks up to maxClicks (not exceed)", async () => {
+    it('should allow clicks up to maxClicks (not exceed)', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-012",
-        originalUrl: "https://example.com",
+        id: 'test-id-012',
+        originalUrl: 'https://example.com',
         redirectType: 301,
         isActive: true,
         isBanned: false,
@@ -526,22 +524,22 @@ describe("RedirectService", () => {
         passwordHash: null,
         utmSource: null,
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.resolve("almost-maxed", 0);
+      const result = await redirectService.resolve('almost-maxed', 0);
 
       expect(result.success).toBe(true);
       expect(result.url).toMatch(/^https:\/\/example\.com\/?$/);
     });
 
-    it("should handle expiration at exact time boundary", async () => {
+    it('should handle expiration at exact time boundary', async () => {
       const past = new Date(Date.now() - 1000);
       const mockLink: CachedLink = {
-        id: "test-id-013",
-        originalUrl: "https://example.com",
+        id: 'test-id-013',
+        originalUrl: 'https://example.com',
         redirectType: 301,
         isActive: true,
         isBanned: false,
@@ -551,15 +549,15 @@ describe("RedirectService", () => {
         passwordHash: null,
         utmSource: null,
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockCache.getLink, mockLink);
 
-      const result = await redirectService.resolve("boundary", 0);
+      const result = await redirectService.resolve('boundary', 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("EXPIRED");
+      expect(result.error).toBe('EXPIRED');
     });
   });
 });

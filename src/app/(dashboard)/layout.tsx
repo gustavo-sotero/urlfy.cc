@@ -1,9 +1,9 @@
 // src/app/(dashboard)/layout.tsx
-import { Header } from "@/components/layout/header";
-import { Sidebar } from "@/components/layout/sidebar";
+import { Header } from '@/components/layout/header';
+import { Sidebar } from '@/components/layout/sidebar';
 
 export default async function DashboardLayout({
-  children,
+  children
 }: {
   children: React.ReactNode;
 }) {
@@ -15,9 +15,9 @@ export default async function DashboardLayout({
 
   // Mock user for development
   const mockUser = {
-    name: "Dev User",
-    email: "dev@urlfy.cc",
-    image: null,
+    name: 'Dev User',
+    email: 'dev@urlfy.cc',
+    image: null
   };
 
   return (

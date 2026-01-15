@@ -1,5 +1,5 @@
 // src/types/links.types.ts
-import type { links } from "@/db/schema";
+import type { links } from '@/db/schema';
 
 // ═══════════════════════════════════════════════════════════════════
 // INPUT TYPES
@@ -43,8 +43,8 @@ export interface ListLinksQuery {
   search?: string;
   tags?: string[];
   isActive?: boolean;
-  sortBy?: "createdAt" | "clicksCount" | "lastClickedAt";
-  sortOrder?: "asc" | "desc";
+  sortBy?: 'createdAt' | 'clicksCount' | 'lastClickedAt';
+  sortOrder?: 'asc' | 'desc';
 }
 
 // ═══════════════════════════════════════════════════════════════════

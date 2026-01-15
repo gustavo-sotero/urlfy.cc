@@ -10,8 +10,8 @@
  * bun test src/server/services/__tests__/cache.service.test.ts
  */
 
-import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { CachedLink } from "@/types/redirect.types";
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CachedLink } from '@/types/redirect.types';
 
 // Helper functions to work with Bun's mock API (Jest-like convenience)
 function mockResolvedValue<T>(fn: ReturnType<typeof mock>, value: T): void {
@@ -23,12 +23,12 @@ function mockRejectedValue(fn: ReturnType<typeof mock>, error: Error): void {
 }
 
 // Mock telemetry first to avoid OpenTelemetry initialization
-mock.module("@/server/lib/telemetry", () => ({
+mock.module('@/server/lib/telemetry', () => ({
   createLogger: () => ({
     debug: () => {},
     info: () => {},
     warn: () => {},
-    error: () => {},
+    error: () => {}
   }),
   initTelemetry: () => {},
   shutdownTelemetry: () => Promise.resolve(),
@@ -38,50 +38,50 @@ mock.module("@/server/lib/telemetry", () => ({
   recordRedirectMetrics: () => {},
   stampedeLocksAcquired: { add: () => {} },
   stampedeLocksWaited: { add: () => {} },
-  circuitBreakerTrips: { add: () => {} },
+  circuitBreakerTrips: { add: () => {} }
 }));
 
 // Mock Redis client with spies - defined before mockPipeline reference
 const mockPipeline = {
   del: mock(() => mockPipeline),
-  exec: mock<() => Promise<unknown[]>>(() => Promise.resolve([])),
+  exec: mock<() => Promise<unknown[]>>(() => Promise.resolve([]))
 };
 
 const mockRedis = {
   get: mock<(key: string) => Promise<string | null>>(() =>
-    Promise.resolve(null),
+    Promise.resolve(null)
   ),
   ttl: mock<(key: string) => Promise<number>>(() => Promise.resolve(3600)),
   setex: mock<(key: string, ttl: number, value: string) => Promise<string>>(
-    () => Promise.resolve("OK"),
+    () => Promise.resolve('OK')
   ),
   set: mock<(...args: unknown[]) => Promise<string>>(() =>
-    Promise.resolve("OK"),
+    Promise.resolve('OK')
   ),
   del: mock<(...keys: string[]) => Promise<number>>(() => Promise.resolve(1)),
   exists: mock<(key: string) => Promise<number>>(() => Promise.resolve(0)),
   keys: mock<(pattern: string) => Promise<string[]>>(() => Promise.resolve([])),
   pipeline: mock(() => mockPipeline),
-  info: mock<() => Promise<string>>(() => Promise.resolve("")),
+  info: mock<() => Promise<string>>(() => Promise.resolve('')),
   dbsize: mock<() => Promise<number>>(() => Promise.resolve(0)),
-  flushall: mock<() => Promise<string>>(() => Promise.resolve("OK")),
+  flushall: mock<() => Promise<string>>(() => Promise.resolve('OK'))
 };
 
 // Set up mock module BEFORE import
-mock.module("@/server/lib/redis", () => ({
+mock.module('@/server/lib/redis', () => ({
   getRedisClient: () => mockRedis,
-  redis: mockRedis,
+  redis: mockRedis
 }));
 
 // Now import the cache service (after mock is set up)
 const { CACHE_PREFIX, CACHE_TTL, cacheService } = await import(
-  "../cache.service"
+  '../cache.service'
 );
 
 // Helper to run with timeout protection - prevents hanging on mock failures
 async function withTimeout<T>(
   promise: Promise<T>,
-  ms: number = 500,
+  ms: number = 500
 ): Promise<{ success: boolean; result?: T; error?: Error }> {
   let timer: Timer | undefined;
   const timeoutPromise = new Promise<{ success: boolean }>((resolve) => {
@@ -91,7 +91,7 @@ async function withTimeout<T>(
   try {
     const result = await Promise.race([
       promise.then((r) => ({ success: true as const, result: r })),
-      timeoutPromise,
+      timeoutPromise
     ]);
     if (timer) clearTimeout(timer);
     return result as { success: boolean; result?: T };
@@ -101,7 +101,7 @@ async function withTimeout<T>(
   }
 }
 
-describe("CacheService", () => {
+describe('CacheService', () => {
   beforeEach(() => {
     // Reset all mocks
     mockRedis.get.mockClear();
@@ -125,12 +125,12 @@ describe("CacheService", () => {
     mockRedis.pipeline.mockImplementation(() => mockPipeline);
   });
 
-  describe("getLink()", () => {
-    it("should return null on cache miss", async () => {
+  describe('getLink()', () => {
+    it('should return null on cache miss', async () => {
       mockResolvedValue(mockRedis.get, null);
 
       const { success, result } = await withTimeout(
-        cacheService.getLink("abc123"),
+        cacheService.getLink('abc123')
       );
       if (!success) return; // Skip if mock not working
 
@@ -138,10 +138,10 @@ describe("CacheService", () => {
       expect(mockRedis.get).toHaveBeenCalledWith(`${CACHE_PREFIX.LINK}abc123`);
     });
 
-    it("should return parsed link on cache hit", async () => {
+    it('should return parsed link on cache hit', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-001",
-        originalUrl: "https://example.com",
+        id: 'test-id-001',
+        originalUrl: 'https://example.com',
         redirectType: 301,
         isActive: true,
         isBanned: false,
@@ -151,36 +151,36 @@ describe("CacheService", () => {
         passwordHash: null,
         utmSource: null,
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       mockResolvedValue(mockRedis.get, JSON.stringify(mockLink));
       mockResolvedValue(mockRedis.ttl, 3600);
 
       const { success, result } = await withTimeout(
-        cacheService.getLink("abc123", false),
+        cacheService.getLink('abc123', false)
       );
       if (!success) return;
 
       expect(result).toEqual(mockLink);
     });
 
-    it("should return null on parse error", async () => {
-      mockResolvedValue(mockRedis.get, "invalid-json");
+    it('should return null on parse error', async () => {
+      mockResolvedValue(mockRedis.get, 'invalid-json');
 
       const { success, result } = await withTimeout(
-        cacheService.getLink("abc123"),
+        cacheService.getLink('abc123')
       );
       if (!success) return;
 
       expect(result).toBeNull();
     });
 
-    it("should return null on Redis error", async () => {
-      mockRejectedValue(mockRedis.get, new Error("Redis error"));
+    it('should return null on Redis error', async () => {
+      mockRejectedValue(mockRedis.get, new Error('Redis error'));
 
       const { success, result } = await withTimeout(
-        cacheService.getLink("abc123"),
+        cacheService.getLink('abc123')
       );
       if (!success) return;
 
@@ -188,11 +188,11 @@ describe("CacheService", () => {
     });
   });
 
-  describe("setLink()", () => {
-    it("should cache link with correct TTL", async () => {
+  describe('setLink()', () => {
+    it('should cache link with correct TTL', async () => {
       const mockLink: CachedLink = {
-        id: "test-id-002",
-        originalUrl: "https://example.com",
+        id: 'test-id-002',
+        originalUrl: 'https://example.com',
         redirectType: 301,
         isActive: true,
         isBanned: false,
@@ -202,53 +202,53 @@ describe("CacheService", () => {
         passwordHash: null,
         utmSource: null,
         utmMedium: null,
-        utmCampaign: null,
+        utmCampaign: null
       };
 
       const { success } = await withTimeout(
-        cacheService.setLink("abc123", mockLink),
+        cacheService.setLink('abc123', mockLink)
       );
       if (!success) return;
 
       expect(mockRedis.setex).toHaveBeenCalledWith(
         `${CACHE_PREFIX.LINK}abc123`,
         CACHE_TTL.LINK,
-        JSON.stringify(mockLink),
+        JSON.stringify(mockLink)
       );
     });
   });
 
-  describe("isNotFound()", () => {
-    it("should return true if 404 cache exists", async () => {
+  describe('isNotFound()', () => {
+    it('should return true if 404 cache exists', async () => {
       mockResolvedValue(mockRedis.exists, 1);
 
       const { success, result } = await withTimeout(
-        cacheService.isNotFound("notfound"),
+        cacheService.isNotFound('notfound')
       );
       if (!success) return;
 
       expect(result).toBe(true);
       expect(mockRedis.exists).toHaveBeenCalledWith(
-        `${CACHE_PREFIX.LINK_404}notfound`,
+        `${CACHE_PREFIX.LINK_404}notfound`
       );
     });
 
-    it("should return false if 404 cache does not exist", async () => {
+    it('should return false if 404 cache does not exist', async () => {
       mockResolvedValue(mockRedis.exists, 0);
 
       const { success, result } = await withTimeout(
-        cacheService.isNotFound("exists"),
+        cacheService.isNotFound('exists')
       );
       if (!success) return;
 
       expect(result).toBe(false);
     });
 
-    it("should return false on Redis error", async () => {
-      mockRejectedValue(mockRedis.exists, new Error("Redis error"));
+    it('should return false on Redis error', async () => {
+      mockRejectedValue(mockRedis.exists, new Error('Redis error'));
 
       const { success, result } = await withTimeout(
-        cacheService.isNotFound("error"),
+        cacheService.isNotFound('error')
       );
       if (!success) return;
 
@@ -256,41 +256,41 @@ describe("CacheService", () => {
     });
   });
 
-  describe("setNotFound()", () => {
-    it("should cache 404 with negative TTL", async () => {
+  describe('setNotFound()', () => {
+    it('should cache 404 with negative TTL', async () => {
       const { success } = await withTimeout(
-        cacheService.setNotFound("notfound"),
+        cacheService.setNotFound('notfound')
       );
       if (!success) return;
 
       expect(mockRedis.setex).toHaveBeenCalledWith(
         `${CACHE_PREFIX.LINK_404}notfound`,
         CACHE_TTL.NEGATIVE,
-        "1",
+        '1'
       );
     });
   });
 
-  describe("isBanned()", () => {
-    it("should return true if banned cache exists", async () => {
+  describe('isBanned()', () => {
+    it('should return true if banned cache exists', async () => {
       mockResolvedValue(mockRedis.exists, 1);
 
       const { success, result } = await withTimeout(
-        cacheService.isBanned("banned"),
+        cacheService.isBanned('banned')
       );
       if (!success) return;
 
       expect(result).toBe(true);
       expect(mockRedis.exists).toHaveBeenCalledWith(
-        `${CACHE_PREFIX.LINK_BANNED}banned`,
+        `${CACHE_PREFIX.LINK_BANNED}banned`
       );
     });
 
-    it("should return false if banned cache does not exist", async () => {
+    it('should return false if banned cache does not exist', async () => {
       mockResolvedValue(mockRedis.exists, 0);
 
       const { success, result } = await withTimeout(
-        cacheService.isBanned("clean"),
+        cacheService.isBanned('clean')
       );
       if (!success) return;
 
@@ -298,54 +298,54 @@ describe("CacheService", () => {
     });
   });
 
-  describe("setBanned()", () => {
-    it("should cache banned link with correct TTL", async () => {
-      const { success } = await withTimeout(cacheService.setBanned("banned"));
+  describe('setBanned()', () => {
+    it('should cache banned link with correct TTL', async () => {
+      const { success } = await withTimeout(cacheService.setBanned('banned'));
       if (!success) return;
 
       expect(mockRedis.setex).toHaveBeenCalledWith(
         `${CACHE_PREFIX.LINK_BANNED}banned`,
         CACHE_TTL.BANNED,
-        "1",
+        '1'
       );
     });
   });
 
-  describe("invalidateLink()", () => {
-    it("should delete all related cache entries", async () => {
+  describe('invalidateLink()', () => {
+    it('should delete all related cache entries', async () => {
       mockResolvedValue(mockRedis.keys, [
-        "qr:abc123:200:png",
-        "qr:abc123:400:svg",
+        'qr:abc123:200:png',
+        'qr:abc123:400:svg'
       ]);
 
       const { success } = await withTimeout(
-        cacheService.invalidateLink("abc123"),
+        cacheService.invalidateLink('abc123')
       );
       if (!success) return;
 
       expect(mockPipeline.del).toHaveBeenCalledWith(
-        `${CACHE_PREFIX.LINK}abc123`,
+        `${CACHE_PREFIX.LINK}abc123`
       );
       expect(mockPipeline.del).toHaveBeenCalledWith(
-        `${CACHE_PREFIX.LINK_META}abc123`,
+        `${CACHE_PREFIX.LINK_META}abc123`
       );
       expect(mockPipeline.del).toHaveBeenCalledWith(
-        `${CACHE_PREFIX.LINK_404}abc123`,
+        `${CACHE_PREFIX.LINK_404}abc123`
       );
       expect(mockPipeline.del).toHaveBeenCalledWith(
-        `${CACHE_PREFIX.LINK_BANNED}abc123`,
+        `${CACHE_PREFIX.LINK_BANNED}abc123`
       );
       expect(mockRedis.keys).toHaveBeenCalledWith(
-        `${CACHE_PREFIX.QR_CODE}abc123:*`,
+        `${CACHE_PREFIX.QR_CODE}abc123:*`
       );
       expect(mockPipeline.exec).toHaveBeenCalled();
     });
 
-    it("should handle case with no QR codes", async () => {
+    it('should handle case with no QR codes', async () => {
       mockResolvedValue(mockRedis.keys, []);
 
       const { success } = await withTimeout(
-        cacheService.invalidateLink("no-qr"),
+        cacheService.invalidateLink('no-qr')
       );
       if (!success) return;
 
@@ -353,94 +353,94 @@ describe("CacheService", () => {
     });
   });
 
-  describe("invalidateAndBan()", () => {
-    it("should invalidate and mark as banned", async () => {
+  describe('invalidateAndBan()', () => {
+    it('should invalidate and mark as banned', async () => {
       mockResolvedValue(mockRedis.keys, []);
 
       const { success } = await withTimeout(
-        cacheService.invalidateAndBan("malicious"),
+        cacheService.invalidateAndBan('malicious')
       );
       if (!success) return;
 
       expect(mockRedis.setex).toHaveBeenCalledWith(
         `${CACHE_PREFIX.LINK_BANNED}malicious`,
         CACHE_TTL.BANNED,
-        "1",
+        '1'
       );
     });
   });
 
-  describe("invalidateAndMarkDeleted()", () => {
-    it("should invalidate and mark as not found", async () => {
+  describe('invalidateAndMarkDeleted()', () => {
+    it('should invalidate and mark as not found', async () => {
       mockResolvedValue(mockRedis.keys, []);
 
       const { success } = await withTimeout(
-        cacheService.invalidateAndMarkDeleted("deleted"),
+        cacheService.invalidateAndMarkDeleted('deleted')
       );
       if (!success) return;
 
       expect(mockRedis.setex).toHaveBeenCalledWith(
         `${CACHE_PREFIX.LINK_404}deleted`,
         CACHE_TTL.NEGATIVE,
-        "1",
+        '1'
       );
     });
   });
 
-  describe("getCacheStats()", () => {
-    it("should return cache statistics", async () => {
+  describe('getCacheStats()', () => {
+    it('should return cache statistics', async () => {
       mockResolvedValue(
         mockRedis.info,
-        "# Stats\r\nkeyspace_hits:1000\r\nkeyspace_misses:100\r\n# Memory\r\nused_memory_human:1.5M\r\n",
+        '# Stats\r\nkeyspace_hits:1000\r\nkeyspace_misses:100\r\n# Memory\r\nused_memory_human:1.5M\r\n'
       );
       mockResolvedValue(mockRedis.dbsize, 500);
 
       const { success, result: stats } = await withTimeout(
-        cacheService.getCacheStats(),
+        cacheService.getCacheStats()
       );
       if (!success || !stats) return;
 
-      expect(stats.memory).toBe("1.5M");
+      expect(stats.memory).toBe('1.5M');
       expect(stats.keys).toBe(500);
       expect(stats.hitRate).toBeCloseTo(90.91, 1);
     });
 
-    it("should handle zero hits/misses", async () => {
-      mockResolvedValue(mockRedis.info, "# Stats\r\n# Memory\r\n");
+    it('should handle zero hits/misses', async () => {
+      mockResolvedValue(mockRedis.info, '# Stats\r\n# Memory\r\n');
       mockResolvedValue(mockRedis.dbsize, 0);
 
       const { success, result: stats } = await withTimeout(
-        cacheService.getCacheStats(),
+        cacheService.getCacheStats()
       );
       if (!success || !stats) return;
 
       expect(stats.hitRate).toBeNull();
     });
 
-    it("should handle Redis errors gracefully", async () => {
-      mockRejectedValue(mockRedis.info, new Error("Redis error"));
-      mockRejectedValue(mockRedis.dbsize, new Error("Redis error"));
+    it('should handle Redis errors gracefully', async () => {
+      mockRejectedValue(mockRedis.info, new Error('Redis error'));
+      mockRejectedValue(mockRedis.dbsize, new Error('Redis error'));
 
       const { success, result: stats } = await withTimeout(
-        cacheService.getCacheStats(),
+        cacheService.getCacheStats()
       );
       if (!success || !stats) return;
 
-      expect(stats.memory).toBe("unknown");
+      expect(stats.memory).toBe('unknown');
       expect(stats.keys).toBe(0);
       expect(stats.hitRate).toBeNull();
     });
   });
 
-  describe("flushLinks()", () => {
-    it("should delete all link-related keys", async () => {
+  describe('flushLinks()', () => {
+    it('should delete all link-related keys', async () => {
       let callCount = 0;
       mockRedis.keys.mockImplementation(() => {
         callCount++;
-        if (callCount === 1) return Promise.resolve(["link:abc", "link:def"]);
-        if (callCount === 2) return Promise.resolve(["link:meta:abc"]);
-        if (callCount === 3) return Promise.resolve(["link:404:xyz"]);
-        if (callCount === 4) return Promise.resolve(["link:banned:bad"]);
+        if (callCount === 1) return Promise.resolve(['link:abc', 'link:def']);
+        if (callCount === 2) return Promise.resolve(['link:meta:abc']);
+        if (callCount === 3) return Promise.resolve(['link:404:xyz']);
+        if (callCount === 4) return Promise.resolve(['link:banned:bad']);
         return Promise.resolve([]);
       });
 
@@ -451,7 +451,7 @@ describe("CacheService", () => {
       expect(mockRedis.del).toHaveBeenCalled();
     });
 
-    it("should handle empty patterns", async () => {
+    it('should handle empty patterns', async () => {
       mockResolvedValue(mockRedis.keys, []);
 
       const { success } = await withTimeout(cacheService.flushLinks());

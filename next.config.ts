@@ -1,9 +1,9 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 // Security headers
 const securityHeaders = [
   {
-    key: "Content-Security-Policy",
+    key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // needed for Next.js
@@ -14,33 +14,33 @@ const securityHeaders = [
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-      "upgrade-insecure-requests",
-    ].join("; "),
+      'upgrade-insecure-requests'
+    ].join('; ')
   },
   {
-    key: "Strict-Transport-Security",
-    value: "max-age=31536000; includeSubDomains; preload",
+    key: 'Strict-Transport-Security',
+    value: 'max-age=31536000; includeSubDomains; preload'
   },
   {
-    key: "X-Content-Type-Options",
-    value: "nosniff",
+    key: 'X-Content-Type-Options',
+    value: 'nosniff'
   },
   {
-    key: "X-Frame-Options",
-    value: "DENY",
+    key: 'X-Frame-Options',
+    value: 'DENY'
   },
   {
-    key: "X-XSS-Protection",
-    value: "1; mode=block",
+    key: 'X-XSS-Protection',
+    value: '1; mode=block'
   },
   {
-    key: "Referrer-Policy",
-    value: "strict-origin-when-cross-origin",
+    key: 'Referrer-Policy',
+    value: 'strict-origin-when-cross-origin'
   },
   {
-    key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), payment=()",
-  },
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=(), payment=()'
+  }
 ];
 
 const nextConfig: NextConfig = {
@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
 
   // Standalone output for Docker
-  output: "standalone",
+  output: 'standalone',
 
   // Optimize for production
   poweredByHeader: false,
@@ -57,18 +57,18 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/:path*",
-        headers: securityHeaders,
-      },
+        source: '/:path*',
+        headers: securityHeaders
+      }
     ];
   },
 
   // Experimental features
   experimental: {
     serverActions: {
-      bodySizeLimit: "2mb",
-    },
-  },
+      bodySizeLimit: '2mb'
+    }
+  }
 };
 
 export default nextConfig;

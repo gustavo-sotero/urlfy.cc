@@ -1,30 +1,30 @@
 // src/app/(auth)/login/page.tsx
-"use client";
+'use client';
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Github, Loader2, Mail } from "lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { AccessibleFormField } from "@/components/forms/accessible-form-field";
-import { Button } from "@/components/ui/button";
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Github, Loader2, Mail } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { AccessibleFormField } from '@/components/forms/accessible-form-field';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { authClient } from "@/lib/auth.client";
+  CardTitle
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+import { authClient } from '@/lib/auth.client';
 
 const schema = z.object({
-  email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres')
 });
 
 type FormData = z.infer<typeof schema>;
@@ -34,14 +34,14 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      email: "",
-      password: "",
-    },
+      email: '',
+      password: ''
+    }
   });
 
   const onSubmit = async (data: FormData) => {
@@ -51,31 +51,31 @@ function LoginForm() {
     try {
       const result = await authClient.signIn.email({
         email: data.email,
-        password: data.password,
+        password: data.password
       });
 
       if (result.error) {
-        setError(result.error.message || "Erro ao fazer login");
+        setError(result.error.message || 'Erro ao fazer login');
         return;
       }
 
       router.push(callbackUrl);
     } catch {
-      setError("Erro ao fazer login. Tente novamente.");
+      setError('Erro ao fazer login. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOAuthLogin = async (provider: "google" | "github") => {
+  const handleOAuthLogin = async (provider: 'google' | 'github') => {
     setIsLoading(true);
     try {
       await authClient.signIn.social({
         provider,
-        callbackURL: callbackUrl,
+        callbackURL: callbackUrl
       });
     } catch {
-      setError("Erro ao fazer login. Tente novamente.");
+      setError('Erro ao fazer login. Tente novamente.');
       setIsLoading(false);
     }
   };
@@ -93,7 +93,7 @@ function LoginForm() {
         <div className="grid grid-cols-2 gap-4">
           <Button
             variant="outline"
-            onClick={() => handleOAuthLogin("google")}
+            onClick={() => handleOAuthLogin('google')}
             disabled={isLoading}
           >
             <svg
@@ -122,7 +122,7 @@ function LoginForm() {
           </Button>
           <Button
             variant="outline"
-            onClick={() => handleOAuthLogin("github")}
+            onClick={() => handleOAuthLogin('github')}
             disabled={isLoading}
           >
             <Github className="mr-2 h-4 w-4" />
@@ -153,7 +153,7 @@ function LoginForm() {
               id="email"
               type="email"
               placeholder="seu@email.com"
-              {...form.register("email")}
+              {...form.register('email')}
               disabled={isLoading}
               aria-invalid={!!form.formState.errors.email}
             />
@@ -169,7 +169,7 @@ function LoginForm() {
               id="password"
               type="password"
               placeholder="••••••••"
-              {...form.register("password")}
+              {...form.register('password')}
               disabled={isLoading}
               aria-invalid={!!form.formState.errors.password}
             />
@@ -210,7 +210,7 @@ function LoginForm() {
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
-          Não tem conta?{" "}
+          Não tem conta?{' '}
           <Link href="/signup" className="text-primary hover:underline">
             Criar conta grátis
           </Link>

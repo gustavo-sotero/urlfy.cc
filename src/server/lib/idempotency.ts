@@ -1,5 +1,5 @@
 // src/server/lib/idempotency.ts
-import { redis } from "./redis";
+import { redis } from './redis';
 
 const TTL = 86400; // 24 horas
 
@@ -12,7 +12,7 @@ export async function checkIdempotency(key: string): Promise<string | null> {
   try {
     return await redis.get(`idempotency:${key}`);
   } catch (error) {
-    console.warn("Redis unavailable for idempotency check:", error);
+    console.warn('Redis unavailable for idempotency check:', error);
     return null;
   }
 }
@@ -24,12 +24,12 @@ export async function checkIdempotency(key: string): Promise<string | null> {
  */
 export async function setIdempotency(
   key: string,
-  resourceId: string,
+  resourceId: string
 ): Promise<void> {
   try {
-    await redis.set(`idempotency:${key}`, resourceId, "EX", TTL);
+    await redis.set(`idempotency:${key}`, resourceId, 'EX', TTL);
   } catch (error) {
-    console.warn("Failed to set idempotency key:", error);
+    console.warn('Failed to set idempotency key:', error);
   }
 }
 

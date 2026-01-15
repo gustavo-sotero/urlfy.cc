@@ -1,9 +1,9 @@
 // src/components/error-boundary.tsx
-"use client";
+'use client';
 
-import { AlertTriangle, RefreshCw } from "lucide-react";
-import { Component, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Component, type ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   children: ReactNode;
@@ -26,10 +26,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
 
     // Send to error tracking service
-    if (typeof window !== "undefined" && window.reportError) {
+    if (typeof window !== 'undefined' && window.reportError) {
       window.reportError(error);
     }
 
@@ -56,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="space-y-2">
             <h2 className="text-2xl font-semibold">Algo deu errado</h2>
             <p className="text-muted-foreground">
-              {this.state.error?.message ?? "Ocorreu um erro inesperado"}
+              {this.state.error?.message ?? 'Ocorreu um erro inesperado'}
             </p>
           </div>
           <Button onClick={this.handleRetry} variant="outline">

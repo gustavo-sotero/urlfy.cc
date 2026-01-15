@@ -1,20 +1,20 @@
 // src/components/admin/link-search-table.tsx
-"use client";
+'use client';
 
-import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Ban, CheckCircle, ExternalLink } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Ban, CheckCircle, ExternalLink } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import type { LinkResponse } from "@/types/links.types";
+  TableRow
+} from '@/components/ui/table';
+import type { LinkResponse } from '@/types/links.types';
 
 interface LinkSearchTableProps {
   links: LinkResponse[];
@@ -25,7 +25,7 @@ interface LinkSearchTableProps {
 export function LinkSearchTable({
   links,
   onBan,
-  onUnban,
+  onUnban
 }: LinkSearchTableProps) {
   if (links.length === 0) {
     return (
@@ -87,7 +87,7 @@ export function LinkSearchTable({
               <TableCell className="text-sm text-muted-foreground">
                 {formatDistanceToNow(new Date(link.createdAt), {
                   addSuffix: true,
-                  locale: ptBR,
+                  locale: ptBR
                 })}
               </TableCell>
               <TableCell className="text-right">

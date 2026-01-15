@@ -7,9 +7,9 @@
  */
 export async function isServerRunning(): Promise<boolean> {
   try {
-    const response = await fetch("http://localhost:3000/api/v1/health", {
-      method: "GET",
-      signal: AbortSignal.timeout(2000), // 2 second timeout
+    const response = await fetch('http://localhost:3000/api/v1/health', {
+      method: 'GET',
+      signal: AbortSignal.timeout(2000) // 2 second timeout
     });
     return response.ok;
   } catch {
@@ -23,9 +23,9 @@ export async function isServerRunning(): Promise<boolean> {
  */
 export async function isDatabaseAvailable(): Promise<boolean> {
   try {
-    const { checkDatabaseHealth } = await import("@/db");
+    const { checkDatabaseHealth } = await import('@/db');
     const health = await checkDatabaseHealth();
-    return health.status === "ok";
+    return health.status === 'ok';
   } catch {
     return false;
   }
@@ -39,7 +39,7 @@ export async function requireServer(): Promise<void> {
   const serverUp = await isServerRunning();
   if (!serverUp) {
     throw new Error(
-      "Integration test skipped: Server not running at localhost:3000. Start with `bun dev`",
+      'Integration test skipped: Server not running at localhost:3000. Start with `bun dev`'
     );
   }
 }
@@ -52,7 +52,7 @@ export async function requireDatabase(): Promise<void> {
   const dbUp = await isDatabaseAvailable();
   if (!dbUp) {
     throw new Error(
-      "Test skipped: Database not available. Start with `docker-compose up -d postgres`",
+      'Test skipped: Database not available. Start with `docker-compose up -d postgres`'
     );
   }
 }
@@ -69,8 +69,8 @@ export function createIntegrationTestContext() {
     async setup() {
       serverAvailable = await isServerRunning();
       try {
-        const { db } = await import("@/db");
-        databaseAvailable = typeof db?.select === "function";
+        const { db } = await import('@/db');
+        databaseAvailable = typeof db?.select === 'function';
       } catch {
         databaseAvailable = false;
       }
@@ -83,17 +83,17 @@ export function createIntegrationTestContext() {
     },
     skipIfNoServer(fn: () => void | Promise<void>) {
       if (!serverAvailable) {
-        console.log("⚠️  Skipping test: Server not running at localhost:3000");
+        console.log('⚠️  Skipping test: Server not running at localhost:3000');
         return;
       }
       return fn();
     },
     skipIfNoDatabase(fn: () => void | Promise<void>) {
       if (!databaseAvailable) {
-        console.log("⚠️  Skipping test: Database not available");
+        console.log('⚠️  Skipping test: Database not available');
         return;
       }
       return fn();
-    },
+    }
   };
 }

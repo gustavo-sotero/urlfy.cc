@@ -1,47 +1,47 @@
 // src/server/lib/__tests__/sanitize.test.ts
-import { describe, expect, it } from "bun:test";
-import { sanitizeMetaTags } from "../sanitize";
+import { describe, expect, it } from 'bun:test';
+import { sanitizeMetaTags } from '../sanitize';
 
-describe("Sanitize", () => {
-  describe("sanitizeMetaTags", () => {
-    it("should remove HTML tags from title", () => {
+describe('Sanitize', () => {
+  describe('sanitizeMetaTags', () => {
+    it('should remove HTML tags from title', () => {
       const result = sanitizeMetaTags({
-        title: '<script>alert("xss")</script>Clean Title',
+        title: '<script>alert("xss")</script>Clean Title'
       });
 
-      expect(result.metaTitle).not.toContain("<script>");
-      expect(result.metaTitle).toContain("Clean Title");
+      expect(result.metaTitle).not.toContain('<script>');
+      expect(result.metaTitle).toContain('Clean Title');
     });
 
-    it("should limit title to 60 characters", () => {
-      const longTitle = "A".repeat(100);
+    it('should limit title to 60 characters', () => {
+      const longTitle = 'A'.repeat(100);
       const result = sanitizeMetaTags({ title: longTitle });
 
       expect(result.metaTitle?.length).toBe(60);
     });
 
-    it("should remove HTML tags from description", () => {
+    it('should remove HTML tags from description', () => {
       const result = sanitizeMetaTags({
-        description: "<b>Bold</b> and <i>italic</i> text",
+        description: '<b>Bold</b> and <i>italic</i> text'
       });
 
-      expect(result.metaDescription).not.toContain("<b>");
-      expect(result.metaDescription).not.toContain("<i>");
-      expect(result.metaDescription).toContain("Bold and italic text");
+      expect(result.metaDescription).not.toContain('<b>');
+      expect(result.metaDescription).not.toContain('<i>');
+      expect(result.metaDescription).toContain('Bold and italic text');
     });
 
-    it("should limit description to 160 characters", () => {
-      const longDesc = "B".repeat(200);
+    it('should limit description to 160 characters', () => {
+      const longDesc = 'B'.repeat(200);
       const result = sanitizeMetaTags({ description: longDesc });
 
       expect(result.metaDescription?.length).toBe(160);
     });
 
-    it("should accept valid HTTPS image URLs from allowed hosts", () => {
+    it('should accept valid HTTPS image URLs from allowed hosts', () => {
       const validImages = [
-        "https://i.imgur.com/image.png",
-        "https://images.unsplash.com/photo.jpg",
-        "https://res.cloudinary.com/user/image.webp",
+        'https://i.imgur.com/image.png',
+        'https://images.unsplash.com/photo.jpg',
+        'https://res.cloudinary.com/user/image.webp'
       ];
 
       validImages.forEach((image) => {
@@ -50,30 +50,30 @@ describe("Sanitize", () => {
       });
     });
 
-    it("should reject HTTP image URLs", () => {
+    it('should reject HTTP image URLs', () => {
       const result = sanitizeMetaTags({
-        image: "http://example.com/image.jpg",
+        image: 'http://example.com/image.jpg'
       });
 
       expect(result.metaImage).toBeNull();
     });
 
-    it("should reject images from unknown hosts", () => {
+    it('should reject images from unknown hosts', () => {
       const result = sanitizeMetaTags({
-        image: "https://unknown-cdn.com/image.jpg",
+        image: 'https://unknown-cdn.com/image.jpg'
       });
 
       expect(result.metaImage).toBeNull();
     });
 
-    it("should reject image URLs longer than 500 chars", () => {
-      const longUrl = `https://i.imgur.com/${"a".repeat(500)}`;
+    it('should reject image URLs longer than 500 chars', () => {
+      const longUrl = `https://i.imgur.com/${'a'.repeat(500)}`;
       const result = sanitizeMetaTags({ image: longUrl });
 
       expect(result.metaImage).toBeNull();
     });
 
-    it("should return null for missing fields", () => {
+    it('should return null for missing fields', () => {
       const result = sanitizeMetaTags({});
 
       expect(result.metaTitle).toBeNull();

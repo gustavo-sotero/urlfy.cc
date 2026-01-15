@@ -1,115 +1,115 @@
 // tests/load/redirect-scenarios.js
 
-import { randomIntBetween } from "https://jslib.k6.io/k6-utils/1.2.0/index.js";
-import { check, group, sleep } from "k6";
-import http from "k6/http";
-import { Counter, Rate, Trend } from "k6/metrics";
+import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
+import { check, group, sleep } from 'k6';
+import http from 'k6/http';
+import { Counter, Rate, Trend } from 'k6/metrics';
 
 // ═══════════════════════════════════════════════════════════════════
 // CUSTOM METRICS
 // ═══════════════════════════════════════════════════════════════════
 
-const redirectLatency = new Trend("redirect_latency");
-const cacheHits = new Counter("cache_hits");
-const cacheMisses = new Counter("cache_misses");
-const errorRate = new Rate("error_rate");
-const notFoundRate = new Rate("not_found_rate");
-const successRate = new Rate("success_rate");
+const redirectLatency = new Trend('redirect_latency');
+const cacheHits = new Counter('cache_hits');
+const cacheMisses = new Counter('cache_misses');
+const errorRate = new Rate('error_rate');
+const notFoundRate = new Rate('not_found_rate');
+const successRate = new Rate('success_rate');
 
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
 
-const BASE_URL = __ENV.BASE_URL || "http://localhost:3000";
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 
 export const options = {
   scenarios: {
     // Cenário 1: Carga constante (baseline)
     constant_load: {
-      executor: "constant-vus",
+      executor: 'constant-vus',
       vus: 50,
-      duration: "2m",
-      tags: { scenario: "constant" },
-      exec: "constantLoad",
+      duration: '2m',
+      tags: { scenario: 'constant' },
+      exec: 'constantLoad'
     },
 
     // Cenário 2: Ramp-up gradual (teste de capacidade)
     ramp_up: {
-      executor: "ramping-vus",
+      executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: "1m", target: 100 },
-        { duration: "2m", target: 500 },
-        { duration: "1m", target: 1000 },
-        { duration: "2m", target: 1000 },
-        { duration: "1m", target: 0 },
+        { duration: '1m', target: 100 },
+        { duration: '2m', target: 500 },
+        { duration: '1m', target: 1000 },
+        { duration: '2m', target: 1000 },
+        { duration: '1m', target: 0 }
       ],
-      tags: { scenario: "ramp" },
-      exec: "rampUp",
+      tags: { scenario: 'ramp' },
+      exec: 'rampUp'
     },
 
     // Cenário 3: Spike test (pico repentino)
     spike: {
-      executor: "ramping-arrival-rate",
+      executor: 'ramping-arrival-rate',
       startRate: 100,
-      timeUnit: "1s",
+      timeUnit: '1s',
       preAllocatedVUs: 500,
       maxVUs: 2000,
       stages: [
-        { duration: "30s", target: 100 },
-        { duration: "10s", target: 2000 }, // Spike!
-        { duration: "1m", target: 2000 },
-        { duration: "30s", target: 100 },
+        { duration: '30s', target: 100 },
+        { duration: '10s', target: 2000 }, // Spike!
+        { duration: '1m', target: 2000 },
+        { duration: '30s', target: 100 }
       ],
-      tags: { scenario: "spike" },
-      exec: "spikeTest",
+      tags: { scenario: 'spike' },
+      exec: 'spikeTest'
     },
 
     // Cenário 4: Soak test (estabilidade de longo prazo)
     soak: {
-      executor: "constant-arrival-rate",
+      executor: 'constant-arrival-rate',
       rate: 200,
-      timeUnit: "1s",
-      duration: "10m",
+      timeUnit: '1s',
+      duration: '10m',
       preAllocatedVUs: 100,
       maxVUs: 200,
-      tags: { scenario: "soak" },
-      exec: "soakTest",
+      tags: { scenario: 'soak' },
+      exec: 'soakTest'
     },
 
     // Cenário 5: Stress test (encontrar limites)
     stress: {
-      executor: "ramping-arrival-rate",
+      executor: 'ramping-arrival-rate',
       startRate: 100,
-      timeUnit: "1s",
+      timeUnit: '1s',
       preAllocatedVUs: 1000,
       maxVUs: 5000,
       stages: [
-        { duration: "2m", target: 500 },
-        { duration: "2m", target: 1000 },
-        { duration: "2m", target: 2000 },
-        { duration: "2m", target: 3000 },
-        { duration: "2m", target: 4000 },
-        { duration: "1m", target: 0 },
+        { duration: '2m', target: 500 },
+        { duration: '2m', target: 1000 },
+        { duration: '2m', target: 2000 },
+        { duration: '2m', target: 3000 },
+        { duration: '2m', target: 4000 },
+        { duration: '1m', target: 0 }
       ],
-      tags: { scenario: "stress" },
-      exec: "stressTest",
-    },
+      tags: { scenario: 'stress' },
+      exec: 'stressTest'
+    }
   },
 
   // Thresholds (SLOs do PRD)
   thresholds: {
     // Latência P50 < 30ms e P99 < 300ms
-    "redirect_latency{scenario:constant}": ["p(50)<30", "p(99)<300"],
+    'redirect_latency{scenario:constant}': ['p(50)<30', 'p(99)<300'],
     // Taxa de erro < 0.1%
-    error_rate: ["rate<0.001"],
+    error_rate: ['rate<0.001'],
     // Taxa de sucesso > 99.9%
-    success_rate: ["rate>0.999"],
+    success_rate: ['rate>0.999'],
     // HTTP req duration
-    http_req_duration: ["p(50)<30", "p(95)<200", "p(99)<300"],
+    http_req_duration: ['p(50)<30', 'p(95)<200', 'p(99)<300'],
     // Taxa de falha < 1%
-    http_req_failed: ["rate<0.01"],
-  },
+    http_req_failed: ['rate<0.01']
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -118,23 +118,23 @@ export const options = {
 
 // Links de teste (devem ser pré-criados no ambiente)
 const TEST_LINKS = [
-  "test001",
-  "test002",
-  "test003",
-  "test004",
-  "test005",
-  "test006",
-  "test007",
-  "test008",
-  "test009",
-  "test010",
+  'test001',
+  'test002',
+  'test003',
+  'test004',
+  'test005',
+  'test006',
+  'test007',
+  'test008',
+  'test009',
+  'test010'
 ];
 
 // Link para teste de viralidade (spike)
-const VIRAL_LINK = "viral-test";
+const VIRAL_LINK = 'viral-test';
 
 // Links inexistentes (teste de cache negativo)
-const NON_EXISTENT_LINKS = ["notfound1", "notfound2", "notfound3"];
+const NON_EXISTENT_LINKS = ['notfound1', 'notfound2', 'notfound3'];
 
 // ═══════════════════════════════════════════════════════════════════
 // SCENARIO FUNCTIONS
@@ -175,30 +175,30 @@ function performRedirect(code) {
 
   const res = http.get(`${BASE_URL}/${code}`, {
     redirects: 0, // Não seguir redirects
-    tags: { name: "redirect" },
+    tags: { name: 'redirect' },
     headers: {
-      "User-Agent": "k6-load-test/1.0",
-      Accept: "*/*",
-    },
+      'User-Agent': 'k6-load-test/1.0',
+      Accept: '*/*'
+    }
   });
 
   const latency = Date.now() - startTime;
   redirectLatency.add(latency);
 
   // Verifica cache hit via header customizado (se implementado)
-  const cacheStatus = res.headers["X-Cache-Status"];
-  if (cacheStatus === "HIT") {
+  const cacheStatus = res.headers['X-Cache-Status'];
+  if (cacheStatus === 'HIT') {
     cacheHits.add(1);
-  } else if (cacheStatus === "MISS") {
+  } else if (cacheStatus === 'MISS') {
     cacheMisses.add(1);
   }
 
   // Validações
   const success = check(res, {
-    "is redirect": (r) => r.status === 301 || r.status === 302,
-    "has location": (r) => r.headers.Location !== undefined,
-    "has request-id": (r) => r.headers["X-Request-Id"] !== undefined,
-    "latency within SLO": () => latency < 300,
+    'is redirect': (r) => r.status === 301 || r.status === 302,
+    'has location': (r) => r.headers.Location !== undefined,
+    'has request-id': (r) => r.headers['X-Request-Id'] !== undefined,
+    'latency within SLO': () => latency < 300
   });
 
   if (success) {
@@ -211,7 +211,7 @@ function performRedirect(code) {
 
   if (
     res.status === 404 ||
-    (res.status === 302 && res.headers.Location?.includes("/404"))
+    (res.status === 302 && res.headers.Location?.includes('/404'))
   ) {
     notFoundRate.add(1);
   } else {
@@ -224,84 +224,83 @@ function performRedirect(code) {
 // ═══════════════════════════════════════════════════════════════════
 
 export function testNotFound() {
-  group("Not Found Handling", () => {
+  group('Not Found Handling', () => {
     const code =
       NON_EXISTENT_LINKS[randomIntBetween(0, NON_EXISTENT_LINKS.length - 1)];
 
     const res = http.get(`${BASE_URL}/${code}`, {
       redirects: 0,
-      tags: { name: "not_found" },
+      tags: { name: 'not_found' }
     });
 
     check(res, {
-      "returns 302 to 404 page": (r) => r.status === 302,
-      "location is 404": (r) => r.headers.Location?.includes("/404"),
-      "has error code header": (r) => r.headers["X-Error-Code"] === "NOT_FOUND",
+      'returns 302 to 404 page': (r) => r.status === 302,
+      'location is 404': (r) => r.headers.Location?.includes('/404'),
+      'has error code header': (r) => r.headers['X-Error-Code'] === 'NOT_FOUND'
     });
   });
 }
 
 export function testProtectedLink() {
-  group("Password Protected Link", () => {
+  group('Password Protected Link', () => {
     const res = http.get(`${BASE_URL}/protected`, {
       redirects: 0,
-      tags: { name: "password_protected" },
+      tags: { name: 'password_protected' }
     });
 
     check(res, {
-      "redirects to unlock page": (r) => r.status === 302,
-      "location is unlock": (r) => r.headers.Location?.includes("/unlock/"),
-      "has error code": (r) =>
-        r.headers["X-Error-Code"] === "PASSWORD_REQUIRED",
+      'redirects to unlock page': (r) => r.status === 302,
+      'location is unlock': (r) => r.headers.Location?.includes('/unlock/'),
+      'has error code': (r) => r.headers['X-Error-Code'] === 'PASSWORD_REQUIRED'
     });
   });
 }
 
 export function testRedirectLoop() {
-  group("Redirect Loop Detection", () => {
+  group('Redirect Loop Detection', () => {
     const res = http.get(`${BASE_URL}/test001`, {
       redirects: 0,
-      tags: { name: "redirect_loop" },
+      tags: { name: 'redirect_loop' },
       headers: {
-        "X-Redirect-Depth": "3", // Simula profundidade máxima
-      },
+        'X-Redirect-Depth': '3' // Simula profundidade máxima
+      }
     });
 
     check(res, {
-      "returns 421": (r) => r.status === 421,
-      "has error code": (r) => r.headers["X-Error-Code"] === "REDIRECT_LOOP",
+      'returns 421': (r) => r.status === 421,
+      'has error code': (r) => r.headers['X-Error-Code'] === 'REDIRECT_LOOP'
     });
   });
 }
 
 export function testCacheNegative() {
-  group("Negative Cache", () => {
-    const code = "definitely-does-not-exist-123";
+  group('Negative Cache', () => {
+    const code = 'definitely-does-not-exist-123';
 
     // Primeira request (cache miss)
     http.get(`${BASE_URL}/${code}`, {
       redirects: 0,
-      tags: { name: "negative_cache_miss" },
+      tags: { name: 'negative_cache_miss' }
     });
 
     // Segunda request (deve usar cache negativo)
     const startTime = Date.now();
     const res2 = http.get(`${BASE_URL}/${code}`, {
       redirects: 0,
-      tags: { name: "negative_cache_hit" },
+      tags: { name: 'negative_cache_hit' }
     });
     const latency = Date.now() - startTime;
 
     check(res2, {
-      "still returns not found": (r) =>
-        r.status === 302 && r.headers.Location?.includes("/404"),
-      "faster than first": () => latency < 10, // Cache negativo deve ser muito rápido
+      'still returns not found': (r) =>
+        r.status === 302 && r.headers.Location?.includes('/404'),
+      'faster than first': () => latency < 10 // Cache negativo deve ser muito rápido
     });
   });
 }
 
 export function testConcurrentAccess() {
-  group("Concurrent Access (Stampede Protection)", () => {
+  group('Concurrent Access (Stampede Protection)', () => {
     // Simula múltiplas requests simultâneas para o mesmo link
     const code = TEST_LINKS[0];
     const requests = [];
@@ -310,8 +309,8 @@ export function testConcurrentAccess() {
       requests.push(
         http.get(`${BASE_URL}/${code}`, {
           redirects: 0,
-          tags: { name: "concurrent" },
-        }),
+          tags: { name: 'concurrent' }
+        })
       );
     }
 
@@ -319,7 +318,7 @@ export function testConcurrentAccess() {
     requests.forEach((res, index) => {
       check(res, {
         [`request ${index + 1} succeeded`]: (r) =>
-          r.status === 301 || r.status === 302,
+          r.status === 301 || r.status === 302
       });
     });
   });
@@ -330,22 +329,22 @@ export function testConcurrentAccess() {
 // ═══════════════════════════════════════════════════════════════════
 
 export function setup() {
-  console.log("🚀 Starting load test...");
+  console.log('🚀 Starting load test...');
   console.log(`📊 Base URL: ${BASE_URL}`);
   console.log(`🔗 Test links: ${TEST_LINKS.length}`);
 
   // Warm-up: pre-populate cache
-  console.log("🔥 Warming up cache...");
+  console.log('🔥 Warming up cache...');
   TEST_LINKS.forEach((code) => {
     http.get(`${BASE_URL}/${code}`, { redirects: 0 });
   });
 
-  console.log("✅ Setup complete");
+  console.log('✅ Setup complete');
 }
 
 export function teardown(_data) {
-  console.log("🏁 Load test completed");
-  console.log("📈 Check results in k6 output or Grafana");
+  console.log('🏁 Load test completed');
+  console.log('📈 Check results in k6 output or Grafana');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -354,14 +353,14 @@ export function teardown(_data) {
 
 export function handleSummary(data) {
   return {
-    stdout: textSummary(data, { indent: " ", enableColors: true }),
-    "tests/load/results/summary.json": JSON.stringify(data),
-    "tests/load/results/summary.html": htmlReport(data),
+    stdout: textSummary(data, { indent: ' ', enableColors: true }),
+    'tests/load/results/summary.json': JSON.stringify(data),
+    'tests/load/results/summary.html': htmlReport(data)
   };
 }
 
 function textSummary(data, options) {
-  const indent = options?.indent || "";
+  const indent = options?.indent || '';
 
   let summary = `${indent}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
   summary += `${indent}  Redirect Engine Load Test Results\n`;
@@ -372,13 +371,13 @@ function textSummary(data, options) {
   if (metrics.redirect_latency) {
     summary += `${indent}Redirect Latency:\n`;
     summary += `${indent}  P50: ${metrics.redirect_latency.values[
-      "p(50)"
+      'p(50)'
     ]?.toFixed(2)}ms\n`;
     summary += `${indent}  P95: ${metrics.redirect_latency.values[
-      "p(95)"
+      'p(95)'
     ]?.toFixed(2)}ms\n`;
     summary += `${indent}  P99: ${metrics.redirect_latency.values[
-      "p(99)"
+      'p(99)'
     ]?.toFixed(2)}ms\n\n`;
   }
 
@@ -402,11 +401,11 @@ function htmlReport(data) {
 
   // Calculate key stats
   const latencyP50 =
-    metrics.redirect_latency?.values["p(50)"]?.toFixed(2) || "N/A";
+    metrics.redirect_latency?.values['p(50)']?.toFixed(2) || 'N/A';
   const latencyP99 =
-    metrics.redirect_latency?.values["p(99)"]?.toFixed(2) || "N/A";
+    metrics.redirect_latency?.values['p(99)']?.toFixed(2) || 'N/A';
   const successRate = ((metrics.success_rate?.values.rate || 0) * 100).toFixed(
-    2,
+    2
   );
   const errorRate = ((metrics.error_rate?.values.rate || 0) * 100).toFixed(4);
   const totalRequests = metrics.http_reqs?.values.count || 0;
@@ -500,28 +499,28 @@ function htmlReport(data) {
     <div class="metrics-grid">
       <div class="metric-card">
         <h3>Latency P50</h3>
-        <div class="metric-value ${latencyP50 < 30 ? "pass" : "fail"}">
+        <div class="metric-value ${latencyP50 < 30 ? 'pass' : 'fail'}">
           ${latencyP50}<span class="metric-unit">ms</span>
         </div>
       </div>
       
       <div class="metric-card">
         <h3>Latency P99</h3>
-        <div class="metric-value ${latencyP99 < 300 ? "pass" : "fail"}">
+        <div class="metric-value ${latencyP99 < 300 ? 'pass' : 'fail'}">
           ${latencyP99}<span class="metric-unit">ms</span>
         </div>
       </div>
       
       <div class="metric-card">
         <h3>Success Rate</h3>
-        <div class="metric-value ${successRate > 99.9 ? "pass" : "fail"}">
+        <div class="metric-value ${successRate > 99.9 ? 'pass' : 'fail'}">
           ${successRate}<span class="metric-unit">%</span>
         </div>
       </div>
       
       <div class="metric-card">
         <h3>Error Rate</h3>
-        <div class="metric-value ${errorRate < 0.1 ? "pass" : "fail"}">
+        <div class="metric-value ${errorRate < 0.1 ? 'pass' : 'fail'}">
           ${errorRate}<span class="metric-unit">%</span>
         </div>
       </div>
@@ -555,7 +554,7 @@ function htmlReport(data) {
             </tr>
           `;
           })
-          .join("")}
+          .join('')}
       </tbody>
     </table>
     

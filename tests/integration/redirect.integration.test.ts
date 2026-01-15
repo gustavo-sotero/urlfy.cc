@@ -6,47 +6,47 @@ import {
   beforeEach,
   describe,
   expect,
-  it,
-} from "bun:test";
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { links } from "@/db/schema";
-import { getRedisClient } from "@/server/lib/redis";
-import { cacheService } from "@/server/services/cache.service";
-import { redirectService } from "@/server/services/redirect.service";
+  it
+} from 'bun:test';
+import { eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { links } from '@/db/schema';
+import { getRedisClient } from '@/server/lib/redis';
+import { cacheService } from '@/server/services/cache.service';
+import { redirectService } from '@/server/services/redirect.service';
 
 const _redis = getRedisClient();
 
-describe("Redirect Integration Tests", () => {
+describe('Redirect Integration Tests', () => {
   const testLinks = [
     {
-      id: "test-integration-001",
-      shortCode: "int-test-1",
-      originalUrl: "https://example.com/test1",
+      id: 'test-integration-001',
+      shortCode: 'int-test-1',
+      originalUrl: 'https://example.com/test1',
       redirectType: 301,
       isActive: true,
       isBanned: false,
-      clicksCount: 0,
+      clicksCount: 0
     },
     {
-      id: "test-integration-002",
-      shortCode: "int-test-2",
-      originalUrl: "https://example.com/test2",
+      id: 'test-integration-002',
+      shortCode: 'int-test-2',
+      originalUrl: 'https://example.com/test2',
       redirectType: 302,
       isActive: true,
       isBanned: false,
       clicksCount: 0,
-      expiresAt: new Date(Date.now() + 86400000), // 24h from now
+      expiresAt: new Date(Date.now() + 86400000) // 24h from now
     },
     {
-      id: "test-integration-003",
-      shortCode: "int-test-3",
-      originalUrl: "https://example.com/test3",
+      id: 'test-integration-003',
+      shortCode: 'int-test-3',
+      originalUrl: 'https://example.com/test3',
       redirectType: 302,
       isActive: false,
       isBanned: false,
-      clicksCount: 0,
-    },
+      clicksCount: 0
+    }
   ];
 
   beforeAll(async () => {
@@ -77,9 +77,9 @@ describe("Redirect Integration Tests", () => {
     }
   });
 
-  describe("End-to-End Redirect Flow", () => {
-    it("should redirect and populate cache on first request", async () => {
-      const code = "int-test-1";
+  describe('End-to-End Redirect Flow', () => {
+    it('should redirect and populate cache on first request', async () => {
+      const code = 'int-test-1';
 
       // Verify cache is empty
       const cachedBefore = await cacheService.getLink(code);
@@ -89,17 +89,17 @@ describe("Redirect Integration Tests", () => {
       const result = await redirectService.resolve(code, 0);
 
       expect(result.success).toBe(true);
-      expect(result.url).toBe("https://example.com/test1");
+      expect(result.url).toBe('https://example.com/test1');
       expect(result.redirectType).toBe(301);
 
       // Verify cache was populated
       const cachedAfter = await cacheService.getLink(code);
       expect(cachedAfter).not.toBeNull();
-      expect(cachedAfter?.originalUrl).toBe("https://example.com/test1");
+      expect(cachedAfter?.originalUrl).toBe('https://example.com/test1');
     });
 
-    it("should serve from cache on subsequent requests", async () => {
-      const code = "int-test-1";
+    it('should serve from cache on subsequent requests', async () => {
+      const code = 'int-test-1';
 
       // First request to populate cache
       await redirectService.resolve(code, 0);
@@ -110,7 +110,7 @@ describe("Redirect Integration Tests", () => {
       const latency = performance.now() - startTime;
 
       expect(result.success).toBe(true);
-      expect(result.url).toBe("https://example.com/test1");
+      expect(result.url).toBe('https://example.com/test1');
 
       // Cache hit should be fast (< 10ms)
       expect(latency).toBeLessThan(10);
@@ -120,28 +120,28 @@ describe("Redirect Integration Tests", () => {
       expect(cached).not.toBeNull();
     });
 
-    it("should handle inactive link correctly", async () => {
-      const code = "int-test-3";
+    it('should handle inactive link correctly', async () => {
+      const code = 'int-test-3';
 
       const result = await redirectService.resolve(code, 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("INACTIVE");
+      expect(result.error).toBe('INACTIVE');
     });
 
-    it("should respect redirect depth limit", async () => {
-      const code = "int-test-1";
+    it('should respect redirect depth limit', async () => {
+      const code = 'int-test-1';
 
       const result = await redirectService.resolve(code, 3);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("REDIRECT_LOOP");
+      expect(result.error).toBe('REDIRECT_LOOP');
     });
   });
 
-  describe("Cache Invalidation", () => {
-    it("should invalidate cache when link is updated", async () => {
-      const code = "int-test-1";
+  describe('Cache Invalidation', () => {
+    it('should invalidate cache when link is updated', async () => {
+      const code = 'int-test-1';
 
       // Populate cache
       await redirectService.resolve(code, 0);
@@ -151,7 +151,7 @@ describe("Redirect Integration Tests", () => {
       // Update link in database
       await db
         .update(links)
-        .set({ originalUrl: "https://example.com/updated" })
+        .set({ originalUrl: 'https://example.com/updated' })
         .where(eq(links.shortCode, code));
 
       // Invalidate cache
@@ -164,22 +164,22 @@ describe("Redirect Integration Tests", () => {
       // Next request should fetch updated data
       const result = await redirectService.resolve(code, 0);
       expect(result.success).toBe(true);
-      expect(result.url).toBe("https://example.com/updated");
+      expect(result.url).toBe('https://example.com/updated');
 
       // Restore original URL for other tests
       await db
         .update(links)
-        .set({ originalUrl: "https://example.com/test1" })
+        .set({ originalUrl: 'https://example.com/test1' })
         .where(eq(links.shortCode, code));
     });
 
-    it("should set negative cache for non-existent links", async () => {
-      const code = "non-existent-link";
+    it('should set negative cache for non-existent links', async () => {
+      const code = 'non-existent-link';
 
       // First request
       const result = await redirectService.resolve(code, 0);
       expect(result.success).toBe(false);
-      expect(result.error).toBe("NOT_FOUND");
+      expect(result.error).toBe('NOT_FOUND');
 
       // Verify negative cache was set
       const is404 = await cacheService.isNotFound(code);
@@ -188,23 +188,23 @@ describe("Redirect Integration Tests", () => {
       // Second request should use negative cache
       const result2 = await redirectService.resolve(code, 0);
       expect(result2.success).toBe(false);
-      expect(result2.error).toBe("NOT_FOUND");
+      expect(result2.error).toBe('NOT_FOUND');
 
       // Cleanup
       await cacheService.invalidateLink(code);
     });
   });
 
-  describe("Concurrent Access (Stampede Protection)", () => {
-    it("should handle multiple concurrent requests efficiently", async () => {
-      const code = "int-test-2";
+  describe('Concurrent Access (Stampede Protection)', () => {
+    it('should handle multiple concurrent requests efficiently', async () => {
+      const code = 'int-test-2';
 
       // Clear cache
       await cacheService.invalidateLink(code);
 
       // Simulate 10 concurrent requests
       const promises = Array.from({ length: 10 }, () =>
-        redirectService.resolve(code, 0),
+        redirectService.resolve(code, 0)
       );
 
       const results = await Promise.all(promises);
@@ -212,7 +212,7 @@ describe("Redirect Integration Tests", () => {
       // All should succeed
       results.forEach((result) => {
         expect(result.success).toBe(true);
-        expect(result.url).toBe("https://example.com/test2");
+        expect(result.url).toBe('https://example.com/test2');
       });
 
       // Cache should be populated only once
@@ -221,10 +221,10 @@ describe("Redirect Integration Tests", () => {
     });
   });
 
-  describe("Code Availability", () => {
-    it("should correctly check if code is available", async () => {
-      const existingCode = "int-test-1";
-      const newCode = "available-code-123";
+  describe('Code Availability', () => {
+    it('should correctly check if code is available', async () => {
+      const existingCode = 'int-test-1';
+      const newCode = 'available-code-123';
 
       const existing = await redirectService.isCodeAvailable(existingCode);
       expect(existing).toBe(false);
@@ -234,21 +234,21 @@ describe("Redirect Integration Tests", () => {
     });
   });
 
-  describe("Health Stats", () => {
-    it("should return health statistics", async () => {
+  describe('Health Stats', () => {
+    it('should return health statistics', async () => {
       const stats = await redirectService.getHealthStats();
 
-      expect(stats).toHaveProperty("circuitBreaker");
-      expect(stats).toHaveProperty("cacheStats");
-      expect(stats.cacheStats).toHaveProperty("memory");
-      expect(stats.cacheStats).toHaveProperty("keys");
-      expect(typeof stats.circuitBreaker).toBe("string");
+      expect(stats).toHaveProperty('circuitBreaker');
+      expect(stats).toHaveProperty('cacheStats');
+      expect(stats.cacheStats).toHaveProperty('memory');
+      expect(stats.cacheStats).toHaveProperty('keys');
+      expect(typeof stats.circuitBreaker).toBe('string');
     });
   });
 
-  describe("Cache Statistics", () => {
-    it("should track cache hit rate", async () => {
-      const code = "int-test-1";
+  describe('Cache Statistics', () => {
+    it('should track cache hit rate', async () => {
+      const code = 'int-test-1';
 
       // Clear and populate
       await cacheService.invalidateLink(code);
@@ -258,34 +258,34 @@ describe("Redirect Integration Tests", () => {
 
       const stats = await cacheService.getCacheStats();
 
-      expect(stats).toHaveProperty("memory");
-      expect(stats).toHaveProperty("keys");
-      expect(typeof stats.keys).toBe("number");
+      expect(stats).toHaveProperty('memory');
+      expect(stats).toHaveProperty('keys');
+      expect(typeof stats.keys).toBe('number');
     });
   });
 
-  describe("Error Handling", () => {
-    it("should handle database errors gracefully", async () => {
+  describe('Error Handling', () => {
+    it('should handle database errors gracefully', async () => {
       // Test with a code that would cause issues
       // This is a simplified test - in production you'd mock the DB error
-      const result = await redirectService.resolve("", 0);
+      const result = await redirectService.resolve('', 0);
 
       // Should either fail validation or return NOT_FOUND
       expect(result.success).toBe(false);
     });
   });
 
-  describe("TTL and Expiration", () => {
-    it("should respect link expiration", async () => {
+  describe('TTL and Expiration', () => {
+    it('should respect link expiration', async () => {
       const expiredLink = {
-        id: "test-integration-expired",
-        shortCode: "int-test-expired",
-        originalUrl: "https://example.com/expired",
+        id: 'test-integration-expired',
+        shortCode: 'int-test-expired',
+        originalUrl: 'https://example.com/expired',
         redirectType: 302,
         isActive: true,
         isBanned: false,
         clicksCount: 0,
-        expiresAt: new Date(Date.now() - 1000), // 1 second ago
+        expiresAt: new Date(Date.now() - 1000) // 1 second ago
       };
 
       // Insert expired link
@@ -295,7 +295,7 @@ describe("Redirect Integration Tests", () => {
       const result = await redirectService.resolve(expiredLink.shortCode, 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("EXPIRED");
+      expect(result.error).toBe('EXPIRED');
 
       // Cleanup
       await db.delete(links).where(eq(links.shortCode, expiredLink.shortCode));

@@ -5,7 +5,7 @@
  * authorization, and user management.
  */
 
-import type { Session as DbSession, User as DbUser } from "@/db/schema/auth";
+import type { Session as DbSession, User as DbUser } from '@/db/schema/auth';
 
 // ═══════════════════════════════════════════════════════════════════
 // USER TYPES
@@ -14,7 +14,7 @@ import type { Session as DbSession, User as DbUser } from "@/db/schema/auth";
 /**
  * User role enum
  */
-export type UserRole = "user" | "admin";
+export type UserRole = 'user' | 'admin';
 
 /**
  * Public user data (safe to expose to clients)
@@ -97,7 +97,7 @@ export interface RequireAuthContext {
  * Admin context (requires admin role and 2FA)
  */
 export interface AdminContext extends RequireAuthContext {
-  user: PublicUser & { role: "admin" };
+  user: PublicUser & { role: 'admin' };
   isAdmin: true;
 }
 
@@ -217,7 +217,7 @@ export interface VerifyTwoFactorPayload {
 /**
  * Supported OAuth providers
  */
-export type OAuthProvider = "google" | "github";
+export type OAuthProvider = 'google' | 'github';
 
 /**
  * OAuth account data
@@ -253,7 +253,7 @@ export interface UserDataExport {
 export interface DataDeletionRequest {
   id: string;
   userId: string;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   requestedAt: Date;
   deadlineAt: Date;
   completedAt: Date | null;
@@ -349,22 +349,22 @@ export interface UpdateUserRolePayload {
  * Authentication error codes
  */
 export type AuthErrorCode =
-  | "UNAUTHORIZED"
-  | "INVALID_CREDENTIALS"
-  | "EMAIL_NOT_VERIFIED"
-  | "ACCOUNT_BANNED"
-  | "ACCOUNT_DELETED"
-  | "SESSION_EXPIRED"
-  | "INVALID_TOKEN"
-  | "INVALID_API_KEY"
-  | "API_KEY_REVOKED"
-  | "API_KEY_EXPIRED"
-  | "TWO_FACTOR_REQUIRED"
-  | "INVALID_TWO_FACTOR_CODE"
-  | "ADMIN_REQUIRED"
-  | "TWO_FACTOR_NOT_ENABLED"
-  | "QUOTA_EXCEEDED"
-  | "RATE_LIMITED";
+  | 'UNAUTHORIZED'
+  | 'INVALID_CREDENTIALS'
+  | 'EMAIL_NOT_VERIFIED'
+  | 'ACCOUNT_BANNED'
+  | 'ACCOUNT_DELETED'
+  | 'SESSION_EXPIRED'
+  | 'INVALID_TOKEN'
+  | 'INVALID_API_KEY'
+  | 'API_KEY_REVOKED'
+  | 'API_KEY_EXPIRED'
+  | 'TWO_FACTOR_REQUIRED'
+  | 'INVALID_TWO_FACTOR_CODE'
+  | 'ADMIN_REQUIRED'
+  | 'TWO_FACTOR_NOT_ENABLED'
+  | 'QUOTA_EXCEEDED'
+  | 'RATE_LIMITED';
 
 /**
  * Authentication error

@@ -3,11 +3,11 @@
  * Manages consent status and integrates with analytics systems
  */
 
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 
-type ConsentStatus = "granted" | "denied" | "unknown";
+type ConsentStatus = 'granted' | 'denied' | 'unknown';
 
 interface ConsentPreferences {
   analytics: boolean;
@@ -19,20 +19,20 @@ interface ConsentPreferences {
  * Get consent status from localStorage
  */
 function getAnalyticsConsent(): ConsentStatus {
-  if (typeof window === "undefined") return "unknown";
+  if (typeof window === 'undefined') return 'unknown';
 
   try {
-    const stored = localStorage.getItem("consent_preferences");
+    const stored = localStorage.getItem('consent_preferences');
 
     if (!stored) {
-      return "unknown";
+      return 'unknown';
     }
 
     const preferences = JSON.parse(stored) as ConsentPreferences;
-    return preferences.analytics ? "granted" : "denied";
+    return preferences.analytics ? 'granted' : 'denied';
   } catch (error) {
-    console.warn("Failed to read consent preferences", error);
-    return "unknown";
+    console.warn('Failed to read consent preferences', error);
+    return 'unknown';
   }
 }
 
@@ -40,16 +40,16 @@ function getAnalyticsConsent(): ConsentStatus {
  * Check if analytics tracking should be enabled
  */
 export function shouldTrackAnalytics(): boolean {
-  return getAnalyticsConsent() === "granted";
+  return getAnalyticsConsent() === 'granted';
 }
 
 /**
  * Hook to use analytics consent in React components
  */
 export function useAnalyticsConsent() {
-  const [consent, setConsent] = useState<ConsentStatus>("unknown");
+  const [consent, setConsent] = useState<ConsentStatus>('unknown');
   const [preferences, setPreferences] = useState<ConsentPreferences | null>(
-    null,
+    null
   );
 
   useEffect(() => {
@@ -57,12 +57,12 @@ export function useAnalyticsConsent() {
     setConsent(getAnalyticsConsent());
 
     try {
-      const stored = localStorage.getItem("consent_preferences");
+      const stored = localStorage.getItem('consent_preferences');
       if (stored) {
         setPreferences(JSON.parse(stored));
       }
     } catch (error) {
-      console.warn("Failed to load preferences", error);
+      console.warn('Failed to load preferences', error);
     }
 
     // Listen for consent updates
@@ -70,13 +70,13 @@ export function useAnalyticsConsent() {
       if (event instanceof CustomEvent) {
         const preferences = event.detail as ConsentPreferences;
         setPreferences(preferences);
-        setConsent(preferences.analytics ? "granted" : "denied");
+        setConsent(preferences.analytics ? 'granted' : 'denied');
       }
     };
 
-    window.addEventListener("consent-updated", handleConsentUpdate);
+    window.addEventListener('consent-updated', handleConsentUpdate);
     return () =>
-      window.removeEventListener("consent-updated", handleConsentUpdate);
+      window.removeEventListener('consent-updated', handleConsentUpdate);
   }, []);
 
   /**
@@ -87,19 +87,19 @@ export function useAnalyticsConsent() {
       const preferences: ConsentPreferences = {
         analytics,
         marketing,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       };
 
-      localStorage.setItem("consent_preferences", JSON.stringify(preferences));
+      localStorage.setItem('consent_preferences', JSON.stringify(preferences));
       setPreferences(preferences);
-      setConsent(analytics ? "granted" : "denied");
+      setConsent(analytics ? 'granted' : 'denied');
 
       // Trigger update event
       window.dispatchEvent(
-        new CustomEvent("consent-updated", { detail: preferences }),
+        new CustomEvent('consent-updated', { detail: preferences })
       );
     },
-    [],
+    []
   );
 
   /**
@@ -122,7 +122,7 @@ export function useAnalyticsConsent() {
     updateConsent,
     grantAll,
     denyAll,
-    canTrack: consent === "granted",
+    canTrack: consent === 'granted'
   };
 }
 
@@ -137,9 +137,9 @@ export function useConditionalAnalytics(scriptId: string): void {
 
     // Load analytics script only if consent is granted
     // Example for Google Analytics, Mixpanel, etc.
-    const script = document.createElement("script");
+    const script = document.createElement('script');
     script.id = scriptId;
-    script.type = "text/javascript";
+    script.type = 'text/javascript';
     // script.src = "..."; // Your analytics script URL
     script.async = true;
     // document.head.appendChild(script);

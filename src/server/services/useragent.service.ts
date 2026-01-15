@@ -1,10 +1,10 @@
 // src/server/services/useragent.service.ts
 
-import { UAParser } from "ua-parser-js";
-import { createLogger } from "@/server/lib/telemetry";
-import type { UserAgentData } from "@/types/analytics.types";
+import { UAParser } from 'ua-parser-js';
+import { createLogger } from '@/server/lib/telemetry';
+import type { UserAgentData } from '@/types/analytics.types';
 
-const logger = createLogger("useragent-service");
+const logger = createLogger('useragent-service');
 
 const BOT_PATTERNS = [
   /bot/i,
@@ -32,7 +32,7 @@ const BOT_PATTERNS = [
   /scrapy/i,
   /phantom/i,
   /selenium/i,
-  /headless/i,
+  /headless/i
 ];
 
 class UserAgentService {
@@ -54,12 +54,12 @@ class UserAgentService {
         os: ua.os?.name || null,
         osVersion: ua.os?.version || null,
         deviceType,
-        isBot,
+        isBot
       };
     } catch (error) {
-      logger.warn("[UserAgentService] Error parsing user agent", {
+      logger.warn('[UserAgentService] Error parsing user agent', {
         error: error instanceof Error ? error.message : String(error),
-        userAgentLength: userAgent.length,
+        userAgentLength: userAgent.length
       });
 
       // Fallback se parsing falhar
@@ -69,7 +69,7 @@ class UserAgentService {
         os: null,
         osVersion: null,
         deviceType: null,
-        isBot: this.detectBot(userAgent),
+        isBot: this.detectBot(userAgent)
       };
     }
   }
@@ -87,20 +87,20 @@ class UserAgentService {
    * Mapeia tipo de dispositivo para valores padrão
    * Retorna "desktop" como default para navegadores sem tipo específico
    */
-  private mapDeviceType(type?: string): "desktop" | "mobile" | "tablet" | null {
-    if (!type) return "desktop"; // Desktop browsers don't have device type set
+  private mapDeviceType(type?: string): 'desktop' | 'mobile' | 'tablet' | null {
+    if (!type) return 'desktop'; // Desktop browsers don't have device type set
 
     switch (type.toLowerCase()) {
-      case "mobile":
-        return "mobile";
-      case "tablet":
-        return "tablet";
-      case "console":
-      case "smarttv":
-      case "wearable":
-        return "desktop"; // Agrupar como desktop para simplificar
+      case 'mobile':
+        return 'mobile';
+      case 'tablet':
+        return 'tablet';
+      case 'console':
+      case 'smarttv':
+      case 'wearable':
+        return 'desktop'; // Agrupar como desktop para simplificar
       default:
-        return "desktop";
+        return 'desktop';
     }
   }
 }

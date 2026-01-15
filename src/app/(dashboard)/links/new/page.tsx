@@ -1,48 +1,48 @@
 // src/app/(dashboard)/links/new/page.tsx
-"use client";
+'use client';
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { AccessibleFormField } from "@/components/forms/accessible-form-field";
-import { Button } from "@/components/ui/button";
+import { zodResolver } from '@hookform/resolvers/zod';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { AccessibleFormField } from '@/components/forms/accessible-form-field';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+  CardTitle
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { useCreateLink } from "@/lib/hooks/use-links";
+  SelectValue
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useCreateLink } from '@/lib/hooks/use-links';
 
 const schema = z.object({
-  url: z.string().url("URL inválida"),
+  url: z.string().url('URL inválida'),
   customAlias: z.string().optional(),
-  redirectType: z.enum(["301", "302"]).optional(),
+  redirectType: z.enum(['301', '302']).optional(),
   expiresAt: z.string().optional(),
   maxClicks: z.number().optional(),
   password: z.string().optional(),
   metaTitle: z.string().max(60).optional(),
   metaDescription: z.string().max(160).optional(),
-  metaImage: z.string().url("URL de imagem inválida").optional(),
+  metaImage: z.string().url('URL de imagem inválida').optional(),
   utmSource: z.string().optional(),
   utmMedium: z.string().optional(),
   utmCampaign: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  notes: z.string().optional(),
+  notes: z.string().optional()
 });
 
 type FormData = z.infer<typeof schema>;
@@ -54,8 +54,8 @@ export default function NewLinkPage() {
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      redirectType: "302",
-    },
+      redirectType: '302'
+    }
   });
 
   const onSubmit = async (data: FormData) => {
@@ -64,11 +64,11 @@ export default function NewLinkPage() {
         ...data,
         redirectType: data.redirectType
           ? (Number.parseInt(data.redirectType, 10) as 301 | 302)
-          : undefined,
+          : undefined
       });
       router.push(`/dashboard/links?created=${link.id}`);
     } catch (error) {
-      console.error("Failed to create link:", error);
+      console.error('Failed to create link:', error);
     }
   };
 
@@ -110,7 +110,7 @@ export default function NewLinkPage() {
                 id="url"
                 type="url"
                 placeholder="https://example.com/very-long-url"
-                {...form.register("url")}
+                {...form.register('url')}
                 aria-invalid={!!form.formState.errors.url}
                 aria-required
               />
@@ -125,16 +125,16 @@ export default function NewLinkPage() {
               <Input
                 id="customAlias"
                 placeholder="meu-link"
-                {...form.register("customAlias")}
+                {...form.register('customAlias')}
               />
             </AccessibleFormField>
 
             <div className="space-y-2">
               <Label htmlFor="redirectType">Tipo de Redirecionamento</Label>
               <Select
-                value={form.watch("redirectType")}
+                value={form.watch('redirectType')}
                 onValueChange={(value) =>
-                  form.setValue("redirectType", value as "301" | "302")
+                  form.setValue('redirectType', value as '301' | '302')
                 }
               >
                 <SelectTrigger id="redirectType">
@@ -168,7 +168,7 @@ export default function NewLinkPage() {
               <Input
                 id="expiresAt"
                 type="datetime-local"
-                {...form.register("expiresAt")}
+                {...form.register('expiresAt')}
               />
             </AccessibleFormField>
 
@@ -183,7 +183,7 @@ export default function NewLinkPage() {
                 type="number"
                 min="1"
                 placeholder="1000"
-                {...form.register("maxClicks", { valueAsNumber: true })}
+                {...form.register('maxClicks', { valueAsNumber: true })}
               />
             </AccessibleFormField>
 
@@ -197,7 +197,7 @@ export default function NewLinkPage() {
                 id="password"
                 type="password"
                 placeholder="Digite uma senha forte"
-                {...form.register("password")}
+                {...form.register('password')}
               />
             </AccessibleFormField>
           </CardContent>
@@ -222,7 +222,7 @@ export default function NewLinkPage() {
                 id="metaTitle"
                 maxLength={60}
                 placeholder="Título do link"
-                {...form.register("metaTitle")}
+                {...form.register('metaTitle')}
               />
             </AccessibleFormField>
 
@@ -236,7 +236,7 @@ export default function NewLinkPage() {
                 id="metaDescription"
                 maxLength={160}
                 placeholder="Descrição do link"
-                {...form.register("metaDescription")}
+                {...form.register('metaDescription')}
               />
             </AccessibleFormField>
 
@@ -250,7 +250,7 @@ export default function NewLinkPage() {
                 id="metaImage"
                 type="url"
                 placeholder="https://example.com/image.png"
-                {...form.register("metaImage")}
+                {...form.register('metaImage')}
               />
             </AccessibleFormField>
           </CardContent>
@@ -272,7 +272,7 @@ export default function NewLinkPage() {
                 <Input
                   id="utmSource"
                   placeholder="twitter"
-                  {...form.register("utmSource")}
+                  {...form.register('utmSource')}
                 />
               </AccessibleFormField>
 
@@ -284,7 +284,7 @@ export default function NewLinkPage() {
                 <Input
                   id="utmMedium"
                   placeholder="social"
-                  {...form.register("utmMedium")}
+                  {...form.register('utmMedium')}
                 />
               </AccessibleFormField>
 
@@ -296,7 +296,7 @@ export default function NewLinkPage() {
                 <Input
                   id="utmCampaign"
                   placeholder="launch"
-                  {...form.register("utmCampaign")}
+                  {...form.register('utmCampaign')}
                 />
               </AccessibleFormField>
             </div>
@@ -319,7 +319,7 @@ export default function NewLinkPage() {
               <Textarea
                 id="notes"
                 placeholder="Notas sobre este link..."
-                {...form.register("notes")}
+                {...form.register('notes')}
               />
             </AccessibleFormField>
           </CardContent>
@@ -330,7 +330,7 @@ export default function NewLinkPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push("/dashboard/links")}
+            onClick={() => router.push('/dashboard/links')}
           >
             Cancelar
           </Button>
@@ -348,7 +348,7 @@ export default function NewLinkPage() {
                 Criando...
               </>
             ) : (
-              "Criar Link"
+              'Criar Link'
             )}
           </Button>
         </div>

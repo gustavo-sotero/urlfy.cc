@@ -1,5 +1,5 @@
 // src/components/charts/referrers-chart.tsx
-"use client";
+'use client';
 
 import {
   Bar,
@@ -9,10 +9,10 @@ import {
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis,
-} from "recharts";
+  YAxis
+} from 'recharts';
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 interface Props {
   data: Array<{
@@ -25,8 +25,8 @@ interface Props {
 export function ReferrersChart({ data }: Props) {
   // Take top 8 referrers and normalize data structure
   const topReferrers = data.slice(0, 8).map((item) => ({
-    referrer: item.referrer || item.domain || "Direct",
-    clicks: item.clicks,
+    referrer: item.referrer || item.domain || 'Direct',
+    clicks: item.clicks
   }));
 
   return (
@@ -47,11 +47,11 @@ export function ReferrersChart({ data }: Props) {
           <YAxis />
           <Tooltip
             contentStyle={{
-              backgroundColor: "hsl(var(--background))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "8px",
+              backgroundColor: 'hsl(var(--background))',
+              border: '1px solid hsl(var(--border))',
+              borderRadius: '8px'
             }}
-            labelStyle={{ color: "hsl(var(--foreground))" }}
+            labelStyle={{ color: 'hsl(var(--foreground))' }}
           />
           <Bar dataKey="clicks" radius={[4, 4, 0, 0]}>
             {topReferrers.map((entry, index) => (

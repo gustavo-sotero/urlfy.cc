@@ -63,7 +63,7 @@ export interface ConsentPreferences {
 /**
  * Consent Status
  */
-export type ConsentStatus = "granted" | "denied" | "unknown";
+export type ConsentStatus = 'granted' | 'denied' | 'unknown';
 
 /**
  * Audit Log Entry
@@ -84,18 +84,18 @@ export interface AuditLogEntry {
  * Audit Actions
  */
 export type AuditAction =
-  | "ban_user"
-  | "unban_user"
-  | "update_user_role"
-  | "ban_link"
-  | "unban_link"
-  | "delete_link"
-  | "revoke_api_key"
-  | "enable_2fa"
-  | "disable_2fa"
-  | "export_user_data"
-  | "request_data_deletion"
-  | "process_data_deletion";
+  | 'ban_user'
+  | 'unban_user'
+  | 'update_user_role'
+  | 'ban_link'
+  | 'unban_link'
+  | 'delete_link'
+  | 'revoke_api_key'
+  | 'enable_2fa'
+  | 'disable_2fa'
+  | 'export_user_data'
+  | 'request_data_deletion'
+  | 'process_data_deletion';
 
 /**
  * Data Deletion Request
@@ -109,13 +109,13 @@ export interface DataDeletionRequest {
   completedAt?: Date;
   failureReason?: string;
   processedBy?: string;
-  dataExported: "yes" | "no";
+  dataExported: 'yes' | 'no';
 }
 
 /**
  * Deletion Status
  */
-export type DeletionStatus = "pending" | "processing" | "completed" | "failed";
+export type DeletionStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 /**
  * User Data Export
@@ -154,11 +154,11 @@ export interface AbuseEvent {
  * Anti-Abuse Event Types
  */
 export type AbuseEventType =
-  | "LOGIN_FAILURES"
-  | "SIGNUP_ATTEMPTS"
-  | "LINK_CREATION"
-  | "API_ERRORS"
-  | "PASSWORD_RESET";
+  | 'LOGIN_FAILURES'
+  | 'SIGNUP_ATTEMPTS'
+  | 'LINK_CREATION'
+  | 'API_ERRORS'
+  | 'PASSWORD_RESET';
 
 /**
  * Abuse Report
@@ -174,13 +174,13 @@ export interface AbuseReport {
  * Security Headers
  */
 export interface SecurityHeaders {
-  "Content-Security-Policy"?: string;
-  "Strict-Transport-Security"?: string;
-  "X-Content-Type-Options"?: string;
-  "X-Frame-Options"?: string;
-  "X-XSS-Protection"?: string;
-  "Referrer-Policy"?: string;
-  "Permissions-Policy"?: string;
+  'Content-Security-Policy'?: string;
+  'Strict-Transport-Security'?: string;
+  'X-Content-Type-Options'?: string;
+  'X-Frame-Options'?: string;
+  'X-XSS-Protection'?: string;
+  'Referrer-Policy'?: string;
+  'Permissions-Policy'?: string;
 }
 
 /**

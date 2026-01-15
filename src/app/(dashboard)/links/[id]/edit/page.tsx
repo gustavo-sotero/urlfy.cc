@@ -1,28 +1,28 @@
 // src/app/(dashboard)/links/[id]/edit/page.tsx
-"use client";
+'use client';
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { AccessibleFormField } from "@/components/forms/accessible-form-field";
-import { QueryError } from "@/components/query-error";
-import { Button } from "@/components/ui/button";
+import { zodResolver } from '@hookform/resolvers/zod';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { AccessibleFormField } from '@/components/forms/accessible-form-field';
+import { QueryError } from '@/components/query-error';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
-import { useLink, useUpdateLink } from "@/lib/hooks/use-links";
+  CardTitle
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
+import { useLink, useUpdateLink } from '@/lib/hooks/use-links';
 
 const schema = z.object({
   isActive: z.boolean().optional(),
@@ -32,10 +32,10 @@ const schema = z.object({
   metaDescription: z.string().max(160).optional(),
   metaImage: z
     .string()
-    .url("URL de imagem inválida")
+    .url('URL de imagem inválida')
     .optional()
-    .or(z.literal("")),
-  notes: z.string().optional(),
+    .or(z.literal('')),
+  notes: z.string().optional()
 });
 
 type FormData = z.infer<typeof schema>;
@@ -49,7 +49,7 @@ export default function EditLinkPage() {
   const updateLink = useUpdateLink();
 
   const form = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema)
   });
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export default function EditLinkPage() {
         metaTitle: link.metaTitle || undefined,
         metaDescription: link.metaDescription || undefined,
         metaImage: link.metaImage || undefined,
-        notes: link.notes || undefined,
+        notes: link.notes || undefined
       });
     }
   }, [link, form]);
@@ -74,12 +74,12 @@ export default function EditLinkPage() {
         id: linkId,
         data: {
           ...data,
-          metaImage: data.metaImage || null,
-        },
+          metaImage: data.metaImage || null
+        }
       });
       router.push(`/dashboard/links/${linkId}`);
     } catch (error) {
-      console.error("Failed to update link:", error);
+      console.error('Failed to update link:', error);
     }
   };
 
@@ -154,7 +154,7 @@ export default function EditLinkPage() {
               <input
                 type="checkbox"
                 id="isActive"
-                {...form.register("isActive")}
+                {...form.register('isActive')}
                 className="h-4 w-4"
               />
             </div>
@@ -168,7 +168,7 @@ export default function EditLinkPage() {
               <Input
                 id="expiresAt"
                 type="datetime-local"
-                {...form.register("expiresAt")}
+                {...form.register('expiresAt')}
               />
             </AccessibleFormField>
 
@@ -183,7 +183,7 @@ export default function EditLinkPage() {
                 type="number"
                 min="1"
                 placeholder="1000"
-                {...form.register("maxClicks", { valueAsNumber: true })}
+                {...form.register('maxClicks', { valueAsNumber: true })}
               />
             </AccessibleFormField>
           </CardContent>
@@ -208,7 +208,7 @@ export default function EditLinkPage() {
                 id="metaTitle"
                 maxLength={60}
                 placeholder="Título do link"
-                {...form.register("metaTitle")}
+                {...form.register('metaTitle')}
               />
             </AccessibleFormField>
 
@@ -222,7 +222,7 @@ export default function EditLinkPage() {
                 id="metaDescription"
                 maxLength={160}
                 placeholder="Descrição do link"
-                {...form.register("metaDescription")}
+                {...form.register('metaDescription')}
               />
             </AccessibleFormField>
 
@@ -236,7 +236,7 @@ export default function EditLinkPage() {
                 id="metaImage"
                 type="url"
                 placeholder="https://example.com/image.png"
-                {...form.register("metaImage")}
+                {...form.register('metaImage')}
               />
             </AccessibleFormField>
           </CardContent>
@@ -260,7 +260,7 @@ export default function EditLinkPage() {
                 id="notes"
                 placeholder="Notas sobre este link..."
                 rows={4}
-                {...form.register("notes")}
+                {...form.register('notes')}
               />
             </AccessibleFormField>
           </CardContent>
@@ -289,7 +289,7 @@ export default function EditLinkPage() {
                 Salvando...
               </>
             ) : (
-              "Salvar Alterações"
+              'Salvar Alterações'
             )}
           </Button>
         </div>

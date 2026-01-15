@@ -1,12 +1,12 @@
 // src/server/workers/dlq.handler.ts
 
-import type { Job } from "bullmq";
-import { recordMetric } from "@/server/lib/metrics";
-import { analyticsDeadQueue, analyticsQueue } from "@/server/lib/queue";
-import { createLogger } from "@/server/lib/telemetry";
-import type { ClickEvent } from "@/types/analytics.types";
+import type { Job } from 'bullmq';
+import { recordMetric } from '@/server/lib/metrics';
+import { analyticsDeadQueue, analyticsQueue } from '@/server/lib/queue';
+import { createLogger } from '@/server/lib/telemetry';
+import type { ClickEvent } from '@/types/analytics.types';
 
-const logger = createLogger("dlq-handler");
+const logger = createLogger('dlq-handler');
 
 /**
  * Handler de Dead Letter Queue (DLQ) para jobs de analytics falhos
@@ -29,9 +29,9 @@ interface DLQJob {
  * Deve ser chamado após criar o worker
  */
 export async function setupDLQHandlers(
-  _queue: typeof analyticsQueue,
+  _queue: typeof analyticsQueue
 ): Promise<void> {
-  logger.info("[DLQHandler] Setting up DLQ handlers for queue");
+  logger.info('[DLQHandler] Setting up DLQ handlers for queue');
 
   // Processa jobs falhados periodicamente
   // Note: Não usamos queue.on('failed') pois Queue não suporta esse evento
@@ -45,7 +45,7 @@ export async function setupDLQHandlers(
  */
 export async function moveToDLQ(
   job: Job<ClickEvent>,
-  err: Error,
+  err: Error
 ): Promise<void> {
   try {
     const attemptsAllowed = job.opts.attempts ?? 3;
@@ -59,34 +59,34 @@ export async function moveToDLQ(
       originalJobId: String(job.id),
       linkId: payload.linkId,
       data: payload,
-      error: err.message || "Unknown error",
+      error: err.message || 'Unknown error',
       failedAt: new Date(),
-      attempts: job.attemptsMade,
+      attempts: job.attemptsMade
     };
 
-    await analyticsDeadQueue.add("dead-click", dlqPayload, {
-      removeOnComplete: false,
+    await analyticsDeadQueue.add('dead-click', dlqPayload, {
+      removeOnComplete: false
     });
 
-    recordMetric("analytics_dlq_enqueue", 1, {
-      attempts: String(job.attemptsMade),
+    recordMetric('analytics_dlq_enqueue', 1, {
+      attempts: String(job.attemptsMade)
     });
 
-    logger.error("[DLQHandler] Job moved to DLQ", {
+    logger.error('[DLQHandler] Job moved to DLQ', {
       jobId: job.id,
       linkId: payload.linkId,
       attempts: job.attemptsMade,
-      error: dlqPayload.error,
+      error: dlqPayload.error
     });
 
     // Remove from primary queue to avoid reprocessing loop
     await job.remove();
   } catch (handlerError) {
-    logger.error("[DLQHandler] Error moving job to DLQ", {
+    logger.error('[DLQHandler] Error moving job to DLQ', {
       error:
         handlerError instanceof Error
           ? handlerError.message
-          : String(handlerError),
+          : String(handlerError)
     });
   }
 }
@@ -100,9 +100,9 @@ export async function processDLQ(): Promise<{
   jobs: DLQJob[];
 }> {
   try {
-    logger.info("[DLQHandler] Processing dead letter queue");
+    logger.info('[DLQHandler] Processing dead letter queue');
 
-    const jobs = await analyticsDeadQueue.getJobs(["waiting"]);
+    const jobs = await analyticsDeadQueue.getJobs(['waiting']);
 
     const dlqJobs: DLQJob[] = [];
 
@@ -111,23 +111,23 @@ export async function processDLQ(): Promise<{
 
       dlqJobs.push(dlqJob);
 
-      logger.warn("[DLQHandler] Found failed job in DLQ", {
+      logger.warn('[DLQHandler] Found failed job in DLQ', {
         originalJobId: dlqJob.originalJobId,
         linkId: dlqJob.linkId,
         attempts: dlqJob.attempts,
         error: dlqJob.error,
-        failedAt: dlqJob.failedAt,
+        failedAt: dlqJob.failedAt
       });
     }
 
-    recordMetric("analytics_dlq_count", dlqJobs.length);
+    recordMetric('analytics_dlq_count', dlqJobs.length);
 
     logger.info(`[DLQHandler] DLQ contains ${dlqJobs.length} failed jobs`);
 
     return { count: dlqJobs.length, jobs: dlqJobs };
   } catch (error) {
-    logger.error("[DLQHandler] Error processing DLQ", {
-      error: error instanceof Error ? error.message : String(error),
+    logger.error('[DLQHandler] Error processing DLQ', {
+      error: error instanceof Error ? error.message : String(error)
     });
 
     return { count: 0, jobs: [] };
@@ -149,30 +149,30 @@ export async function retryDLQJob(jobId: string): Promise<boolean> {
     const dlqJob = job.data as unknown as DLQJob;
 
     logger.info(`[DLQHandler] Retrying job ${jobId}`, {
-      linkId: dlqJob.linkId,
+      linkId: dlqJob.linkId
     });
 
     // Remove de DLQ
     await job.remove();
 
     // Re-adiciona à fila principal com reset de tentativas
-    await analyticsQueue.add("click", dlqJob.data, {
+    await analyticsQueue.add('click', dlqJob.data, {
       jobId: `retry-${jobId}-${Date.now()}`,
       attempts: 3,
       backoff: {
-        type: "exponential",
-        delay: 1000,
-      },
+        type: 'exponential',
+        delay: 1000
+      }
     });
 
-    recordMetric("analytics_dlq_retry", 1);
+    recordMetric('analytics_dlq_retry', 1);
 
     logger.info(`[DLQHandler] Job ${jobId} retried successfully`);
 
     return true;
   } catch (error) {
     logger.error(`[DLQHandler] Error retrying job ${jobId}`, {
-      error: error instanceof Error ? error.message : String(error),
+      error: error instanceof Error ? error.message : String(error)
     });
 
     return false;
@@ -184,9 +184,9 @@ export async function retryDLQJob(jobId: string): Promise<boolean> {
  */
 export async function retryAllDLQJobs(): Promise<number> {
   try {
-    logger.info("[DLQHandler] Retrying all jobs in DLQ");
+    logger.info('[DLQHandler] Retrying all jobs in DLQ');
 
-    const jobs = await analyticsDeadQueue.getJobs(["waiting"]);
+    const jobs = await analyticsDeadQueue.getJobs(['waiting']);
 
     let retried = 0;
 
@@ -199,8 +199,8 @@ export async function retryAllDLQJobs(): Promise<number> {
 
     return retried;
   } catch (error) {
-    logger.error("[DLQHandler] Error retrying all DLQ jobs", {
-      error: error instanceof Error ? error.message : String(error),
+    logger.error('[DLQHandler] Error retrying all DLQ jobs', {
+      error: error instanceof Error ? error.message : String(error)
     });
 
     return 0;
@@ -214,7 +214,7 @@ export async function cleanupOldDLQJobs(daysOld: number = 7): Promise<number> {
   try {
     logger.info(`[DLQHandler] Cleaning up DLQ jobs older than ${daysOld} days`);
 
-    const jobs = await analyticsDeadQueue.getJobs(["completed"]);
+    const jobs = await analyticsDeadQueue.getJobs(['completed']);
 
     let deleted = 0;
     const cutoffTime = Date.now() - daysOld * 24 * 60 * 60 * 1000;
@@ -232,8 +232,8 @@ export async function cleanupOldDLQJobs(daysOld: number = 7): Promise<number> {
 
     return deleted;
   } catch (error) {
-    logger.error("[DLQHandler] Error cleaning up old DLQ jobs", {
-      error: error instanceof Error ? error.message : String(error),
+    logger.error('[DLQHandler] Error cleaning up old DLQ jobs', {
+      error: error instanceof Error ? error.message : String(error)
     });
 
     return 0;
@@ -245,7 +245,7 @@ export async function cleanupOldDLQJobs(daysOld: number = 7): Promise<number> {
  * Chamado quando DLQ atinge threshold
  */
 export async function checkDLQThreshold(
-  alertThreshold: number = 100,
+  alertThreshold: number = 100
 ): Promise<void> {
   try {
     const { count } = await processDLQ();
@@ -255,17 +255,17 @@ export async function checkDLQThreshold(
         `[DLQHandler] 🚨 ALERT: DLQ threshold exceeded (${count} >= ${alertThreshold})`,
         {
           count,
-          threshold: alertThreshold,
-        },
+          threshold: alertThreshold
+        }
       );
 
-      recordMetric("analytics_dlq_alert", count, {
-        severity: "critical",
+      recordMetric('analytics_dlq_alert', count, {
+        severity: 'critical'
       });
     }
   } catch (error) {
-    logger.error("[DLQHandler] Error checking DLQ threshold", {
-      error: error instanceof Error ? error.message : String(error),
+    logger.error('[DLQHandler] Error checking DLQ threshold', {
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 }
@@ -275,5 +275,5 @@ export default {
   retryDLQJob,
   retryAllDLQJobs,
   cleanupOldDLQJobs,
-  checkDLQThreshold,
+  checkDLQThreshold
 };

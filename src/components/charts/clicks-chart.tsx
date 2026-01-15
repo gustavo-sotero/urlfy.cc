@@ -1,7 +1,7 @@
 // src/components/charts/clicks-chart.tsx
-"use client";
+'use client';
 
-import { useMemo } from "react";
+import { useMemo } from 'react';
 import {
   CartesianGrid,
   Legend,
@@ -10,9 +10,9 @@ import {
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis,
-} from "recharts";
-import type { DailyStats } from "@/types/analytics.types";
+  YAxis
+} from 'recharts';
+import type { DailyStats } from '@/types/analytics.types';
 
 interface Props {
   data: DailyStats[];
@@ -23,14 +23,14 @@ export function ClicksChart({ data }: Props) {
   const chartData = useMemo(
     () =>
       data.map((item) => ({
-        date: new Date(item.date).toLocaleDateString("pt-BR", {
-          month: "short",
-          day: "numeric",
+        date: new Date(item.date).toLocaleDateString('pt-BR', {
+          month: 'short',
+          day: 'numeric'
         }),
         Cliques: item.clicks,
-        "Visitantes Únicos": item.uniqueVisitors,
+        'Visitantes Únicos': item.uniqueVisitors
       })),
-    [data],
+    [data]
   );
 
   return (
@@ -45,17 +45,17 @@ export function ClicksChart({ data }: Props) {
           <XAxis
             dataKey="date"
             className="text-xs"
-            tick={{ fill: "hsl(var(--muted-foreground))" }}
+            tick={{ fill: 'hsl(var(--muted-foreground))' }}
           />
           <YAxis
             className="text-xs"
-            tick={{ fill: "hsl(var(--muted-foreground))" }}
+            tick={{ fill: 'hsl(var(--muted-foreground))' }}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "6px",
+              backgroundColor: 'hsl(var(--card))',
+              border: '1px solid hsl(var(--border))',
+              borderRadius: '6px'
             }}
           />
           <Legend />

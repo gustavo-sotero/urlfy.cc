@@ -1,24 +1,24 @@
 // src/app/(public)/preview/[code]/page.tsx
 
-import { BarChart2, Calendar, ExternalLink, Lock } from "lucide-react";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart2, Calendar, ExternalLink, Lock } from 'lucide-react';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Props {
   params: Promise<{ code: string }>;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const API_BASE = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 async function getLinkPreview(code: string) {
   try {
     const response = await fetch(
       `${API_BASE}/api/v1/links/by-code/${code}/preview`,
       {
-        cache: "no-store",
-      },
+        cache: 'no-store'
+      }
     );
 
     if (!response.ok) {
@@ -97,8 +97,8 @@ export default async function PreviewPage({ params }: Props) {
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
                 <span>
-                  Criado em{" "}
-                  {new Date(link.createdAt).toLocaleDateString("pt-BR")}
+                  Criado em{' '}
+                  {new Date(link.createdAt).toLocaleDateString('pt-BR')}
                 </span>
               </div>
             </div>

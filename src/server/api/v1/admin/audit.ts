@@ -9,32 +9,32 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { desc, eq } from "drizzle-orm";
-import { Elysia, t } from "elysia";
-import { db } from "@/db";
-import { auditLog } from "@/db/schema/audit";
-import type { User } from "@/lib/auth";
-import { createLogger } from "@/server/lib/telemetry";
-import { requireAuth } from "@/server/middleware/auth.middleware";
+import { desc, eq } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
+import { db } from '@/db';
+import { auditLog } from '@/db/schema/audit';
+import type { User } from '@/lib/auth';
+import { createLogger } from '@/server/lib/telemetry';
+import { requireAuth } from '@/server/middleware/auth.middleware';
 
-const logger = createLogger("admin-audit");
+const logger = createLogger('admin-audit');
 
 /**
  * Middleware to check admin role (for future use)
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function _requireAdmin(context: { user?: User }): Promise<boolean> {
-  return context.user?.role === "admin";
+  return context.user?.role === 'admin';
 }
 
-export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
+export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   .use(requireAuth)
 
   // ═══════════════════════════════════════════════════════════════════
   // GET AUDIT LOGS
   // ═══════════════════════════════════════════════════════════════════
   .get(
-    "/",
+    '/',
     async (context) => {
       const { user, query } = context as typeof context & {
         user: User;
@@ -49,21 +49,21 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
       };
 
       // Check admin permission
-      if (user.role !== "admin") {
+      if (user.role !== 'admin') {
         return {
           success: false,
           error: {
-            code: "FORBIDDEN",
-            message: "Only admins can view audit logs",
-          },
+            code: 'FORBIDDEN',
+            message: 'Only admins can view audit logs'
+          }
         };
       }
 
       try {
-        const page = Math.max(1, parseInt(query.page || "1", 10));
+        const page = Math.max(1, parseInt(query.page || '1', 10));
         const limit = Math.min(
           100,
-          Math.max(1, parseInt(query.limit || "50", 10)),
+          Math.max(1, parseInt(query.limit || '50', 10))
         );
         const offset = (page - 1) * limit;
 
@@ -78,40 +78,40 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
 
         if (query.action) {
           filteredLogs = filteredLogs.filter(
-            (log) => log.action === query.action,
+            (log) => log.action === query.action
           );
         }
 
         if (query.entityType) {
           filteredLogs = filteredLogs.filter(
-            (log) => log.entityType === query.entityType,
+            (log) => log.entityType === query.entityType
           );
         }
 
         // Apply sorting
-        const sortBy = query.sortBy || "createdAt";
+        const sortBy = query.sortBy || 'createdAt';
         const sortOrder =
-          query.sortOrder?.toLowerCase() === "asc" ? "asc" : "desc";
+          query.sortOrder?.toLowerCase() === 'asc' ? 'asc' : 'desc';
 
         filteredLogs.sort((a, b) => {
           let aVal: string | Date;
           let bVal: string | Date;
 
-          if (sortBy === "createdAt") {
+          if (sortBy === 'createdAt') {
             aVal = a.createdAt;
             bVal = b.createdAt;
-          } else if (sortBy === "action") {
+          } else if (sortBy === 'action') {
             aVal = a.action;
             bVal = b.action;
-          } else if (sortBy === "userId") {
+          } else if (sortBy === 'userId') {
             aVal = a.userId;
             bVal = b.userId;
           } else {
             return 0;
           }
 
-          if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
-          if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+          if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+          if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
           return 0;
         });
 
@@ -121,11 +121,11 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
         // Apply pagination
         const logs = filteredLogs.slice(offset, offset + limit);
 
-        logger.info("Audit logs retrieved", {
+        logger.info('Audit logs retrieved', {
           userId: user.id,
           count: logs.length,
           total,
-          filters: { action: query.action, entityType: query.entityType },
+          filters: { action: query.action, entityType: query.entityType }
         });
 
         return {
@@ -136,21 +136,21 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
             page,
             limit,
             totalPages: Math.ceil(total / limit),
-            hasMore: offset + limit < total,
-          },
+            hasMore: offset + limit < total
+          }
         };
       } catch (error) {
-        logger.error("Failed to fetch audit logs", {
+        logger.error('Failed to fetch audit logs', {
           error: error instanceof Error ? error.message : String(error),
-          userId: user.id,
+          userId: user.id
         });
 
         return {
           success: false,
           error: {
-            code: "FETCH_FAILED",
-            message: "Failed to fetch audit logs",
-          },
+            code: 'FETCH_FAILED',
+            message: 'Failed to fetch audit logs'
+          }
         };
       }
     },
@@ -161,28 +161,28 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
         action: t.Optional(t.String()),
         entityType: t.Optional(t.String()),
         sortBy: t.Optional(t.String()),
-        sortOrder: t.Optional(t.String()),
-      }),
-    },
+        sortOrder: t.Optional(t.String())
+      })
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════════
   // GET AUDIT LOG BY ID
   // ═══════════════════════════════════════════════════════════════════
-  .get("/:id", async (context) => {
+  .get('/:id', async (context) => {
     const { user, params } = context as typeof context & {
       user: User;
       params: { id: string };
     };
 
     // Check admin permission
-    if (user.role !== "admin") {
+    if (user.role !== 'admin') {
       return {
         success: false,
         error: {
-          code: "FORBIDDEN",
-          message: "Only admins can view audit logs",
-        },
+          code: 'FORBIDDEN',
+          message: 'Only admins can view audit logs'
+        }
       };
     }
 
@@ -198,34 +198,34 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
         return {
           success: false,
           error: {
-            code: "NOT_FOUND",
-            message: "Audit log not found",
-          },
+            code: 'NOT_FOUND',
+            message: 'Audit log not found'
+          }
         };
       }
 
-      logger.info("Audit log retrieved", {
+      logger.info('Audit log retrieved', {
         userId: user.id,
-        logId: params.id,
+        logId: params.id
       });
 
       return {
         success: true,
-        data: log,
+        data: log
       };
     } catch (error) {
-      logger.error("Failed to fetch audit log", {
+      logger.error('Failed to fetch audit log', {
         error: error instanceof Error ? error.message : String(error),
         userId: user.id,
-        logId: params.id,
+        logId: params.id
       });
 
       return {
         success: false,
         error: {
-          code: "FETCH_FAILED",
-          message: "Failed to fetch audit log",
-        },
+          code: 'FETCH_FAILED',
+          message: 'Failed to fetch audit log'
+        }
       };
     }
   })
@@ -233,7 +233,7 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
   // ═══════════════════════════════════════════════════════════════════
   // GET AUDIT LOGS FOR SPECIFIC ENTITY
   // ═══════════════════════════════════════════════════════════════════
-  .get("/entity/:entityType/:entityId", async (context) => {
+  .get('/entity/:entityType/:entityId', async (context) => {
     const { user, params, query } = context as typeof context & {
       user: User;
       params: { entityType: string; entityId: string };
@@ -241,20 +241,20 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
     };
 
     // Check admin permission
-    if (user.role !== "admin") {
+    if (user.role !== 'admin') {
       return {
         success: false,
         error: {
-          code: "FORBIDDEN",
-          message: "Only admins can view audit logs",
-        },
+          code: 'FORBIDDEN',
+          message: 'Only admins can view audit logs'
+        }
       };
     }
 
     try {
       const limit = Math.min(
         100,
-        Math.max(1, parseInt(query.limit || "50", 10)),
+        Math.max(1, parseInt(query.limit || '50', 10))
       );
 
       const logs = await db
@@ -262,16 +262,16 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
         .from(auditLog)
         .where(
           eq(auditLog.entityType, params.entityType) &&
-            eq(auditLog.entityId, params.entityId),
+            eq(auditLog.entityId, params.entityId)
         )
         .orderBy(desc(auditLog.createdAt))
         .limit(limit);
 
-      logger.info("Entity audit logs retrieved", {
+      logger.info('Entity audit logs retrieved', {
         userId: user.id,
         entityType: params.entityType,
         entityId: params.entityId,
-        count: logs.length,
+        count: logs.length
       });
 
       return {
@@ -281,23 +281,23 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
           count: logs.length,
           limit,
           entityType: params.entityType,
-          entityId: params.entityId,
-        },
+          entityId: params.entityId
+        }
       };
     } catch (error) {
-      logger.error("Failed to fetch entity audit logs", {
+      logger.error('Failed to fetch entity audit logs', {
         error: error instanceof Error ? error.message : String(error),
         userId: user.id,
         entityType: params.entityType,
-        entityId: params.entityId,
+        entityId: params.entityId
       });
 
       return {
         success: false,
         error: {
-          code: "FETCH_FAILED",
-          message: "Failed to fetch entity audit logs",
-        },
+          code: 'FETCH_FAILED',
+          message: 'Failed to fetch entity audit logs'
+        }
       };
     }
   })
@@ -305,7 +305,7 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
   // ═══════════════════════════════════════════════════════════════════
   // GET AUDIT LOGS FOR SPECIFIC USER
   // ═══════════════════════════════════════════════════════════════════
-  .get("/user/:targetUserId", async (context) => {
+  .get('/user/:targetUserId', async (context) => {
     const { user, params, query } = context as typeof context & {
       user: User;
       params: { targetUserId: string };
@@ -313,20 +313,20 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
     };
 
     // Check admin permission
-    if (user.role !== "admin") {
+    if (user.role !== 'admin') {
       return {
         success: false,
         error: {
-          code: "FORBIDDEN",
-          message: "Only admins can view audit logs",
-        },
+          code: 'FORBIDDEN',
+          message: 'Only admins can view audit logs'
+        }
       };
     }
 
     try {
       const limit = Math.min(
         100,
-        Math.max(1, parseInt(query.limit || "50", 10)),
+        Math.max(1, parseInt(query.limit || '50', 10))
       );
 
       const logs = await db
@@ -336,10 +336,10 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
         .orderBy(desc(auditLog.createdAt))
         .limit(limit);
 
-      logger.info("User audit logs retrieved", {
+      logger.info('User audit logs retrieved', {
         userId: user.id,
         targetUserId: params.targetUserId,
-        count: logs.length,
+        count: logs.length
       });
 
       return {
@@ -348,22 +348,22 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
         meta: {
           count: logs.length,
           limit,
-          targetUserId: params.targetUserId,
-        },
+          targetUserId: params.targetUserId
+        }
       };
     } catch (error) {
-      logger.error("Failed to fetch user audit logs", {
+      logger.error('Failed to fetch user audit logs', {
         error: error instanceof Error ? error.message : String(error),
         userId: user.id,
-        targetUserId: params.targetUserId,
+        targetUserId: params.targetUserId
       });
 
       return {
         success: false,
         error: {
-          code: "FETCH_FAILED",
-          message: "Failed to fetch user audit logs",
-        },
+          code: 'FETCH_FAILED',
+          message: 'Failed to fetch user audit logs'
+        }
       };
     }
   })
@@ -371,19 +371,19 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
   // ═══════════════════════════════════════════════════════════════════
   // GET AUDIT LOGS SUMMARY/STATS
   // ═══════════════════════════════════════════════════════════════════
-  .get("/stats/summary", async (context) => {
+  .get('/stats/summary', async (context) => {
     const { user } = context as typeof context & {
       user: User;
     };
 
     // Check admin permission
-    if (user.role !== "admin") {
+    if (user.role !== 'admin') {
       return {
         success: false,
         error: {
-          code: "FORBIDDEN",
-          message: "Only admins can view audit logs",
-        },
+          code: 'FORBIDDEN',
+          message: 'Only admins can view audit logs'
+        }
       };
     }
 
@@ -408,9 +408,9 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
         .slice(0, 10)
         .map(([userId, count]) => ({ userId, count }));
 
-      logger.info("Audit logs summary retrieved", {
+      logger.info('Audit logs summary retrieved', {
         userId: user.id,
-        totalLogs: allLogs.length,
+        totalLogs: allLogs.length
       });
 
       return {
@@ -419,21 +419,21 @@ export const adminAuditRoutes = new Elysia({ prefix: "/audit" })
           totalLogs: allLogs.length,
           actionCounts,
           entityTypeCounts,
-          topUsers,
-        },
+          topUsers
+        }
       };
     } catch (error) {
-      logger.error("Failed to fetch audit logs summary", {
+      logger.error('Failed to fetch audit logs summary', {
         error: error instanceof Error ? error.message : String(error),
-        userId: user.id,
+        userId: user.id
       });
 
       return {
         success: false,
         error: {
-          code: "FETCH_FAILED",
-          message: "Failed to fetch audit logs summary",
-        },
+          code: 'FETCH_FAILED',
+          message: 'Failed to fetch audit logs summary'
+        }
       };
     }
   });

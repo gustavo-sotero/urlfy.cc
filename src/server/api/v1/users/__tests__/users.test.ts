@@ -8,8 +8,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { describe, expect, it } from "bun:test";
-import { nanoid } from "nanoid";
+import { describe, expect, it } from 'bun:test';
+import { nanoid } from 'nanoid';
 
 // ═══════════════════════════════════════════════════════════════════
 // MOCK DATA
@@ -17,34 +17,34 @@ import { nanoid } from "nanoid";
 
 const mockUser = {
   id: nanoid(),
-  email: "test@example.com",
-  name: "Test User",
+  email: 'test@example.com',
+  name: 'Test User',
   emailVerified: true,
   image: null,
-  role: "user" as const,
+  role: 'user' as const,
   linksQuota: 100,
   linksCount: 5,
   createdAt: new Date(),
   updatedAt: new Date(),
   bannedAt: null,
   bannedReason: null,
-  deletedAt: null,
+  deletedAt: null
 };
 
 const mockAdminUser = {
   ...mockUser,
   id: nanoid(),
-  email: "admin@example.com",
-  role: "admin" as const,
+  email: 'admin@example.com',
+  role: 'admin' as const
 };
 
 // ═══════════════════════════════════════════════════════════════════
 // USER DATA ROUTES TESTS
 // ═══════════════════════════════════════════════════════════════════
 
-describe("User Data Routes", () => {
-  describe("GET /me", () => {
-    it("should return user profile data", () => {
+describe('User Data Routes', () => {
+  describe('GET /me', () => {
+    it('should return user profile data', () => {
       const publicProfile = {
         id: mockUser.id,
         email: mockUser.email,
@@ -55,28 +55,28 @@ describe("User Data Routes", () => {
         linksQuota: mockUser.linksQuota,
         linksCount: mockUser.linksCount,
         createdAt: mockUser.createdAt,
-        updatedAt: mockUser.updatedAt,
+        updatedAt: mockUser.updatedAt
       };
 
       expect(publicProfile.id).toBe(mockUser.id);
-      expect(publicProfile.email).toBe("test@example.com");
-      expect(publicProfile.role).toBe("user");
+      expect(publicProfile.email).toBe('test@example.com');
+      expect(publicProfile.role).toBe('user');
     });
 
-    it("should not expose sensitive fields", () => {
+    it('should not expose sensitive fields', () => {
       const publicProfile = {
         id: mockUser.id,
-        email: mockUser.email,
+        email: mockUser.email
       };
 
       // These should not be in public profile
-      expect("bannedAt" in publicProfile).toBe(false);
-      expect("deletedAt" in publicProfile).toBe(false);
+      expect('bannedAt' in publicProfile).toBe(false);
+      expect('deletedAt' in publicProfile).toBe(false);
     });
   });
 
-  describe("GET /me/quota", () => {
-    it("should calculate quota correctly", () => {
+  describe('GET /me/quota', () => {
+    it('should calculate quota correctly', () => {
       const used = mockUser.linksCount;
       const limit = mockUser.linksQuota;
       const remaining = Math.max(0, limit - used);
@@ -88,23 +88,23 @@ describe("User Data Routes", () => {
       expect(percentUsed).toBe(5);
     });
 
-    it("should handle zero quota", () => {
+    it('should handle zero quota', () => {
       const userWithNoQuota = { ...mockUser, linksQuota: 0 };
       const percentUsed =
         userWithNoQuota.linksQuota > 0
           ? Math.round(
-              (userWithNoQuota.linksCount / userWithNoQuota.linksQuota) * 100,
+              (userWithNoQuota.linksCount / userWithNoQuota.linksQuota) * 100
             )
           : 0;
 
       expect(percentUsed).toBe(0);
     });
 
-    it("should handle exceeded quota", () => {
+    it('should handle exceeded quota', () => {
       const userOverQuota = { ...mockUser, linksCount: 150 };
       const remaining = Math.max(
         0,
-        userOverQuota.linksQuota - userOverQuota.linksCount,
+        userOverQuota.linksQuota - userOverQuota.linksCount
       );
 
       expect(remaining).toBe(0);
@@ -116,9 +116,9 @@ describe("User Data Routes", () => {
 // LGPD/GDPR COMPLIANCE TESTS
 // ═══════════════════════════════════════════════════════════════════
 
-describe("LGPD/GDPR Compliance", () => {
-  describe("Data Export", () => {
-    it("should include all required data in export", () => {
+describe('LGPD/GDPR Compliance', () => {
+  describe('Data Export', () => {
+    it('should include all required data in export', () => {
       const exportData = {
         user: {
           id: mockUser.id,
@@ -129,13 +129,13 @@ describe("LGPD/GDPR Compliance", () => {
           linksQuota: mockUser.linksQuota,
           linksCount: mockUser.linksCount,
           createdAt: mockUser.createdAt,
-          updatedAt: mockUser.updatedAt,
+          updatedAt: mockUser.updatedAt
         },
         sessions: [],
         accounts: [],
         twoFactor: null,
         apiKeys: [],
-        exportDate: new Date().toISOString(),
+        exportDate: new Date().toISOString()
       };
 
       expect(exportData.user.id).toBeDefined();
@@ -143,31 +143,31 @@ describe("LGPD/GDPR Compliance", () => {
       expect(exportData.exportDate).toBeDefined();
     });
 
-    it("should not include sensitive data in export", () => {
+    it('should not include sensitive data in export', () => {
       const exportData = {
         user: {
           id: mockUser.id,
-          email: mockUser.email,
-        },
+          email: mockUser.email
+        }
       };
 
       // Password should never be exported
-      expect("password" in exportData.user).toBe(false);
+      expect('password' in exportData.user).toBe(false);
     });
   });
 
-  describe("Data Deletion Request", () => {
-    it("should create deletion request with 72h deadline", () => {
+  describe('Data Deletion Request', () => {
+    it('should create deletion request with 72h deadline', () => {
       const requestedAt = new Date();
       const deadlineAt = new Date(requestedAt.getTime() + 72 * 60 * 60 * 1000);
 
       const request = {
         id: nanoid(),
         userId: mockUser.id,
-        status: "pending" as const,
+        status: 'pending' as const,
         requestedAt,
         deadlineAt,
-        dataExported: "no" as const,
+        dataExported: 'no' as const
       };
 
       const deadlineDiff =
@@ -175,17 +175,17 @@ describe("LGPD/GDPR Compliance", () => {
       const hours = deadlineDiff / (60 * 60 * 1000);
 
       expect(hours).toBe(72);
-      expect(request.status).toBe("pending");
+      expect(request.status).toBe('pending');
     });
 
-    it("should prevent duplicate pending requests", () => {
+    it('should prevent duplicate pending requests', () => {
       const existingRequest = {
         id: nanoid(),
         userId: mockUser.id,
-        status: "pending" as const,
+        status: 'pending' as const
       };
 
-      const hasPendingRequest = existingRequest.status === "pending";
+      const hasPendingRequest = existingRequest.status === 'pending';
       expect(hasPendingRequest).toBe(true);
     });
   });
@@ -195,9 +195,9 @@ describe("LGPD/GDPR Compliance", () => {
 // ADMIN USER MANAGEMENT TESTS
 // ═══════════════════════════════════════════════════════════════════
 
-describe("Admin User Management", () => {
-  describe("List Users", () => {
-    it("should paginate results correctly", () => {
+describe('Admin User Management', () => {
+  describe('List Users', () => {
+    it('should paginate results correctly', () => {
       const totalUsers = 150;
       const perPage = 20;
       const page = 3;
@@ -211,7 +211,7 @@ describe("Admin User Management", () => {
       expect(hasMore).toBe(true);
     });
 
-    it("should limit perPage to maximum", () => {
+    it('should limit perPage to maximum', () => {
       const requestedPerPage = 500;
       const maxPerPage = 100;
       const actualPerPage = Math.min(requestedPerPage, maxPerPage);
@@ -220,23 +220,23 @@ describe("Admin User Management", () => {
     });
   });
 
-  describe("Ban User", () => {
-    it("should set ban fields correctly", () => {
+  describe('Ban User', () => {
+    it('should set ban fields correctly', () => {
       const bannedUser = {
         ...mockUser,
         bannedAt: new Date(),
-        bannedReason: "Spam content",
+        bannedReason: 'Spam content'
       };
 
       expect(bannedUser.bannedAt).toBeInstanceOf(Date);
-      expect(bannedUser.bannedReason).toBe("Spam content");
+      expect(bannedUser.bannedReason).toBe('Spam content');
     });
 
-    it("should clear ban fields on unban", () => {
+    it('should clear ban fields on unban', () => {
       const unbannedUser = {
         ...mockUser,
         bannedAt: null,
-        bannedReason: null,
+        bannedReason: null
       };
 
       expect(unbannedUser.bannedAt).toBeNull();
@@ -244,25 +244,25 @@ describe("Admin User Management", () => {
     });
   });
 
-  describe("Update User Role", () => {
-    it("should change role from user to admin", () => {
-      const updatedUser = { ...mockUser, role: "admin" as const };
-      expect(updatedUser.role).toBe("admin");
+  describe('Update User Role', () => {
+    it('should change role from user to admin', () => {
+      const updatedUser = { ...mockUser, role: 'admin' as const };
+      expect(updatedUser.role).toBe('admin');
     });
 
-    it("should change role from admin to user", () => {
-      const updatedAdmin = { ...mockAdminUser, role: "user" as const };
-      expect(updatedAdmin.role).toBe("user");
+    it('should change role from admin to user', () => {
+      const updatedAdmin = { ...mockAdminUser, role: 'user' as const };
+      expect(updatedAdmin.role).toBe('user');
     });
   });
 
-  describe("Update User Quota", () => {
-    it("should update links quota", () => {
+  describe('Update User Quota', () => {
+    it('should update links quota', () => {
       const updatedUser = { ...mockUser, linksQuota: 500 };
       expect(updatedUser.linksQuota).toBe(500);
     });
 
-    it("should not allow negative quota", () => {
+    it('should not allow negative quota', () => {
       const requestedQuota = -10;
       const validQuota = Math.max(0, requestedQuota);
       expect(validQuota).toBe(0);
@@ -274,18 +274,18 @@ describe("Admin User Management", () => {
 // ADMIN STATS TESTS
 // ═══════════════════════════════════════════════════════════════════
 
-describe("Admin Statistics", () => {
-  it("should calculate user statistics", () => {
+describe('Admin Statistics', () => {
+  it('should calculate user statistics', () => {
     const stats = {
       totalUsers: 1000,
       activeUsers: 950,
       bannedUsers: 30,
-      adminUsers: 5,
+      adminUsers: 5
     };
 
     expect(stats.totalUsers).toBe(1000);
     expect(stats.activeUsers + stats.bannedUsers).toBeLessThanOrEqual(
-      stats.totalUsers,
+      stats.totalUsers
     );
     expect(stats.adminUsers).toBeLessThan(stats.totalUsers);
   });
@@ -295,48 +295,48 @@ describe("Admin Statistics", () => {
 // USER SERVICE TESTS
 // ═══════════════════════════════════════════════════════════════════
 
-describe("User Service Logic", () => {
-  describe("Quota Management", () => {
-    it("should check quota availability", () => {
+describe('User Service Logic', () => {
+  describe('Quota Management', () => {
+    it('should check quota availability', () => {
       const hasQuota = mockUser.linksCount < mockUser.linksQuota;
       expect(hasQuota).toBe(true);
     });
 
-    it("should increment links count", () => {
+    it('should increment links count', () => {
       const newCount = mockUser.linksCount + 1;
       expect(newCount).toBe(6);
     });
 
-    it("should decrement links count", () => {
+    it('should decrement links count', () => {
       const newCount = mockUser.linksCount - 1;
       expect(newCount).toBe(4);
     });
 
-    it("should not decrement below zero", () => {
+    it('should not decrement below zero', () => {
       const currentCount = 0;
       const newCount = Math.max(0, currentCount - 1);
       expect(newCount).toBe(0);
     });
   });
 
-  describe("Soft Delete", () => {
-    it("should anonymize email on delete", () => {
+  describe('Soft Delete', () => {
+    it('should anonymize email on delete', () => {
       const deletedEmail = `deleted_${mockUser.id}@urlfy.cc`;
-      expect(deletedEmail).toContain("deleted_");
-      expect(deletedEmail).toContain("@urlfy.cc");
+      expect(deletedEmail).toContain('deleted_');
+      expect(deletedEmail).toContain('@urlfy.cc');
     });
 
-    it("should set deleted timestamp", () => {
+    it('should set deleted timestamp', () => {
       const deletedUser = {
         ...mockUser,
         deletedAt: new Date(),
         email: `deleted_${mockUser.id}@urlfy.cc`,
-        name: "Deleted User",
-        image: null,
+        name: 'Deleted User',
+        image: null
       };
 
       expect(deletedUser.deletedAt).toBeInstanceOf(Date);
-      expect(deletedUser.name).toBe("Deleted User");
+      expect(deletedUser.name).toBe('Deleted User');
     });
   });
 });

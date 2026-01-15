@@ -9,14 +9,14 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, sql } from "drizzle-orm";
-import { nanoid } from "nanoid";
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import {
   type AuditAction,
   type AuditLog as AuditLogType,
-  auditLog,
-} from "@/db/schema/audit";
-import { db } from "@/server/lib/db";
+  auditLog
+} from '@/db/schema/audit';
+import { db } from '@/server/lib/db';
 
 export class AuditLogService {
   /**
@@ -41,7 +41,7 @@ export class AuditLogService {
         entityId: params.entityId,
         metadata: params.metadata || {},
         ipAddress: params.ipAddress,
-        userAgent: params.userAgent,
+        userAgent: params.userAgent
       })
       .returning();
 
@@ -56,7 +56,7 @@ export class AuditLogService {
     options?: {
       limit?: number;
       offset?: number;
-    },
+    }
   ): Promise<{ logs: AuditLogType[]; total: number }> {
     const limit = options?.limit || 50;
     const offset = options?.offset || 0;
@@ -76,7 +76,7 @@ export class AuditLogService {
 
     return {
       logs,
-      total: count,
+      total: count
     };
   }
 
@@ -89,7 +89,7 @@ export class AuditLogService {
     options?: {
       limit?: number;
       offset?: number;
-    },
+    }
   ): Promise<{ logs: AuditLogType[]; total: number }> {
     const limit = options?.limit || 50;
     const offset = options?.offset || 0;
@@ -100,8 +100,8 @@ export class AuditLogService {
       .where(
         and(
           eq(auditLog.entityType, entityType),
-          eq(auditLog.entityId, entityId),
-        ),
+          eq(auditLog.entityId, entityId)
+        )
       )
       .orderBy(desc(auditLog.createdAt))
       .limit(limit)
@@ -113,13 +113,13 @@ export class AuditLogService {
       .where(
         and(
           eq(auditLog.entityType, entityType),
-          eq(auditLog.entityId, entityId),
-        ),
+          eq(auditLog.entityId, entityId)
+        )
       );
 
     return {
       logs,
-      total: count,
+      total: count
     };
   }
 
@@ -152,7 +152,7 @@ export class AuditLogService {
 
     return {
       logs,
-      total: count,
+      total: count
     };
   }
 }

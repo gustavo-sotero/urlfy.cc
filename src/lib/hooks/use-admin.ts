@@ -8,24 +8,24 @@ import {
   type UseQueryOptions,
   useMutation,
   useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import * as api from "@/lib/api-client";
-import type { LinkResponse, PaginatedResponse } from "@/types/links.types";
-import { linkKeys } from "./use-links";
+  useQueryClient
+} from '@tanstack/react-query';
+import * as api from '@/lib/api-client';
+import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
+import { linkKeys } from './use-links';
 
 // ═══════════════════════════════════════════════════════════════════
 // QUERY KEYS
 // ═══════════════════════════════════════════════════════════════════
 
 export const adminKeys = {
-  all: ["admin"] as const,
-  stats: () => [...adminKeys.all, "stats"] as const,
-  search: (query: string) => [...adminKeys.all, "search", query] as const,
+  all: ['admin'] as const,
+  stats: () => [...adminKeys.all, 'stats'] as const,
+  search: (query: string) => [...adminKeys.all, 'search', query] as const,
   auditLogs: (filters: api.AuditLogsQuery) =>
-    [...adminKeys.all, "audit", filters] as const,
+    [...adminKeys.all, 'audit', filters] as const,
   users: (filters: { page?: number; perPage?: number; search?: string }) =>
-    [...adminKeys.all, "users", filters] as const,
+    [...adminKeys.all, 'users', filters] as const
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -41,27 +41,27 @@ export function useAdminStats(
       activeLinksToday: number;
       requestsPerSecond: number;
     }>,
-    "queryKey" | "queryFn"
-  >,
+    'queryKey' | 'queryFn'
+  >
 ) {
   return useQuery({
     queryKey: adminKeys.stats(),
     queryFn: () => api.getAdminStats(),
     staleTime: 30_000, // 30 seconds
-    ...options,
+    ...options
   });
 }
 
 export function useSearchLinks(
   query: string,
-  options?: Omit<UseQueryOptions<LinkResponse[]>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<LinkResponse[]>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
     queryKey: adminKeys.search(query),
     queryFn: () => api.searchLinks(query),
     staleTime: 10_000, // 10 seconds
     enabled: query.length > 0,
-    ...options,
+    ...options
   });
 }
 
@@ -74,7 +74,7 @@ export function useBanLink(
     LinkResponse,
     Error,
     { id: string; reason: string }
-  >,
+  >
 ) {
   const queryClient = useQueryClient();
 
@@ -88,12 +88,12 @@ export function useBanLink(
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
       queryClient.invalidateQueries({ queryKey: adminKeys.all });
     },
-    ...options,
+    ...options
   });
 }
 
 export function useUnbanLink(
-  options?: UseMutationOptions<LinkResponse, Error, string>,
+  options?: UseMutationOptions<LinkResponse, Error, string>
 ) {
   const queryClient = useQueryClient();
 
@@ -106,7 +106,7 @@ export function useUnbanLink(
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
       queryClient.invalidateQueries({ queryKey: adminKeys.all });
     },
-    ...options,
+    ...options
   });
 }
 
@@ -118,14 +118,14 @@ export function useAuditLogs(
   filters: api.AuditLogsQuery = {},
   options?: Omit<
     UseQueryOptions<PaginatedResponse<api.AuditLogEntry>>,
-    "queryKey" | "queryFn"
-  >,
+    'queryKey' | 'queryFn'
+  >
 ) {
   return useQuery({
     queryKey: adminKeys.auditLogs(filters),
     queryFn: () => api.getAuditLogs(filters),
     staleTime: 30_000, // 30 seconds
-    ...options,
+    ...options
   });
 }
 
@@ -137,14 +137,14 @@ export function useUsers(
   filters: { page?: number; perPage?: number; search?: string } = {},
   options?: Omit<
     UseQueryOptions<PaginatedResponse<api.UserResponse>>,
-    "queryKey" | "queryFn"
-  >,
+    'queryKey' | 'queryFn'
+  >
 ) {
   return useQuery({
     queryKey: adminKeys.users(filters),
     queryFn: () => api.getUsers(filters),
     staleTime: 30_000, // 30 seconds
-    ...options,
+    ...options
   });
 }
 
@@ -153,7 +153,7 @@ export function useUpdateUserRole(
     api.UserResponse,
     Error,
     { userId: string; role: string }
-  >,
+  >
 ) {
   const queryClient = useQueryClient();
 
@@ -163,12 +163,12 @@ export function useUpdateUserRole(
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.users({}) });
     },
-    ...options,
+    ...options
   });
 }
 
 export function useBanUser(
-  options?: UseMutationOptions<api.UserResponse, Error, string>,
+  options?: UseMutationOptions<api.UserResponse, Error, string>
 ) {
   const queryClient = useQueryClient();
 
@@ -177,12 +177,12 @@ export function useBanUser(
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.users({}) });
     },
-    ...options,
+    ...options
   });
 }
 
 export function useUnbanUser(
-  options?: UseMutationOptions<api.UserResponse, Error, string>,
+  options?: UseMutationOptions<api.UserResponse, Error, string>
 ) {
   const queryClient = useQueryClient();
 
@@ -191,6 +191,6 @@ export function useUnbanUser(
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.users({}) });
     },
-    ...options,
+    ...options
   });
 }

@@ -1,8 +1,8 @@
 // src/app/(public)/unlock/[code]/page.tsx
 
-import { Lock } from "lucide-react";
-import { UnlockForm } from "@/components/forms/unlock-form";
-import { Card } from "@/components/ui/card";
+import { Lock } from 'lucide-react';
+import { UnlockForm } from '@/components/forms/unlock-form';
+import { Card } from '@/components/ui/card';
 
 interface Props {
   params: Promise<{ code: string }>;

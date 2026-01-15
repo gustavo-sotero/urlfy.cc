@@ -1,29 +1,29 @@
 // src/app/(admin)/admin/audit/page.tsx
-"use client";
+'use client';
 
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Loader2 } from "lucide-react";
-import { useState } from "react";
-import { QueryError } from "@/components/query-error";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { CalendarIcon, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { QueryError } from '@/components/query-error';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  PopoverTrigger
+} from '@/components/ui/popover';
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useAuditLogs } from "@/lib/hooks/use-admin";
+  TableRow
+} from '@/components/ui/table';
+import { useAuditLogs } from '@/lib/hooks/use-admin';
 
 export default function AdminAuditPage() {
   const [dateFrom, setDateFrom] = useState<Date>();
@@ -34,7 +34,7 @@ export default function AdminAuditPage() {
     from: dateFrom?.toISOString(),
     to: dateTo?.toISOString(),
     page,
-    perPage: 20,
+    perPage: 20
   });
 
   const handleFilter = () => {
@@ -43,11 +43,11 @@ export default function AdminAuditPage() {
   };
 
   const getActionBadgeVariant = (action: string) => {
-    if (action.includes("ban")) return "destructive";
-    if (action.includes("delete")) return "destructive";
-    if (action.includes("create")) return "default";
-    if (action.includes("update")) return "secondary";
-    return "outline";
+    if (action.includes('ban')) return 'destructive';
+    if (action.includes('delete')) return 'destructive';
+    if (action.includes('create')) return 'default';
+    if (action.includes('update')) return 'secondary';
+    return 'outline';
   };
 
   return (
@@ -69,7 +69,7 @@ export default function AdminAuditPage() {
               <PopoverTrigger asChild>
                 <Button variant="outline">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateFrom ? format(dateFrom, "PPP", { locale: ptBR }) : "De"}
+                  {dateFrom ? format(dateFrom, 'PPP', { locale: ptBR }) : 'De'}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
@@ -85,7 +85,7 @@ export default function AdminAuditPage() {
               <PopoverTrigger asChild>
                 <Button variant="outline">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateTo ? format(dateTo, "PPP", { locale: ptBR }) : "Até"}
+                  {dateTo ? format(dateTo, 'PPP', { locale: ptBR }) : 'Até'}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
@@ -143,7 +143,7 @@ export default function AdminAuditPage() {
                         <TableCell>
                           {format(
                             new Date(log.createdAt),
-                            "dd/MM/yyyy HH:mm:ss",
+                            'dd/MM/yyyy HH:mm:ss'
                           )}
                         </TableCell>
                         <TableCell>{log.userEmail || log.userId}</TableCell>
@@ -156,7 +156,7 @@ export default function AdminAuditPage() {
                           {log.entityType}: {log.entityId.slice(0, 8)}...
                         </TableCell>
                         <TableCell className="max-w-xs truncate">
-                          {log.metadata ? JSON.stringify(log.metadata) : "-"}
+                          {log.metadata ? JSON.stringify(log.metadata) : '-'}
                         </TableCell>
                         <TableCell className="font-mono text-xs">
                           {log.ipAddress}

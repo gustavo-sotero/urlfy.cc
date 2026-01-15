@@ -1,9 +1,9 @@
 // src/server/services/shortcode.service.ts
 
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { links, reservedSlugs } from "@/db/schema";
-import { generateShortCode } from "../lib/nanoid";
+import { eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { links, reservedSlugs } from '@/db/schema';
+import { generateShortCode } from '../lib/nanoid';
 
 const MAX_RETRIES = 5;
 
@@ -24,14 +24,14 @@ export async function generateUniqueCode(): Promise<string> {
         db
           .select({ code: reservedSlugs.slug })
           .from(reservedSlugs)
-          .where(eq(reservedSlugs.slug, code)),
+          .where(eq(reservedSlugs.slug, code))
       )
       .limit(1);
 
     if (exists.length === 0) return code;
   }
 
-  throw new Error("SHORTCODE_GENERATION_FAILED");
+  throw new Error('SHORTCODE_GENERATION_FAILED');
 }
 
 /**
@@ -54,7 +54,7 @@ export async function validateCustomAlias(alias: string): Promise<boolean> {
       db
         .select({ code: reservedSlugs.slug })
         .from(reservedSlugs)
-        .where(eq(reservedSlugs.slug, alias)),
+        .where(eq(reservedSlugs.slug, alias))
     )
     .limit(1);
 

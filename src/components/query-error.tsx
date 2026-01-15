@@ -1,7 +1,7 @@
 // src/components/query-error.tsx
 
-import { AlertCircle, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface QueryErrorProps {
   error: Error;
@@ -12,7 +12,7 @@ interface QueryErrorProps {
 export function QueryError({
   error,
   onRetry,
-  title = "Erro ao carregar dados",
+  title = 'Erro ao carregar dados'
 }: QueryErrorProps) {
   return (
     <div

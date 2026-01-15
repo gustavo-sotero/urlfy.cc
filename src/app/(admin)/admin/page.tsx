@@ -1,21 +1,21 @@
 // src/app/(admin)/admin/page.tsx
 
-import { StatsCards } from "@/components/admin";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAdminStats } from "@/lib/api-client";
+import { StatsCards } from '@/components/admin';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getAdminStats } from '@/lib/api-client';
 
 async function fetchAdminStats() {
   try {
     return await getAdminStats();
   } catch (error) {
-    console.error("Failed to fetch admin stats:", error);
+    console.error('Failed to fetch admin stats:', error);
     // Return fallback data
     return {
       totalLinks: 0,
       totalClicks: 0,
       totalUsers: 0,
       activeLinksToday: 0,
-      requestsPerSecond: 0,
+      requestsPerSecond: 0
     };
   }
 }

@@ -9,6 +9,9 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { and, desc, eq } from 'drizzle-orm';
+import { Elysia } from 'elysia';
+import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import { type DeletionStatus, dataDeletionRequest } from '@/db/schema/audit';
 import type { User } from '@/lib/auth';
@@ -16,9 +19,6 @@ import { sendEmail } from '@/server/lib/email';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import { auditLogService } from '@/server/services/audit.service';
 import { userService } from '@/server/services/user.service';
-import { and, desc, eq } from 'drizzle-orm';
-import { Elysia } from 'elysia';
-import { nanoid } from 'nanoid';
 
 export const userDataRoutes = new Elysia({ prefix: '/me' })
   .use(requireAuth)

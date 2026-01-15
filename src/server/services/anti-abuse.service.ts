@@ -3,10 +3,10 @@
  * Detects and prevents abuse patterns
  */
 
-import { getRedisClient } from "@/server/lib/redis";
-import { createLogger } from "@/server/lib/telemetry";
+import { getRedisClient } from '@/server/lib/redis';
+import { createLogger } from '@/server/lib/telemetry';
 
-const logger = createLogger("anti-abuse");
+const logger = createLogger('anti-abuse');
 
 // Thresholds for anomaly detection
 const THRESHOLDS = {
@@ -14,7 +14,7 @@ const THRESHOLDS = {
   SIGNUP_ATTEMPTS: { count: 10, window: 3600 }, // 10 attempts per hour
   LINK_CREATION: { count: 100, window: 60 }, // 100 links per minute
   API_ERRORS: { count: 100, window: 60 }, // 100 errors per minute
-  PASSWORD_RESET: { count: 5, window: 3600 }, // 5 resets per hour
+  PASSWORD_RESET: { count: 5, window: 3600 } // 5 resets per hour
 } as const;
 
 // Interface definition for potential future use
@@ -39,10 +39,10 @@ export class AntiAbuseService {
       await this.redis.incr(redisKey);
       await this.redis.expire(redisKey, threshold.window);
     } catch (error) {
-      logger.error("Failed to record abuse event", {
+      logger.error('Failed to record abuse event', {
         error: error instanceof Error ? error.message : String(error),
         type,
-        key,
+        key
       });
     }
   }
@@ -52,7 +52,7 @@ export class AntiAbuseService {
    */
   async isAnomalous(
     type: keyof typeof THRESHOLDS,
-    key: string,
+    key: string
   ): Promise<boolean> {
     try {
       const redisKey = `abuse:${type}:${key}`;
@@ -64,10 +64,10 @@ export class AntiAbuseService {
       const current = parseInt(count, 10);
       return current >= threshold.count;
     } catch (error) {
-      logger.error("Failed to check anomaly", {
+      logger.error('Failed to check anomaly', {
         error: error instanceof Error ? error.message : String(error),
         type,
-        key,
+        key
       });
       return false;
     }
@@ -78,17 +78,17 @@ export class AntiAbuseService {
    */
   async getEventCount(
     type: keyof typeof THRESHOLDS,
-    key: string,
+    key: string
   ): Promise<number> {
     try {
       const redisKey = `abuse:${type}:${key}`;
       const count = await this.redis.get(redisKey);
       return count ? parseInt(count, 10) : 0;
     } catch (error) {
-      logger.error("Failed to get event count", {
+      logger.error('Failed to get event count', {
         error: error instanceof Error ? error.message : String(error),
         type,
-        key,
+        key
       });
       return 0;
     }
@@ -103,13 +103,13 @@ export class AntiAbuseService {
       await this.redis.setex(
         key,
         ttl,
-        JSON.stringify({ reason, blockedAt: Date.now() }),
+        JSON.stringify({ reason, blockedAt: Date.now() })
       );
-      logger.warn("IP blocked", { ip, reason, ttl });
+      logger.warn('IP blocked', { ip, reason, ttl });
     } catch (error) {
-      logger.error("Failed to block IP", {
+      logger.error('Failed to block IP', {
         error: error instanceof Error ? error.message : String(error),
-        ip,
+        ip
       });
     }
   }
@@ -123,9 +123,9 @@ export class AntiAbuseService {
       const blocked = await this.redis.exists(key);
       return blocked === 1;
     } catch (error) {
-      logger.error("Failed to check IP block status", {
+      logger.error('Failed to check IP block status', {
         error: error instanceof Error ? error.message : String(error),
-        ip,
+        ip
       });
       return false;
     }
@@ -138,11 +138,11 @@ export class AntiAbuseService {
     try {
       const key = `blocked:ip:${ip}`;
       await this.redis.del(key);
-      logger.info("IP unblocked", { ip });
+      logger.info('IP unblocked', { ip });
     } catch (error) {
-      logger.error("Failed to unblock IP", {
+      logger.error('Failed to unblock IP', {
         error: error instanceof Error ? error.message : String(error),
-        ip,
+        ip
       });
     }
   }
@@ -155,13 +155,13 @@ export class AntiAbuseService {
       const key = `blocked:user:${userId}`;
       await this.redis.set(
         key,
-        JSON.stringify({ reason, blockedAt: Date.now() }),
+        JSON.stringify({ reason, blockedAt: Date.now() })
       );
-      logger.warn("User blocked", { userId, reason });
+      logger.warn('User blocked', { userId, reason });
     } catch (error) {
-      logger.error("Failed to block user", {
+      logger.error('Failed to block user', {
         error: error instanceof Error ? error.message : String(error),
-        userId,
+        userId
       });
     }
   }
@@ -175,9 +175,9 @@ export class AntiAbuseService {
       const blocked = await this.redis.exists(key);
       return blocked === 1;
     } catch (error) {
-      logger.error("Failed to check user block status", {
+      logger.error('Failed to check user block status', {
         error: error instanceof Error ? error.message : String(error),
-        userId,
+        userId
       });
       return false;
     }
@@ -190,11 +190,11 @@ export class AntiAbuseService {
     try {
       const key = `blocked:user:${userId}`;
       await this.redis.del(key);
-      logger.info("User unblocked", { userId });
+      logger.info('User unblocked', { userId });
     } catch (error) {
-      logger.error("Failed to unblock user", {
+      logger.error('Failed to unblock user', {
         error: error instanceof Error ? error.message : String(error),
-        userId,
+        userId
       });
     }
   }
@@ -205,23 +205,23 @@ export class AntiAbuseService {
   async recordLoginFailure(ip: string): Promise<boolean> {
     try {
       // Record event
-      await this.recordEvent("LOGIN_FAILURES", ip);
+      await this.recordEvent('LOGIN_FAILURES', ip);
 
       // Check if anomalous
-      const anomalous = await this.isAnomalous("LOGIN_FAILURES", ip);
+      const anomalous = await this.isAnomalous('LOGIN_FAILURES', ip);
 
       if (anomalous) {
-        logger.warn("Excessive login failures detected", { ip });
+        logger.warn('Excessive login failures detected', { ip });
         // Auto-block after anomaly
-        await this.blockIP(ip, "Excessive login failures", 1800); // 30 minutes
+        await this.blockIP(ip, 'Excessive login failures', 1800); // 30 minutes
         return true;
       }
 
       return false;
     } catch (error) {
-      logger.error("Failed to record login failure", {
+      logger.error('Failed to record login failure', {
         error: error instanceof Error ? error.message : String(error),
-        ip,
+        ip
       });
       return false;
     }
@@ -232,29 +232,29 @@ export class AntiAbuseService {
    */
   async recordLinkCreation(
     userId: string | null,
-    ip: string,
+    ip: string
   ): Promise<boolean> {
     const key = userId || ip;
 
     try {
-      await this.recordEvent("LINK_CREATION", key);
+      await this.recordEvent('LINK_CREATION', key);
 
-      const anomalous = await this.isAnomalous("LINK_CREATION", key);
+      const anomalous = await this.isAnomalous('LINK_CREATION', key);
 
       if (anomalous) {
-        logger.warn("Excessive link creation detected", { userId, ip });
+        logger.warn('Excessive link creation detected', { userId, ip });
         if (!userId) {
-          await this.blockIP(ip, "Excessive link creation", 600); // 10 minutes
+          await this.blockIP(ip, 'Excessive link creation', 600); // 10 minutes
         }
         return true;
       }
 
       return false;
     } catch (error) {
-      logger.error("Failed to record link creation", {
+      logger.error('Failed to record link creation', {
         error: error instanceof Error ? error.message : String(error),
         userId,
-        ip,
+        ip
       });
       return false;
     }
@@ -265,7 +265,7 @@ export class AntiAbuseService {
    */
   async checkDistributedAttack(
     endpoint: string,
-    _windowSize: number = 60,
+    _windowSize: number = 60
   ): Promise<{ attackDetected: boolean; count: number }> {
     try {
       const redisKey = `attack:${endpoint}`;
@@ -277,20 +277,20 @@ export class AntiAbuseService {
       const attackDetected = currentCount > attackThreshold;
 
       if (attackDetected) {
-        logger.error("Distributed attack detected", {
+        logger.error('Distributed attack detected', {
           endpoint,
-          count: currentCount,
+          count: currentCount
         });
       }
 
       return {
         attackDetected,
-        count: currentCount,
+        count: currentCount
       };
     } catch (error) {
-      logger.error("Failed to check distributed attack", {
+      logger.error('Failed to check distributed attack', {
         error: error instanceof Error ? error.message : String(error),
-        endpoint,
+        endpoint
       });
       return { attackDetected: false, count: 0 };
     }
@@ -308,11 +308,11 @@ export class AntiAbuseService {
         await this.redis.del(redisKey);
       }
 
-      logger.info("IP counters reset", { ip });
+      logger.info('IP counters reset', { ip });
     } catch (error) {
-      logger.error("Failed to reset IP counters", {
+      logger.error('Failed to reset IP counters', {
         error: error instanceof Error ? error.message : String(error),
-        ip,
+        ip
       });
     }
   }
@@ -334,9 +334,9 @@ export class AntiAbuseService {
 
       return report;
     } catch (error) {
-      logger.error("Failed to get abuse report", {
+      logger.error('Failed to get abuse report', {
         error: error instanceof Error ? error.message : String(error),
-        ip,
+        ip
       });
       return {};
     }

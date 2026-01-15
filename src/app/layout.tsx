@@ -1,26 +1,26 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { SkipLink } from "@/components/layout/skip-link";
-import { Providers } from "@/lib/providers";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import { SkipLink } from '@/components/layout/skip-link';
+import { Providers } from '@/lib/providers';
+import './globals.css';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin']
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin']
 });
 
 export const metadata: Metadata = {
-  title: "urlfy.cc - URL Shortener",
-  description: "Fast and reliable URL shortening service with analytics",
+  title: 'urlfy.cc - URL Shortener',
+  description: 'Fast and reliable URL shortening service with analytics'
 };
 
 export default function RootLayout({
-  children,
+  children
 }: Readonly<{
   children: React.ReactNode;
 }>) {

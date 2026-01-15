@@ -27,7 +27,7 @@ export interface EnrichedClickEvent extends ClickEvent {
   browserVersion: string | null;
   os: string | null;
   osVersion: string | null;
-  deviceType: "desktop" | "mobile" | "tablet" | null;
+  deviceType: 'desktop' | 'mobile' | 'tablet' | null;
   referrerDomain: string | null;
   isBot: boolean;
   utmSource: string | null;
@@ -49,7 +49,7 @@ export interface UserAgentData {
   browserVersion: string | null;
   os: string | null;
   osVersion: string | null;
-  deviceType: "desktop" | "mobile" | "tablet" | null;
+  deviceType: 'desktop' | 'mobile' | 'tablet' | null;
   isBot: boolean;
 }
 
@@ -66,7 +66,7 @@ export interface DailyStats {
 export interface AnalyticsQueryOptions {
   from?: Date;
   to?: Date;
-  granularity?: "hour" | "day" | "week";
+  granularity?: 'hour' | 'day' | 'week';
   excludeBots?: boolean;
 }
 

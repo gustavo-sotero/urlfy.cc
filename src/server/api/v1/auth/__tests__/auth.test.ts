@@ -8,8 +8,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { describe, expect, it } from "bun:test";
-import { nanoid } from "nanoid";
+import { describe, expect, it } from 'bun:test';
+import { nanoid } from 'nanoid';
 
 // ═══════════════════════════════════════════════════════════════════
 // MOCK DATA
@@ -17,11 +17,11 @@ import { nanoid } from "nanoid";
 
 const mockUser = {
   id: nanoid(),
-  email: "test@example.com",
-  name: "Test User",
+  email: 'test@example.com',
+  name: 'Test User',
   emailVerified: true,
   image: null,
-  role: "user" as const,
+  role: 'user' as const,
   linksQuota: 100,
   linksCount: 5,
   createdAt: new Date(),
@@ -32,7 +32,7 @@ const mockUser = {
   twoFactorEnabled: false,
   banned: false,
   banReason: null,
-  banExpires: null,
+  banExpires: null
 };
 
 const mockSession = {
@@ -42,65 +42,65 @@ const mockSession = {
   expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   createdAt: new Date(),
   updatedAt: new Date(),
-  ipAddress: "127.0.0.1",
-  userAgent: "TestAgent/1.0",
-  impersonatedBy: null,
+  ipAddress: '127.0.0.1',
+  userAgent: 'TestAgent/1.0',
+  impersonatedBy: null
 };
 
 // ═══════════════════════════════════════════════════════════════════
 // AUTH ROUTES TESTS
 // ═══════════════════════════════════════════════════════════════════
 
-describe("Auth Routes", () => {
-  describe("GET /auth/session", () => {
-    it("should return current session data when authenticated", async () => {
+describe('Auth Routes', () => {
+  describe('GET /auth/session', () => {
+    it('should return current session data when authenticated', async () => {
       // Test that the response structure is correct
       expect(mockUser.id).toBeDefined();
       expect(mockSession.id).toBeDefined();
-      expect(mockUser.role).toBe("user");
+      expect(mockUser.role).toBe('user');
     });
 
-    it("should have required user fields", () => {
-      expect(mockUser.email).toBe("test@example.com");
-      expect(mockUser.name).toBe("Test User");
+    it('should have required user fields', () => {
+      expect(mockUser.email).toBe('test@example.com');
+      expect(mockUser.name).toBe('Test User');
       expect(mockUser.linksQuota).toBe(100);
       expect(mockUser.linksCount).toBe(5);
     });
 
-    it("should have required session fields", () => {
+    it('should have required session fields', () => {
       expect(mockSession.userId).toBe(mockUser.id);
       expect(mockSession.expiresAt).toBeInstanceOf(Date);
-      expect(mockSession.ipAddress).toBe("127.0.0.1");
+      expect(mockSession.ipAddress).toBe('127.0.0.1');
     });
   });
 
-  describe("GET /auth/two-factor/status", () => {
-    it("should return 2FA disabled for new users", () => {
+  describe('GET /auth/two-factor/status', () => {
+    it('should return 2FA disabled for new users', () => {
       expect(mockUser.twoFactorEnabled).toBe(false);
     });
 
-    it("should handle enabled 2FA", () => {
+    it('should handle enabled 2FA', () => {
       const userWith2FA = { ...mockUser, twoFactorEnabled: true };
       expect(userWith2FA.twoFactorEnabled).toBe(true);
     });
   });
 
-  describe("Session Management", () => {
-    it("should validate session expiry", () => {
+  describe('Session Management', () => {
+    it('should validate session expiry', () => {
       const now = Date.now();
       const sessionExpiry = mockSession.expiresAt.getTime();
       expect(sessionExpiry).toBeGreaterThan(now);
     });
 
-    it("should detect expired sessions", () => {
+    it('should detect expired sessions', () => {
       const expiredSession = {
         ...mockSession,
-        expiresAt: new Date(Date.now() - 1000),
+        expiresAt: new Date(Date.now() - 1000)
       };
       expect(expiredSession.expiresAt.getTime()).toBeLessThan(Date.now());
     });
 
-    it("should track session metadata", () => {
+    it('should track session metadata', () => {
       expect(mockSession.ipAddress).toBeDefined();
       expect(mockSession.userAgent).toBeDefined();
     });
@@ -111,41 +111,41 @@ describe("Auth Routes", () => {
 // API KEY TESTS
 // ═══════════════════════════════════════════════════════════════════
 
-describe("API Key Management", () => {
-  describe("API Key Generation", () => {
-    it("should generate keys with correct format", () => {
-      const keyPrefix = "urlfy_sk_";
+describe('API Key Management', () => {
+  describe('API Key Generation', () => {
+    it('should generate keys with correct format', () => {
+      const keyPrefix = 'urlfy_sk_';
       const key = `${keyPrefix}${nanoid(32)}`;
 
       expect(key.startsWith(keyPrefix)).toBe(true);
       expect(key.length).toBe(keyPrefix.length + 32);
     });
 
-    it("should extract key prefix correctly", () => {
-      const key = "urlfy_sk_abc123xyz789";
+    it('should extract key prefix correctly', () => {
+      const key = 'urlfy_sk_abc123xyz789';
       const prefix = key.slice(0, 12);
 
-      expect(prefix).toBe("urlfy_sk_abc");
+      expect(prefix).toBe('urlfy_sk_abc');
     });
 
-    it("should hash keys using SHA-256", async () => {
-      const key = "urlfy_sk_test123";
+    it('should hash keys using SHA-256', async () => {
+      const key = 'urlfy_sk_test123';
       const encoder = new TextEncoder();
       const data = encoder.encode(key);
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hash = hashArray
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
 
       expect(hash.length).toBe(64); // SHA-256 produces 64 hex chars
     });
   });
 
-  describe("API Key Permissions", () => {
-    it("should normalize permissions correctly", () => {
+  describe('API Key Permissions', () => {
+    it('should normalize permissions correctly', () => {
       const inputPermissions = {
-        links: { create: true },
+        links: { create: true }
       };
 
       const normalized = {
@@ -153,11 +153,11 @@ describe("API Key Management", () => {
           create: inputPermissions.links?.create ?? false,
           read: false,
           update: false,
-          delete: false,
+          delete: false
         },
         analytics: {
-          read: false,
-        },
+          read: false
+        }
       };
 
       expect(normalized.links.create).toBe(true);
@@ -165,17 +165,17 @@ describe("API Key Management", () => {
       expect(normalized.analytics.read).toBe(false);
     });
 
-    it("should handle full permissions", () => {
+    it('should handle full permissions', () => {
       const fullPermissions = {
         links: {
           create: true,
           read: true,
           update: true,
-          delete: true,
+          delete: true
         },
         analytics: {
-          read: true,
-        },
+          read: true
+        }
       };
 
       expect(fullPermissions.links.create).toBe(true);
@@ -184,15 +184,15 @@ describe("API Key Management", () => {
     });
   });
 
-  describe("API Key Validation", () => {
-    it("should reject invalid key format", () => {
-      const invalidKey = "invalid_key_format";
-      expect(invalidKey.startsWith("urlfy_sk_")).toBe(false);
+  describe('API Key Validation', () => {
+    it('should reject invalid key format', () => {
+      const invalidKey = 'invalid_key_format';
+      expect(invalidKey.startsWith('urlfy_sk_')).toBe(false);
     });
 
-    it("should accept valid key format", () => {
-      const validKey = "urlfy_sk_validkey123";
-      expect(validKey.startsWith("urlfy_sk_")).toBe(true);
+    it('should accept valid key format', () => {
+      const validKey = 'urlfy_sk_validkey123';
+      expect(validKey.startsWith('urlfy_sk_')).toBe(true);
     });
   });
 });
@@ -201,28 +201,28 @@ describe("API Key Management", () => {
 // USER ROLE TESTS
 // ═══════════════════════════════════════════════════════════════════
 
-describe("User Roles", () => {
-  describe("Role Validation", () => {
-    it("should default to user role", () => {
-      expect(mockUser.role).toBe("user");
+describe('User Roles', () => {
+  describe('Role Validation', () => {
+    it('should default to user role', () => {
+      expect(mockUser.role).toBe('user');
     });
 
-    it("should recognize admin role", () => {
-      const adminUser = { ...mockUser, role: "admin" as const };
-      expect(adminUser.role).toBe("admin");
+    it('should recognize admin role', () => {
+      const adminUser = { ...mockUser, role: 'admin' as const };
+      expect(adminUser.role).toBe('admin');
     });
   });
 
-  describe("Role-based Access", () => {
-    it("should identify non-admin users", () => {
+  describe('Role-based Access', () => {
+    it('should identify non-admin users', () => {
       const role = mockUser.role as string;
-      const isAdmin = role === "admin";
+      const isAdmin = role === 'admin';
       expect(isAdmin).toBe(false);
     });
 
-    it("should identify admin users", () => {
-      const adminUser = { ...mockUser, role: "admin" as const };
-      const isAdmin = adminUser.role === "admin";
+    it('should identify admin users', () => {
+      const adminUser = { ...mockUser, role: 'admin' as const };
+      const isAdmin = adminUser.role === 'admin';
       expect(isAdmin).toBe(true);
     });
   });
@@ -232,30 +232,30 @@ describe("User Roles", () => {
 // BANNED/DELETED USER TESTS
 // ═══════════════════════════════════════════════════════════════════
 
-describe("User Status", () => {
-  describe("Banned Users", () => {
-    it("should detect active users", () => {
+describe('User Status', () => {
+  describe('Banned Users', () => {
+    it('should detect active users', () => {
       expect(mockUser.bannedAt).toBeNull();
       expect(mockUser.deletedAt).toBeNull();
     });
 
-    it("should detect banned users", () => {
+    it('should detect banned users', () => {
       const bannedUser = {
         ...mockUser,
         bannedAt: new Date(),
-        bannedReason: "Spam",
+        bannedReason: 'Spam'
       };
 
       expect(bannedUser.bannedAt).toBeInstanceOf(Date);
-      expect(bannedUser.bannedReason).toBe("Spam");
+      expect(bannedUser.bannedReason).toBe('Spam');
     });
   });
 
-  describe("Deleted Users", () => {
-    it("should detect deleted users", () => {
+  describe('Deleted Users', () => {
+    it('should detect deleted users', () => {
       const deletedUser = {
         ...mockUser,
-        deletedAt: new Date(),
+        deletedAt: new Date()
       };
 
       expect(deletedUser.deletedAt).toBeInstanceOf(Date);
@@ -267,8 +267,8 @@ describe("User Status", () => {
 // QUOTA TESTS
 // ═══════════════════════════════════════════════════════════════════
 
-describe("User Quota", () => {
-  it("should calculate remaining quota", () => {
+describe('User Quota', () => {
+  it('should calculate remaining quota', () => {
     const used = mockUser.linksCount;
     const limit = mockUser.linksQuota;
     const remaining = Math.max(0, limit - used);
@@ -276,7 +276,7 @@ describe("User Quota", () => {
     expect(remaining).toBe(95);
   });
 
-  it("should calculate percent used", () => {
+  it('should calculate percent used', () => {
     const used = mockUser.linksCount;
     const limit = mockUser.linksQuota;
     const percentUsed = Math.round((used / limit) * 100);
@@ -284,14 +284,14 @@ describe("User Quota", () => {
     expect(percentUsed).toBe(5);
   });
 
-  it("should detect quota exceeded", () => {
+  it('should detect quota exceeded', () => {
     const userAtLimit = { ...mockUser, linksCount: 100 };
     const hasQuota = userAtLimit.linksCount < userAtLimit.linksQuota;
 
     expect(hasQuota).toBe(false);
   });
 
-  it("should allow creation with available quota", () => {
+  it('should allow creation with available quota', () => {
     const hasQuota = mockUser.linksCount < mockUser.linksQuota;
     expect(hasQuota).toBe(true);
   });

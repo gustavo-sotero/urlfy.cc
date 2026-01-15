@@ -1,26 +1,26 @@
 // tests/mocks/db.mock.ts
 // Shared database mock for tests
 
-import { mock } from "bun:test";
+import { mock } from 'bun:test';
 
 /**
  * Creates a standard database mock with configurable results
  */
 export function createDbMock(
-  options: { findFirstResult?: unknown; selectResult?: unknown[] } = {},
+  options: { findFirstResult?: unknown; selectResult?: unknown[] } = {}
 ) {
   const mockLimitFn = mock(() => Promise.resolve(options.selectResult ?? []));
   const mockWhereFn = mock(() => ({
     limit: mockLimitFn,
     union: mock(() => ({
-      limit: mockLimitFn,
-    })),
+      limit: mockLimitFn
+    }))
   }));
   const mockFromFn = mock(() => ({
-    where: mockWhereFn,
+    where: mockWhereFn
   }));
   const mockSelectFn = mock(() => ({
-    from: mockFromFn,
+    from: mockFromFn
   }));
 
   return {
@@ -30,34 +30,34 @@ export function createDbMock(
         returning: mock(() =>
           Promise.resolve([
             {
-              id: "new-link-id",
-              shortCode: "abc123",
-              originalUrl: "https://example.com",
-            },
-          ]),
-        ),
-      })),
+              id: 'new-link-id',
+              shortCode: 'abc123',
+              originalUrl: 'https://example.com'
+            }
+          ])
+        )
+      }))
     })),
     update: mock(() => ({
       set: mock(() => ({
         where: mock(() => ({
-          returning: mock(() => Promise.resolve([])),
-        })),
-      })),
+          returning: mock(() => Promise.resolve([]))
+        }))
+      }))
     })),
     delete: mock(() => ({
-      where: mock(() => Promise.resolve()),
+      where: mock(() => Promise.resolve())
     })),
     query: {
       links: {
-        findFirst: mock(() => Promise.resolve(options.findFirstResult ?? null)),
-      },
+        findFirst: mock(() => Promise.resolve(options.findFirstResult ?? null))
+      }
     },
     // Add methods for mock reset
     _mockLimitFn: mockLimitFn,
     _mockWhereFn: mockWhereFn,
     _mockFromFn: mockFromFn,
-    _mockSelectFn: mockSelectFn,
+    _mockSelectFn: mockSelectFn
   };
 }
 
@@ -67,47 +67,47 @@ export function createDbMock(
 export function createSchemaMock() {
   return {
     links: {
-      id: "id",
-      shortCode: "short_code",
-      originalUrl: "original_url",
-      userId: "user_id",
-      redirectType: "redirect_type",
-      clicksCount: "clicks_count",
-      maxClicks: "max_clicks",
-      passwordHash: "password_hash",
-      isActive: "is_active",
-      isBanned: "is_banned",
-      bannedAt: "banned_at",
-      bannedReason: "banned_reason",
-      expiresAt: "expires_at",
-      metaTitle: "meta_title",
-      metaDescription: "meta_description",
-      metaImage: "meta_image",
-      utmSource: "utm_source",
-      utmMedium: "utm_medium",
-      utmCampaign: "utm_campaign",
-      tags: "tags",
-      notes: "notes",
-      lastClickedAt: "last_clicked_at",
-      createdByIpHash: "created_by_ip_hash",
-      createdAt: "created_at",
-      updatedAt: "updated_at",
-      deletedAt: "deleted_at",
+      id: 'id',
+      shortCode: 'short_code',
+      originalUrl: 'original_url',
+      userId: 'user_id',
+      redirectType: 'redirect_type',
+      clicksCount: 'clicks_count',
+      maxClicks: 'max_clicks',
+      passwordHash: 'password_hash',
+      isActive: 'is_active',
+      isBanned: 'is_banned',
+      bannedAt: 'banned_at',
+      bannedReason: 'banned_reason',
+      expiresAt: 'expires_at',
+      metaTitle: 'meta_title',
+      metaDescription: 'meta_description',
+      metaImage: 'meta_image',
+      utmSource: 'utm_source',
+      utmMedium: 'utm_medium',
+      utmCampaign: 'utm_campaign',
+      tags: 'tags',
+      notes: 'notes',
+      lastClickedAt: 'last_clicked_at',
+      createdByIpHash: 'created_by_ip_hash',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      deletedAt: 'deleted_at'
     },
     analyticsEvents: {
-      id: "id",
-      linkId: "link_id",
+      id: 'id',
+      linkId: 'link_id'
     },
     linkClicksDaily: {
-      linkId: "link_id",
-      date: "date",
+      linkId: 'link_id',
+      date: 'date'
     },
     reservedSlugs: {
-      slug: "slug",
+      slug: 'slug'
     },
     bannedUrls: {
-      urlPattern: "url_pattern",
-    },
+      urlPattern: 'url_pattern'
+    }
   };
 }
 
@@ -126,9 +126,9 @@ export function createCacheMock() {
     invalidateAndBan: mock(() => Promise.resolve()),
     invalidateAndMarkDeleted: mock(() => Promise.resolve()),
     getCacheStats: mock(() =>
-      Promise.resolve({ hits: 0, misses: 0, hitRate: 0 }),
+      Promise.resolve({ hits: 0, misses: 0, hitRate: 0 })
     ),
-    flushLinks: mock(() => Promise.resolve()),
+    flushLinks: mock(() => Promise.resolve())
   };
 }
 
@@ -141,20 +141,20 @@ export function createTelemetryMock() {
       debug: mock(() => {}),
       info: mock(() => {}),
       warn: mock(() => {}),
-      error: mock(() => {}),
+      error: mock(() => {})
     })),
     cacheHits: { add: mock(() => {}) },
     cacheMisses: { add: mock(() => {}) },
     redisFallbacks: { add: mock(() => {}) },
     recordRedirectMetrics: mock(() => {}),
     stampedeLocksAcquired: { add: mock(() => {}) },
-    stampedeLocksWaited: { add: mock(() => {}) },
+    stampedeLocksWaited: { add: mock(() => {}) }
   };
 }
 
 export const CACHE_PREFIX = {
-  LINK: "link:",
-  NOT_FOUND: "link:404:",
-  BANNED: "link:banned:",
-  LOCK: "lock:link:",
+  LINK: 'link:',
+  NOT_FOUND: 'link:404:',
+  BANNED: 'link:banned:',
+  LOCK: 'lock:link:'
 };

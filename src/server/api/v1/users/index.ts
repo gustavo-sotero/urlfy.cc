@@ -9,32 +9,32 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { desc, eq, ilike, or, sql } from "drizzle-orm";
-import { Elysia, t } from "elysia";
-import { db } from "@/db";
-import { user as userTable } from "@/db/schema/auth";
-import { requireAdmin } from "@/server/middleware/auth.middleware";
-import { userService } from "@/server/services/user.service";
+import { desc, eq, ilike, or, sql } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
+import { db } from '@/db';
+import { user as userTable } from '@/db/schema/auth';
+import { requireAdmin } from '@/server/middleware/auth.middleware';
+import { userService } from '@/server/services/user.service';
 
-export const usersRoutes = new Elysia({ prefix: "/users" })
+export const usersRoutes = new Elysia({ prefix: '/users' })
   .use(requireAdmin)
 
   // ═══════════════════════════════════════════════════════════════════
   // LIST USERS (ADMIN)
   // ═══════════════════════════════════════════════════════════════════
   .get(
-    "/",
+    '/',
     async ({ query }) => {
       const page = Number(query.page) || 1;
       const perPage = Math.min(Number(query.perPage) || 20, 100);
-      const search = query.search || "";
+      const search = query.search || '';
 
       // Build where clause
       const whereClause =
         search.length > 0
           ? or(
               ilike(userTable.email, `%${search}%`),
-              ilike(userTable.name, `%${search}%`),
+              ilike(userTable.name, `%${search}%`)
             )
           : undefined;
 
@@ -57,7 +57,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           bannedAt: userTable.bannedAt,
           bannedReason: userTable.bannedReason,
           deletedAt: userTable.deletedAt,
-          createdAt: userTable.createdAt,
+          createdAt: userTable.createdAt
         })
         .from(userTable)
         .where(whereClause)
@@ -73,29 +73,29 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           page,
           perPage,
           lastPage: Math.ceil(Number(count) / perPage),
-          hasMore: page * perPage < Number(count),
-        },
+          hasMore: page * perPage < Number(count)
+        }
       };
     },
     {
       query: t.Object({
         page: t.Optional(t.String()),
         perPage: t.Optional(t.String()),
-        search: t.Optional(t.String()),
+        search: t.Optional(t.String())
       }),
       detail: {
-        tags: ["Admin", "Users"],
-        summary: "List all users",
-        description: "Get paginated list of users with search (admin only)",
-      },
-    },
+        tags: ['Admin', 'Users'],
+        summary: 'List all users',
+        description: 'Get paginated list of users with search (admin only)'
+      }
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════════
   // GET USER BY ID (ADMIN)
   // ═══════════════════════════════════════════════════════════════════
   .get(
-    "/:userId",
+    '/:userId',
     async ({ params: { userId } }) => {
       const user = await userService.getUserById(userId);
 
@@ -103,39 +103,39 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         return {
           success: false,
           error: {
-            code: "USER_NOT_FOUND",
-            message: "User not found",
-          },
+            code: 'USER_NOT_FOUND',
+            message: 'User not found'
+          }
         };
       }
 
       return {
         success: true,
-        data: user,
+        data: user
       };
     },
     {
       params: t.Object({
-        userId: t.String(),
+        userId: t.String()
       }),
       detail: {
-        tags: ["Admin", "Users"],
-        summary: "Get user details",
-        description: "Get detailed user information (admin only)",
-      },
-    },
+        tags: ['Admin', 'Users'],
+        summary: 'Get user details',
+        description: 'Get detailed user information (admin only)'
+      }
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════════
   // BAN USER (ADMIN)
   // ═══════════════════════════════════════════════════════════════════
   .patch(
-    "/:userId/ban",
+    '/:userId/ban',
     async (context) => {
       const {
         params: { userId },
         body: { reason },
-        user: adminUser,
+        user: adminUser
       } = context as typeof context & {
         params: { userId: string };
         body: { reason: string };
@@ -146,7 +146,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         const bannedUser = await userService.banUser(
           userId,
           reason,
-          adminUser.id,
+          adminUser.id
         );
 
         return {
@@ -155,44 +155,44 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
             id: bannedUser.id,
             email: bannedUser.email,
             bannedAt: bannedUser.bannedAt,
-            bannedReason: bannedUser.bannedReason,
-          },
+            bannedReason: bannedUser.bannedReason
+          }
         };
       } catch (error) {
         return {
           success: false,
           error: {
-            code: "BAN_FAILED",
+            code: 'BAN_FAILED',
             message:
-              error instanceof Error ? error.message : "Failed to ban user",
-          },
+              error instanceof Error ? error.message : 'Failed to ban user'
+          }
         };
       }
     },
     {
       params: t.Object({
-        userId: t.String(),
+        userId: t.String()
       }),
       body: t.Object({
-        reason: t.String({ minLength: 1, maxLength: 255 }),
+        reason: t.String({ minLength: 1, maxLength: 255 })
       }),
       detail: {
-        tags: ["Admin", "Users"],
-        summary: "Ban user",
-        description: "Ban a user and revoke all sessions (admin only)",
-      },
-    },
+        tags: ['Admin', 'Users'],
+        summary: 'Ban user',
+        description: 'Ban a user and revoke all sessions (admin only)'
+      }
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════════
   // UNBAN USER (ADMIN)
   // ═══════════════════════════════════════════════════════════════════
   .patch(
-    "/:userId/unban",
+    '/:userId/unban',
     async (context) => {
       const {
         params: { userId },
-        user: adminUser,
+        user: adminUser
       } = context as typeof context & {
         params: { userId: string };
         user: { id: string };
@@ -206,45 +206,45 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           data: {
             id: unbannedUser.id,
             email: unbannedUser.email,
-            message: "User unbanned successfully",
-          },
+            message: 'User unbanned successfully'
+          }
         };
       } catch (error) {
         return {
           success: false,
           error: {
-            code: "UNBAN_FAILED",
+            code: 'UNBAN_FAILED',
             message:
-              error instanceof Error ? error.message : "Failed to unban user",
-          },
+              error instanceof Error ? error.message : 'Failed to unban user'
+          }
         };
       }
     },
     {
       params: t.Object({
-        userId: t.String(),
+        userId: t.String()
       }),
       detail: {
-        tags: ["Admin", "Users"],
-        summary: "Unban user",
-        description: "Remove ban from a user (admin only)",
-      },
-    },
+        tags: ['Admin', 'Users'],
+        summary: 'Unban user',
+        description: 'Remove ban from a user (admin only)'
+      }
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════════
   // UPDATE USER ROLE (ADMIN)
   // ═══════════════════════════════════════════════════════════════════
   .patch(
-    "/:userId/role",
+    '/:userId/role',
     async (context) => {
       const {
         params: { userId },
         body: { role },
-        user: adminUser,
+        user: adminUser
       } = context as typeof context & {
         params: { userId: string };
-        body: { role: "user" | "admin" };
+        body: { role: 'user' | 'admin' };
         user: { id: string };
       };
 
@@ -252,7 +252,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         const updatedUser = await userService.updateUserRole(
           userId,
           role,
-          adminUser.id,
+          adminUser.id
         );
 
         return {
@@ -260,42 +260,42 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           data: {
             id: updatedUser.id,
             email: updatedUser.email,
-            role: updatedUser.role,
-          },
+            role: updatedUser.role
+          }
         };
       } catch (error) {
         return {
           success: false,
           error: {
-            code: "UPDATE_ROLE_FAILED",
+            code: 'UPDATE_ROLE_FAILED',
             message:
               error instanceof Error
                 ? error.message
-                : "Failed to update user role",
-          },
+                : 'Failed to update user role'
+          }
         };
       }
     },
     {
       params: t.Object({
-        userId: t.String(),
+        userId: t.String()
       }),
       body: t.Object({
-        role: t.Union([t.Literal("user"), t.Literal("admin")]),
+        role: t.Union([t.Literal('user'), t.Literal('admin')])
       }),
       detail: {
-        tags: ["Admin", "Users"],
-        summary: "Update user role",
-        description: "Change user role between user and admin (admin only)",
-      },
-    },
+        tags: ['Admin', 'Users'],
+        summary: 'Update user role',
+        description: 'Change user role between user and admin (admin only)'
+      }
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════════
   // UPDATE USER QUOTA (ADMIN)
   // ═══════════════════════════════════════════════════════════════════
   .patch(
-    "/:userId/quota",
+    '/:userId/quota',
     async ({ params: { userId }, body: { linksQuota } }) => {
       try {
         const [updated] = await db
@@ -308,9 +308,9 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           return {
             success: false,
             error: {
-              code: "USER_NOT_FOUND",
-              message: "User not found",
-            },
+              code: 'USER_NOT_FOUND',
+              message: 'User not found'
+            }
           };
         }
 
@@ -318,40 +318,40 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           success: true,
           data: {
             id: updated.id,
-            linksQuota: updated.linksQuota,
-          },
+            linksQuota: updated.linksQuota
+          }
         };
       } catch (error) {
         return {
           success: false,
           error: {
-            code: "UPDATE_QUOTA_FAILED",
+            code: 'UPDATE_QUOTA_FAILED',
             message:
-              error instanceof Error ? error.message : "Failed to update quota",
-          },
+              error instanceof Error ? error.message : 'Failed to update quota'
+          }
         };
       }
     },
     {
       params: t.Object({
-        userId: t.String(),
+        userId: t.String()
       }),
       body: t.Object({
-        linksQuota: t.Number({ minimum: 0 }),
+        linksQuota: t.Number({ minimum: 0 })
       }),
       detail: {
-        tags: ["Admin", "Users"],
-        summary: "Update user quota",
-        description: "Change user's link creation quota (admin only)",
-      },
-    },
+        tags: ['Admin', 'Users'],
+        summary: 'Update user quota',
+        description: "Change user's link creation quota (admin only)"
+      }
+    }
   )
 
   // ═══════════════════════════════════════════════════════════════════
   // GET GLOBAL STATS (ADMIN)
   // ═══════════════════════════════════════════════════════════════════
   .get(
-    "/stats/global",
+    '/stats/global',
     async () => {
       // Total users
       const [{ totalUsers }] = await db
@@ -363,7 +363,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         .select({ activeUsers: sql<number>`count(*)` })
         .from(userTable)
         .where(
-          sql`${userTable.bannedAt} IS NULL AND ${userTable.deletedAt} IS NULL`,
+          sql`${userTable.bannedAt} IS NULL AND ${userTable.deletedAt} IS NULL`
         );
 
       // Banned users
@@ -376,7 +376,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       const [{ adminUsers }] = await db
         .select({ adminUsers: sql<number>`count(*)` })
         .from(userTable)
-        .where(eq(userTable.role, "admin"));
+        .where(eq(userTable.role, 'admin'));
 
       return {
         success: true,
@@ -384,15 +384,15 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           totalUsers: Number(totalUsers),
           activeUsers: Number(activeUsers),
           bannedUsers: Number(bannedUsers),
-          adminUsers: Number(adminUsers),
-        },
+          adminUsers: Number(adminUsers)
+        }
       };
     },
     {
       detail: {
-        tags: ["Admin", "Stats"],
-        summary: "Get global user statistics",
-        description: "Get aggregated statistics about users (admin only)",
-      },
-    },
+        tags: ['Admin', 'Stats'],
+        summary: 'Get global user statistics',
+        description: 'Get aggregated statistics about users (admin only)'
+      }
+    }
   );

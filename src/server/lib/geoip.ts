@@ -1,10 +1,10 @@
-import { createHash } from "node:crypto";
-import { Reader } from "@maxmind/geoip2-node";
-import type ReaderModel from "@maxmind/geoip2-node/dist/src/readerModel";
-import { CACHE_KEYS, CACHE_TTL, redis } from "./redis";
-import { createLogger } from "./telemetry";
+import { createHash } from 'node:crypto';
+import { Reader } from '@maxmind/geoip2-node';
+import type ReaderModel from '@maxmind/geoip2-node/dist/src/readerModel';
+import { CACHE_KEYS, CACHE_TTL, redis } from './redis';
+import { createLogger } from './telemetry';
 
-const logger = createLogger("geoip");
+const logger = createLogger('geoip');
 
 // Singleton do reader
 let readerInstance: ReaderModel | null = null;
@@ -12,16 +12,16 @@ let readerInstance: ReaderModel | null = null;
 export async function getGeoIPReader(): Promise<ReaderModel | null> {
   if (readerInstance) return readerInstance;
 
-  const dbPath = process.env.MAXMIND_DB_PATH || "/app/geoip/GeoLite2-City.mmdb";
+  const dbPath = process.env.MAXMIND_DB_PATH || '/app/geoip/GeoLite2-City.mmdb';
 
   try {
     readerInstance = await Reader.open(dbPath);
-    logger.info("GeoIP reader initialized", { dbPath });
+    logger.info('GeoIP reader initialized', { dbPath });
     return readerInstance;
   } catch (error) {
-    logger.error("Failed to open GeoIP database", {
-      error: error instanceof Error ? error.message : "Unknown error",
-      dbPath,
+    logger.error('Failed to open GeoIP database', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      dbPath
     });
     return null;
   }
@@ -49,7 +49,7 @@ export async function lookupGeoIP(ip: string): Promise<GeoLocation> {
     city: null,
     latitude: null,
     longitude: null,
-    timezone: null,
+    timezone: null
   };
 
   // Verifica se é IP privado
@@ -82,7 +82,7 @@ export async function lookupGeoIP(ip: string): Promise<GeoLocation> {
       city: cityData.city?.names?.en || null,
       latitude: cityData.location?.latitude || null,
       longitude: cityData.location?.longitude || null,
-      timezone: cityData.location?.timeZone || null,
+      timezone: cityData.location?.timeZone || null
     };
 
     // Cacheia resultado
@@ -90,9 +90,9 @@ export async function lookupGeoIP(ip: string): Promise<GeoLocation> {
 
     return location;
   } catch (error) {
-    logger.warn("GeoIP lookup failed", {
+    logger.warn('GeoIP lookup failed', {
       ip: anonymizeIP(ip),
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
     return defaultLocation;
   }
@@ -111,7 +111,7 @@ function isPrivateIP(ip: string): boolean {
     /^169\.254\./,
     /^::1$/,
     /^fc00:/,
-    /^fe80:/,
+    /^fe80:/
   ];
 
   return privateRanges.some((range) => range.test(ip));
@@ -119,15 +119,15 @@ function isPrivateIP(ip: string): boolean {
 
 function getIPPrefix(ip: string): string {
   // IPv4: retorna /24 (xxx.xxx.xxx)
-  if (ip.includes(".")) {
-    return ip.split(".").slice(0, 3).join(".");
+  if (ip.includes('.')) {
+    return ip.split('.').slice(0, 3).join('.');
   }
   // IPv6: retorna /48 (simplificado)
-  return ip.split(":").slice(0, 3).join(":");
+  return ip.split(':').slice(0, 3).join(':');
 }
 
 function anonymizeIP(ip: string): string {
-  return createHash("sha256").update(ip).digest("hex").slice(0, 16);
+  return createHash('sha256').update(ip).digest('hex').slice(0, 16);
 }
 
 // Salt rotativo semanal para hash de visitantes
@@ -135,12 +135,12 @@ export function getWeeklySalt(): string {
   const now = new Date();
   const year = now.getFullYear();
   const week = getWeekNumber(now);
-  return `${year}-W${String(week).padStart(2, "0")}`;
+  return `${year}-W${String(week).padStart(2, '0')}`;
 }
 
 function getWeekNumber(date: Date): number {
   const d = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
   );
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);

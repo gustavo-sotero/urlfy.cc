@@ -1,13 +1,13 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import {
   account as accountTable,
   apiKey as apiKeyTable,
   session as sessionTable,
   twoFactor as twoFactorTable,
   type User,
-  user as userTable,
-} from "@/db/schema/auth";
-import { db } from "@/server/lib/db";
+  user as userTable
+} from '@/db/schema/auth';
+import { db } from '@/server/lib/db';
 
 /**
  * User Service - Handles user-related operations
@@ -52,20 +52,20 @@ export class UserService {
       name?: string;
       image?: string;
       linksQuota?: number;
-    },
+    }
   ): Promise<User> {
     const [user] = await db
       .update(userTable)
       .set({
         name: data.name,
         image: data.image,
-        linksQuota: data.linksQuota,
+        linksQuota: data.linksQuota
       })
       .where(and(eq(userTable.id, userId), isNull(userTable.deletedAt)))
       .returning();
 
     if (!user) {
-      throw new Error("User not found or already deleted");
+      throw new Error('User not found or already deleted');
     }
 
     return user;
@@ -78,7 +78,7 @@ export class UserService {
     await db
       .update(userTable)
       .set({
-        linksCount: sql`${userTable.linksCount} + 1`,
+        linksCount: sql`${userTable.linksCount} + 1`
       })
       .where(eq(userTable.id, userId));
   }
@@ -90,7 +90,7 @@ export class UserService {
     await db
       .update(userTable)
       .set({
-        linksCount: sql`${userTable.linksCount} - 1`,
+        linksCount: sql`${userTable.linksCount} - 1`
       })
       .where(eq(userTable.id, userId));
   }
@@ -102,7 +102,7 @@ export class UserService {
     const [user] = await db
       .select({
         linksCount: userTable.linksCount,
-        linksQuota: userTable.linksQuota,
+        linksQuota: userTable.linksQuota
       })
       .from(userTable)
       .where(eq(userTable.id, userId))
@@ -123,19 +123,19 @@ export class UserService {
   async banUser(
     userId: string,
     reason: string,
-    adminId: string,
+    adminId: string
   ): Promise<User> {
     const [user] = await db
       .update(userTable)
       .set({
         bannedAt: new Date(),
-        bannedReason: reason,
+        bannedReason: reason
       })
       .where(eq(userTable.id, userId))
       .returning();
 
     if (!user) {
-      throw new Error("User not found");
+      throw new Error('User not found');
     }
 
     // Also revoke all active sessions
@@ -143,16 +143,16 @@ export class UserService {
 
     // Log audit event
     try {
-      const { auditLogService } = await import("./audit.service");
+      const { auditLogService } = await import('./audit.service');
       await auditLogService.log({
         userId: adminId,
-        action: "ban_user",
-        entityType: "user",
+        action: 'ban_user',
+        entityType: 'user',
         entityId: userId,
-        metadata: { reason },
+        metadata: { reason }
       });
     } catch (error) {
-      console.error("Failed to log audit event:", error);
+      console.error('Failed to log audit event:', error);
     }
 
     return user;
@@ -166,26 +166,26 @@ export class UserService {
       .update(userTable)
       .set({
         bannedAt: null,
-        bannedReason: null,
+        bannedReason: null
       })
       .where(eq(userTable.id, userId))
       .returning();
 
     if (!user) {
-      throw new Error("User not found");
+      throw new Error('User not found');
     }
 
     // Log audit event
     try {
-      const { auditLogService } = await import("./audit.service");
+      const { auditLogService } = await import('./audit.service');
       await auditLogService.log({
         userId: adminId,
-        action: "unban_user",
-        entityType: "user",
-        entityId: userId,
+        action: 'unban_user',
+        entityType: 'user',
+        entityId: userId
       });
     } catch (error) {
-      console.error("Failed to log audit event:", error);
+      console.error('Failed to log audit event:', error);
     }
 
     return user;
@@ -196,8 +196,8 @@ export class UserService {
    */
   async updateUserRole(
     userId: string,
-    role: "user" | "admin",
-    adminId: string,
+    role: 'user' | 'admin',
+    adminId: string
   ): Promise<User> {
     const [user] = await db
       .update(userTable)
@@ -206,21 +206,21 @@ export class UserService {
       .returning();
 
     if (!user) {
-      throw new Error("User not found");
+      throw new Error('User not found');
     }
 
     // Log audit event
     try {
-      const { auditLogService } = await import("./audit.service");
+      const { auditLogService } = await import('./audit.service');
       await auditLogService.log({
         userId: adminId,
-        action: "update_user_role",
-        entityType: "user",
+        action: 'update_user_role',
+        entityType: 'user',
         entityId: userId,
-        metadata: { newRole: role },
+        metadata: { newRole: role }
       });
     } catch (error) {
-      console.error("Failed to log audit event:", error);
+      console.error('Failed to log audit event:', error);
     }
 
     return user;
@@ -242,7 +242,7 @@ export class UserService {
       .limit(1);
 
     if (!user) {
-      throw new Error("User not found");
+      throw new Error('User not found');
     }
 
     // Get sessions
@@ -262,7 +262,7 @@ export class UserService {
       .select({
         id: twoFactorTable.id,
         verified: twoFactorTable.verified,
-        createdAt: twoFactorTable.createdAt,
+        createdAt: twoFactorTable.createdAt
       })
       .from(twoFactorTable)
       .where(eq(twoFactorTable.userId, userId))
@@ -276,7 +276,7 @@ export class UserService {
         keyPrefix: apiKeyTable.keyPrefix,
         permissions: apiKeyTable.permissions,
         createdAt: apiKeyTable.createdAt,
-        lastUsedAt: apiKeyTable.lastUsedAt,
+        lastUsedAt: apiKeyTable.lastUsedAt
       })
       .from(apiKeyTable)
       .where(eq(apiKeyTable.userId, userId));
@@ -293,23 +293,23 @@ export class UserService {
         linksQuota: user.linksQuota,
         linksCount: user.linksCount,
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
+        updatedAt: user.updatedAt
       },
       sessions: sessions.map((s) => ({
         id: s.id,
         createdAt: s.createdAt,
         expiresAt: s.expiresAt,
         ipAddress: s.ipAddress,
-        userAgent: s.userAgent,
+        userAgent: s.userAgent
       })),
       accounts: accounts.map((a) => ({
         id: a.id,
         providerId: a.providerId,
-        createdAt: a.createdAt,
+        createdAt: a.createdAt
       })),
       twoFactor: twoFactor[0] || null,
       apiKeys,
-      exportDate: new Date().toISOString(),
+      exportDate: new Date().toISOString()
     };
   }
 
@@ -322,8 +322,8 @@ export class UserService {
       .set({
         deletedAt: new Date(),
         email: `deleted_${userId}@urlfy.cc`, // Anonymize email
-        name: "Deleted User",
-        image: null,
+        name: 'Deleted User',
+        image: null
       })
       .where(eq(userTable.id, userId));
 
@@ -372,7 +372,7 @@ export class UserService {
       .limit(1);
 
     if (activeSessions.length > 0) {
-      blockers.push("Has active sessions (will be revoked)");
+      blockers.push('Has active sessions (will be revoked)');
     }
 
     // In a real implementation, you'd check for:
@@ -383,7 +383,7 @@ export class UserService {
 
     return {
       canDelete: true, // For now, always allow
-      blockers,
+      blockers
     };
   }
 }

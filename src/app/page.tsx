@@ -1,7 +1,7 @@
-import { BarChart3, Shield, Zap } from "lucide-react";
-import Link from "next/link";
-import { LinkForm } from "@/components/forms/link-form";
-import { Button } from "@/components/ui/button";
+import { BarChart3, Shield, Zap } from 'lucide-react';
+import Link from 'next/link';
+import { LinkForm } from '@/components/forms/link-form';
+import { Button } from '@/components/ui/button';
 
 export default function LandingPage() {
   return (

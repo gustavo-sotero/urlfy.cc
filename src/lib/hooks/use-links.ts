@@ -8,30 +8,30 @@ import {
   type UseQueryOptions,
   useMutation,
   useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { toast } from "sonner";
-import * as api from "@/lib/api-client";
+  useQueryClient
+} from '@tanstack/react-query';
+import { toast } from 'sonner';
+import * as api from '@/lib/api-client';
 import type {
   CreateLinkInput,
   LinkResponse,
   ListLinksQuery,
   PaginatedResponse,
-  UpdateLinkInput,
-} from "@/types/links.types";
+  UpdateLinkInput
+} from '@/types/links.types';
 
 // ═══════════════════════════════════════════════════════════════════
 // QUERY KEYS
 // ═══════════════════════════════════════════════════════════════════
 
 export const linkKeys = {
-  all: ["links"] as const,
-  lists: () => [...linkKeys.all, "list"] as const,
+  all: ['links'] as const,
+  lists: () => [...linkKeys.all, 'list'] as const,
   list: (filters: ListLinksQuery) => [...linkKeys.lists(), filters] as const,
-  details: () => [...linkKeys.all, "detail"] as const,
+  details: () => [...linkKeys.all, 'detail'] as const,
   detail: (id: string) => [...linkKeys.details(), id] as const,
-  stats: (id: string) => [...linkKeys.all, "stats", id] as const,
-  quota: () => ["quota"] as const,
+  stats: (id: string) => [...linkKeys.all, 'stats', id] as const,
+  quota: () => ['quota'] as const
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -42,27 +42,27 @@ export function useLinks(
   filters: ListLinksQuery = {},
   options?: Omit<
     UseQueryOptions<PaginatedResponse<LinkResponse>>,
-    "queryKey" | "queryFn"
-  >,
+    'queryKey' | 'queryFn'
+  >
 ) {
   return useQuery({
     queryKey: linkKeys.list(filters),
     queryFn: () => api.getLinks(filters),
     staleTime: 30_000, // 30 seconds
-    ...options,
+    ...options
   });
 }
 
 export function useLink(
   id: string,
-  options?: Omit<UseQueryOptions<LinkResponse>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<LinkResponse>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
     queryKey: linkKeys.detail(id),
     queryFn: () => api.getLink(id),
     staleTime: 60_000, // 1 minute
     enabled: !!id,
-    ...options,
+    ...options
   });
 }
 
@@ -74,15 +74,15 @@ export function useLinkStats(
       uniqueVisitors: number;
       lastClickedAt: string | null;
     }>,
-    "queryKey" | "queryFn"
-  >,
+    'queryKey' | 'queryFn'
+  >
 ) {
   return useQuery({
     queryKey: linkKeys.stats(id),
     queryFn: () => api.getLinkStats(id),
     staleTime: 10_000, // 10 seconds
     enabled: !!id,
-    ...options,
+    ...options
   });
 }
 
@@ -94,14 +94,14 @@ export function useUserQuota(
       remaining: number;
       percentUsed: number;
     }>,
-    "queryKey" | "queryFn"
-  >,
+    'queryKey' | 'queryFn'
+  >
 ) {
   return useQuery({
     queryKey: linkKeys.quota(),
     queryFn: () => api.getUserQuota(),
     staleTime: 60_000, // 1 minute
-    ...options,
+    ...options
   });
 }
 
@@ -110,7 +110,7 @@ export function useUserQuota(
 // ═══════════════════════════════════════════════════════════════════
 
 export function useCreateLink(
-  options?: UseMutationOptions<LinkResponse, Error, CreateLinkInput>,
+  options?: UseMutationOptions<LinkResponse, Error, CreateLinkInput>
 ) {
   const queryClient = useQueryClient();
 
@@ -122,17 +122,17 @@ export function useCreateLink(
       queryClient.invalidateQueries({ queryKey: linkKeys.quota() });
 
       // Show success toast
-      toast.success("Link criado com sucesso!", {
-        description: `Código: ${data.shortCode}`,
+      toast.success('Link criado com sucesso!', {
+        description: `Código: ${data.shortCode}`
       });
     },
     onError: (error) => {
       // Show error toast
-      toast.error("Erro ao criar link", {
-        description: error.message || "Tente novamente mais tarde",
+      toast.error('Erro ao criar link', {
+        description: error.message || 'Tente novamente mais tarde'
       });
     },
-    ...options,
+    ...options
   });
 }
 
@@ -141,7 +141,7 @@ export function useUpdateLink(
     LinkResponse,
     Error,
     { id: string; data: UpdateLinkInput }
-  >,
+  >
 ) {
   const queryClient = useQueryClient();
 
@@ -155,20 +155,20 @@ export function useUpdateLink(
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
 
       // Show success toast
-      toast.success("Link atualizado com sucesso!");
+      toast.success('Link atualizado com sucesso!');
     },
     onError: (error) => {
       // Show error toast
-      toast.error("Erro ao atualizar link", {
-        description: error.message || "Tente novamente mais tarde",
+      toast.error('Erro ao atualizar link', {
+        description: error.message || 'Tente novamente mais tarde'
       });
     },
-    ...options,
+    ...options
   });
 }
 
 export function useDeleteLink(
-  options?: UseMutationOptions<void, Error, string>,
+  options?: UseMutationOptions<void, Error, string>
 ) {
   const queryClient = useQueryClient();
 
@@ -185,16 +185,16 @@ export function useDeleteLink(
     },
     onError: (error) => {
       // Show error toast
-      toast.error("Erro ao deletar link", {
-        description: error.message || "Tente novamente mais tarde",
+      toast.error('Erro ao deletar link', {
+        description: error.message || 'Tente novamente mais tarde'
       });
     },
-    ...options,
+    ...options
   });
 }
 
 export function useRestoreLink(
-  options?: UseMutationOptions<LinkResponse, Error, string>,
+  options?: UseMutationOptions<LinkResponse, Error, string>
 ) {
   const queryClient = useQueryClient();
 
@@ -204,12 +204,12 @@ export function useRestoreLink(
       queryClient.setQueryData(linkKeys.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
     },
-    ...options,
+    ...options
   });
 }
 
 export function useDuplicateLink(
-  options?: UseMutationOptions<LinkResponse, Error, string>,
+  options?: UseMutationOptions<LinkResponse, Error, string>
 ) {
   const queryClient = useQueryClient();
 
@@ -219,6 +219,6 @@ export function useDuplicateLink(
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
       queryClient.invalidateQueries({ queryKey: linkKeys.quota() });
     },
-    ...options,
+    ...options
   });
 }

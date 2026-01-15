@@ -1,5 +1,5 @@
-import { type ConnectionOptions, Queue } from "bullmq";
-import type { ClickEvent } from "@/types/analytics.types";
+import { type ConnectionOptions, Queue } from 'bullmq';
+import type { ClickEvent } from '@/types/analytics.types';
 
 /**
  * NOTA: BullMQ requer ioredis internamente para gerenciar filas.
@@ -19,11 +19,11 @@ function getBullMQConnection(): ConnectionOptions {
       const url = new URL(redisUrl);
       return {
         host: url.hostname,
-        port: Number.parseInt(url.port || "6379", 10),
+        port: Number.parseInt(url.port || '6379', 10),
         password: url.password || undefined,
         username: url.username || undefined,
         maxRetriesPerRequest: null,
-        enableReadyCheck: false,
+        enableReadyCheck: false
       };
     } catch {
       // Fall through to default configuration
@@ -32,10 +32,10 @@ function getBullMQConnection(): ConnectionOptions {
 
   // Fallback to individual env vars
   return {
-    host: process.env.REDIS_HOST || "localhost",
-    port: Number.parseInt(process.env.REDIS_PORT || "6379", 10),
+    host: process.env.REDIS_HOST || 'localhost',
+    port: Number.parseInt(process.env.REDIS_PORT || '6379', 10),
     maxRetriesPerRequest: null,
-    enableReadyCheck: false,
+    enableReadyCheck: false
   };
 }
 
@@ -53,12 +53,12 @@ const connection = bullmqConnection;
 // ═══════════════════════════════════════════════════════════════════
 
 export const QUEUE_NAMES = {
-  analytics: "analytics",
-  analyticsDead: "analytics:dead",
-  aggregation: "aggregation",
-  cleanup: "cleanup",
-  deletion: "deletion",
-  notifications: "notifications",
+  analytics: 'analytics',
+  analyticsDead: 'analytics:dead',
+  aggregation: 'aggregation',
+  cleanup: 'cleanup',
+  deletion: 'deletion',
+  notifications: 'notifications'
 } as const;
 
 // Fila de Analytics (eventos de clique)
@@ -67,20 +67,20 @@ export const analyticsQueue = new Queue(QUEUE_NAMES.analytics, {
   defaultJobOptions: {
     attempts: 3,
     backoff: {
-      type: "exponential",
-      delay: 1000, // 1s, 5s, 30s
+      type: 'exponential',
+      delay: 1000 // 1s, 5s, 30s
     },
     removeOnComplete: {
       age: 3600, // Remove após 1 hora
-      count: 1000, // Mantém últimos 1000
+      count: 1000 // Mantém últimos 1000
     },
-    removeOnFail: false, // Mantém para análise
-  },
+    removeOnFail: false // Mantém para análise
+  }
 });
 
 // Dead Letter Queue para analytics falhos
 export const analyticsDeadQueue = new Queue(QUEUE_NAMES.analyticsDead, {
-  connection,
+  connection
 });
 
 // Fila de agregação diária
@@ -89,10 +89,10 @@ export const aggregationQueue = new Queue(QUEUE_NAMES.aggregation, {
   defaultJobOptions: {
     attempts: 3,
     backoff: {
-      type: "exponential",
-      delay: 5000,
-    },
-  },
+      type: 'exponential',
+      delay: 5000
+    }
+  }
 });
 
 // Fila de cleanup
@@ -101,10 +101,10 @@ export const cleanupQueue = new Queue(QUEUE_NAMES.cleanup, {
   defaultJobOptions: {
     attempts: 3,
     backoff: {
-      type: "exponential",
-      delay: 5000,
-    },
-  },
+      type: 'exponential',
+      delay: 5000
+    }
+  }
 });
 
 // Fila de exclusão de dados (GDPR/LGPD)
@@ -113,10 +113,10 @@ export const deletionQueue = new Queue(QUEUE_NAMES.deletion, {
   defaultJobOptions: {
     attempts: 3,
     backoff: {
-      type: "exponential",
-      delay: 5000,
-    },
-  },
+      type: 'exponential',
+      delay: 5000
+    }
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -134,41 +134,41 @@ export interface AggregationJobData {
 
 export async function addAnalyticsJob(data: ClickEvent) {
   try {
-    const job = await analyticsQueue.add("click", data, {
+    const job = await analyticsQueue.add('click', data, {
       jobId: `${data.linkId}-${data.timestamp.getTime()}`, // Previne duplicatas
-      removeOnComplete: true,
+      removeOnComplete: true
     });
 
     return job;
   } catch (error) {
-    console.error("Failed to add analytics job:", error);
+    console.error('Failed to add analytics job:', error);
     throw error;
   }
 }
 
 // Health check das filas
 export async function checkQueueHealth(): Promise<{
-  status: "ok" | "error";
+  status: 'ok' | 'error';
   pendingJobs: number;
   failedJobs: number;
 }> {
   try {
     const [waiting, failed] = await Promise.all([
       analyticsQueue.getWaitingCount(),
-      analyticsQueue.getFailedCount(),
+      analyticsQueue.getFailedCount()
     ]);
 
     return {
-      status: "ok",
+      status: 'ok',
       pendingJobs: waiting,
-      failedJobs: failed,
+      failedJobs: failed
     };
   } catch (error) {
-    console.error("Queue health check failed:", error);
+    console.error('Queue health check failed:', error);
     return {
-      status: "error",
+      status: 'error',
       pendingJobs: 0,
-      failedJobs: 0,
+      failedJobs: 0
     };
   }
 }
@@ -181,10 +181,10 @@ export async function shutdownQueues() {
     analyticsDeadQueue.close(),
     aggregationQueue.close(),
     cleanupQueue.close(),
-    deletionQueue.close(),
+    deletionQueue.close()
   ]).catch((error) => {
-    console.error("Error closing queues:", error);
+    console.error('Error closing queues:', error);
   });
 
-  console.log("✅ Queues shut down gracefully");
+  console.log('✅ Queues shut down gracefully');
 }

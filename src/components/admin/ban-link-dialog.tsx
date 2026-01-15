@@ -1,7 +1,7 @@
 // src/components/admin/ban-link-dialog.tsx
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,11 +10,11 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import type { LinkResponse } from "@/types/links.types";
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import type { LinkResponse } from '@/types/links.types';
 
 interface BanLinkDialogProps {
   open: boolean;
@@ -27,9 +27,9 @@ export function BanLinkDialog({
   open,
   onOpenChange,
   link,
-  onConfirm,
+  onConfirm
 }: BanLinkDialogProps) {
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfirm = async () => {
@@ -38,10 +38,10 @@ export function BanLinkDialog({
     setIsSubmitting(true);
     try {
       await onConfirm(reason);
-      setReason("");
+      setReason('');
       onOpenChange(false);
     } catch (error) {
-      console.error("Failed to ban link:", error);
+      console.error('Failed to ban link:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -53,7 +53,7 @@ export function BanLinkDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Banir Link</AlertDialogTitle>
           <AlertDialogDescription>
-            Você está prestes a banir o link{" "}
+            Você está prestes a banir o link{' '}
             <span className="font-mono font-semibold">{link?.shortCode}</span>.
             Esta ação impedirá todos os acessos a este link.
           </AlertDialogDescription>
@@ -88,7 +88,7 @@ export function BanLinkDialog({
             disabled={!reason.trim() || isSubmitting}
             className="bg-destructive hover:bg-destructive/90"
           >
-            {isSubmitting ? "Banindo..." : "Banir Link"}
+            {isSubmitting ? 'Banindo...' : 'Banir Link'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

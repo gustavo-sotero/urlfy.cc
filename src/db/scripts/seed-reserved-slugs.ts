@@ -1,19 +1,19 @@
 // src/db/scripts/seed-reserved-slugs.ts
 // Script to seed reserved slugs into the database
 
-import { db } from "../cli";
-import { RESERVED_SLUGS, reservedSlugs } from "../schema/reserved-slugs";
+import { db } from '../cli';
+import { RESERVED_SLUGS, reservedSlugs } from '../schema/reserved-slugs';
 
 /**
  * Seeds the reserved_slugs table with the predefined list of reserved slugs
  * Uses ON CONFLICT DO NOTHING to be idempotent
  */
 async function seedReservedSlugs() {
-  console.log("🌱 Seeding reserved slugs...");
+  console.log('🌱 Seeding reserved slugs...');
 
   const slugsToInsert = RESERVED_SLUGS.map((slug) => ({
     slug,
-    reason: getReasonForSlug(slug),
+    reason: getReasonForSlug(slug)
   }));
 
   try {
@@ -27,10 +27,10 @@ async function seedReservedSlugs() {
     console.log(
       `ℹ️  Total slugs defined: ${RESERVED_SLUGS.length}, skipped existing: ${
         RESERVED_SLUGS.length - result.length
-      }`,
+      }`
     );
   } catch (error) {
-    console.error("❌ Failed to seed reserved slugs:", error);
+    console.error('❌ Failed to seed reserved slugs:', error);
     throw error;
   }
 }
@@ -41,58 +41,58 @@ async function seedReservedSlugs() {
 function getReasonForSlug(slug: string): string {
   // System routes
   const systemRoutes = [
-    "api",
-    "auth",
-    "dashboard",
-    "admin",
-    "login",
-    "signup",
-    "logout",
-    "settings",
-    "health",
-    "metrics",
-    "docs",
-    "help",
-    "support",
-    "status",
-    "about",
-    "pricing",
-    "blog",
+    'api',
+    'auth',
+    'dashboard',
+    'admin',
+    'login',
+    'signup',
+    'logout',
+    'settings',
+    'health',
+    'metrics',
+    'docs',
+    'help',
+    'support',
+    'status',
+    'about',
+    'pricing',
+    'blog'
   ];
-  if (systemRoutes.includes(slug)) return "system_route";
+  if (systemRoutes.includes(slug)) return 'system_route';
 
   // SEO/Browser
-  const seoRoutes = ["favicon.ico", "robots.txt", "sitemap.xml", ".well-known"];
-  if (seoRoutes.includes(slug)) return "seo";
+  const seoRoutes = ['favicon.ico', 'robots.txt', 'sitemap.xml', '.well-known'];
+  if (seoRoutes.includes(slug)) return 'seo';
 
   // Legal
   const legalRoutes = [
-    "privacy",
-    "terms",
-    "tos",
-    "legal",
-    "dmca",
-    "abuse",
-    "cookies",
+    'privacy',
+    'terms',
+    'tos',
+    'legal',
+    'dmca',
+    'abuse',
+    'cookies'
   ];
-  if (legalRoutes.includes(slug)) return "legal";
+  if (legalRoutes.includes(slug)) return 'legal';
 
-  return "reserved";
+  return 'reserved';
 }
 
 // Run if executed directly
 const isMainModule =
-  typeof process !== "undefined" &&
-  process.argv[1]?.includes("seed-reserved-slugs");
+  typeof process !== 'undefined' &&
+  process.argv[1]?.includes('seed-reserved-slugs');
 
 if (isMainModule) {
   seedReservedSlugs()
     .then(() => {
-      console.log("🎉 Seed completed successfully");
+      console.log('🎉 Seed completed successfully');
       process.exit(0);
     })
     .catch((error) => {
-      console.error("💥 Seed failed:", error);
+      console.error('💥 Seed failed:', error);
       process.exit(1);
     });
 }

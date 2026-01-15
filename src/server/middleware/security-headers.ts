@@ -3,14 +3,14 @@
  * Applies comprehensive security headers to all responses
  */
 
-import { Elysia } from "elysia";
+import { Elysia } from 'elysia';
 
 /**
  * Security headers configuration
  * Following OWASP best practices
  */
 const SECURITY_HEADERS = {
-  "Content-Security-Policy": [
+  'Content-Security-Policy': [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js requires these
     "style-src 'self' 'unsafe-inline'",
@@ -20,15 +20,15 @@ const SECURITY_HEADERS = {
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "upgrade-insecure-requests",
-  ].join("; "),
+    'upgrade-insecure-requests'
+  ].join('; '),
 
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "X-XSS-Protection": "1; mode=block",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()'
 } as const;
 
 /**
@@ -36,7 +36,7 @@ const SECURITY_HEADERS = {
  * Automatically applied to all API responses
  */
 export const securityHeadersMiddleware = new Elysia({
-  name: "security-headers",
+  name: 'security-headers'
 }).onAfterHandle(({ set }) => {
   // Apply all security headers
   Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
@@ -44,7 +44,7 @@ export const securityHeadersMiddleware = new Elysia({
   });
 
   // Remove potentially dangerous headers
-  delete set.headers["X-Powered-By"];
+  delete set.headers['X-Powered-By'];
   delete set.headers.Server;
 });
 
@@ -52,12 +52,12 @@ export const securityHeadersMiddleware = new Elysia({
  * Middleware specifically for production environments
  * Adds stricter policies
  */
-export const productionSecurityHeaders = new Elysia({ name: "prod-security" })
+export const productionSecurityHeaders = new Elysia({ name: 'prod-security' })
   .use(securityHeadersMiddleware)
   .onAfterHandle(({ set }) => {
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV === 'production') {
       // Enforce HTTPS in production
-      set.headers["Strict-Transport-Security"] =
-        "max-age=63072000; includeSubDomains; preload";
+      set.headers['Strict-Transport-Security'] =
+        'max-age=63072000; includeSubDomains; preload';
     }
   });

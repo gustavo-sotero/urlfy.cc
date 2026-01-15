@@ -1,8 +1,8 @@
 // src/server/services/qr.service.ts
-import QRCode from "qrcode";
-import { redis } from "../lib/redis";
+import QRCode from 'qrcode';
+import { redis } from '../lib/redis';
 
-type QRFormat = "png" | "svg";
+type QRFormat = 'png' | 'svg';
 type QRSize = 100 | 200 | 300 | 500 | 1000;
 
 const CACHE_TTL = 86400; // 24 horas
@@ -21,7 +21,7 @@ export async function generateQRCode(
   shortUrl: string,
   code: string,
   size: QRSize = 200,
-  format: QRFormat = "png",
+  format: QRFormat = 'png'
 ): Promise<Buffer | string> {
   const cacheKey = `qr:${code}:${size}:${format}`;
 
@@ -29,38 +29,38 @@ export async function generateQRCode(
     // Verifica cache
     const cached = await redis.get(cacheKey);
     if (cached) {
-      return format === "svg" ? cached : Buffer.from(cached, "base64");
+      return format === 'svg' ? cached : Buffer.from(cached, 'base64');
     }
   } catch (error) {
     // Se Redis falhar, continua sem cache
-    console.warn("Redis unavailable for QR cache:", error);
+    console.warn('Redis unavailable for QR cache:', error);
   }
 
   // Gera QR Code
   const options = {
     width: size,
     margin: 2,
-    color: { dark: "#000000", light: "#ffffff" },
-    errorCorrectionLevel: "M" as const,
+    color: { dark: '#000000', light: '#ffffff' },
+    errorCorrectionLevel: 'M' as const
   };
 
   let result: Buffer | string;
 
-  if (format === "svg") {
-    result = await QRCode.toString(shortUrl, { ...options, type: "svg" });
+  if (format === 'svg') {
+    result = await QRCode.toString(shortUrl, { ...options, type: 'svg' });
 
     try {
-      await redis.set(cacheKey, result, "EX", CACHE_TTL);
+      await redis.set(cacheKey, result, 'EX', CACHE_TTL);
     } catch (error) {
-      console.warn("Failed to cache QR SVG:", error);
+      console.warn('Failed to cache QR SVG:', error);
     }
   } else {
-    result = await QRCode.toBuffer(shortUrl, { ...options, type: "png" });
+    result = await QRCode.toBuffer(shortUrl, { ...options, type: 'png' });
 
     try {
-      await redis.set(cacheKey, result.toString("base64"), "EX", CACHE_TTL);
+      await redis.set(cacheKey, result.toString('base64'), 'EX', CACHE_TTL);
     } catch (error) {
-      console.warn("Failed to cache QR PNG:", error);
+      console.warn('Failed to cache QR PNG:', error);
     }
   }
 
@@ -80,7 +80,7 @@ export async function invalidateQRCache(code: string): Promise<void> {
       await redis.del(...keys);
     }
   } catch (error) {
-    console.warn("Failed to invalidate QR cache:", error);
+    console.warn('Failed to invalidate QR cache:', error);
   }
 }
 
@@ -98,7 +98,7 @@ export function validateQRSize(size: number): QRSize {
 
   // Retorna o mais próximo
   return validSizes.reduce((prev, curr) =>
-    Math.abs(curr - size) < Math.abs(prev - size) ? curr : prev,
+    Math.abs(curr - size) < Math.abs(prev - size) ? curr : prev
   );
 }
 
@@ -108,5 +108,5 @@ export function validateQRSize(size: number): QRSize {
  * @returns Formato validado ou default
  */
 export function validateQRFormat(format: string): QRFormat {
-  return format === "svg" ? "svg" : "png";
+  return format === 'svg' ? 'svg' : 'png';
 }

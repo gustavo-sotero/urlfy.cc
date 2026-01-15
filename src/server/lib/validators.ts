@@ -30,7 +30,7 @@ export function validatePasswordStrength(password: string): PasswordStrength {
   let score = 0;
 
   if (!password || password.length < 8) {
-    feedback.push("Password must be at least 8 characters long");
+    feedback.push('Password must be at least 8 characters long');
   } else {
     score += 1;
   }
@@ -42,31 +42,31 @@ export function validatePasswordStrength(password: string): PasswordStrength {
   if (/[a-z]/.test(password)) {
     score += 1;
   } else {
-    feedback.push("Password should contain lowercase letters");
+    feedback.push('Password should contain lowercase letters');
   }
 
   if (/[A-Z]/.test(password)) {
     score += 1;
   } else {
-    feedback.push("Password should contain uppercase letters");
+    feedback.push('Password should contain uppercase letters');
   }
 
   if (/\d/.test(password)) {
     score += 1;
   } else {
-    feedback.push("Password should contain numbers");
+    feedback.push('Password should contain numbers');
   }
 
   if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     score += 1;
   } else {
-    feedback.push("Password should contain special characters");
+    feedback.push('Password should contain special characters');
   }
 
   return {
     strong: score >= 4,
     score,
-    feedback,
+    feedback
   };
 }
 
@@ -170,15 +170,15 @@ export function isValidQRSize(size: number): boolean {
  */
 export function sanitizeFilename(filename: string): string {
   // Remove path traversal attempts
-  let safe = filename.replace(/\.\./g, "").replace(/[/\\]/g, "");
+  let safe = filename.replace(/\.\./g, '').replace(/[/\\]/g, '');
 
   // Remove special characters except dots, hyphens, underscores
-  safe = safe.replace(/[^\w.-]/g, "");
+  safe = safe.replace(/[^\w.-]/g, '');
 
   // Limit length
   safe = safe.slice(0, 255);
 
-  return safe || "file";
+  return safe || 'file';
 }
 
 /**
@@ -194,7 +194,7 @@ export interface PaginationParams {
 export function validatePagination(
   page?: number | string,
   perPage?: number | string,
-  maxPerPage: number = 100,
+  maxPerPage: number = 100
 ): PaginationParams {
   const errors: string[] = [];
 
@@ -202,9 +202,9 @@ export function validatePagination(
   let pp = 20;
 
   if (page) {
-    const parsed = typeof page === "string" ? parseInt(page, 10) : page;
+    const parsed = typeof page === 'string' ? parseInt(page, 10) : page;
     if (Number.isNaN(parsed) || parsed < 1) {
-      errors.push("Page must be a positive integer");
+      errors.push('Page must be a positive integer');
     } else {
       p = parsed;
     }
@@ -212,7 +212,7 @@ export function validatePagination(
 
   if (perPage) {
     const parsed =
-      typeof perPage === "string" ? parseInt(perPage, 10) : perPage;
+      typeof perPage === 'string' ? parseInt(perPage, 10) : perPage;
     if (Number.isNaN(parsed) || parsed < 1 || parsed > maxPerPage) {
       errors.push(`Per page must be between 1 and ${maxPerPage}`);
     } else {
@@ -224,7 +224,7 @@ export function validatePagination(
     page: p,
     perPage: pp,
     valid: errors.length === 0,
-    errors,
+    errors
   };
 }
 
@@ -232,7 +232,7 @@ export function validatePagination(
  * Validate role
  */
 export function isValidRole(role: string): boolean {
-  return ["user", "admin"].includes(role.toLowerCase());
+  return ['user', 'admin'].includes(role.toLowerCase());
 }
 
 /**
@@ -258,7 +258,7 @@ export function hasSuspiciousChars(input: string): boolean {
     /\.\.%2f/gi, // Path traversal encoded
     /<script/gi, // Script tags
     /javascript:/gi, // JavaScript protocol
-    /on\w+\s*=/gi, // Event handlers
+    /on\w+\s*=/gi // Event handlers
   ];
 
   return suspiciousPatterns.some((pattern) => pattern.test(input));
@@ -269,7 +269,7 @@ export function hasSuspiciousChars(input: string): boolean {
  */
 export function isValidBodySize(
   sizeBytes: number,
-  maxBytes: number = 2 * 1024 * 1024, // 2MB default
+  maxBytes: number = 2 * 1024 * 1024 // 2MB default
 ): boolean {
   return sizeBytes <= maxBytes;
 }

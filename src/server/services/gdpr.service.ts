@@ -3,13 +3,13 @@
  * Handles data export and deletion requests per GDPR/LGPD regulations
  */
 
-import { eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
-import { analyticsEvents, links, user } from "@/db/schema";
-import { db } from "@/server/lib/db";
-import { createLogger } from "@/server/lib/telemetry";
+import { eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { analyticsEvents, links, user } from '@/db/schema';
+import { db } from '@/server/lib/db';
+import { createLogger } from '@/server/lib/telemetry';
 
-const logger = createLogger("gdpr");
+const logger = createLogger('gdpr');
 
 export interface UserDataExport {
   user: {
@@ -35,7 +35,7 @@ export interface UserDataExport {
 export interface DataDeletionRequest {
   requestId: string;
   userId: string;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   requestedAt: Date;
   deadline: Date;
   completedAt?: Date;
@@ -57,7 +57,7 @@ export class GDPRService {
         .limit(1);
 
       if (!userData) {
-        throw new Error("User not found");
+        throw new Error('User not found');
       }
 
       // Get user's links
@@ -86,24 +86,24 @@ export class GDPRService {
           email: userData.email,
           name: userData.name || null,
           createdAt: userData.createdAt,
-          updatedAt: userData.updatedAt,
+          updatedAt: userData.updatedAt
         },
         links: userLinks.map((link) => ({
           id: link.id,
           shortCode: link.shortCode,
           originalUrl: link.originalUrl,
-          createdAt: link.createdAt,
+          createdAt: link.createdAt
         })),
         analyticsOverview: {
           totalClicks,
           uniqueVisitors,
-          linksCount: userLinks.length,
-        },
+          linksCount: userLinks.length
+        }
       };
     } catch (error) {
-      logger.error("Failed to export user data", {
+      logger.error('Failed to export user data', {
         error: error instanceof Error ? error.message : String(error),
-        userId,
+        userId
       });
       throw error;
     }
@@ -117,9 +117,9 @@ export class GDPRService {
       const data = await this.exportUserData(userId);
       return JSON.stringify(data, null, 2);
     } catch (error) {
-      logger.error("Failed to generate export file", {
+      logger.error('Failed to generate export file', {
         error: error instanceof Error ? error.message : String(error),
-        userId,
+        userId
       });
       throw error;
     }
@@ -138,15 +138,15 @@ export class GDPRService {
       const request: DataDeletionRequest = {
         requestId,
         userId,
-        status: "pending",
+        status: 'pending',
         requestedAt: now,
-        deadline,
+        deadline
       };
 
-      logger.info("Data deletion request scheduled", {
+      logger.info('Data deletion request scheduled', {
         requestId,
         userId,
-        deadline,
+        deadline
       });
 
       // Store in Redis or database for async processing
@@ -154,9 +154,9 @@ export class GDPRService {
 
       return request;
     } catch (error) {
-      logger.error("Failed to schedule data deletion", {
+      logger.error('Failed to schedule data deletion', {
         error: error instanceof Error ? error.message : String(error),
-        userId,
+        userId
       });
       throw error;
     }
@@ -169,7 +169,7 @@ export class GDPRService {
    */
   async executeDataDeletion(userId: string): Promise<void> {
     try {
-      logger.warn("Executing data deletion", { userId });
+      logger.warn('Executing data deletion', { userId });
 
       // Get all user links
       const userLinks = await db
@@ -190,11 +190,11 @@ export class GDPRService {
       // Delete user account
       await db.delete(user).where(eq(user.id, userId));
 
-      logger.info("Data deletion completed", { userId });
+      logger.info('Data deletion completed', { userId });
     } catch (error) {
-      logger.error("Failed to execute data deletion", {
+      logger.error('Failed to execute data deletion', {
         error: error instanceof Error ? error.message : String(error),
-        userId,
+        userId
       });
       throw error;
     }
@@ -206,21 +206,21 @@ export class GDPRService {
    */
   async anonymizeUserData(userId: string): Promise<void> {
     try {
-      logger.info("Anonymizing user data", { userId });
+      logger.info('Anonymizing user data', { userId });
 
       // Update user to anonymous
       await db
         .update(user)
         .set({
-          email: `deleted+${userId}@urlfy.cc`,
+          email: `deleted+${userId}@urlfy.cc`
         })
         .where(eq(user.id, userId));
 
-      logger.info("User data anonymized", { userId });
+      logger.info('User data anonymized', { userId });
     } catch (error) {
-      logger.error("Failed to anonymize user data", {
+      logger.error('Failed to anonymize user data', {
         error: error instanceof Error ? error.message : String(error),
-        userId,
+        userId
       });
       throw error;
     }
@@ -230,17 +230,17 @@ export class GDPRService {
    * Get deletion request status
    */
   async getDeletionStatus(
-    requestId: string,
+    requestId: string
   ): Promise<DataDeletionRequest | null> {
     try {
       // Fetch from persistence layer (Redis/DB)
       // This is a placeholder
-      logger.debug("Checking deletion status", { requestId });
+      logger.debug('Checking deletion status', { requestId });
       return null;
     } catch (error) {
-      logger.error("Failed to get deletion status", {
+      logger.error('Failed to get deletion status', {
         error: error instanceof Error ? error.message : String(error),
-        requestId,
+        requestId
       });
       throw error;
     }
@@ -252,12 +252,12 @@ export class GDPRService {
   async hasPendingDeletion(userId: string): Promise<boolean> {
     try {
       // Check persistence layer
-      logger.debug("Checking for pending deletion", { userId });
+      logger.debug('Checking for pending deletion', { userId });
       return false;
     } catch (error) {
-      logger.error("Failed to check pending deletion", {
+      logger.error('Failed to check pending deletion', {
         error: error instanceof Error ? error.message : String(error),
-        userId,
+        userId
       });
       return false;
     }

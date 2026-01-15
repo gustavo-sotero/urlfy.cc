@@ -1,40 +1,40 @@
 // src/app/(dashboard)/links/page.tsx
-"use client";
+'use client';
 
-import { Plus, Search } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
-import { toast } from "sonner";
-import { QueryError } from "@/components/query-error";
-import { LinkCard } from "@/components/shared/link-card";
-import { LinkListSkeleton } from "@/components/shared/link-card-skeleton";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useDeleteLink, useLinks } from "@/lib/hooks/use-links";
+import { Plus, Search } from 'lucide-react';
+import Link from 'next/link';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { QueryError } from '@/components/query-error';
+import { LinkCard } from '@/components/shared/link-card';
+import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useDeleteLink, useLinks } from '@/lib/hooks/use-links';
 
 export default function LinksPage() {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, error, refetch } = useLinks({
     page,
     perPage: 20,
-    search: search || undefined,
+    search: search || undefined
   });
 
   const deleteLink = useDeleteLink();
 
   const handleDelete = async (id: string) => {
-    if (confirm("Tem certeza que deseja deletar este link?")) {
+    if (confirm('Tem certeza que deseja deletar este link?')) {
       try {
         await deleteLink.mutateAsync(id);
-        toast.success("Link deletado com sucesso");
+        toast.success('Link deletado com sucesso');
       } catch (error) {
-        console.error("Failed to delete link:", error);
+        console.error('Failed to delete link:', error);
         toast.error(
           error instanceof Error
             ? error.message
-            : "Erro ao deletar link. Tente novamente.",
+            : 'Erro ao deletar link. Tente novamente.'
         );
       }
     }
@@ -82,8 +82,8 @@ export default function LinksPage() {
             <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed p-12 text-center">
               <p className="text-muted-foreground">
                 {search
-                  ? "Nenhum link encontrado"
-                  : "Você ainda não tem links. Crie seu primeiro link!"}
+                  ? 'Nenhum link encontrado'
+                  : 'Você ainda não tem links. Crie seu primeiro link!'}
               </p>
               {!search && (
                 <Button asChild>

@@ -1,10 +1,10 @@
 // src/db/scripts/partition-manager.ts
 
-import { sql } from "drizzle-orm";
-import { db } from "@/db";
-import { createLogger } from "@/server/lib/telemetry";
+import { sql } from 'drizzle-orm';
+import { db } from '@/db';
+import { createLogger } from '@/server/lib/telemetry';
 
-const logger = createLogger("partition-manager");
+const logger = createLogger('partition-manager');
 
 export interface PartitionInfo {
   name: string;
@@ -19,7 +19,7 @@ export interface PartitionInfo {
  * - Mantém dados agregados após 90 dias
  */
 export class PartitionManager {
-  private readonly tableName = "analytics_events";
+  private readonly tableName = 'analytics_events';
   private readonly retentionDays = 90; // Política de retenção: 90 dias
   private readonly lookaheadMonths = 3; // Criar partições futuras: 3 meses
 
@@ -28,12 +28,12 @@ export class PartitionManager {
    */
   async runMaintenance(): Promise<void> {
     try {
-      logger.info("[PartitionManager] Iniciando manutenção de partições...");
+      logger.info('[PartitionManager] Iniciando manutenção de partições...');
 
       // Lista partições existentes
       const existing = await this.listPartitions();
       logger.info(
-        `[PartitionManager] Encontradas ${existing.length} partições existentes`,
+        `[PartitionManager] Encontradas ${existing.length} partições existentes`
       );
 
       // Cria partições futuras
@@ -42,10 +42,10 @@ export class PartitionManager {
       // Remove partições antigas
       await this.dropOldPartitions(existing);
 
-      logger.info("[PartitionManager] Manutenção concluída com sucesso");
+      logger.info('[PartitionManager] Manutenção concluída com sucesso');
     } catch (error) {
-      logger.error("[PartitionManager] Erro durante manutenção", {
-        error: error instanceof Error ? error.message : String(error),
+      logger.error('[PartitionManager] Erro durante manutenção', {
+        error: error instanceof Error ? error.message : String(error)
       });
       throw error;
     }
@@ -73,17 +73,17 @@ export class PartitionManager {
 
       return rows.map((row) => {
         const { startDate, endDate } = this.parsePartitionBounds(
-          row.partition_bound,
+          row.partition_bound
         );
         return {
           name: row.tablename,
           startDate,
-          endDate,
+          endDate
         };
       });
     } catch (error) {
-      logger.error("[PartitionManager] Erro ao listar partições", {
-        error: error instanceof Error ? error.message : String(error),
+      logger.error('[PartitionManager] Erro ao listar partições', {
+        error: error instanceof Error ? error.message : String(error)
       });
       return [];
     }
@@ -108,12 +108,12 @@ export class PartitionManager {
       try {
         const startDate = this.formatDate(date);
         const endDate = this.formatDate(
-          new Date(date.getFullYear(), date.getMonth() + 1, 1),
+          new Date(date.getFullYear(), date.getMonth() + 1, 1)
         );
 
         logger.info(`[PartitionManager] Criando partição: ${partitionName}`, {
           startDate,
-          endDate,
+          endDate
         });
 
         // Use sql.raw for proper date string escaping in partition bounds
@@ -122,30 +122,30 @@ export class PartitionManager {
             CREATE TABLE IF NOT EXISTS "${partitionName}"
             PARTITION OF "${this.tableName}"
             FOR VALUES FROM ('${startDate}') TO ('${endDate}')
-          `),
+          `)
         );
 
         // Cria índices locais na partição
         await this.createPartitionIndexes(partitionName);
 
         logger.info(
-          `[PartitionManager] Partição criada com sucesso: ${partitionName}`,
+          `[PartitionManager] Partição criada com sucesso: ${partitionName}`
         );
       } catch (error) {
         // Ignora erro se partição já existe
         if (
           error instanceof Error &&
-          error.message.includes("already exists")
+          error.message.includes('already exists')
         ) {
           logger.debug(
-            `[PartitionManager] Partição ${partitionName} já foi criada`,
+            `[PartitionManager] Partição ${partitionName} já foi criada`
           );
         } else {
           logger.error(
             `[PartitionManager] Erro ao criar partição ${partitionName}`,
             {
-              error: error instanceof Error ? error.message : String(error),
-            },
+              error: error instanceof Error ? error.message : String(error)
+            }
           );
         }
       }
@@ -163,22 +163,22 @@ export class PartitionManager {
       if (partition.endDate < cutoffDate) {
         try {
           logger.info(
-            `[PartitionManager] Removendo partição antiga: ${partition.name}`,
+            `[PartitionManager] Removendo partição antiga: ${partition.name}`
           );
 
           await db.execute(
-            sql.raw(`DROP TABLE IF EXISTS "${partition.name}" CASCADE`),
+            sql.raw(`DROP TABLE IF EXISTS "${partition.name}" CASCADE`)
           );
 
           logger.info(
-            `[PartitionManager] Partição removida com sucesso: ${partition.name}`,
+            `[PartitionManager] Partição removida com sucesso: ${partition.name}`
           );
         } catch (error) {
           logger.error(
             `[PartitionManager] Erro ao remover partição ${partition.name}`,
             {
-              error: error instanceof Error ? error.message : String(error),
-            },
+              error: error instanceof Error ? error.message : String(error)
+            }
           );
         }
       }
@@ -193,7 +193,7 @@ export class PartitionManager {
       `CREATE INDEX IF NOT EXISTS idx_${partitionName}_link_id ON ${partitionName}(link_id);`,
       `CREATE INDEX IF NOT EXISTS idx_${partitionName}_created_at ON ${partitionName}(created_at);`,
       `CREATE INDEX IF NOT EXISTS idx_${partitionName}_country ON ${partitionName}(country);`,
-      `CREATE INDEX IF NOT EXISTS idx_${partitionName}_not_bot ON ${partitionName}(link_id, is_bot);`,
+      `CREATE INDEX IF NOT EXISTS idx_${partitionName}_not_bot ON ${partitionName}(link_id, is_bot);`
     ];
 
     for (const indexSql of indexes) {
@@ -203,8 +203,8 @@ export class PartitionManager {
         logger.warn(
           `[PartitionManager] Erro ao criar índice em ${partitionName}`,
           {
-            error: error instanceof Error ? error.message : String(error),
-          },
+            error: error instanceof Error ? error.message : String(error)
+          }
         );
       }
     }
@@ -215,7 +215,7 @@ export class PartitionManager {
    */
   private getPartitionName(date: Date): string {
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, '0');
     return `${this.tableName}_${year}_${month}`;
   }
 
@@ -223,7 +223,7 @@ export class PartitionManager {
    * Formata data para SQL
    */
   private formatDate(date: Date): string {
-    return date.toISOString().split("T")[0];
+    return date.toISOString().split('T')[0];
   }
 
   /**
@@ -239,12 +239,12 @@ export class PartitionManager {
       throw new Error(`Invalid partition bounds format: ${bounds}`);
     }
 
-    const startStr = matches[0].replace(/'/g, "");
-    const endStr = matches[1].replace(/'/g, "");
+    const startStr = matches[0].replace(/'/g, '');
+    const endStr = matches[1].replace(/'/g, '');
 
     return {
       startDate: new Date(startStr),
-      endDate: new Date(endStr),
+      endDate: new Date(endStr)
     };
   }
 }

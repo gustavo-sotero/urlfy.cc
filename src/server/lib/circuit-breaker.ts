@@ -1,15 +1,15 @@
-import { circuitBreakerTrips, createLogger } from "./telemetry";
+import { circuitBreakerTrips, createLogger } from './telemetry';
 
-const logger = createLogger("circuit-breaker");
+const logger = createLogger('circuit-breaker');
 
 // ═══════════════════════════════════════════════════════════════════
 // CIRCUIT BREAKER STATES
 // ═══════════════════════════════════════════════════════════════════
 
 enum CircuitState {
-  CLOSED = "CLOSED", // Normal operation
-  OPEN = "OPEN", // Failing, rejecting requests
-  HALF_OPEN = "HALF_OPEN", // Testing if service recovered
+  CLOSED = 'CLOSED', // Normal operation
+  OPEN = 'OPEN', // Failing, rejecting requests
+  HALF_OPEN = 'HALF_OPEN' // Testing if service recovered
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -24,11 +24,11 @@ export interface CircuitBreakerConfig {
   name: string; // Circuit breaker name for logging
 }
 
-const DEFAULT_CONFIG: Omit<CircuitBreakerConfig, "name"> = {
+const DEFAULT_CONFIG: Omit<CircuitBreakerConfig, 'name'> = {
   failureThreshold: 5, // 5 failures
   successThreshold: 2, // 2 successes
   timeout: 30000, // 30 seconds
-  resetTimeout: 10000, // 10 seconds
+  resetTimeout: 10000 // 10 seconds
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -50,20 +50,20 @@ export class CircuitBreaker {
   async execute<T>(fn: () => Promise<T>): Promise<T> {
     if (this.state === CircuitState.OPEN) {
       if (Date.now() < this.nextAttempt) {
-        logger.warn("Circuit breaker is OPEN, rejecting request", {
+        logger.warn('Circuit breaker is OPEN, rejecting request', {
           circuit: this.config.name,
-          nextAttempt: new Date(this.nextAttempt).toISOString(),
+          nextAttempt: new Date(this.nextAttempt).toISOString()
         });
         throw new Error(
-          `Circuit breaker '${this.config.name}' is OPEN. Service unavailable.`,
+          `Circuit breaker '${this.config.name}' is OPEN. Service unavailable.`
         );
       }
 
       // Try to transition to HALF_OPEN
       this.state = CircuitState.HALF_OPEN;
       this.successCount = 0;
-      logger.info("Circuit breaker transitioning to HALF_OPEN", {
-        circuit: this.config.name,
+      logger.info('Circuit breaker transitioning to HALF_OPEN', {
+        circuit: this.config.name
       });
     }
 
@@ -86,8 +86,8 @@ export class CircuitBreaker {
       if (this.successCount >= this.config.successThreshold) {
         this.state = CircuitState.CLOSED;
         this.successCount = 0;
-        logger.info("Circuit breaker closed after recovery", {
-          circuit: this.config.name,
+        logger.info('Circuit breaker closed after recovery', {
+          circuit: this.config.name
         });
       }
     }
@@ -107,9 +107,9 @@ export class CircuitBreaker {
       this.state = CircuitState.OPEN;
       this.nextAttempt = Date.now() + this.config.timeout;
       circuitBreakerTrips.add(1, { circuit: this.config.name });
-      logger.warn("Circuit breaker reopened after failed test", {
+      logger.warn('Circuit breaker reopened after failed test', {
         circuit: this.config.name,
-        nextAttempt: new Date(this.nextAttempt).toISOString(),
+        nextAttempt: new Date(this.nextAttempt).toISOString()
       });
       return;
     }
@@ -118,11 +118,11 @@ export class CircuitBreaker {
       this.state = CircuitState.OPEN;
       this.nextAttempt = Date.now() + this.config.timeout;
       circuitBreakerTrips.add(1, { circuit: this.config.name });
-      logger.error("Circuit breaker opened due to failures", {
+      logger.error('Circuit breaker opened due to failures', {
         circuit: this.config.name,
         failureCount: this.failureCount,
         threshold: this.config.failureThreshold,
-        nextAttempt: new Date(this.nextAttempt).toISOString(),
+        nextAttempt: new Date(this.nextAttempt).toISOString()
       });
     }
   }
@@ -140,7 +140,7 @@ export class CircuitBreaker {
       state: this.state,
       failureCount: this.failureCount,
       successCount: this.successCount,
-      name: this.config.name,
+      name: this.config.name
     };
   }
 
@@ -148,8 +148,8 @@ export class CircuitBreaker {
     this.state = CircuitState.CLOSED;
     this.failureCount = 0;
     this.successCount = 0;
-    logger.info("Circuit breaker manually reset", {
-      circuit: this.config.name,
+    logger.info('Circuit breaker manually reset', {
+      circuit: this.config.name
     });
   }
 }
@@ -159,19 +159,19 @@ export class CircuitBreaker {
 // ═══════════════════════════════════════════════════════════════════
 
 export const dbCircuitBreaker = new CircuitBreaker({
-  name: "postgresql",
+  name: 'postgresql',
   failureThreshold: 5,
   successThreshold: 2,
   timeout: 30000,
-  resetTimeout: 10000,
+  resetTimeout: 10000
 });
 
 export const redisCircuitBreaker = new CircuitBreaker({
-  name: "redis",
+  name: 'redis',
   failureThreshold: 5,
   successThreshold: 2,
   timeout: 30000,
-  resetTimeout: 10000,
+  resetTimeout: 10000
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -181,14 +181,14 @@ export const redisCircuitBreaker = new CircuitBreaker({
 export async function executeWithFallback<T>(
   primary: () => Promise<T>,
   fallback: () => Promise<T>,
-  breaker: CircuitBreaker,
+  breaker: CircuitBreaker
 ): Promise<T> {
   try {
     return await breaker.execute(primary);
   } catch (error) {
-    logger.warn("Primary execution failed, using fallback", {
+    logger.warn('Primary execution failed, using fallback', {
       circuit: breaker.getStats().name,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
     return await fallback();
   }

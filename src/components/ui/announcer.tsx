@@ -1,35 +1,35 @@
 // src/components/ui/announcer.tsx
-"use client";
+'use client';
 
 import {
   createContext,
   type ReactNode,
   useCallback,
   useContext,
-  useState,
-} from "react";
+  useState
+} from 'react';
 
 interface AnnouncerContextType {
-  announce: (message: string, priority?: "polite" | "assertive") => void;
+  announce: (message: string, priority?: 'polite' | 'assertive') => void;
 }
 
 const AnnouncerContext = createContext<AnnouncerContextType | null>(null);
 
 export function AnnouncerProvider({ children }: { children: ReactNode }) {
-  const [politeMessage, setPoliteMessage] = useState("");
-  const [assertiveMessage, setAssertiveMessage] = useState("");
+  const [politeMessage, setPoliteMessage] = useState('');
+  const [assertiveMessage, setAssertiveMessage] = useState('');
 
   const announce = useCallback(
-    (message: string, priority: "polite" | "assertive" = "polite") => {
-      if (priority === "assertive") {
+    (message: string, priority: 'polite' | 'assertive' = 'polite') => {
+      if (priority === 'assertive') {
         setAssertiveMessage(message);
-        setTimeout(() => setAssertiveMessage(""), 100);
+        setTimeout(() => setAssertiveMessage(''), 100);
       } else {
         setPoliteMessage(message);
-        setTimeout(() => setPoliteMessage(""), 100);
+        setTimeout(() => setPoliteMessage(''), 100);
       }
     },
-    [],
+    []
   );
 
   return (
@@ -54,7 +54,7 @@ export function AnnouncerProvider({ children }: { children: ReactNode }) {
 export function useAnnouncer() {
   const context = useContext(AnnouncerContext);
   if (!context) {
-    throw new Error("useAnnouncer must be used within AnnouncerProvider");
+    throw new Error('useAnnouncer must be used within AnnouncerProvider');
   }
   return context;
 }

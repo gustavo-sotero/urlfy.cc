@@ -1,23 +1,23 @@
 // src/components/shared/copy-button.tsx
-"use client";
+'use client';
 
-import { Check, Copy } from "lucide-react";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Check, Copy } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface CopyButtonProps {
   text: string;
   className?: string;
-  variant?: "default" | "ghost" | "outline";
-  size?: "default" | "sm" | "lg" | "icon";
+  variant?: 'default' | 'ghost' | 'outline';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
 }
 
 export function CopyButton({
   text,
   className,
-  variant = "ghost",
-  size = "icon",
+  variant = 'ghost',
+  size = 'icon'
 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
 
@@ -27,7 +27,7 @@ export function CopyButton({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error("Failed to copy:", error);
+      console.error('Failed to copy:', error);
     }
   };
 
@@ -37,7 +37,7 @@ export function CopyButton({
       size={size}
       onClick={handleCopy}
       className={cn(className)}
-      aria-label={copied ? "Copiado!" : "Copiar"}
+      aria-label={copied ? 'Copiado!' : 'Copiar'}
     >
       {copied ? (
         <Check className="h-4 w-4 text-green-500" />

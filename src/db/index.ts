@@ -1,8 +1,8 @@
 // Bun SQL nativo para PostgreSQL
-import { SQL } from "bun";
-import { sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/bun-sql";
-import * as schema from "./schema";
+import { SQL } from 'bun';
+import { sql } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/bun-sql';
+import * as schema from './schema';
 
 // Type for the drizzle instance
 type DrizzleDatabase = ReturnType<typeof drizzle>;
@@ -21,7 +21,7 @@ export function getDatabase(): DrizzleDatabase {
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    connectionError = new Error("DATABASE_URL environment variable is not set");
+    connectionError = new Error('DATABASE_URL environment variable is not set');
     throw connectionError;
   }
 
@@ -30,14 +30,14 @@ export function getDatabase(): DrizzleDatabase {
     sqlConnection = new SQL(databaseUrl);
     dbInstance = drizzle(sqlConnection, { schema });
 
-    console.log("✅ Database connection established (Bun SQL)");
+    console.log('✅ Database connection established (Bun SQL)');
     return dbInstance;
   } catch (error) {
     connectionError =
       error instanceof Error
         ? error
-        : new Error("Failed to connect to database");
-    console.error("❌ Failed to connect to database:", error);
+        : new Error('Failed to connect to database');
+    console.error('❌ Failed to connect to database:', error);
     throw connectionError;
   }
 }
@@ -48,11 +48,11 @@ const dbProxy = new Proxy({} as DrizzleDatabase, {
   get(_, prop: string) {
     const database = getDatabase();
     const value = database[prop as keyof DrizzleDatabase];
-    if (typeof value === "function") {
+    if (typeof value === 'function') {
       return value.bind(database);
     }
     return value;
-  },
+  }
 });
 
 export const db = dbProxy;
@@ -61,14 +61,14 @@ export const db = dbProxy;
 export function getSqlConnection(): SQL {
   getDatabase(); // Garante inicialização
   if (!sqlConnection) {
-    throw new Error("SQL connection not initialized");
+    throw new Error('SQL connection not initialized');
   }
   return sqlConnection;
 }
 
 // Health check do banco
 export async function checkDatabaseHealth(): Promise<{
-  status: "ok" | "error";
+  status: 'ok' | 'error';
   latencyMs?: number;
   error?: string;
 }> {
@@ -79,23 +79,23 @@ export async function checkDatabaseHealth(): Promise<{
     await db.execute(sql`SELECT 1`);
 
     const latencyMs = Math.round(performance.now() - start);
-    return { status: "ok", latencyMs };
+    return { status: 'ok', latencyMs };
   } catch (error) {
     const latencyMs = Math.round(performance.now() - start);
     return {
-      status: "error",
+      status: 'error',
       latencyMs,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 }
 // Graceful shutdown
 export async function closeDatabase(): Promise<void> {
   if (sqlConnection) {
-    console.log("Closing database connection...");
+    console.log('Closing database connection...');
     // Bun SQL doesn't have explicit close method, connection is managed by runtime
     dbInstance = null;
     sqlConnection = null;
-    console.log("Database connection reference cleared");
+    console.log('Database connection reference cleared');
   }
 }

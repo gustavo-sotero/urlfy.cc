@@ -1,10 +1,10 @@
 // src/server/services/cache.service.ts
 
-import { getRedisClient } from "@/server/lib/redis";
-import { createLogger } from "@/server/lib/telemetry";
-import type { CachedLink } from "@/types/redirect.types";
+import { getRedisClient } from '@/server/lib/redis';
+import { createLogger } from '@/server/lib/telemetry';
+import type { CachedLink } from '@/types/redirect.types';
 
-const logger = createLogger("cache-service");
+const logger = createLogger('cache-service');
 const redis = getRedisClient();
 
 // TTLs de cache (em segundos)
@@ -14,18 +14,18 @@ export const CACHE_TTL = {
   NEGATIVE: 300, // 5 minutos (cache de link não encontrado)
   BANNED: 86400, // 24 horas
   QR_CODE: 86400, // 24 horas
-  GEO: 86400, // 24 horas
+  GEO: 86400 // 24 horas
 } as const;
 
 // Prefixos de chave
 export const CACHE_PREFIX = {
-  LINK: "link:",
-  LINK_META: "link:meta:",
-  LINK_404: "link:404:",
-  LINK_BANNED: "link:banned:",
-  QR_CODE: "qr:",
-  GEO: "geo:",
-  LOCK: "lock:link:",
+  LINK: 'link:',
+  LINK_META: 'link:meta:',
+  LINK_404: 'link:404:',
+  LINK_BANNED: 'link:banned:',
+  QR_CODE: 'qr:',
+  GEO: 'geo:',
+  LOCK: 'lock:link:'
 } as const;
 
 /**
@@ -42,14 +42,14 @@ export class CacheService {
    */
   async getLink(
     code: string,
-    enableProbabilisticRefresh = true,
+    enableProbabilisticRefresh = true
   ): Promise<CachedLink | null> {
     try {
       const key = `${CACHE_PREFIX.LINK}${code}`;
       const cached = await redis.get(key);
 
       if (!cached) {
-        logger.debug("Cache miss", { code, key });
+        logger.debug('Cache miss', { code, key });
         return null;
       }
 
@@ -60,22 +60,22 @@ export class CacheService {
         const originalTtl = CACHE_TTL.LINK; // 3600 segundos
 
         if (ttl > 0 && ttl < originalTtl * 0.1 && Math.random() < 0.1) {
-          logger.debug("Probabilistic early expiration triggered", {
+          logger.debug('Probabilistic early expiration triggered', {
             code,
             ttl,
-            threshold: originalTtl * 0.1,
+            threshold: originalTtl * 0.1
           });
           // Retorna null para forçar refresh em background
           return null;
         }
       }
 
-      logger.debug("Cache hit", { code, key });
+      logger.debug('Cache hit', { code, key });
       return JSON.parse(cached) as CachedLink;
     } catch (error) {
-      logger.error("Error getting link from cache", {
+      logger.error('Error getting link from cache', {
         code,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
       return null;
     }
@@ -88,11 +88,11 @@ export class CacheService {
     try {
       const key = `${CACHE_PREFIX.LINK}${code}`;
       await redis.setex(key, CACHE_TTL.LINK, JSON.stringify(link));
-      logger.debug("Link cached", { code, ttl: CACHE_TTL.LINK });
+      logger.debug('Link cached', { code, ttl: CACHE_TTL.LINK });
     } catch (error) {
-      logger.error("Error setting link in cache", {
+      logger.error('Error setting link in cache', {
         code,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
       throw error;
     }
@@ -107,9 +107,9 @@ export class CacheService {
       const exists = await redis.exists(key);
       return exists === 1;
     } catch (error) {
-      logger.error("Error checking 404 cache", {
+      logger.error('Error checking 404 cache', {
         code,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
       return false;
     }
@@ -121,12 +121,12 @@ export class CacheService {
   async setNotFound(code: string): Promise<void> {
     try {
       const key = `${CACHE_PREFIX.LINK_404}${code}`;
-      await redis.setex(key, CACHE_TTL.NEGATIVE, "1");
-      logger.debug("404 cached", { code, ttl: CACHE_TTL.NEGATIVE });
+      await redis.setex(key, CACHE_TTL.NEGATIVE, '1');
+      logger.debug('404 cached', { code, ttl: CACHE_TTL.NEGATIVE });
     } catch (error) {
-      logger.error("Error setting 404 cache", {
+      logger.error('Error setting 404 cache', {
         code,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   }
@@ -140,9 +140,9 @@ export class CacheService {
       const exists = await redis.exists(key);
       return exists === 1;
     } catch (error) {
-      logger.error("Error checking banned cache", {
+      logger.error('Error checking banned cache', {
         code,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
       return false;
     }
@@ -154,12 +154,12 @@ export class CacheService {
   async setBanned(code: string): Promise<void> {
     try {
       const key = `${CACHE_PREFIX.LINK_BANNED}${code}`;
-      await redis.setex(key, CACHE_TTL.BANNED, "1");
-      logger.debug("Banned link cached", { code, ttl: CACHE_TTL.BANNED });
+      await redis.setex(key, CACHE_TTL.BANNED, '1');
+      logger.debug('Banned link cached', { code, ttl: CACHE_TTL.BANNED });
     } catch (error) {
-      logger.error("Error setting banned cache", {
+      logger.error('Error setting banned cache', {
         code,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   }
@@ -187,14 +187,14 @@ export class CacheService {
 
       await pipeline.exec();
 
-      logger.info("Link cache invalidated", {
+      logger.info('Link cache invalidated', {
         code,
-        qrKeysRemoved: qrKeys.length,
+        qrKeysRemoved: qrKeys.length
       });
     } catch (error) {
-      logger.error("Error invalidating link cache", {
+      logger.error('Error invalidating link cache', {
         code,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
       throw error;
     }
@@ -207,11 +207,11 @@ export class CacheService {
     try {
       await this.invalidateLink(code);
       await this.setBanned(code);
-      logger.info("Link banned and cache invalidated", { code });
+      logger.info('Link banned and cache invalidated', { code });
     } catch (error) {
-      logger.error("Error in invalidateAndBan", {
+      logger.error('Error in invalidateAndBan', {
         code,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
       throw error;
     }
@@ -224,11 +224,11 @@ export class CacheService {
     try {
       await this.invalidateLink(code);
       await this.setNotFound(code);
-      logger.info("Link deleted and cache invalidated", { code });
+      logger.info('Link deleted and cache invalidated', { code });
     } catch (error) {
-      logger.error("Error in invalidateAndMarkDeleted", {
+      logger.error('Error in invalidateAndMarkDeleted', {
         code,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       });
       throw error;
     }
@@ -243,27 +243,27 @@ export class CacheService {
     hitRate: number | null;
   }> {
     try {
-      const info = await redis.info("stats");
-      const memory = await redis.info("memory");
+      const info = await redis.info('stats');
+      const memory = await redis.info('memory');
 
       // Parse das informações
       const stats = this.parseRedisInfo(info);
       const memoryStats = this.parseRedisInfo(memory);
 
-      const hits = Number.parseInt(stats.keyspace_hits || "0", 10);
-      const misses = Number.parseInt(stats.keyspace_misses || "0", 10);
+      const hits = Number.parseInt(stats.keyspace_hits || '0', 10);
+      const misses = Number.parseInt(stats.keyspace_misses || '0', 10);
       const total = hits + misses;
 
       return {
-        memory: memoryStats.used_memory_human || "unknown",
+        memory: memoryStats.used_memory_human || 'unknown',
         keys: await redis.dbsize(),
-        hitRate: total > 0 ? (hits / total) * 100 : null,
+        hitRate: total > 0 ? (hits / total) * 100 : null
       };
     } catch (error) {
-      logger.error("Error getting cache stats", {
-        error: error instanceof Error ? error.message : String(error),
+      logger.error('Error getting cache stats', {
+        error: error instanceof Error ? error.message : String(error)
       });
-      return { memory: "unknown", keys: 0, hitRate: null };
+      return { memory: 'unknown', keys: 0, hitRate: null };
     }
   }
 
@@ -272,11 +272,11 @@ export class CacheService {
    */
   private parseRedisInfo(info: string): Record<string, string> {
     const result: Record<string, string> = {};
-    const lines = info.split("\r\n");
+    const lines = info.split('\r\n');
 
     for (const line of lines) {
-      if (line && !line.startsWith("#")) {
-        const [key, value] = line.split(":");
+      if (line && !line.startsWith('#')) {
+        const [key, value] = line.split(':');
         if (key && value) {
           result[key.trim()] = value.trim();
         }
@@ -293,10 +293,10 @@ export class CacheService {
   async flushAll(): Promise<void> {
     try {
       await redis.flushall();
-      logger.warn("Cache flushed - ALL keys removed");
+      logger.warn('Cache flushed - ALL keys removed');
     } catch (error) {
-      logger.error("Error flushing cache", {
-        error: error instanceof Error ? error.message : String(error),
+      logger.error('Error flushing cache', {
+        error: error instanceof Error ? error.message : String(error)
       });
       throw error;
     }
@@ -311,7 +311,7 @@ export class CacheService {
         `${CACHE_PREFIX.LINK}*`,
         `${CACHE_PREFIX.LINK_META}*`,
         `${CACHE_PREFIX.LINK_404}*`,
-        `${CACHE_PREFIX.LINK_BANNED}*`,
+        `${CACHE_PREFIX.LINK_BANNED}*`
       ];
 
       let totalRemoved = 0;
@@ -324,10 +324,10 @@ export class CacheService {
         }
       }
 
-      logger.info("Link cache flushed", { keysRemoved: totalRemoved });
+      logger.info('Link cache flushed', { keysRemoved: totalRemoved });
     } catch (error) {
-      logger.error("Error flushing link cache", {
-        error: error instanceof Error ? error.message : String(error),
+      logger.error('Error flushing link cache', {
+        error: error instanceof Error ? error.message : String(error)
       });
       throw error;
     }

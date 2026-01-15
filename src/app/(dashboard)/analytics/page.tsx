@@ -1,39 +1,39 @@
 // src/app/(dashboard)/analytics/page.tsx
-"use client";
+'use client';
 
-import { BarChart2, MousePointer, TrendingUp, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { BarChart2, MousePointer, TrendingUp, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import {
   ChartSkeleton,
-  StatsGridSkeleton,
-} from "@/components/charts/analytics-skeleton";
-import { ClicksChart } from "@/components/charts/clicks-chart";
-import { CountriesChart } from "@/components/charts/countries-chart";
-import { DevicesChart } from "@/components/charts/devices-chart";
-import { ReferrersChart } from "@/components/charts/referrers-chart";
-import { QueryError } from "@/components/query-error";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+  StatsGridSkeleton
+} from '@/components/charts/analytics-skeleton';
+import { ClicksChart } from '@/components/charts/clicks-chart';
+import { CountriesChart } from '@/components/charts/countries-chart';
+import { DevicesChart } from '@/components/charts/devices-chart';
+import { ReferrersChart } from '@/components/charts/referrers-chart';
+import { QueryError } from '@/components/query-error';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue
+} from '@/components/ui/select';
 import {
   useAnalyticsBreakdown,
   useAnalyticsSummary,
-  useDailyStats,
-} from "@/lib/hooks/use-analytics";
-import { useLinks } from "@/lib/hooks/use-links";
+  useDailyStats
+} from '@/lib/hooks/use-analytics';
+import { useLinks } from '@/lib/hooks/use-links';
 
 export default function AnalyticsPage() {
-  const [selectedLinkId, setSelectedLinkId] = useState<string>("");
-  const [days, setDays] = useState("30");
+  const [selectedLinkId, setSelectedLinkId] = useState<string>('');
+  const [days, setDays] = useState('30');
 
   // Get user's links
   const { data: linksData, isLoading: linksLoading } = useLinks({
-    perPage: 100,
+    perPage: 100
   });
 
   // Fetch real analytics data
@@ -42,21 +42,21 @@ export default function AnalyticsPage() {
     isLoading: dailyLoading,
     isError: dailyError,
     error: dailyErrorDetails,
-    refetch: refetchDaily,
-  } = useDailyStats(selectedLinkId || "all", Number.parseInt(days, 10), {
-    enabled: !linksLoading,
+    refetch: refetchDaily
+  } = useDailyStats(selectedLinkId || 'all', Number.parseInt(days, 10), {
+    enabled: !linksLoading
   });
 
   const { data: summaryData, isLoading: summaryLoading } = useAnalyticsSummary(
-    selectedLinkId || "all",
+    selectedLinkId || 'all',
     {
-      enabled: !linksLoading,
-    },
+      enabled: !linksLoading
+    }
   );
 
   const { data: breakdownData, isLoading: breakdownLoading } =
-    useAnalyticsBreakdown(selectedLinkId || "all", {
-      enabled: !linksLoading,
+    useAnalyticsBreakdown(selectedLinkId || 'all', {
+      enabled: !linksLoading
     });
 
   // Compute totals from daily data or use summary
@@ -164,7 +164,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalClicks.toLocaleString("pt-BR")}
+              {totalClicks.toLocaleString('pt-BR')}
             </div>
             <p className="text-xs text-muted-foreground">
               +12% em relação ao período anterior
@@ -181,7 +181,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalVisitors.toLocaleString("pt-BR")}
+              {totalVisitors.toLocaleString('pt-BR')}
             </div>
             <p className="text-xs text-muted-foreground">
               +8% em relação ao período anterior
@@ -200,7 +200,7 @@ export default function AnalyticsPage() {
             <div className="text-2xl font-bold">
               {totalClicks > 0
                 ? ((totalVisitors / totalClicks) * 100).toFixed(1)
-                : "0.0"}
+                : '0.0'}
               %
             </div>
             <p className="text-xs text-muted-foreground">

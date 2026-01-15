@@ -1,9 +1,9 @@
 // src/app/(admin)/layout.tsx
 
-import { Header } from "@/components/layout/header";
+import { Header } from '@/components/layout/header';
 
 export default async function AdminLayout({
-  children,
+  children
 }: {
   children: React.ReactNode;
 }) {
@@ -23,7 +23,7 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen">
       <Header
-        user={{ name: "Admin", email: "admin@example.com", image: null }}
+        user={{ name: 'Admin', email: 'admin@example.com', image: null }}
       />
       <main className="container mx-auto py-6">{children}</main>
     </div>

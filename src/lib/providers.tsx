@@ -1,12 +1,12 @@
 // src/lib/providers.tsx
-"use client";
+'use client';
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
-import { type ReactNode, useState } from "react";
-import { Toaster } from "sonner";
-import { ConsentBanner } from "@/components/consent-banner";
-import { AnnouncerProvider } from "@/components/ui/announcer";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider } from 'next-themes';
+import { type ReactNode, useState } from 'react';
+import { Toaster } from 'sonner';
+import { ConsentBanner } from '@/components/consent-banner';
+import { AnnouncerProvider } from '@/components/ui/announcer';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -16,10 +16,10 @@ export function Providers({ children }: { children: ReactNode }) {
           queries: {
             staleTime: 60_000, // 1 minute
             refetchOnWindowFocus: false,
-            retry: 1,
-          },
-        },
-      }),
+            retry: 1
+          }
+        }
+      })
   );
 
   return (

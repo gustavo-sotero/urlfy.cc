@@ -3,31 +3,31 @@
  * Validates URLs for format, protocol, and blocks malicious/shortener domains
  */
 
-import { createLogger } from "./telemetry";
+import { createLogger } from './telemetry';
 
-const logger = createLogger("url-validator");
+const logger = createLogger('url-validator');
 
 // Maximum URL length (standard limit)
 const MAX_URL_LENGTH = 2048;
 
 // Blocked shortener domains
 const BLOCKED_SHORTENERS = new Set([
-  "bit.ly",
-  "tinyurl.com",
-  "t.co",
-  "goo.gl",
-  "ow.ly",
-  "is.gd",
-  "buff.ly",
-  "adf.ly",
-  "shorturl.at",
-  "tiny.cc",
-  "rb.gy",
-  "cutt.ly",
-  "clck.ru",
-  "youtu.be", // YouTube shorts
-  "v.gd",
-  "tr.im",
+  'bit.ly',
+  'tinyurl.com',
+  't.co',
+  'goo.gl',
+  'ow.ly',
+  'is.gd',
+  'buff.ly',
+  'adf.ly',
+  'shorturl.at',
+  'tiny.cc',
+  'rb.gy',
+  'cutt.ly',
+  'clck.ru',
+  'youtu.be', // YouTube shorts
+  'v.gd',
+  'tr.im'
 ]);
 
 // Known malicious domains (example - should be updated from threat intelligence)
@@ -68,7 +68,7 @@ function isShortenerDomain(domain: string | null): boolean {
 
   return Array.from(BLOCKED_SHORTENERS).some(
     (shortener) =>
-      normalized === shortener || normalized.endsWith(`.${shortener}`),
+      normalized === shortener || normalized.endsWith(`.${shortener}`)
   );
 }
 
@@ -81,7 +81,7 @@ function isBlockedDomain(domain: string | null): boolean {
   const normalized = domain.toLowerCase();
 
   return Array.from(BLOCKED_DOMAINS).some(
-    (blocked) => normalized === blocked || normalized.endsWith(`.${blocked}`),
+    (blocked) => normalized === blocked || normalized.endsWith(`.${blocked}`)
   );
 }
 
@@ -105,7 +105,7 @@ function isValidProtocol(url: string): boolean {
   try {
     const parsed = new URL(url);
     // Only allow http and https - block file://, gopher://, dict://, etc
-    return ["http:", "https:"].includes(parsed.protocol);
+    return ['http:', 'https:'].includes(parsed.protocol);
   } catch {
     return false;
   }
@@ -122,7 +122,7 @@ function hasSuspiciousPatterns(url: string): boolean {
   const suspiciousPatterns = [/<script/i, /onclick=/i, /onerror=/i, /onload=/i];
 
   // Check for null bytes separately (Biome complains about control chars in regex)
-  if (url.includes("\0")) {
+  if (url.includes('\0')) {
     return true;
   }
 
@@ -145,8 +145,8 @@ export async function validateUrl(url: string): Promise<ValidationResult> {
   if (trimmed.length === 0) {
     return {
       valid: false,
-      error: "URL cannot be empty",
-      code: "EMPTY_URL",
+      error: 'URL cannot be empty',
+      code: 'EMPTY_URL'
     };
   }
 
@@ -155,7 +155,7 @@ export async function validateUrl(url: string): Promise<ValidationResult> {
     return {
       valid: false,
       error: `URL exceeds maximum length of ${MAX_URL_LENGTH} characters`,
-      code: "URL_TOO_LONG",
+      code: 'URL_TOO_LONG'
     };
   }
 
@@ -163,8 +163,8 @@ export async function validateUrl(url: string): Promise<ValidationResult> {
   if (!isValidFormat(trimmed)) {
     return {
       valid: false,
-      error: "Invalid URL format",
-      code: "INVALID_FORMAT",
+      error: 'Invalid URL format',
+      code: 'INVALID_FORMAT'
     };
   }
 
@@ -172,8 +172,8 @@ export async function validateUrl(url: string): Promise<ValidationResult> {
   if (!isValidProtocol(trimmed)) {
     return {
       valid: false,
-      error: "URL must use http:// or https:// protocol",
-      code: "INVALID_PROTOCOL",
+      error: 'URL must use http:// or https:// protocol',
+      code: 'INVALID_PROTOCOL'
     };
   }
 
@@ -181,8 +181,8 @@ export async function validateUrl(url: string): Promise<ValidationResult> {
   if (hasSuspiciousPatterns(trimmed)) {
     return {
       valid: false,
-      error: "URL contains suspicious patterns",
-      code: "SUSPICIOUS_PATTERN",
+      error: 'URL contains suspicious patterns',
+      code: 'SUSPICIOUS_PATTERN'
     };
   }
 
@@ -192,35 +192,35 @@ export async function validateUrl(url: string): Promise<ValidationResult> {
   if (!domain) {
     return {
       valid: false,
-      error: "Could not extract domain from URL",
-      code: "INVALID_DOMAIN",
+      error: 'Could not extract domain from URL',
+      code: 'INVALID_DOMAIN'
     };
   }
 
   // Check if it's a shortener
   if (isShortenerDomain(domain)) {
-    logger.warn("Attempted to shorten another URL shortener", { domain });
+    logger.warn('Attempted to shorten another URL shortener', { domain });
     return {
       valid: false,
-      error: "Cannot shorten URLs from other URL shortening services",
-      code: "SHORTENER_NOT_ALLOWED",
+      error: 'Cannot shorten URLs from other URL shortening services',
+      code: 'SHORTENER_NOT_ALLOWED'
     };
   }
 
   // Check if domain is blocked
   if (isBlockedDomain(domain)) {
-    logger.warn("Attempted to shorten blocked domain", { domain });
+    logger.warn('Attempted to shorten blocked domain', { domain });
     return {
       valid: false,
-      error: "This URL is blocked",
-      code: "DOMAIN_BANNED",
+      error: 'This URL is blocked',
+      code: 'DOMAIN_BANNED'
     };
   }
 
   // Check if using HTTP instead of HTTPS (warning)
-  if (trimmed.startsWith("http://")) {
+  if (trimmed.startsWith('http://')) {
     warnings.push(
-      "URL uses HTTP instead of HTTPS. Consider using HTTPS for better security.",
+      'URL uses HTTP instead of HTTPS. Consider using HTTPS for better security.'
     );
   }
 
@@ -228,57 +228,57 @@ export async function validateUrl(url: string): Promise<ValidationResult> {
   if (domain) {
     // Block cloud metadata endpoints
     const cloudMetadataHosts = [
-      "metadata.google.internal", // GCP
-      "169.254.169.254", // AWS/Azure/GCP
-      "metadata.internal", // Generic
-      "instance-data", // AWS alternative
+      'metadata.google.internal', // GCP
+      '169.254.169.254', // AWS/Azure/GCP
+      'metadata.internal', // Generic
+      'instance-data' // AWS alternative
     ];
 
     if (
       cloudMetadataHosts.some(
-        (host) => domain === host || domain.endsWith(`.${host}`),
+        (host) => domain === host || domain.endsWith(`.${host}`)
       )
     ) {
-      logger.warn("Attempted to shorten cloud metadata URL", { domain });
+      logger.warn('Attempted to shorten cloud metadata URL', { domain });
       return {
         valid: false,
-        error: "Cannot shorten cloud metadata endpoints",
-        code: "INTERNAL_URL",
+        error: 'Cannot shorten cloud metadata endpoints',
+        code: 'INTERNAL_URL'
       };
     }
 
     // Block internal/reserved TLDs
     const internalTLDs = [
-      ".internal",
-      ".local",
-      ".localhost",
-      ".test",
-      ".invalid",
-      ".example",
-      ".service",
+      '.internal',
+      '.local',
+      '.localhost',
+      '.test',
+      '.invalid',
+      '.example',
+      '.service'
     ];
     if (internalTLDs.some((tld) => domain.endsWith(tld))) {
-      logger.warn("Attempted to shorten internal TLD URL", { domain });
+      logger.warn('Attempted to shorten internal TLD URL', { domain });
       return {
         valid: false,
-        error: "Cannot shorten internal/reserved domain names",
-        code: "INTERNAL_URL",
+        error: 'Cannot shorten internal/reserved domain names',
+        code: 'INTERNAL_URL'
       };
     }
 
     // Block localhost variations
     if (
-      domain === "localhost" ||
-      domain === "0.0.0.0" ||
-      domain === "[::1]" ||
-      domain.startsWith("127.") ||
-      domain.startsWith("::ffff:127.")
+      domain === 'localhost' ||
+      domain === '0.0.0.0' ||
+      domain === '[::1]' ||
+      domain.startsWith('127.') ||
+      domain.startsWith('::ffff:127.')
     ) {
-      logger.warn("Attempted to shorten localhost URL", { domain });
+      logger.warn('Attempted to shorten localhost URL', { domain });
       return {
         valid: false,
-        error: "Cannot shorten localhost URLs",
-        code: "INTERNAL_URL",
+        error: 'Cannot shorten localhost URLs',
+        code: 'INTERNAL_URL'
       };
     }
 
@@ -289,22 +289,22 @@ export async function validateUrl(url: string): Promise<ValidationResult> {
       /^192\.168\./,
       /^169\.254\./, // Link-local
       /^fc00:/i, // IPv6 unique local
-      /^fe80:/i, // IPv6 link-local
+      /^fe80:/i // IPv6 link-local
     ];
 
     if (privateIPPatterns.some((pattern) => pattern.test(domain))) {
-      logger.warn("Attempted to shorten private network URL", { domain });
+      logger.warn('Attempted to shorten private network URL', { domain });
       return {
         valid: false,
-        error: "Cannot shorten internal/private network URLs",
-        code: "INTERNAL_URL",
+        error: 'Cannot shorten internal/private network URLs',
+        code: 'INTERNAL_URL'
       };
     }
   }
 
   return {
     valid: true,
-    warnings: warnings.length > 0 ? warnings : undefined,
+    warnings: warnings.length > 0 ? warnings : undefined
   };
 }
 
@@ -315,7 +315,7 @@ export function blockDomain(domain: string): void {
   const normalized = domain.toLowerCase().trim();
   if (normalized.length > 0) {
     BLOCKED_DOMAINS.add(normalized);
-    logger.info("Domain blocked", { domain: normalized });
+    logger.info('Domain blocked', { domain: normalized });
   }
 }
 
@@ -325,7 +325,7 @@ export function blockDomain(domain: string): void {
 export function unblockDomain(domain: string): void {
   const normalized = domain.toLowerCase().trim();
   BLOCKED_DOMAINS.delete(normalized);
-  logger.info("Domain unblocked", { domain: normalized });
+  logger.info('Domain unblocked', { domain: normalized });
 }
 
 /**
@@ -342,7 +342,7 @@ export function blockShortener(shortener: string): void {
   const normalized = shortener.toLowerCase().trim();
   if (normalized.length > 0) {
     BLOCKED_SHORTENERS.add(normalized);
-    logger.info("Shortener blocked", { shortener: normalized });
+    logger.info('Shortener blocked', { shortener: normalized });
   }
 }
 
@@ -352,7 +352,7 @@ export function blockShortener(shortener: string): void {
 export function unblockShortener(shortener: string): void {
   const normalized = shortener.toLowerCase().trim();
   BLOCKED_SHORTENERS.delete(normalized);
-  logger.info("Shortener unblocked", { shortener: normalized });
+  logger.info('Shortener unblocked', { shortener: normalized });
 }
 
 /**

@@ -1,24 +1,24 @@
 // src/components/forms/link-form.tsx
-"use client";
+'use client';
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Link as LinkIcon, Loader2 } from "lucide-react";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { CopyButton } from "@/components/shared/copy-button";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useCreateLink } from "@/lib/hooks/use-links";
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Check, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { CopyButton } from '@/components/shared/copy-button';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useCreateLink } from '@/lib/hooks/use-links';
 
 const schema = z.object({
-  url: z.string().url("URL inválida"),
+  url: z.string().url('URL inválida')
 });
 
 type FormData = z.infer<typeof schema>;
 
 interface Props {
-  variant: "landing" | "dashboard";
+  variant: 'landing' | 'dashboard';
 }
 
 export function LinkForm({ variant: _variant }: Props) {
@@ -28,8 +28,8 @@ export function LinkForm({ variant: _variant }: Props) {
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      url: "",
-    },
+      url: ''
+    }
   });
 
   const onSubmit = async (data: FormData) => {
@@ -37,7 +37,7 @@ export function LinkForm({ variant: _variant }: Props) {
       const link = await createLink.mutateAsync(data);
       setResult({ shortUrl: link.shortUrl });
     } catch (error) {
-      console.error("Failed to create link:", error);
+      console.error('Failed to create link:', error);
     }
   };
 
@@ -77,13 +77,13 @@ export function LinkForm({ variant: _variant }: Props) {
     >
       <div className="flex-1">
         <Input
-          {...form.register("url")}
+          {...form.register('url')}
           type="url"
           placeholder="Cole sua URL aqui..."
           className="h-12"
           disabled={createLink.isPending}
           aria-invalid={!!form.formState.errors.url}
-          aria-describedby={form.formState.errors.url ? "url-error" : undefined}
+          aria-describedby={form.formState.errors.url ? 'url-error' : undefined}
         />
         {form.formState.errors.url && (
           <p id="url-error" className="mt-1 text-sm text-destructive">

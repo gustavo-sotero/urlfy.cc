@@ -1,18 +1,18 @@
 // src/app/(admin)/admin/links/page.tsx
-"use client";
+'use client';
 
-import { Search } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import { BanLinkDialog, LinkSearchTable } from "@/components/admin";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { banLink, searchLinks, unbanLink } from "@/lib/api-client";
-import type { LinkResponse } from "@/types/links.types";
+import { Search } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { BanLinkDialog, LinkSearchTable } from '@/components/admin';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { banLink, searchLinks, unbanLink } from '@/lib/api-client';
+import type { LinkResponse } from '@/types/links.types';
 
 export default function AdminLinksPage() {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [results, setResults] = useState<LinkResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [banDialogOpen, setBanDialogOpen] = useState(false);
@@ -27,7 +27,7 @@ export default function AdminLinksPage() {
       setResults(data);
       toast.success(`${data.length} link(s) encontrado(s)`);
     } catch (error) {
-      toast.error("Erro ao buscar links");
+      toast.error('Erro ao buscar links');
       console.error(error);
     } finally {
       setLoading(false);
@@ -39,10 +39,10 @@ export default function AdminLinksPage() {
 
     try {
       await banLink(selectedLink.id, reason);
-      toast.success("Link banido com sucesso");
+      toast.success('Link banido com sucesso');
       handleSearch(); // Refresh results
     } catch (error) {
-      toast.error("Erro ao banir link");
+      toast.error('Erro ao banir link');
       console.error(error);
       throw error;
     }
@@ -51,10 +51,10 @@ export default function AdminLinksPage() {
   const handleUnban = async (link: LinkResponse) => {
     try {
       await unbanLink(link.id);
-      toast.success("Link reativado com sucesso");
+      toast.success('Link reativado com sucesso');
       handleSearch(); // Refresh results
     } catch (error) {
-      toast.error("Erro ao reativar link");
+      toast.error('Erro ao reativar link');
       console.error(error);
     }
   };
@@ -80,11 +80,11 @@ export default function AdminLinksPage() {
               placeholder="Buscar por código, URL ou usuário..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
             <Button onClick={handleSearch} disabled={loading}>
               <Search className="mr-2 h-4 w-4" />
-              {loading ? "Buscando..." : "Buscar"}
+              {loading ? 'Buscando...' : 'Buscar'}
             </Button>
           </div>
 

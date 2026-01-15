@@ -1,19 +1,19 @@
 // src/server/workers/click.worker.ts
 
-import { type Job, Worker } from "bullmq";
-import { eq, sql } from "drizzle-orm";
-import { db } from "@/db";
-import { analyticsEvents, links } from "@/db/schema";
-import { lookupGeoIP } from "@/server/lib/geoip";
-import { recordMetric } from "@/server/lib/metrics";
-import { hashVisitor } from "@/server/lib/privacy";
-import { bullmqConnection } from "@/server/lib/queue";
-import { createLogger } from "@/server/lib/telemetry";
-import { parseUserAgent } from "@/server/services/useragent.service";
-import { moveToDLQ } from "@/server/workers/dlq.handler";
-import type { ClickEvent } from "@/types/analytics.types";
+import { type Job, Worker } from 'bullmq';
+import { eq, sql } from 'drizzle-orm';
+import { db } from '@/db';
+import { analyticsEvents, links } from '@/db/schema';
+import { lookupGeoIP } from '@/server/lib/geoip';
+import { recordMetric } from '@/server/lib/metrics';
+import { hashVisitor } from '@/server/lib/privacy';
+import { bullmqConnection } from '@/server/lib/queue';
+import { createLogger } from '@/server/lib/telemetry';
+import { parseUserAgent } from '@/server/services/useragent.service';
+import { moveToDLQ } from '@/server/workers/dlq.handler';
+import type { ClickEvent } from '@/types/analytics.types';
 
-const logger = createLogger("click-worker");
+const logger = createLogger('click-worker');
 
 const connection = bullmqConnection;
 
@@ -25,7 +25,7 @@ const connection = bullmqConnection;
  * - Atualiza contador de cliques em links
  */
 export const clickWorker = new Worker<ClickEvent>(
-  "analytics",
+  'analytics',
   async (job: Job<ClickEvent>) => {
     const startTime = Date.now();
 
@@ -60,7 +60,7 @@ export const clickWorker = new Worker<ClickEvent>(
           utmContent: enriched.utmContent ?? undefined,
           utmTerm: enriched.utmTerm ?? undefined,
           isBot: enriched.isBot,
-          createdAt: enriched.timestamp,
+          createdAt: enriched.timestamp
         })
         .returning({ id: analyticsEvents.id });
 
@@ -68,35 +68,35 @@ export const clickWorker = new Worker<ClickEvent>(
         .update(links)
         .set({
           clicksCount: sql`${links.clicksCount} + 1`,
-          lastClickedAt: enriched.timestamp,
+          lastClickedAt: enriched.timestamp
         })
         .where(eq(links.id, enriched.linkId));
 
       const duration = Date.now() - startTime;
-      recordMetric("analytics_job_processed", 1, {
+      recordMetric('analytics_job_processed', 1, {
         duration: String(duration),
-        isBot: enriched.isBot ? "true" : "false",
+        isBot: enriched.isBot ? 'true' : 'false'
       });
 
       logger.info(`[ClickWorker] Job ${job.id} completed successfully`, {
         duration,
-        linkId: enriched.linkId,
+        linkId: enriched.linkId
       });
 
       return {
         processed: true,
         eventId: inserted.id,
-        duration,
+        duration
       };
     } catch (error) {
       logger.error(`[ClickWorker] Job ${job.id} failed`, {
         error: error instanceof Error ? error.message : String(error),
         linkId: job.data.linkId,
-        attempt: job.attemptsMade,
+        attempt: job.attemptsMade
       });
 
-      recordMetric("analytics_job_failed", 1, {
-        attempt: String(job.attemptsMade),
+      recordMetric('analytics_job_failed', 1, {
+        attempt: String(job.attemptsMade)
       });
 
       throw error;
@@ -107,9 +107,9 @@ export const clickWorker = new Worker<ClickEvent>(
     concurrency: 50,
     limiter: {
       max: 1000,
-      duration: 1000,
-    },
-  },
+      duration: 1000
+    }
+  }
 );
 
 /**
@@ -118,11 +118,11 @@ export const clickWorker = new Worker<ClickEvent>(
  */
 async function enrichClickEvent(raw: ClickEvent) {
   const timestamp = raw.timestamp ? new Date(raw.timestamp) : new Date();
-  const normalizedIp = raw.ip && raw.ip !== "unknown" ? raw.ip : null;
+  const normalizedIp = raw.ip && raw.ip !== 'unknown' ? raw.ip : null;
 
   const [geoData, uaData] = await Promise.all([
     normalizedIp ? lookupGeoIP(normalizedIp) : Promise.resolve(null),
-    raw.userAgent ? parseUserAgent(raw.userAgent) : Promise.resolve(null),
+    raw.userAgent ? parseUserAgent(raw.userAgent) : Promise.resolve(null)
   ]);
 
   const visitorHash = hashVisitor(normalizedIp, raw.linkId, timestamp);
@@ -139,10 +139,10 @@ async function enrichClickEvent(raw: ClickEvent) {
     browserVersion: uaData?.browserVersion ?? null,
     os: uaData?.os ?? null,
     osVersion: uaData?.osVersion ?? null,
-    deviceType: uaData?.deviceType ?? "desktop",
+    deviceType: uaData?.deviceType ?? 'desktop',
     referrerDomain,
     isBot: uaData?.isBot ?? false,
-    timestamp,
+    timestamp
   };
 }
 
@@ -158,30 +158,30 @@ function extractDomain(url: string): string | null {
 }
 
 // Event handlers
-clickWorker.on("completed", (job) => {
+clickWorker.on('completed', (job) => {
   logger.debug(`[ClickWorker] Job completed: ${job?.id}`);
 });
 
-clickWorker.on("failed", (job, err) => {
+clickWorker.on('failed', (job, err) => {
   logger.error(`[ClickWorker] Job failed: ${job?.id}`, {
     error: err.message,
-    stack: err.stack,
+    stack: err.stack
   });
 
   // Move to DLQ if max attempts exceeded
   if (job) {
     void moveToDLQ(job, err).catch((e) => {
-      logger.error("[ClickWorker] Error moving to DLQ", {
-        error: e instanceof Error ? e.message : String(e),
+      logger.error('[ClickWorker] Error moving to DLQ', {
+        error: e instanceof Error ? e.message : String(e)
       });
     });
   }
 });
 
-clickWorker.on("error", (err) => {
-  logger.error("[ClickWorker] Worker error", {
+clickWorker.on('error', (err) => {
+  logger.error('[ClickWorker] Worker error', {
     error: err.message,
-    stack: err.stack,
+    stack: err.stack
   });
 });
 

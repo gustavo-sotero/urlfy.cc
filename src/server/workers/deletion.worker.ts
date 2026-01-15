@@ -9,17 +9,17 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { type Job, Worker } from "bullmq";
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { analyticsEvents, dataDeletionRequest, links } from "@/db/schema";
-import { user } from "@/db/schema/auth";
-import { recordMetric } from "@/server/lib/metrics";
-import { bullmqConnection } from "@/server/lib/queue";
-import { createLogger } from "@/server/lib/telemetry";
-import { auditLogService } from "@/server/services/audit.service";
+import { type Job, Worker } from 'bullmq';
+import { eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { analyticsEvents, dataDeletionRequest, links } from '@/db/schema';
+import { user } from '@/db/schema/auth';
+import { recordMetric } from '@/server/lib/metrics';
+import { bullmqConnection } from '@/server/lib/queue';
+import { createLogger } from '@/server/lib/telemetry';
+import { auditLogService } from '@/server/services/audit.service';
 
-const logger = createLogger("deletion-worker");
+const logger = createLogger('deletion-worker');
 
 const connection = bullmqConnection;
 
@@ -38,15 +38,15 @@ interface DeletionJob {
  * Executa via scheduler a cada hora para buscar requests pendentes
  */
 export const deletionWorker = new Worker<DeletionJob>(
-  "data-deletion",
+  'data-deletion',
   async (job: Job<DeletionJob>) => {
     const startTime = Date.now();
     const { requestId, userId } = job.data;
 
     try {
-      logger.info("[DeletionWorker] Processing deletion request", {
+      logger.info('[DeletionWorker] Processing deletion request', {
         requestId,
-        userId,
+        userId
       });
 
       // 1. Buscar request
@@ -56,8 +56,8 @@ export const deletionWorker = new Worker<DeletionJob>(
         .where(eq(dataDeletionRequest.id, requestId));
 
       if (!request) {
-        logger.warn("[DeletionWorker] Deletion request not found", {
-          requestId,
+        logger.warn('[DeletionWorker] Deletion request not found', {
+          requestId
         });
         return;
       }
@@ -65,25 +65,25 @@ export const deletionWorker = new Worker<DeletionJob>(
       // 2. Verificar se deadline passou
       const now = new Date();
       if (now < request.deadlineAt) {
-        logger.info("[DeletionWorker] Request not yet due, rescheduling", {
+        logger.info('[DeletionWorker] Request not yet due, rescheduling', {
           requestId,
-          deadlineAt: request.deadlineAt,
+          deadlineAt: request.deadlineAt
         });
 
         // Requeue para ser processado depois
         throw new Error(
-          `Deletion deadline not reached yet: ${request.deadlineAt}`,
+          `Deletion deadline not reached yet: ${request.deadlineAt}`
         );
       }
 
       // 3. Marcar como processando
       await db
         .update(dataDeletionRequest)
-        .set({ status: "processing" })
+        .set({ status: 'processing' })
         .where(eq(dataDeletionRequest.id, requestId));
 
       // 4. Exportar dados se solicitado (log para compliance)
-      if (request.dataExported === "no") {
+      if (request.dataExported === 'no') {
         try {
           const [userData] = await db
             .select()
@@ -92,16 +92,16 @@ export const deletionWorker = new Worker<DeletionJob>(
             .limit(1);
 
           if (userData) {
-            logger.info("[DeletionWorker] User data snapshot captured", {
+            logger.info('[DeletionWorker] User data snapshot captured', {
               userId,
               email: userData.email,
-              capturedAt: new Date().toISOString(),
+              capturedAt: new Date().toISOString()
             });
           }
         } catch (error) {
-          logger.error("[DeletionWorker] Error capturing data snapshot", {
+          logger.error('[DeletionWorker] Error capturing data snapshot', {
             error: error instanceof Error ? error.message : String(error),
-            userId,
+            userId
           });
         }
       }
@@ -112,9 +112,9 @@ export const deletionWorker = new Worker<DeletionJob>(
         .from(links)
         .where(eq(links.userId, userId));
 
-      logger.info("[DeletionWorker] Found user links", {
+      logger.info('[DeletionWorker] Found user links', {
         userId,
-        linkCount: userLinks.length,
+        linkCount: userLinks.length
       });
 
       // 6. Deletar eventos de analytics em batches (não sobrecarrega DB)
@@ -129,9 +129,9 @@ export const deletionWorker = new Worker<DeletionJob>(
 
           analyticsDeletedCount++;
         } catch (error) {
-          logger.warn("Failed to delete analytics for link", {
+          logger.warn('Failed to delete analytics for link', {
             linkId: link.id,
-            error: error instanceof Error ? error.message : String(error),
+            error: error instanceof Error ? error.message : String(error)
           });
         }
 
@@ -139,27 +139,27 @@ export const deletionWorker = new Worker<DeletionJob>(
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
 
-      logger.info("[DeletionWorker] Deleted analytics events", {
+      logger.info('[DeletionWorker] Deleted analytics events', {
         userId,
-        deletedCount: analyticsDeletedCount,
+        deletedCount: analyticsDeletedCount
       });
 
       // 7. Deletar links do usuário
       await db.delete(links).where(eq(links.userId, userId));
 
       const linksDeletedCount = userLinks.length;
-      logger.info("[DeletionWorker] Deleted user links", {
+      logger.info('[DeletionWorker] Deleted user links', {
         userId,
-        deletedCount: linksDeletedCount,
+        deletedCount: linksDeletedCount
       });
 
       // 8. Deletar conta de usuário (hard delete)
       await db.delete(user).where(eq(user.id, userId));
 
       const userDeleted = true;
-      logger.info("[DeletionWorker] Deleted user account", {
+      logger.info('[DeletionWorker] Deleted user account', {
         userId,
-        deleted: userDeleted,
+        deleted: userDeleted
       });
 
       // 9. Atualizar status da request para completed
@@ -167,63 +167,63 @@ export const deletionWorker = new Worker<DeletionJob>(
       await db
         .update(dataDeletionRequest)
         .set({
-          status: "completed",
+          status: 'completed',
           completedAt,
-          dataExported: "yes",
+          dataExported: 'yes'
         })
         .where(eq(dataDeletionRequest.id, requestId));
 
       // 10. Registrar na auditoria (note que o usuário foi deletado)
       try {
         // Use system user ID para auditoria pós-deleção
-        const systemUserId = "system-deletion-worker";
+        const systemUserId = 'system-deletion-worker';
 
         await auditLogService.log({
           userId: systemUserId,
-          action: "process_data_deletion",
-          entityType: "user",
+          action: 'process_data_deletion',
+          entityType: 'user',
           entityId: userId,
           metadata: {
             requestId,
             analyticsEventsDeleted: analyticsDeletedCount,
             linksDeleted: linksDeletedCount,
             completedAt: completedAt.toISOString(),
-            durationMs: Date.now() - startTime,
-          },
+            durationMs: Date.now() - startTime
+          }
         });
       } catch (auditError) {
-        logger.warn("[DeletionWorker] Failed to log audit record", {
+        logger.warn('[DeletionWorker] Failed to log audit record', {
           error:
             auditError instanceof Error
               ? auditError.message
               : String(auditError),
           userId,
-          requestId,
+          requestId
         });
         // Don't fail the job, audit is secondary
       }
 
       // 11. Record metrics
       const duration = Date.now() - startTime;
-      recordMetric("user_data_deleted", 1, {
+      recordMetric('user_data_deleted', 1, {
         requestId,
         analyticsEventsDeleted: String(analyticsDeletedCount),
         linksDeleted: String(linksDeletedCount),
-        duration: String(duration),
+        duration: String(duration)
       });
 
-      logger.info("[DeletionWorker] Data deletion completed successfully", {
+      logger.info('[DeletionWorker] Data deletion completed successfully', {
         requestId,
         userId,
         durationMs: duration,
         analyticsEventsDeleted: analyticsDeletedCount,
-        linksDeleted: linksDeletedCount,
+        linksDeleted: linksDeletedCount
       });
     } catch (error) {
-      logger.error("[DeletionWorker] Error processing deletion request", {
+      logger.error('[DeletionWorker] Error processing deletion request', {
         error: error instanceof Error ? error.message : String(error),
         requestId,
-        userId,
+        userId
       });
 
       // Atualizar status para failed
@@ -231,22 +231,22 @@ export const deletionWorker = new Worker<DeletionJob>(
         await db
           .update(dataDeletionRequest)
           .set({
-            status: "failed",
+            status: 'failed',
             failureReason:
               error instanceof Error
                 ? error.message
-                : "Unknown error during deletion processing",
+                : 'Unknown error during deletion processing'
           })
           .where(eq(dataDeletionRequest.id, requestId));
       } catch (updateError) {
         logger.error(
-          "[DeletionWorker] Failed to update deletion request status",
+          '[DeletionWorker] Failed to update deletion request status',
           {
             error:
               updateError instanceof Error
                 ? updateError.message
-                : String(updateError),
-          },
+                : String(updateError)
+          }
         );
       }
 
@@ -254,28 +254,28 @@ export const deletionWorker = new Worker<DeletionJob>(
     }
   },
   {
-    connection,
-  },
+    connection
+  }
 );
 
 // Log worker events
-deletionWorker.on("completed", (job) => {
-  logger.info("[DeletionWorker] Job completed", {
+deletionWorker.on('completed', (job) => {
+  logger.info('[DeletionWorker] Job completed', {
     jobId: job.id,
     durationMs:
-      job.finishedOn && job.processedOn ? job.finishedOn - job.processedOn : 0,
+      job.finishedOn && job.processedOn ? job.finishedOn - job.processedOn : 0
   });
 });
 
-deletionWorker.on("failed", (job, err) => {
-  logger.error("[DeletionWorker] Job failed", {
+deletionWorker.on('failed', (job, err) => {
+  logger.error('[DeletionWorker] Job failed', {
     jobId: job?.id,
-    error: err.message,
+    error: err.message
   });
 });
 
-deletionWorker.on("error", (error) => {
-  logger.error("[DeletionWorker] Worker error", {
-    error: error instanceof Error ? error.message : String(error),
+deletionWorker.on('error', (error) => {
+  logger.error('[DeletionWorker] Worker error', {
+    error: error instanceof Error ? error.message : String(error)
   });
 });

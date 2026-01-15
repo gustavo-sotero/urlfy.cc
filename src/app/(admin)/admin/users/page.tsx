@@ -1,62 +1,62 @@
 // src/app/(admin)/admin/users/page.tsx
-"use client";
+'use client';
 
-import { Loader2, MoreHorizontal, Search } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import { QueryError } from "@/components/query-error";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, MoreHorizontal, Search } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { QueryError } from '@/components/query-error';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DialogTitle
+} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import type { UserResponse } from "@/lib/api-client";
+  TableRow
+} from '@/components/ui/table';
+import type { UserResponse } from '@/lib/api-client';
 import {
   useBanUser,
   useUnbanUser,
   useUpdateUserRole,
-  useUsers,
-} from "@/lib/hooks/use-admin";
+  useUsers
+} from '@/lib/hooks/use-admin';
 
 export default function AdminUsersPage() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserResponse | null>(null);
-  const [newRole, setNewRole] = useState("");
+  const [newRole, setNewRole] = useState('');
 
   const { data, isLoading, isError, error, refetch } = useUsers({
     page,
     perPage: 20,
-    search: searchQuery || undefined,
+    search: searchQuery || undefined
   });
 
   const updateRole = useUpdateUserRole();
@@ -73,11 +73,11 @@ export default function AdminUsersPage() {
 
     try {
       await updateRole.mutateAsync({ userId: selectedUser.id, role: newRole });
-      toast.success("Role atualizada com sucesso");
+      toast.success('Role atualizada com sucesso');
       setRoleDialogOpen(false);
       setSelectedUser(null);
     } catch {
-      toast.error("Erro ao atualizar role");
+      toast.error('Erro ao atualizar role');
     }
   };
 
@@ -86,18 +86,18 @@ export default function AdminUsersPage() {
 
     try {
       await banUser.mutateAsync(user.id);
-      toast.success("Usuário banido com sucesso");
+      toast.success('Usuário banido com sucesso');
     } catch {
-      toast.error("Erro ao banir usuário");
+      toast.error('Erro ao banir usuário');
     }
   };
 
   const handleUnban = async (user: UserResponse) => {
     try {
       await unbanUser.mutateAsync(user.id);
-      toast.success("Usuário reativado com sucesso");
+      toast.success('Usuário reativado com sucesso');
     } catch {
-      toast.error("Erro ao reativar usuário");
+      toast.error('Erro ao reativar usuário');
     }
   };
 
@@ -128,7 +128,7 @@ export default function AdminUsersPage() {
                 placeholder="Buscar por email, nome ou ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 className="pl-9"
               />
             </div>
@@ -187,11 +187,11 @@ export default function AdminUsersPage() {
                         <TableCell className="font-medium">
                           {user.email}
                         </TableCell>
-                        <TableCell>{user.name || "-"}</TableCell>
+                        <TableCell>{user.name || '-'}</TableCell>
                         <TableCell>
                           <Badge
                             variant={
-                              user.role === "admin" ? "default" : "secondary"
+                              user.role === 'admin' ? 'default' : 'secondary'
                             }
                           >
                             {user.role}
@@ -199,7 +199,7 @@ export default function AdminUsersPage() {
                         </TableCell>
                         <TableCell>{user.linksQuota}</TableCell>
                         <TableCell>
-                          {new Date(user.createdAt).toLocaleDateString("pt-BR")}
+                          {new Date(user.createdAt).toLocaleDateString('pt-BR')}
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>

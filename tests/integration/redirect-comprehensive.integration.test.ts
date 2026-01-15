@@ -6,65 +6,65 @@ import {
   beforeEach,
   describe,
   expect,
-  it,
-} from "bun:test";
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { links } from "@/db/schema";
-import { cacheService } from "@/server/services/cache.service";
-import { redirectService } from "@/server/services/redirect.service";
+  it
+} from 'bun:test';
+import { eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { links } from '@/db/schema';
+import { cacheService } from '@/server/services/cache.service';
+import { redirectService } from '@/server/services/redirect.service';
 
-describe("Redirect Engine - Comprehensive Integration Tests", () => {
+describe('Redirect Engine - Comprehensive Integration Tests', () => {
   const testLinks = [
     {
-      id: "comprehensive-test-001",
-      shortCode: "comp-test-001",
-      originalUrl: "https://example.com/target",
+      id: 'comprehensive-test-001',
+      shortCode: 'comp-test-001',
+      originalUrl: 'https://example.com/target',
       redirectType: 301,
       isActive: true,
       isBanned: false,
-      clicksCount: 0,
+      clicksCount: 0
     },
     {
-      id: "comprehensive-test-002",
-      shortCode: "comp-test-002",
-      originalUrl: "https://example.com/utm?existing=param",
+      id: 'comprehensive-test-002',
+      shortCode: 'comp-test-002',
+      originalUrl: 'https://example.com/utm?existing=param',
       redirectType: 302,
       isActive: true,
       isBanned: false,
       clicksCount: 0,
-      utmSource: "direct",
-      utmMedium: "social",
-      utmCampaign: "campaign123",
+      utmSource: 'direct',
+      utmMedium: 'social',
+      utmCampaign: 'campaign123'
     },
     {
-      id: "comprehensive-test-003",
-      shortCode: "comp-test-003",
-      originalUrl: "https://example.com/inactive",
+      id: 'comprehensive-test-003',
+      shortCode: 'comp-test-003',
+      originalUrl: 'https://example.com/inactive',
       redirectType: 301,
       isActive: false,
       isBanned: false,
-      clicksCount: 0,
+      clicksCount: 0
     },
     {
-      id: "comprehensive-test-004",
-      shortCode: "comp-test-004",
-      originalUrl: "https://example.com/banned",
+      id: 'comprehensive-test-004',
+      shortCode: 'comp-test-004',
+      originalUrl: 'https://example.com/banned',
       redirectType: 301,
       isActive: true,
       isBanned: true,
-      clicksCount: 0,
+      clicksCount: 0
     },
     {
-      id: "comprehensive-test-005",
-      shortCode: "comp-test-005",
-      originalUrl: "https://example.com/max-clicks",
+      id: 'comprehensive-test-005',
+      shortCode: 'comp-test-005',
+      originalUrl: 'https://example.com/max-clicks',
       redirectType: 301,
       isActive: true,
       isBanned: false,
       clicksCount: 5,
-      maxClicks: 5,
-    },
+      maxClicks: 5
+    }
   ];
 
   beforeAll(async () => {
@@ -95,9 +95,9 @@ describe("Redirect Engine - Comprehensive Integration Tests", () => {
     }
   });
 
-  describe("Cache-Aside Pattern", () => {
-    it("should populate cache on first access (cache miss)", async () => {
-      const code = "comp-test-001";
+  describe('Cache-Aside Pattern', () => {
+    it('should populate cache on first access (cache miss)', async () => {
+      const code = 'comp-test-001';
 
       // Verify cache is empty
       let cached = await cacheService.getLink(code);
@@ -110,11 +110,11 @@ describe("Redirect Engine - Comprehensive Integration Tests", () => {
       // Cache should now be populated
       cached = await cacheService.getLink(code);
       expect(cached).not.toBeNull();
-      expect(cached?.originalUrl).toBe("https://example.com/target");
+      expect(cached?.originalUrl).toBe('https://example.com/target');
     });
 
-    it("should serve from cache on subsequent accesses (cache hit)", async () => {
-      const code = "comp-test-001";
+    it('should serve from cache on subsequent accesses (cache hit)', async () => {
+      const code = 'comp-test-001';
 
       // First request (populate cache)
       await redirectService.resolve(code, 0);
@@ -128,8 +128,8 @@ describe("Redirect Engine - Comprehensive Integration Tests", () => {
       expect(cached).not.toBeNull();
     });
 
-    it("should invalidate cache after link update", async () => {
-      const code = "comp-test-001";
+    it('should invalidate cache after link update', async () => {
+      const code = 'comp-test-001';
 
       // Populate cache
       await redirectService.resolve(code, 0);
@@ -144,13 +144,13 @@ describe("Redirect Engine - Comprehensive Integration Tests", () => {
       expect(cached).toBeNull();
     });
 
-    it("should use negative cache for non-existent links", async () => {
-      const code = "comp-test-nonexistent";
+    it('should use negative cache for non-existent links', async () => {
+      const code = 'comp-test-nonexistent';
 
       // First request (cache miss, then negative cache)
       let result = await redirectService.resolve(code, 0);
       expect(result.success).toBe(false);
-      expect(result.error).toBe("NOT_FOUND");
+      expect(result.error).toBe('NOT_FOUND');
 
       // Check negative cache
       const isNotFound = await cacheService.isNotFound(code);
@@ -159,120 +159,120 @@ describe("Redirect Engine - Comprehensive Integration Tests", () => {
       // Second request should use negative cache
       result = await redirectService.resolve(code, 0);
       expect(result.success).toBe(false);
-      expect(result.error).toBe("NOT_FOUND");
+      expect(result.error).toBe('NOT_FOUND');
     });
   });
 
-  describe("Validation Pipeline", () => {
-    it("should return INACTIVE for inactive links", async () => {
-      const result = await redirectService.resolve("comp-test-003", 0);
+  describe('Validation Pipeline', () => {
+    it('should return INACTIVE for inactive links', async () => {
+      const result = await redirectService.resolve('comp-test-003', 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("INACTIVE");
+      expect(result.error).toBe('INACTIVE');
     });
 
-    it("should return BANNED for banned links", async () => {
-      const result = await redirectService.resolve("comp-test-004", 0);
+    it('should return BANNED for banned links', async () => {
+      const result = await redirectService.resolve('comp-test-004', 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("BANNED");
+      expect(result.error).toBe('BANNED');
     });
 
-    it("should return MAX_CLICKS when limit reached", async () => {
-      const result = await redirectService.resolve("comp-test-005", 0);
+    it('should return MAX_CLICKS when limit reached', async () => {
+      const result = await redirectService.resolve('comp-test-005', 0);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("MAX_CLICKS");
+      expect(result.error).toBe('MAX_CLICKS');
     });
 
-    it("should return REDIRECT_LOOP at depth >= 3", async () => {
-      const result = await redirectService.resolve("comp-test-001", 3);
+    it('should return REDIRECT_LOOP at depth >= 3', async () => {
+      const result = await redirectService.resolve('comp-test-001', 3);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("REDIRECT_LOOP");
+      expect(result.error).toBe('REDIRECT_LOOP');
     });
   });
 
-  describe("UTM Parameter Handling", () => {
-    it("should append UTM parameters to destination URL", async () => {
-      const result = await redirectService.resolve("comp-test-002", 0);
+  describe('UTM Parameter Handling', () => {
+    it('should append UTM parameters to destination URL', async () => {
+      const result = await redirectService.resolve('comp-test-002', 0);
 
       expect(result.success).toBe(true);
-      expect(result.url).toContain("utm_source=direct");
-      expect(result.url).toContain("utm_medium=social");
-      expect(result.url).toContain("utm_campaign=campaign123");
+      expect(result.url).toContain('utm_source=direct');
+      expect(result.url).toContain('utm_medium=social');
+      expect(result.url).toContain('utm_campaign=campaign123');
     });
 
-    it("should preserve existing query parameters", async () => {
-      const result = await redirectService.resolve("comp-test-002", 0);
+    it('should preserve existing query parameters', async () => {
+      const result = await redirectService.resolve('comp-test-002', 0);
 
       expect(result.success).toBe(true);
-      expect(result.url).toContain("existing=param");
+      expect(result.url).toContain('existing=param');
     });
   });
 
-  describe("Redirect Type Selection", () => {
-    it("should use 301 redirect type when specified", async () => {
-      const result = await redirectService.resolve("comp-test-001", 0);
+  describe('Redirect Type Selection', () => {
+    it('should use 301 redirect type when specified', async () => {
+      const result = await redirectService.resolve('comp-test-001', 0);
 
       expect(result.success).toBe(true);
       expect(result.redirectType).toBe(301);
     });
 
-    it("should use 302 redirect type when specified", async () => {
-      const result = await redirectService.resolve("comp-test-002", 0);
+    it('should use 302 redirect type when specified', async () => {
+      const result = await redirectService.resolve('comp-test-002', 0);
 
       expect(result.success).toBe(true);
       expect(result.redirectType).toBe(302);
     });
   });
 
-  describe("Error Handling and Resilience", () => {
-    it("should handle malformed URLs gracefully", async () => {
+  describe('Error Handling and Resilience', () => {
+    it('should handle malformed URLs gracefully', async () => {
       // Test with empty code
-      let result = await redirectService.resolve("", 0);
+      let result = await redirectService.resolve('', 0);
       expect(result.success).toBe(false);
 
       // Test with very long code
-      result = await redirectService.resolve("x".repeat(100), 0);
+      result = await redirectService.resolve('x'.repeat(100), 0);
       expect(result.success).toBe(false);
     });
 
-    it("should check link availability independently", async () => {
-      const available = await redirectService.isCodeAvailable("comp-test-001");
+    it('should check link availability independently', async () => {
+      const available = await redirectService.isCodeAvailable('comp-test-001');
       expect(available).toBe(false);
 
       const notAvailable = await redirectService.isCodeAvailable(
-        "definitely-not-used",
+        'definitely-not-used'
       );
       expect(notAvailable).toBe(true);
     });
   });
 
-  describe("Health and Metrics", () => {
-    it("should provide health statistics", async () => {
+  describe('Health and Metrics', () => {
+    it('should provide health statistics', async () => {
       const stats = await redirectService.getHealthStats();
 
-      expect(stats).toHaveProperty("circuitBreaker");
-      expect(stats).toHaveProperty("cacheStats");
-      expect(stats.cacheStats).toHaveProperty("memory");
-      expect(stats.cacheStats).toHaveProperty("keys");
+      expect(stats).toHaveProperty('circuitBreaker');
+      expect(stats).toHaveProperty('cacheStats');
+      expect(stats.cacheStats).toHaveProperty('memory');
+      expect(stats.cacheStats).toHaveProperty('keys');
     });
   });
 
-  describe("Cache Stampede Protection", () => {
-    it("should handle concurrent requests for uncached link", async () => {
-      const code = "comp-test-concurrent";
+  describe('Cache Stampede Protection', () => {
+    it('should handle concurrent requests for uncached link', async () => {
+      const code = 'comp-test-concurrent';
 
       // Insert a test link
       const testLink = {
-        id: "concurrent-test",
+        id: 'concurrent-test',
         shortCode: code,
-        originalUrl: "https://example.com/concurrent",
+        originalUrl: 'https://example.com/concurrent',
         redirectType: 301,
         isActive: true,
         isBanned: false,
-        clicksCount: 0,
+        clicksCount: 0
       };
 
       await db.insert(links).values(testLink);
@@ -284,7 +284,7 @@ describe("Redirect Engine - Comprehensive Integration Tests", () => {
           redirectService.resolve(code, 0),
           redirectService.resolve(code, 0),
           redirectService.resolve(code, 0),
-          redirectService.resolve(code, 0),
+          redirectService.resolve(code, 0)
         ];
 
         const results = await Promise.all(promises);
@@ -292,7 +292,7 @@ describe("Redirect Engine - Comprehensive Integration Tests", () => {
         // All should succeed
         results.forEach((result) => {
           expect(result.success).toBe(true);
-          expect(result.url).toBe("https://example.com/concurrent");
+          expect(result.url).toBe('https://example.com/concurrent');
         });
 
         // Cache should be populated
@@ -306,9 +306,9 @@ describe("Redirect Engine - Comprehensive Integration Tests", () => {
     });
   });
 
-  describe("Cache Invalidation Scenarios", () => {
-    it("should clear cache and marked deleted cache entry", async () => {
-      const code = "comp-test-001";
+  describe('Cache Invalidation Scenarios', () => {
+    it('should clear cache and marked deleted cache entry', async () => {
+      const code = 'comp-test-001';
 
       // Populate cache
       await redirectService.resolve(code, 0);
@@ -325,11 +325,11 @@ describe("Redirect Engine - Comprehensive Integration Tests", () => {
       // Try to resolve
       const result = await redirectService.resolve(code, 0);
       expect(result.success).toBe(false);
-      expect(result.error).toBe("NOT_FOUND");
+      expect(result.error).toBe('NOT_FOUND');
     });
 
-    it("should clear cache and mark as banned", async () => {
-      const code = "comp-test-001";
+    it('should clear cache and mark as banned', async () => {
+      const code = 'comp-test-001';
 
       // Populate cache
       await redirectService.resolve(code, 0);
@@ -344,7 +344,7 @@ describe("Redirect Engine - Comprehensive Integration Tests", () => {
       // Try to resolve
       const result = await redirectService.resolve(code, 0);
       expect(result.success).toBe(false);
-      expect(result.error).toBe("BANNED");
+      expect(result.error).toBe('BANNED');
     });
   });
 });

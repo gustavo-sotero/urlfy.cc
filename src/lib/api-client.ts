@@ -7,17 +7,17 @@
 import type {
   AnalyticsBreakdown,
   AnalyticsSummary,
-  DailyStats,
-} from "@/types/analytics.types";
+  DailyStats
+} from '@/types/analytics.types';
 import type {
   CreateLinkInput,
   LinkResponse,
   ListLinksQuery,
   PaginatedResponse,
-  UpdateLinkInput,
-} from "@/types/links.types";
+  UpdateLinkInput
+} from '@/types/links.types';
 
-const API_BASE = "/api/v1";
+const API_BASE = '/api/v1';
 
 // ═══════════════════════════════════════════════════════════════════
 // CORE FETCHER
@@ -41,10 +41,10 @@ class ApiClientError extends Error {
     public code: string,
     message: string,
     public details?: Record<string, unknown>,
-    public requestId?: string,
+    public requestId?: string
   ) {
     super(message);
-    this.name = "ApiClientError";
+    this.name = 'ApiClientError';
   }
 }
 
@@ -54,27 +54,27 @@ async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
+      'Content-Type': 'application/json',
+      ...options?.headers
+    }
   });
 
   // Check if response has content before parsing JSON
-  const contentType = response.headers.get("content-type");
-  const contentLength = response.headers.get("content-length");
+  const contentType = response.headers.get('content-type');
+  const contentLength = response.headers.get('content-length');
 
   // Handle empty responses (204 No Content, or empty body)
   if (
     response.status === 204 ||
-    contentLength === "0" ||
-    !contentType?.includes("application/json")
+    contentLength === '0' ||
+    !contentType?.includes('application/json')
   ) {
     if (!response.ok) {
       throw new ApiClientError(
-        "HTTP_ERROR",
+        'HTTP_ERROR',
         `Request failed with status ${response.status}`,
         undefined,
-        response.headers.get("x-request-id") ?? undefined,
+        response.headers.get('x-request-id') ?? undefined
       );
     }
     return undefined as T;
@@ -84,13 +84,13 @@ async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
   let data: ApiResponse<T>;
   try {
     const text = await response.text();
-    if (!text || text.trim() === "") {
+    if (!text || text.trim() === '') {
       if (!response.ok) {
         throw new ApiClientError(
-          "HTTP_ERROR",
+          'HTTP_ERROR',
           `Request failed with status ${response.status}`,
           undefined,
-          response.headers.get("x-request-id") ?? undefined,
+          response.headers.get('x-request-id') ?? undefined
         );
       }
       return undefined as T;
@@ -98,19 +98,19 @@ async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
     data = JSON.parse(text);
   } catch (error) {
     throw new ApiClientError(
-      "PARSE_ERROR",
-      "Failed to parse response as JSON",
+      'PARSE_ERROR',
+      'Failed to parse response as JSON',
       { originalError: error instanceof Error ? error.message : String(error) },
-      response.headers.get("x-request-id") ?? undefined,
+      response.headers.get('x-request-id') ?? undefined
     );
   }
 
   if (!data.success || !response.ok) {
     throw new ApiClientError(
-      data.error?.code ?? "UNKNOWN_ERROR",
-      data.error?.message ?? "Request failed",
+      data.error?.code ?? 'UNKNOWN_ERROR',
+      data.error?.message ?? 'Request failed',
       data.error?.details,
-      data.requestId,
+      data.requestId
     );
   }
 
@@ -122,30 +122,30 @@ async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
 // ═══════════════════════════════════════════════════════════════════
 
 export async function createLink(
-  input: CreateLinkInput,
+  input: CreateLinkInput
 ): Promise<LinkResponse> {
-  return fetcher("/links", {
-    method: "POST",
-    body: JSON.stringify(input),
+  return fetcher('/links', {
+    method: 'POST',
+    body: JSON.stringify(input)
   });
 }
 
 export async function getLinks(
-  query?: ListLinksQuery,
+  query?: ListLinksQuery
 ): Promise<PaginatedResponse<LinkResponse>> {
   const params = new URLSearchParams();
 
-  if (query?.page) params.set("page", query.page.toString());
-  if (query?.perPage) params.set("perPage", query.perPage.toString());
-  if (query?.search) params.set("search", query.search);
+  if (query?.page) params.set('page', query.page.toString());
+  if (query?.perPage) params.set('perPage', query.perPage.toString());
+  if (query?.search) params.set('search', query.search);
   if (query?.isActive !== undefined)
-    params.set("isActive", query.isActive.toString());
-  if (query?.sortBy) params.set("sortBy", query.sortBy);
-  if (query?.sortOrder) params.set("sortOrder", query.sortOrder);
-  if (query?.tags?.length) params.set("tags", query.tags.join(","));
+    params.set('isActive', query.isActive.toString());
+  if (query?.sortBy) params.set('sortBy', query.sortBy);
+  if (query?.sortOrder) params.set('sortOrder', query.sortOrder);
+  if (query?.tags?.length) params.set('tags', query.tags.join(','));
 
   const queryString = params.toString();
-  return fetcher(`/links${queryString ? `?${queryString}` : ""}`);
+  return fetcher(`/links${queryString ? `?${queryString}` : ''}`);
 }
 
 export async function getLink(id: string): Promise<LinkResponse> {
@@ -154,29 +154,29 @@ export async function getLink(id: string): Promise<LinkResponse> {
 
 export async function updateLink(
   id: string,
-  input: UpdateLinkInput,
+  input: UpdateLinkInput
 ): Promise<LinkResponse> {
   return fetcher(`/links/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify(input),
+    method: 'PATCH',
+    body: JSON.stringify(input)
   });
 }
 
 export async function deleteLink(id: string): Promise<void> {
   return fetcher(`/links/${id}`, {
-    method: "DELETE",
+    method: 'DELETE'
   });
 }
 
 export async function restoreLink(id: string): Promise<LinkResponse> {
   return fetcher(`/links/${id}/restore`, {
-    method: "POST",
+    method: 'POST'
   });
 }
 
 export async function duplicateLink(id: string): Promise<LinkResponse> {
   return fetcher(`/links/${id}/duplicate`, {
-    method: "POST",
+    method: 'POST'
   });
 }
 
@@ -184,19 +184,19 @@ export async function validateUrl(url: string): Promise<{
   valid: boolean;
   warnings: string[];
 }> {
-  return fetcher("/links/validate", {
-    method: "POST",
-    body: JSON.stringify({ url }),
+  return fetcher('/links/validate', {
+    method: 'POST',
+    body: JSON.stringify({ url })
   });
 }
 
 export async function verifyLinkPassword(
   code: string,
-  password: string,
+  password: string
 ): Promise<{ redirectUrl: string }> {
   return fetcher(`/links/by-code/${code}/verify-password`, {
-    method: "POST",
-    body: JSON.stringify({ password }),
+    method: 'POST',
+    body: JSON.stringify({ password })
   });
 }
 
@@ -214,20 +214,20 @@ export async function getLinkPreview(code: string): Promise<{
 
 export async function getQRCode(
   code: string,
-  options?: { size?: number; format?: "png" | "svg" },
+  options?: { size?: number; format?: 'png' | 'svg' }
 ): Promise<Blob> {
   const params = new URLSearchParams();
-  if (options?.size) params.set("size", options.size.toString());
-  if (options?.format) params.set("format", options.format);
+  if (options?.size) params.set('size', options.size.toString());
+  if (options?.format) params.set('format', options.format);
 
   const queryString = params.toString();
   const response = await fetch(
     `${API_BASE}/links/by-code/${code}/qr${
-      queryString ? `?${queryString}` : ""
-    }`,
+      queryString ? `?${queryString}` : ''
+    }`
   );
 
-  if (!response.ok) throw new Error("QR Code generation failed");
+  if (!response.ok) throw new Error('QR Code generation failed');
   return response.blob();
 }
 
@@ -238,7 +238,7 @@ export async function getQRCode(
 export interface AnalyticsOptions {
   from?: string;
   to?: string;
-  granularity?: "hour" | "day" | "week";
+  granularity?: 'hour' | 'day' | 'week';
 }
 
 export async function getLinkStats(id: string): Promise<{
@@ -251,36 +251,36 @@ export async function getLinkStats(id: string): Promise<{
 
 export async function getDailyStats(
   linkId: string,
-  days: number = 30,
+  days: number = 30
 ): Promise<DailyStats[]> {
   return fetcher(`/analytics/${linkId}/daily?days=${days}`);
 }
 
 export async function getAnalyticsBreakdown(
   linkId: string,
-  options?: AnalyticsOptions,
+  options?: AnalyticsOptions
 ): Promise<AnalyticsBreakdown> {
   const params = new URLSearchParams();
-  if (options?.from) params.set("from", options.from);
-  if (options?.to) params.set("to", options.to);
+  if (options?.from) params.set('from', options.from);
+  if (options?.to) params.set('to', options.to);
 
   const queryString = params.toString();
   return fetcher(
-    `/analytics/${linkId}/breakdown${queryString ? `?${queryString}` : ""}`,
+    `/analytics/${linkId}/breakdown${queryString ? `?${queryString}` : ''}`
   );
 }
 
 export async function getAnalyticsSummary(
   linkId: string,
-  options?: AnalyticsOptions,
+  options?: AnalyticsOptions
 ): Promise<AnalyticsSummary> {
   const params = new URLSearchParams();
-  if (options?.from) params.set("from", options.from);
-  if (options?.to) params.set("to", options.to);
+  if (options?.from) params.set('from', options.from);
+  if (options?.to) params.set('to', options.to);
 
   const queryString = params.toString();
   return fetcher(
-    `/analytics/${linkId}/summary${queryString ? `?${queryString}` : ""}`,
+    `/analytics/${linkId}/summary${queryString ? `?${queryString}` : ''}`
   );
 }
 
@@ -294,12 +294,12 @@ export async function getUserQuota(): Promise<{
   remaining: number;
   percentUsed: number;
 }> {
-  return fetcher("/me/quota");
+  return fetcher('/me/quota');
 }
 
 export async function exportUserData(): Promise<Blob> {
   const response = await fetch(`${API_BASE}/me/export`);
-  if (!response.ok) throw new Error("Export failed");
+  if (!response.ok) throw new Error('Export failed');
   return response.blob();
 }
 
@@ -308,8 +308,8 @@ export async function requestDataDeletion(): Promise<{
   deadline: string;
   message: string;
 }> {
-  return fetcher("/me/data", {
-    method: "DELETE",
+  return fetcher('/me/data', {
+    method: 'DELETE'
   });
 }
 
@@ -324,7 +324,7 @@ export async function getAdminStats(): Promise<{
   activeLinksToday: number;
   requestsPerSecond: number;
 }> {
-  return fetcher("/admin/stats");
+  return fetcher('/admin/stats');
 }
 
 export async function searchLinks(query: string): Promise<LinkResponse[]> {
@@ -333,24 +333,24 @@ export async function searchLinks(query: string): Promise<LinkResponse[]> {
 
 export async function banLink(
   id: string,
-  reason: string,
+  reason: string
 ): Promise<LinkResponse> {
   return fetcher(`/admin/links/${id}`, {
-    method: "PATCH",
+    method: 'PATCH',
     body: JSON.stringify({
       isBanned: true,
-      bannedReason: reason,
-    }),
+      bannedReason: reason
+    })
   });
 }
 
 export async function unbanLink(id: string): Promise<LinkResponse> {
   return fetcher(`/admin/links/${id}`, {
-    method: "PATCH",
+    method: 'PATCH',
     body: JSON.stringify({
       isBanned: false,
-      bannedReason: null,
-    }),
+      bannedReason: null
+    })
   });
 }
 
@@ -376,19 +376,19 @@ export interface AuditLogsQuery {
 }
 
 export async function getAuditLogs(
-  query?: AuditLogsQuery,
+  query?: AuditLogsQuery
 ): Promise<PaginatedResponse<AuditLogEntry>> {
   const params = new URLSearchParams();
 
-  if (query?.from) params.set("from", query.from);
-  if (query?.to) params.set("to", query.to);
-  if (query?.action) params.set("action", query.action);
-  if (query?.userId) params.set("userId", query.userId);
-  if (query?.page) params.set("page", query.page.toString());
-  if (query?.perPage) params.set("perPage", query.perPage.toString());
+  if (query?.from) params.set('from', query.from);
+  if (query?.to) params.set('to', query.to);
+  if (query?.action) params.set('action', query.action);
+  if (query?.userId) params.set('userId', query.userId);
+  if (query?.page) params.set('page', query.page.toString());
+  if (query?.perPage) params.set('perPage', query.perPage.toString());
 
   const queryString = params.toString();
-  return fetcher(`/admin/audit${queryString ? `?${queryString}` : ""}`);
+  return fetcher(`/admin/audit${queryString ? `?${queryString}` : ''}`);
 }
 
 export interface UserResponse {
@@ -407,33 +407,33 @@ export async function getUsers(query?: {
 }): Promise<PaginatedResponse<UserResponse>> {
   const params = new URLSearchParams();
 
-  if (query?.page) params.set("page", query.page.toString());
-  if (query?.perPage) params.set("perPage", query.perPage.toString());
-  if (query?.search) params.set("search", query.search);
+  if (query?.page) params.set('page', query.page.toString());
+  if (query?.perPage) params.set('perPage', query.perPage.toString());
+  if (query?.search) params.set('search', query.search);
 
   const queryString = params.toString();
-  return fetcher(`/admin/users${queryString ? `?${queryString}` : ""}`);
+  return fetcher(`/admin/users${queryString ? `?${queryString}` : ''}`);
 }
 
 export async function updateUserRole(
   userId: string,
-  role: string,
+  role: string
 ): Promise<UserResponse> {
   return fetcher(`/admin/users/${userId}/role`, {
-    method: "PATCH",
-    body: JSON.stringify({ role }),
+    method: 'PATCH',
+    body: JSON.stringify({ role })
   });
 }
 
 export async function banUser(userId: string): Promise<UserResponse> {
   return fetcher(`/admin/users/${userId}/ban`, {
-    method: "POST",
+    method: 'POST'
   });
 }
 
 export async function unbanUser(userId: string): Promise<UserResponse> {
   return fetcher(`/admin/users/${userId}/unban`, {
-    method: "POST",
+    method: 'POST'
   });
 }
 

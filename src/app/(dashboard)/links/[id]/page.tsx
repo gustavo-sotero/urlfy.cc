@@ -1,29 +1,29 @@
 // src/app/(dashboard)/links/[id]/page.tsx
-"use client";
+'use client';
 
-import { ArrowLeft, Edit, ExternalLink, Trash } from "lucide-react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { AnalyticsDashboardSkeleton } from "@/components/charts/analytics-skeleton";
-import { ClicksChart } from "@/components/charts/clicks-chart";
-import { CountriesChart } from "@/components/charts/countries-chart";
-import { DevicesChart } from "@/components/charts/devices-chart";
-import { ReferrersChart } from "@/components/charts/referrers-chart";
-import { ErrorBoundary } from "@/components/error-boundary";
-import { QueryError } from "@/components/query-error";
-import { CopyButton } from "@/components/shared/copy-button";
-import { QRCodeButton } from "@/components/shared/qr-code-button";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, Edit, ExternalLink, Trash } from 'lucide-react';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { AnalyticsDashboardSkeleton } from '@/components/charts/analytics-skeleton';
+import { ClicksChart } from '@/components/charts/clicks-chart';
+import { CountriesChart } from '@/components/charts/countries-chart';
+import { DevicesChart } from '@/components/charts/devices-chart';
+import { ReferrersChart } from '@/components/charts/referrers-chart';
+import { ErrorBoundary } from '@/components/error-boundary';
+import { QueryError } from '@/components/query-error';
+import { CopyButton } from '@/components/shared/copy-button';
+import { QRCodeButton } from '@/components/shared/qr-code-button';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { useLinkAnalytics } from "@/lib/hooks/use-analytics";
-import { useDeleteLink, useLink } from "@/lib/hooks/use-links";
+  CardTitle
+} from '@/components/ui/card';
+import { useLinkAnalytics } from '@/lib/hooks/use-analytics';
+import { useDeleteLink, useLink } from '@/lib/hooks/use-links';
 
 export default function LinkDetailPage() {
   const params = useParams();
@@ -35,13 +35,13 @@ export default function LinkDetailPage() {
   const deleteLink = useDeleteLink();
 
   const handleDelete = async () => {
-    if (!confirm("Tem certeza que deseja deletar este link?")) return;
+    if (!confirm('Tem certeza que deseja deletar este link?')) return;
 
     try {
       await deleteLink.mutateAsync(linkId);
-      router.push("/dashboard/links?deleted=true");
+      router.push('/dashboard/links?deleted=true');
     } catch (error) {
-      console.error("Failed to delete link:", error);
+      console.error('Failed to delete link:', error);
     }
   };
 
@@ -144,8 +144,8 @@ export default function LinkDetailPage() {
                 <div className="text-sm font-medium text-muted-foreground">
                   Status
                 </div>
-                <Badge variant={link.isActive ? "default" : "secondary"}>
-                  {link.isActive ? "Ativo" : "Inativo"}
+                <Badge variant={link.isActive ? 'default' : 'secondary'}>
+                  {link.isActive ? 'Ativo' : 'Inativo'}
                 </Badge>
               </div>
 
@@ -155,7 +155,7 @@ export default function LinkDetailPage() {
                     Expira em
                   </div>
                   <div className="text-sm">
-                    {new Date(link.expiresAt).toLocaleDateString("pt-BR")}
+                    {new Date(link.expiresAt).toLocaleDateString('pt-BR')}
                   </div>
                 </div>
               )}
@@ -205,7 +205,7 @@ export default function LinkDetailPage() {
                           summary.data.totalClicks) *
                         100
                       ).toFixed(1)
-                    : "0.0"}
+                    : '0.0'}
                   %
                 </CardTitle>
               </CardHeader>
