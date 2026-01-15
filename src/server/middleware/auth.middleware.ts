@@ -367,15 +367,27 @@ function normalizePermissions(input: {
   };
   analytics?: { read?: boolean };
 }): NormalizedApiKeyPermissions {
-  return {
+  const defaults: NormalizedApiKeyPermissions = {
     links: {
-      create: input.links?.create ?? false,
-      read: input.links?.read ?? false,
-      update: input.links?.update ?? false,
-      delete: input.links?.delete ?? false
+      create: true,
+      read: true,
+      update: true,
+      delete: false
     },
     analytics: {
-      read: input.analytics?.read ?? false
+      read: true
+    }
+  };
+
+  return {
+    links: {
+      create: input.links?.create ?? defaults.links.create,
+      read: input.links?.read ?? defaults.links.read,
+      update: input.links?.update ?? defaults.links.update,
+      delete: input.links?.delete ?? defaults.links.delete
+    },
+    analytics: {
+      read: input.analytics?.read ?? defaults.analytics.read
     }
   };
 }

@@ -396,15 +396,27 @@ export class AuthService {
   private normalizePermissions(
     permissions: ApiKeyPermissions
   ): NormalizedApiKeyPermissions {
-    return {
+    const defaults: NormalizedApiKeyPermissions = {
       links: {
-        create: permissions.links?.create ?? false,
-        read: permissions.links?.read ?? false,
-        update: permissions.links?.update ?? false,
-        delete: permissions.links?.delete ?? false
+        create: true,
+        read: true,
+        update: true,
+        delete: false
       },
       analytics: {
-        read: permissions.analytics?.read ?? false
+        read: true
+      }
+    };
+
+    return {
+      links: {
+        create: permissions.links?.create ?? defaults.links.create,
+        read: permissions.links?.read ?? defaults.links.read,
+        update: permissions.links?.update ?? defaults.links.update,
+        delete: permissions.links?.delete ?? defaults.links.delete
+      },
+      analytics: {
+        read: permissions.analytics?.read ?? defaults.analytics.read
       }
     };
   }

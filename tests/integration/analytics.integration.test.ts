@@ -1,13 +1,13 @@
 // tests/integration/analytics.integration.test.ts
 
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { analyticsEvents, linkClicksDaily, links } from '@/db/schema';
 import { hashVisitor } from '@/server/lib/privacy';
 import { analyticsQueue } from '@/server/lib/queue';
 import { AnalyticsService } from '@/server/modules/analytics';
 import type { ClickEvent } from '@/types/analytics.types';
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { eq } from 'drizzle-orm';
 
 describe('Analytics Integration', () => {
   let testLinkId: string;
