@@ -40,7 +40,9 @@ export const auth = betterAuth({
       user: schema.user,
       session: schema.session,
       account: schema.account,
-      verification: schema.verification
+      verification: schema.verification,
+      twoFactor: schema.twoFactor,
+      apiKey: schema.apiKey
     }
   }),
 
@@ -87,29 +89,35 @@ export const auth = betterAuth({
       role: {
         type: 'string',
         defaultValue: 'user',
-        required: true
+        required: true,
+        input: false
       },
       linksQuota: {
         type: 'number',
         defaultValue: 100,
-        required: true
+        required: true,
+        input: false
       },
       linksCount: {
         type: 'number',
         defaultValue: 0,
-        required: true
+        required: true,
+        input: false
       },
       bannedAt: {
         type: 'date',
-        required: false
+        required: false,
+        input: false
       },
       bannedReason: {
         type: 'string',
-        required: false
+        required: false,
+        input: false
       },
       deletedAt: {
         type: 'date',
-        required: false
+        required: false,
+        input: false
       }
     }
   },

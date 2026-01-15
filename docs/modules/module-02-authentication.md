@@ -19,21 +19,22 @@ Este módulo implementa todo o sistema de **autenticação e gerenciamento de id
 - Sistema de roles (Guest, User, Admin)
 - Gerenciamento de sessões seguras
 - Documentação automática OpenAPI
+- **Envio de emails transacionais via Resend** (verificação, reset, boas-vindas e LGPD)
 
 ---
 
 ## 2. Stack de Autenticação
 
-| Componente       | Tecnologia            | Função                                 |
-| ---------------- | --------------------- | -------------------------------------- |
-| **Core**         | Better-Auth           | Gerenciamento de autenticação          |
-| **Plugin 2FA**   | `twoFactor`           | TOTP para autenticação em duas etapas  |
-| **Plugin Admin** | `admin`               | Gestão de usuários e roles             |
-| **Plugin API**   | `apiKey`              | Geração e validação de API keys        |
-| **Plugin Docs**  | `openAPI`             | Documentação automática                |
-| **Email**        | Resend                | Envio de emails transacionais          |
-| **Hashing**      | Bun.password (Argon2) | Hash seguro de senhas                  |
-| **JWT**          | jose                  | Tokens para unlock de links protegidos |
+| Componente       | Tecnologia            | Função                                          |
+| ---------------- | --------------------- | ----------------------------------------------- |
+| **Core**         | Better-Auth           | Gerenciamento de autenticação                   |
+| **Plugin 2FA**   | `twoFactor`           | TOTP para autenticação em duas etapas           |
+| **Plugin Admin** | `admin`               | Gestão de usuários e roles                      |
+| **Plugin API**   | `apiKey`              | Geração e validação de API keys                 |
+| **Plugin Docs**  | `openAPI`             | Documentação automática                         |
+| **Email**        | **Resend**            | **Envio de emails transacionais (obrigatório)** |
+| **Hashing**      | Bun.password (Argon2) | Hash seguro de senhas                           |
+| **JWT**          | jose                  | Tokens para unlock de links protegidos          |
 
 ---
 
@@ -1368,7 +1369,7 @@ GITHUB_CLIENT_ID=your-github-client-id
 GITHUB_CLIENT_SECRET=your-github-client-secret
 
 # ═══════════════════════════════════════════════════════════════════
-# EMAIL (Resend - verificação e reset)
+# EMAIL (Resend - verificação, reset, boas-vindas e LGPD)
 # ═══════════════════════════════════════════════════════════════════
 RESEND_API_KEY=re_...
 RESEND_FROM=noreply@urlfy.cc
