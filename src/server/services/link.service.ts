@@ -1,15 +1,5 @@
 // src/server/services/link.service.ts
 
-import {
-  and,
-  arrayContains,
-  desc,
-  eq,
-  isNull,
-  like,
-  or,
-  sql
-} from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import type {
@@ -20,12 +10,31 @@ import type {
   PaginatedResponse,
   UpdateLinkInput
 } from '@/types/links.types';
+import {
+  and,
+  arrayContains,
+  desc,
+  eq,
+  isNull,
+  like,
+  or,
+  sql
+} from 'drizzle-orm';
 import { createLinkError } from '../lib/errors';
 import { redis } from '../lib/redis';
-import { sanitizeMetaTags } from '../lib/sanitize';
+import {
+  sanitizeMetaTags,
+  sanitizeNotes,
+  sanitizeSearchQuery,
+  sanitizeTags
+} from '../lib/sanitize';
 import { invalidateQRCache } from './qr.service';
-import { generateUniqueCode, validateCustomAlias } from './shortcode.service';
-import { validateUrl } from './url-validator';
+import {
+  generateUniqueCode,
+  isValidAliasFormat,
+  validateCustomAlias
+} from './shortcode.service';
+import { validateUrlAsync } from './url-validator';
 
 const BASE_URL = process.env.PUBLIC_URL || 'https://urlfy.cc';
 
@@ -76,7 +85,7 @@ export async function createLink(
   ipHash?: string
 ): Promise<Link> {
   // 1. Validar URL
-  const validation = validateUrl(input.url);
+  const validation = await validateUrlAsync(input.url);
   if (!validation.valid) {
     throw createLinkError(validation.error);
   }
@@ -86,6 +95,9 @@ export async function createLink(
   if (input.customAlias) {
     if (!userId) {
       throw createLinkError('AUTH_REQUIRED');
+    }
+    if (!isValidAliasFormat(input.customAlias)) {
+      throw createLinkError('INVALID_ALIAS_FORMAT');
     }
     const isValid = await validateCustomAlias(input.customAlias);
     if (!isValid) {
@@ -119,6 +131,9 @@ export async function createLink(
     image: input.metaImage
   });
 
+  const tags = sanitizeTags(input.tags);
+  const notes = sanitizeNotes(input.notes);
+
   // 5. Processar expiração
   const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
 
@@ -139,8 +154,8 @@ export async function createLink(
       utmSource: input.utmSource,
       utmMedium: input.utmMedium,
       utmCampaign: input.utmCampaign,
-      tags: input.tags,
-      notes: input.notes,
+      tags,
+      notes,
       createdByIpHash: ipHash
     })
     .returning();
@@ -162,6 +177,8 @@ export async function listUserLinks(
   const page = query.page || 1;
   const perPage = Math.min(query.perPage || 20, 100);
   const offset = (page - 1) * perPage;
+  const sanitizedSearch = sanitizeSearchQuery(query.search);
+  const sanitizedTags = sanitizeTags(query.tags);
 
   // Construir filtros
   const filters = [eq(links.userId, userId), isNull(links.deletedAt)];
@@ -170,18 +187,18 @@ export async function listUserLinks(
     filters.push(eq(links.isActive, query.isActive));
   }
 
-  if (query.search) {
+  if (sanitizedSearch) {
     const searchFilter = or(
-      like(links.originalUrl, `%${query.search}%`),
-      like(links.shortCode, `%${query.search}%`)
+      like(links.originalUrl, `%${sanitizedSearch}%`),
+      like(links.shortCode, `%${sanitizedSearch}%`)
     );
     if (searchFilter) {
       filters.push(searchFilter);
     }
   }
 
-  if (query.tags && query.tags.length > 0) {
-    filters.push(arrayContains(links.tags, query.tags));
+  if (sanitizedTags && sanitizedTags.length > 0) {
+    filters.push(arrayContains(links.tags, sanitizedTags));
   }
 
   // Definir ordenação
@@ -250,6 +267,23 @@ export async function getLinkById(id: string, userId: string): Promise<Link> {
 }
 
 /**
+ * Busca link por ID (sem verificação de ownership)
+ */
+export async function getLinkByIdUnsafe(id: string): Promise<Link> {
+  const [link] = await db
+    .select()
+    .from(links)
+    .where(and(eq(links.id, id), isNull(links.deletedAt)))
+    .limit(1);
+
+  if (!link) {
+    throw createLinkError('LINK_NOT_FOUND');
+  }
+
+  return link;
+}
+
+/**
  * Busca link por short code (público)
  */
 export async function getLinkByCode(code: string): Promise<Link | null> {
@@ -276,6 +310,21 @@ export async function updateLink(
 ): Promise<Link> {
   const link = await getLinkById(id, userId);
 
+  let newShortCode: string | undefined;
+  if (input.customAlias !== undefined) {
+    if (!isValidAliasFormat(input.customAlias)) {
+      throw createLinkError('INVALID_ALIAS_FORMAT');
+    }
+
+    if (input.customAlias !== link.shortCode) {
+      const isAvailable = await validateCustomAlias(input.customAlias);
+      if (!isAvailable) {
+        throw createLinkError('ALIAS_UNAVAILABLE');
+      }
+      newShortCode = input.customAlias;
+    }
+  }
+
   // Processar senha se fornecida
   let passwordHash: string | null | undefined;
   if ('password' in input) {
@@ -293,13 +342,6 @@ export async function updateLink(
     }
   }
 
-  // Sanitizar meta tags se fornecidas
-  const meta = sanitizeMetaTags({
-    title: input.metaTitle ?? undefined,
-    description: input.metaDescription ?? undefined,
-    image: input.metaImage ?? undefined
-  });
-
   // Processar expiração
   const expiresAt =
     input.expiresAt !== undefined
@@ -308,29 +350,49 @@ export async function updateLink(
         : new Date(input.expiresAt)
       : undefined;
 
-  // Atualizar campos permitidos
+  // Sanitizar meta tags apenas se fornecidas
+  const meta = sanitizeMetaTags({
+    title: input.metaTitle ?? null,
+    description: input.metaDescription ?? null,
+    image: input.metaImage ?? null
+  });
+
+  const updateData: Partial<typeof links.$inferInsert> = {};
+
+  if (newShortCode) updateData.shortCode = newShortCode;
+  if (input.isActive !== undefined) updateData.isActive = input.isActive;
+  if (expiresAt !== undefined) updateData.expiresAt = expiresAt;
+  if (input.maxClicks !== undefined) updateData.maxClicks = input.maxClicks;
+  if (passwordHash !== undefined) updateData.passwordHash = passwordHash;
+  if (input.redirectType !== undefined)
+    updateData.redirectType = input.redirectType;
+  if (input.metaTitle !== undefined) updateData.metaTitle = meta.metaTitle;
+  if (input.metaDescription !== undefined)
+    updateData.metaDescription = meta.metaDescription;
+  if (input.metaImage !== undefined) updateData.metaImage = meta.metaImage;
+  if (input.utmSource !== undefined) updateData.utmSource = input.utmSource;
+  if (input.utmMedium !== undefined) updateData.utmMedium = input.utmMedium;
+  if (input.utmCampaign !== undefined)
+    updateData.utmCampaign = input.utmCampaign;
+  if (input.tags !== undefined) updateData.tags = sanitizeTags(input.tags);
+  if (input.notes !== undefined) updateData.notes = sanitizeNotes(input.notes);
+
+  if (Object.keys(updateData).length === 0) {
+    return link;
+  }
+
   const [updated] = await db
     .update(links)
-    .set({
-      isActive: input.isActive,
-      expiresAt,
-      maxClicks: input.maxClicks,
-      passwordHash,
-      redirectType: input.redirectType,
-      metaTitle: meta.metaTitle,
-      metaDescription: meta.metaDescription,
-      metaImage: meta.metaImage,
-      utmSource: input.utmSource,
-      utmMedium: input.utmMedium,
-      utmCampaign: input.utmCampaign,
-      tags: input.tags,
-      notes: input.notes
-    })
+    .set(updateData)
     .where(eq(links.id, id))
     .returning();
 
-  // Invalida cache
-  await invalidateLinkCache(link.shortCode, 'update');
+  if (newShortCode && newShortCode !== link.shortCode) {
+    await invalidateLinkCache(link.shortCode, 'delete');
+    await invalidateLinkCache(newShortCode, 'update');
+  } else {
+    await invalidateLinkCache(link.shortCode, 'update');
+  }
 
   return updated;
 }
@@ -348,7 +410,10 @@ export async function softDeleteLink(
 ): Promise<void> {
   const link = await getLinkById(id, userId);
 
-  await db.update(links).set({ deletedAt: new Date() }).where(eq(links.id, id));
+  await db
+    .update(links)
+    .set({ deletedAt: new Date(), isActive: false })
+    .where(eq(links.id, id));
 
   await invalidateLinkCache(link.shortCode, 'delete');
 }
@@ -401,9 +466,9 @@ export async function duplicateLink(id: string, userId: string): Promise<Link> {
       originalUrl: original.originalUrl,
       shortCode: newCode,
       redirectType: original.redirectType,
-      maxClicks: original.maxClicks,
-      passwordHash: original.passwordHash,
-      expiresAt: original.expiresAt,
+      maxClicks: null,
+      passwordHash: null,
+      expiresAt: null,
       metaTitle: original.metaTitle,
       metaDescription: original.metaDescription,
       metaImage: original.metaImage,

@@ -11,12 +11,13 @@ import { describe, expect, it, mock } from 'bun:test';
 
 // Mock the database module
 const mockLimitFn = mock(() => Promise.resolve([]));
-const mockWhereFn = mock(() => ({
+const createWhereResult = () => ({
   limit: mockLimitFn,
   union: mock(() => ({
     limit: mockLimitFn
   }))
-}));
+});
+const mockWhereFn = mock(() => createWhereResult());
 const mockFromFn = mock(() => ({
   where: mockWhereFn
 }));
@@ -77,6 +78,50 @@ mock.module('@/db/schema', () => ({
   },
   reservedSlugs: {
     slug: 'slug'
+  },
+  bannedUrls: {
+    urlPattern: 'url_pattern',
+    matchType: 'match_type'
+  }
+}));
+
+mock.module('../url-validator', () => ({
+  validateUrlAsync: async (url: string) => {
+    if (url.length > 2048) {
+      return { valid: false, error: 'URL_TOO_LONG' };
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return { valid: false, error: 'INVALID_FORMAT' };
+    }
+
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { valid: false, error: 'INVALID_PROTOCOL' };
+    }
+
+    const blocked = new Set([
+      'bit.ly',
+      'tinyurl.com',
+      't.co',
+      'goo.gl',
+      'ow.ly',
+      'is.gd',
+      'buff.ly',
+      'adf.ly',
+      'shorturl.at',
+      'tiny.cc',
+      'rb.gy'
+    ]);
+
+    const domain = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    if (blocked.has(domain)) {
+      return { valid: false, error: 'SHORTENER_BLOCKED' };
+    }
+
+    return { valid: true };
   }
 }));
 

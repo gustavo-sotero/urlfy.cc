@@ -4,10 +4,11 @@
  * Makes internal API calls instead of direct DB access
  */
 
-import type { NextRequest, NextResponse } from 'next/server';
-import { NextResponse as Response } from 'next/server';
 import { createLogger } from '@/server/lib/telemetry.edge';
 import type { ClickEvent } from '@/types/analytics.types';
+import { jwtVerify } from 'jose';
+import type { NextRequest, NextResponse } from 'next/server';
+import { NextResponse as Response } from 'next/server';
 
 const logger = createLogger('redirect-middleware');
 
@@ -386,7 +387,6 @@ export async function checkPasswordCookie(
     }
 
     // Verifica JWT usando jose (Edge Runtime compatible)
-    const { jwtVerify } = await import('jose');
     const secret = new TextEncoder().encode(
       process.env.JWT_SECRET ?? 'urlfy-secret-key'
     );

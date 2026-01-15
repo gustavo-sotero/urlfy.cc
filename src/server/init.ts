@@ -1,6 +1,10 @@
 // Initialize telemetry and validate environment as early as possible
 // NOTE: Console suppression for BullMQ eviction warnings is in instrumentation.ts
+
+import { closeDatabase } from '@/db';
 import { validateEnv } from '@/lib/env';
+import { shutdownQueues } from '@/server/lib/queue';
+import { closeRedis } from '@/server/lib/redis';
 import { initTelemetry } from '@/server/lib/telemetry';
 import { initializeWorkers, shutdownWorkers } from '@/server/workers';
 
@@ -29,10 +33,6 @@ if (typeof window === 'undefined') {
 }
 
 async function setupGracefulShutdown() {
-  const { closeDatabase } = await import('@/db');
-  const { closeRedis } = await import('@/server/lib/redis');
-  const { shutdownQueues } = await import('@/server/lib/queue');
-
   const shutdown = async (signal: string) => {
     console.log(`\n${signal} received. Starting graceful shutdown...`);
 

@@ -22,6 +22,7 @@ export interface CreateLinkInput {
 }
 
 export interface UpdateLinkInput {
+  customAlias?: string;
   isActive?: boolean;
   expiresAt?: Date | string | null;
   maxClicks?: number | null;

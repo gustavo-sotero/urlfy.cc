@@ -1,4 +1,3 @@
-import { and, eq, isNull, sql } from 'drizzle-orm';
 import {
   account as accountTable,
   apiKey as apiKeyTable,
@@ -8,6 +7,8 @@ import {
   user as userTable
 } from '@/db/schema/auth';
 import { db } from '@/server/lib/db';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { auditLogService } from './audit.service';
 
 /**
  * User Service - Handles user-related operations
@@ -143,7 +144,6 @@ export class UserService {
 
     // Log audit event
     try {
-      const { auditLogService } = await import('./audit.service');
       await auditLogService.log({
         userId: adminId,
         action: 'ban_user',
@@ -177,7 +177,6 @@ export class UserService {
 
     // Log audit event
     try {
-      const { auditLogService } = await import('./audit.service');
       await auditLogService.log({
         userId: adminId,
         action: 'unban_user',
@@ -211,7 +210,6 @@ export class UserService {
 
     // Log audit event
     try {
-      const { auditLogService } = await import('./audit.service');
       await auditLogService.log({
         userId: adminId,
         action: 'update_user_role',

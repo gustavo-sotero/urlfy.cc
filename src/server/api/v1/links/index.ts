@@ -1,7 +1,7 @@
 // src/server/api/v1/links/index.ts
 
-import { createHash } from 'node:crypto';
 import { Elysia, t } from 'elysia';
+import { createHash } from 'node:crypto';
 
 import { handleLinkError } from '../../../lib/errors';
 import {
@@ -12,6 +12,7 @@ import {
 import { optionalAuth, requireAuth } from '../../../middleware/auth.middleware';
 import * as linkService from '../../../services/link.service';
 import * as qrService from '../../../services/qr.service';
+import { validateUrlAsync } from '../../../services/url-validator';
 
 // Routes públicas/opcionais (guest allowed)
 const publicRoutes = new Elysia()
@@ -22,9 +23,7 @@ const publicRoutes = new Elysia()
   .post(
     '/validate',
     async ({ body }: { body: { url: string } }) => {
-      const validation = await import('../../../services/url-validator').then(
-        (m) => m.validateUrl(body.url)
-      );
+      const validation = await validateUrlAsync(body.url);
 
       if (validation.valid) {
         return {
@@ -216,7 +215,9 @@ const publicRoutes = new Elysia()
 
           const cached = await checkIdempotency(idempotencyKey);
           if (cached) {
-            const link = await linkService.getLinkById(cached, user?.id ?? '');
+            const link = user
+              ? await linkService.getLinkById(cached, user.id)
+              : await linkService.getLinkByIdUnsafe(cached);
             return {
               success: true,
               data: linkService.formatLinkResponse(link)
@@ -478,6 +479,7 @@ const authenticatedRoutes = new Elysia()
         id: t.String()
       }),
       body: t.Object({
+        customAlias: t.Optional(t.String({ minLength: 3, maxLength: 20 })),
         isActive: t.Optional(t.Boolean()),
         expiresAt: t.Optional(t.Union([t.String(), t.Null()])),
         maxClicks: t.Optional(t.Union([t.Integer({ minimum: 1 }), t.Null()])),

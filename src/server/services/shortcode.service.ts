@@ -1,11 +1,12 @@
 // src/server/services/shortcode.service.ts
 
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links, reservedSlugs } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { generateShortCode } from '../lib/nanoid';
 
 const MAX_RETRIES = 5;
+const ALIAS_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$/;
 
 /**
  * Gera um código curto único
@@ -39,11 +40,12 @@ export async function generateUniqueCode(): Promise<string> {
  * @param alias - Alias desejado
  * @returns true se disponível, false caso contrário
  */
-export async function validateCustomAlias(alias: string): Promise<boolean> {
-  // Regex: 3-20 chars, alphanumeric + hyphens, não pode começar/terminar com hífen
-  const ALIAS_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$/;
+export function isValidAliasFormat(alias: string): boolean {
+  return ALIAS_REGEX.test(alias);
+}
 
-  if (!ALIAS_REGEX.test(alias)) return false;
+export async function validateCustomAlias(alias: string): Promise<boolean> {
+  if (!isValidAliasFormat(alias)) return false;
 
   // Verifica se é reservado ou já existe
   const exists = await db
