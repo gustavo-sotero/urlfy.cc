@@ -1,15 +1,5 @@
 // src/server/services/link.service.ts
 
-import { db } from '@/db';
-import { links } from '@/db/schema';
-import type {
-  CreateLinkInput,
-  Link,
-  LinkResponse,
-  ListLinksQuery,
-  PaginatedResponse,
-  UpdateLinkInput
-} from '@/types/links.types';
 import {
   and,
   arrayContains,
@@ -20,6 +10,16 @@ import {
   or,
   sql
 } from 'drizzle-orm';
+import { db } from '@/db';
+import { links } from '@/db/schema';
+import type {
+  CreateLinkInput,
+  Link,
+  LinkResponse,
+  ListLinksQuery,
+  PaginatedResponse,
+  UpdateLinkInput
+} from '@/types/links.types';
 import { createLinkError } from '../lib/errors';
 import { redis } from '../lib/redis';
 import {

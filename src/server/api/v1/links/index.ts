@@ -1,7 +1,7 @@
 // src/server/api/v1/links/index.ts
 
-import { Elysia, t } from 'elysia';
 import { createHash } from 'node:crypto';
+import { Elysia } from 'elysia';
 
 import { handleLinkError } from '../../../lib/errors';
 import {
@@ -13,16 +13,30 @@ import { optionalAuth, requireAuth } from '../../../middleware/auth.middleware';
 import * as linkService from '../../../services/link.service';
 import * as qrService from '../../../services/qr.service';
 import { validateUrlAsync } from '../../../services/url-validator';
+import {
+  LinkBulkCreateBody,
+  LinkCodeParam,
+  LinkCreateBody,
+  LinkIdParam,
+  LinkListQuery,
+  LinkUpdateBody,
+  linksModels,
+  QrCodeQuery,
+  ValidateUrlBody,
+  VerifyPasswordBody
+} from '../../models';
 
 // Routes públicas/opcionais (guest allowed)
 const publicRoutes = new Elysia()
   .use(optionalAuth)
+  // Inject shared models for type inference and OpenAPI docs
+  .model(linksModels)
   // ═══════════════════════════════════════════════════════════════
   // POST /links/validate - Validar URL
   // ═══════════════════════════════════════════════════════════════
   .post(
     '/validate',
-    async ({ body }: { body: { url: string } }) => {
+    async ({ body }) => {
       const validation = await validateUrlAsync(body.url);
 
       if (validation.valid) {
@@ -44,9 +58,12 @@ const publicRoutes = new Elysia()
       };
     },
     {
-      body: t.Object({
-        url: t.String({ minLength: 1, maxLength: 2048 })
-      })
+      body: ValidateUrlBody,
+      detail: {
+        tags: ['Links'],
+        summary: 'Validate URL',
+        description: 'Check if a URL is valid before creating a link'
+      }
     }
   )
   // ═══════════════════════════════════════════════════════════════
@@ -88,12 +105,13 @@ const publicRoutes = new Elysia()
       }
     },
     {
-      params: t.Object({
-        code: t.String({ minLength: 1, maxLength: 20 })
-      }),
-      body: t.Object({
-        password: t.String({ minLength: 1 })
-      })
+      params: LinkCodeParam,
+      body: VerifyPasswordBody,
+      detail: {
+        tags: ['Links'],
+        summary: 'Verify link password',
+        description: 'Verify password for password-protected links'
+      }
     }
   )
   // ═══════════════════════════════════════════════════════════════
@@ -140,13 +158,13 @@ const publicRoutes = new Elysia()
       }
     },
     {
-      params: t.Object({
-        code: t.String()
-      }),
-      query: t.Object({
-        size: t.Optional(t.String()),
-        format: t.Optional(t.Union([t.Literal('png'), t.Literal('svg')]))
-      })
+      params: LinkCodeParam,
+      query: QrCodeQuery,
+      detail: {
+        tags: ['Links'],
+        summary: 'Generate QR code',
+        description: 'Generate a QR code image for a short link'
+      }
     }
   )
   // ═══════════════════════════════════════════════════════════════
@@ -185,9 +203,12 @@ const publicRoutes = new Elysia()
       }
     },
     {
-      params: t.Object({
-        code: t.String()
-      })
+      params: LinkCodeParam,
+      detail: {
+        tags: ['Links'],
+        summary: 'Preview link metadata',
+        description: 'Get link preview information including OG tags'
+      }
     }
   )
   // ═══════════════════════════════════════════════════════════════
@@ -252,28 +273,20 @@ const publicRoutes = new Elysia()
       }
     },
     {
-      body: t.Object({
-        url: t.String({ minLength: 1, maxLength: 2048 }),
-        customAlias: t.Optional(t.String({ minLength: 3, maxLength: 20 })),
-        expiresAt: t.Optional(t.String()),
-        maxClicks: t.Optional(t.Integer({ minimum: 1 })),
-        password: t.Optional(t.String({ minLength: 8 })),
-        redirectType: t.Optional(t.Union([t.Literal(301), t.Literal(302)])),
-        metaTitle: t.Optional(t.String({ maxLength: 255 })),
-        metaDescription: t.Optional(t.String({ maxLength: 500 })),
-        metaImage: t.Optional(t.String({ maxLength: 500 })),
-        utmSource: t.Optional(t.String({ maxLength: 100 })),
-        utmMedium: t.Optional(t.String({ maxLength: 100 })),
-        utmCampaign: t.Optional(t.String({ maxLength: 100 })),
-        tags: t.Optional(t.Array(t.String({ maxLength: 50 }))),
-        notes: t.Optional(t.String({ maxLength: 1000 }))
-      })
+      body: LinkCreateBody,
+      detail: {
+        tags: ['Links'],
+        summary: 'Create short link',
+        description: 'Create a new shortened URL (guest or authenticated)'
+      }
     }
   );
 
 // Routes autenticadas (requer login)
 const authenticatedRoutes = new Elysia()
   .use(requireAuth)
+  // Inject shared models
+  .model(linksModels)
   // ═══════════════════════════════════════════════════════════════
   // POST /links/bulk - Criar múltiplos links
   // ═══════════════════════════════════════════════════════════════
@@ -353,27 +366,13 @@ const authenticatedRoutes = new Elysia()
       }
     },
     {
-      body: t.Object({
-        links: t.Array(
-          t.Object({
-            url: t.String({ minLength: 1, maxLength: 2048 }),
-            customAlias: t.Optional(t.String({ minLength: 3, maxLength: 20 })),
-            expiresAt: t.Optional(t.String()),
-            maxClicks: t.Optional(t.Integer({ minimum: 1 })),
-            password: t.Optional(t.String({ minLength: 8 })),
-            redirectType: t.Optional(t.Union([t.Literal(301), t.Literal(302)])),
-            metaTitle: t.Optional(t.String({ maxLength: 255 })),
-            metaDescription: t.Optional(t.String({ maxLength: 500 })),
-            metaImage: t.Optional(t.String({ maxLength: 500 })),
-            utmSource: t.Optional(t.String({ maxLength: 100 })),
-            utmMedium: t.Optional(t.String({ maxLength: 100 })),
-            utmCampaign: t.Optional(t.String({ maxLength: 100 })),
-            tags: t.Optional(t.Array(t.String({ maxLength: 50 }))),
-            notes: t.Optional(t.String({ maxLength: 1000 }))
-          }),
-          { minItems: 1, maxItems: 100 }
-        )
-      })
+      body: LinkBulkCreateBody,
+      detail: {
+        tags: ['Links'],
+        summary: 'Create multiple links',
+        description:
+          'Create multiple shortened URLs in a single request (max 100)'
+      }
     }
   )
   // ═══════════════════════════════════════════════════════════════
@@ -413,21 +412,12 @@ const authenticatedRoutes = new Elysia()
       }
     },
     {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        perPage: t.Optional(t.String()),
-        search: t.Optional(t.String()),
-        tags: t.Optional(t.String()),
-        isActive: t.Optional(t.String()),
-        sortBy: t.Optional(
-          t.Union([
-            t.Literal('createdAt'),
-            t.Literal('clicksCount'),
-            t.Literal('lastClickedAt')
-          ])
-        ),
-        sortOrder: t.Optional(t.Union([t.Literal('asc'), t.Literal('desc')]))
-      })
+      query: LinkListQuery,
+      detail: {
+        tags: ['Links'],
+        summary: 'List user links',
+        description: 'Get paginated list of user links with filters'
+      }
     }
   )
 
@@ -449,9 +439,12 @@ const authenticatedRoutes = new Elysia()
       }
     },
     {
-      params: t.Object({
-        id: t.String()
-      })
+      params: LinkIdParam,
+      detail: {
+        tags: ['Links'],
+        summary: 'Get link by ID',
+        description: 'Get link details by UUID'
+      }
     }
   )
 
@@ -475,39 +468,13 @@ const authenticatedRoutes = new Elysia()
       }
     },
     {
-      params: t.Object({
-        id: t.String()
-      }),
-      body: t.Object({
-        customAlias: t.Optional(t.String({ minLength: 3, maxLength: 20 })),
-        isActive: t.Optional(t.Boolean()),
-        expiresAt: t.Optional(t.Union([t.String(), t.Null()])),
-        maxClicks: t.Optional(t.Union([t.Integer({ minimum: 1 }), t.Null()])),
-        password: t.Optional(t.Union([t.String({ minLength: 8 }), t.Null()])),
-        redirectType: t.Optional(t.Union([t.Literal(301), t.Literal(302)])),
-        metaTitle: t.Optional(
-          t.Union([t.String({ maxLength: 255 }), t.Null()])
-        ),
-        metaDescription: t.Optional(
-          t.Union([t.String({ maxLength: 500 }), t.Null()])
-        ),
-        metaImage: t.Optional(
-          t.Union([t.String({ maxLength: 500 }), t.Null()])
-        ),
-        utmSource: t.Optional(
-          t.Union([t.String({ maxLength: 100 }), t.Null()])
-        ),
-        utmMedium: t.Optional(
-          t.Union([t.String({ maxLength: 100 }), t.Null()])
-        ),
-        utmCampaign: t.Optional(
-          t.Union([t.String({ maxLength: 100 }), t.Null()])
-        ),
-        tags: t.Optional(
-          t.Union([t.Array(t.String({ maxLength: 50 })), t.Null()])
-        ),
-        notes: t.Optional(t.Union([t.String({ maxLength: 1000 }), t.Null()]))
-      })
+      params: LinkIdParam,
+      body: LinkUpdateBody,
+      detail: {
+        tags: ['Links'],
+        summary: 'Update link',
+        description: 'Update link properties'
+      }
     }
   )
 
@@ -529,9 +496,12 @@ const authenticatedRoutes = new Elysia()
       }
     },
     {
-      params: t.Object({
-        id: t.String()
-      })
+      params: LinkIdParam,
+      detail: {
+        tags: ['Links'],
+        summary: 'Delete link',
+        description: 'Soft delete a link (recoverable for 30 days)'
+      }
     }
   )
 
@@ -553,9 +523,12 @@ const authenticatedRoutes = new Elysia()
       }
     },
     {
-      params: t.Object({
-        id: t.String()
-      })
+      params: LinkIdParam,
+      detail: {
+        tags: ['Links'],
+        summary: 'Restore deleted link',
+        description: 'Restore a soft-deleted link'
+      }
     }
   )
 
@@ -578,9 +551,12 @@ const authenticatedRoutes = new Elysia()
       }
     },
     {
-      params: t.Object({
-        id: t.String()
-      })
+      params: LinkIdParam,
+      detail: {
+        tags: ['Links'],
+        summary: 'Duplicate link',
+        description: 'Create a copy of an existing link'
+      }
     }
   )
 
@@ -602,9 +578,12 @@ const authenticatedRoutes = new Elysia()
       }
     },
     {
-      params: t.Object({
-        id: t.String()
-      })
+      params: LinkIdParam,
+      detail: {
+        tags: ['Links'],
+        summary: 'Toggle link status',
+        description: 'Toggle link active/inactive status'
+      }
     }
   )
 
@@ -630,9 +609,12 @@ const authenticatedRoutes = new Elysia()
       }
     },
     {
-      params: t.Object({
-        id: t.String()
-      })
+      params: LinkIdParam,
+      detail: {
+        tags: ['Links'],
+        summary: 'Get link stats',
+        description: 'Get quick statistics for a link'
+      }
     }
   );
 

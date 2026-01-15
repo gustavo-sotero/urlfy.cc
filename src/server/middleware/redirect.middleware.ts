@@ -4,11 +4,11 @@
  * Makes internal API calls instead of direct DB access
  */
 
-import { createLogger } from '@/server/lib/telemetry.edge';
-import type { ClickEvent } from '@/types/analytics.types';
 import { jwtVerify } from 'jose';
 import type { NextRequest, NextResponse } from 'next/server';
 import { NextResponse as Response } from 'next/server';
+import { createLogger } from '@/server/lib/telemetry.edge';
+import type { ClickEvent } from '@/types/analytics.types';
 
 const logger = createLogger('redirect-middleware');
 

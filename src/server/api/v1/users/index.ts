@@ -10,14 +10,24 @@
  */
 
 import { desc, eq, ilike, or, sql } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import { db } from '@/db';
 import { user as userTable } from '@/db/schema/auth';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
 import { userService } from '@/server/services/user.service';
+import {
+  UserBanBody,
+  UserIdParam,
+  UserListQuery,
+  UserQuotaUpdateBody,
+  UserRoleUpdateBody,
+  usersModels
+} from '../../models';
 
 export const usersRoutes = new Elysia({ prefix: '/users' })
   .use(requireAdmin)
+  // Inject shared models for type inference and OpenAPI docs
+  .model(usersModels)
 
   // ═══════════════════════════════════════════════════════════════════
   // LIST USERS (ADMIN)
@@ -78,11 +88,7 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
       };
     },
     {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        perPage: t.Optional(t.String()),
-        search: t.Optional(t.String())
-      }),
+      query: UserListQuery,
       detail: {
         tags: ['Admin', 'Users'],
         summary: 'List all users',
@@ -115,9 +121,7 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
       };
     },
     {
-      params: t.Object({
-        userId: t.String()
-      }),
+      params: UserIdParam,
       detail: {
         tags: ['Admin', 'Users'],
         summary: 'Get user details',
@@ -170,12 +174,8 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
       }
     },
     {
-      params: t.Object({
-        userId: t.String()
-      }),
-      body: t.Object({
-        reason: t.String({ minLength: 1, maxLength: 255 })
-      }),
+      params: UserIdParam,
+      body: UserBanBody,
       detail: {
         tags: ['Admin', 'Users'],
         summary: 'Ban user',
@@ -221,9 +221,7 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
       }
     },
     {
-      params: t.Object({
-        userId: t.String()
-      }),
+      params: UserIdParam,
       detail: {
         tags: ['Admin', 'Users'],
         summary: 'Unban user',
@@ -277,12 +275,8 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
       }
     },
     {
-      params: t.Object({
-        userId: t.String()
-      }),
-      body: t.Object({
-        role: t.Union([t.Literal('user'), t.Literal('admin')])
-      }),
+      params: UserIdParam,
+      body: UserRoleUpdateBody,
       detail: {
         tags: ['Admin', 'Users'],
         summary: 'Update user role',
@@ -333,12 +327,8 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
       }
     },
     {
-      params: t.Object({
-        userId: t.String()
-      }),
-      body: t.Object({
-        linksQuota: t.Number({ minimum: 0 })
-      }),
+      params: UserIdParam,
+      body: UserQuotaUpdateBody,
       detail: {
         tags: ['Admin', 'Users'],
         summary: 'Update user quota',

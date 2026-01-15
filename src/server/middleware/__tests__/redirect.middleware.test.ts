@@ -53,7 +53,7 @@ mock.module('@/server/lib/queue', () => ({
   analyticsQueue: mockAnalyticsQueue,
   QUEUE_NAMES: {
     analytics: 'analytics',
-    analyticsDead: 'analytics:dead',
+    analyticsDead: 'analytics-dead',
     aggregation: 'aggregation',
     cleanup: 'cleanup',
     notifications: 'notifications'

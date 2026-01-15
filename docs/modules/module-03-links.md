@@ -154,9 +154,9 @@ src/
 
 ---
 
-## 3. Schema do Banco de Dados
+## 4. Schema do Banco de Dados
 
-### 3.1 Tabela `links`
+### 4.1 Tabela `links`
 
 ```typescript
 // src/db/schema/links.ts
@@ -245,7 +245,7 @@ export const links = pgTable(
 );
 ```
 
-### 3.2 Tabela `reserved_slugs`
+### 4.2 Tabela `reserved_slugs`
 
 ```typescript
 // src/db/schema/reserved-slugs.ts
@@ -287,9 +287,9 @@ export const RESERVED_SLUGS = [
 
 ---
 
-## 4. Geração de Short Codes
+## 5. Geração de Short Codes
 
-### 4.1 Configuração NanoID
+### 5.1 Configuração NanoID
 
 ```typescript
 // src/server/lib/nanoid.ts
@@ -304,7 +304,7 @@ const CODE_LENGTH = 7;
 export const generateShortCode = customAlphabet(ALPHABET, CODE_LENGTH);
 ```
 
-### 4.2 Serviço de Short Codes
+### 5.2 Serviço de Short Codes
 
 ```typescript
 // src/server/services/shortcode.service.ts
@@ -363,7 +363,7 @@ export async function validateCustomAlias(alias: string): Promise<boolean> {
 
 ---
 
-## 5. Validação de URLs
+## 6. Validação de URLs
 
 ```typescript
 // src/server/services/url-validator.ts
@@ -432,7 +432,7 @@ export function validateUrl(url: string): ValidationResult {
 
 ---
 
-## 6. Sanitização de Meta Tags
+## 7. Sanitização de Meta Tags
 
 ```typescript
 // src/server/lib/sanitize.ts
@@ -486,7 +486,7 @@ function validateImageUrl(url: string): string | null {
 
 ---
 
-## 7. QR Code Service
+## 8. QR Code Service
 
 ```typescript
 // src/server/services/qr.service.ts
@@ -533,7 +533,7 @@ export async function generateQRCode(
 
 ---
 
-## 8. Link Service (CRUD)
+## 9. Link Service (CRUD)
 
 ```typescript
 // src/server/services/link.service.ts
@@ -757,7 +757,7 @@ async function invalidateLinkCache(
 
 ---
 
-## 9. Idempotency Keys
+## 10. Idempotency Keys
 
 ```typescript
 // src/server/lib/idempotency.ts
@@ -779,7 +779,128 @@ export async function setIdempotency(
 
 ---
 
-## 10. API Routes (ElysiaJS)
+## 11. Padrões Elysia para Links (MVC)
+
+> 📖 **Referência:** [elysiajs.com/essential/best-practice](https://elysiajs.com/essential/best-practice)
+
+Este módulo exemplifica a aplicação completa dos padrões recomendados do Elysia no contexto de gestão de links.
+
+### 11.1 Estrutura Feature-Based
+
+```
+src/server/
+├── api/v1/links/
+│   └── index.ts          # Controller (Elysia instance)
+├── api/models/
+│   └── links.models.ts   # Models (TypeBox schemas)
+└── services/
+    └── link.service.ts   # Service (abstract class + static)
+```
+
+### 11.2 Controller Pattern (1 Elysia = 1 Controller)
+
+```typescript
+// ✅ Correto: Instância Elysia como controller
+import { Elysia } from 'elysia';
+import { linksModels } from '../../models';
+import * as linkService from '../../../services/link.service';
+
+export const linksRouter = new Elysia({ prefix: '/links' })
+  // Injeta models para cache de tipos e OpenAPI
+  .use(linksModels)
+  // Handlers delegam para services
+  .post(
+    '/',
+    async ({ body, user }) => {
+      const link = await linkService.createLink(body, user?.id);
+      return { success: true, data: link };
+    },
+    { body: 'links.create' }
+  );
+
+// ❌ Incorreto: Classe controller tradicional
+class LinksController {
+  static create(context: Context) {
+    /* NÃO FAZER */
+  }
+}
+```
+
+### 11.3 Service Pattern (Non-Request Dependent)
+
+```typescript
+// src/server/services/link.service.ts
+// ✅ Correto: abstract class + static methods
+abstract class LinkService {
+  static async create(input: CreateLinkInput, userId?: string): Promise<Link> {
+    // Lógica de negócio pura, sem dependência de HTTP
+    const validation = validateUrl(input.url);
+    if (!validation.valid) throw new Error(validation.error);
+
+    const shortCode = input.customAlias || await generateUniqueCode();
+    return db.insert(links).values({ ... }).returning();
+  }
+
+  static async getByCode(code: string): Promise<Link | null> {
+    return db.query.links.findFirst({ where: eq(links.shortCode, code) });
+  }
+}
+```
+
+### 11.4 Model Pattern (Single Source of Truth)
+
+```typescript
+// src/server/api/models/links.models.ts
+import { Elysia, t } from 'elysia';
+
+// ✅ TypeBox para validação + inferência de tipos
+export const LinkCreateBody = t.Object({
+  url: t.String({ maxLength: 2048 }),
+  customAlias: t.Optional(t.String({ minLength: 3, maxLength: 20 }))
+  // ... outros campos
+});
+type LinkCreateBodyType = typeof LinkCreateBody.static;
+
+// ✅ Model injection para OpenAPI e type cache
+export const linksModels = new Elysia().model({
+  'links.create': LinkCreateBody,
+  'links.update': LinkUpdateBody,
+  'links.response': LinkResponse
+});
+
+// ❌ Incorreto: Interface separada
+interface LinkInput {
+  url: string;
+} // NÃO FAZER
+```
+
+### 11.5 Testes com handle()
+
+```typescript
+import { describe, it, expect } from 'bun:test';
+import { linksRouter } from './index';
+
+describe('Links Controller', () => {
+  it('should create link', async () => {
+    const response = await linksRouter
+      .handle(
+        new Request('http://localhost/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: 'https://example.com' })
+        })
+      )
+      .then((r) => r.json());
+
+    expect(response.success).toBe(true);
+    expect(response.data.shortCode).toBeDefined();
+  });
+});
+```
+
+---
+
+## 12. API Routes (ElysiaJS)
 
 ```typescript
 // src/server/api/v1/links/index.ts
@@ -879,7 +1000,7 @@ export const linksRouter = new Elysia({ prefix: '/links' })
 
 ---
 
-## 11. Checklist de Implementação
+## 13. Checklist de Implementação
 
 | Item | Descrição                                  | Status |
 | ---- | ------------------------------------------ | ------ |
@@ -898,9 +1019,9 @@ export const linksRouter = new Elysia({ prefix: '/links' })
 
 ---
 
-## 12. Funções Auxiliares
+## 14. Funções Auxiliares
 
-### 12.1 Formatador de Resposta
+### 14.1 Formatador de Resposta
 
 ```typescript
 // src/server/services/link.service.ts
@@ -934,7 +1055,7 @@ export function formatLinkResponse(link: Link): LinkResponse {
 }
 ```
 
-### 12.2 Toggle Active Status
+### 14.2 Toggle Active Status
 
 ```typescript
 // src/server/services/link.service.ts
@@ -965,7 +1086,7 @@ export async function toggleLinkActive(id: string, userId: string) {
 }
 ```
 
-### 12.3 Get Single Link
+### 14.3 Get Single Link
 
 ```typescript
 // src/server/services/link.service.ts
@@ -995,7 +1116,7 @@ export async function getLinkByCode(code: string) {
 
 ---
 
-## 13. Error Handling
+## 15. Error Handling
 
 ```typescript
 // src/server/lib/errors.ts
@@ -1065,7 +1186,7 @@ function getErrorMessage(code: LinkErrorCode): string {
 
 ---
 
-## 14. Drizzle Relations
+## 16. Drizzle Relations
 
 ```typescript
 // src/db/schema/links.ts (adicionar ao final)
@@ -1083,7 +1204,7 @@ export const linksRelations = relations(links, ({ one }) => ({
 
 ---
 
-## 15. Migração SQL
+## 17. Migração SQL
 
 ```sql
 -- migrations/0002_create_links.sql
@@ -1192,7 +1313,7 @@ CREATE TRIGGER links_updated_at
 
 ---
 
-## 16. Testes Unitários
+## 18. Testes Unitários
 
 ```typescript
 // src/server/services/__tests__/link.service.test.ts
@@ -1249,7 +1370,7 @@ describe('Custom Alias Validator', () => {
 
 ---
 
-## 17. Checklist de Implementação (Atualizado)
+## 19. Checklist de Implementação (Atualizado)
 
 | Item | Descrição                                  | Status |
 | ---- | ------------------------------------------ | ------ |
@@ -1270,16 +1391,14 @@ describe('Custom Alias Validator', () => {
 | 3.15 | Error handling com códigos HTTP            | ✅     |
 | 3.16 | API routes ElysiaJS                        | ✅     |
 | 3.17 | Testes unitários                           | ✅     |
+| 3.18 | Padrões Elysia MVC                         | ✅     |
 
 ---
 
-## 18. Referências
-
----
-
-## 18. Referências
+## 20. Referências
 
 - [PRD - Requisitos RF-01 a RF-11, RF-22 a RF-26](../prd.md)
 - [Database Schema](../architecture/database-schema.md)
 - [Caching Strategy](../architecture/caching-strategy.md)
 - [API Endpoints](../api/endpoints.md)
+- [Elysia Best Practices](https://elysiajs.com/essential/best-practice)

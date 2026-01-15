@@ -1,0 +1,71 @@
+/**
+ * ═════════════════════════════════════════════════════════════════════
+ * ANALYTICS ENDPOINTS - HANDLER-LEVEL TESTS
+ * ═════════════════════════════════════════════════════════════════════
+ * Tests for analytics endpoints using Elysia's app.handle()
+ *
+ * Note: These tests require infrastructure (Redis, PostgreSQL) to be running.
+ * Run with: docker compose -f docker/docker-compose.yml up -d
+ * ═════════════════════════════════════════════════════════════════════
+ */
+
+import { beforeAll, describe, test } from 'bun:test';
+import {
+  createElysiaTestClient,
+  type ElysiaTestClient,
+  expectUnauthorized
+} from '../helpers/elysia-test-client';
+
+describe('Analytics Endpoints (handler-level)', () => {
+  let client: ElysiaTestClient;
+
+  beforeAll(async () => {
+    // Lazy import to avoid initialization issues when infrastructure isn't running
+    const { api } = await import('@/server/api');
+    client = createElysiaTestClient(api);
+  });
+
+  describe('GET /api/v1/analytics/:linkId/summary', () => {
+    test('should require authentication', async () => {
+      const response = await client.get<{
+        success: boolean;
+        error?: { code: string };
+      }>('/api/v1/analytics/00000000-0000-0000-0000-000000000000/summary');
+
+      expectUnauthorized(response);
+    });
+  });
+
+  describe('GET /api/v1/analytics/:linkId/breakdown', () => {
+    test('should require authentication', async () => {
+      const response = await client.get<{
+        success: boolean;
+        error?: { code: string };
+      }>('/api/v1/analytics/00000000-0000-0000-0000-000000000000/breakdown');
+
+      expectUnauthorized(response);
+    });
+  });
+
+  describe('GET /api/v1/analytics/:linkId/timeseries', () => {
+    test('should require authentication', async () => {
+      const response = await client.get<{
+        success: boolean;
+        error?: { code: string };
+      }>('/api/v1/analytics/00000000-0000-0000-0000-000000000000/timeseries');
+
+      expectUnauthorized(response);
+    });
+  });
+
+  describe('GET /api/v1/analytics/:linkId/realtime', () => {
+    test('should require authentication', async () => {
+      const response = await client.get<{
+        success: boolean;
+        error?: { code: string };
+      }>('/api/v1/analytics/00000000-0000-0000-0000-000000000000/realtime');
+
+      expectUnauthorized(response);
+    });
+  });
+});

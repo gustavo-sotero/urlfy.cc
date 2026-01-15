@@ -1,10 +1,16 @@
 // src/server/api/v1/analytics/index.ts
 
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import { handleLinkError } from '@/server/lib/errors';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import { analyticsService } from '@/server/services/analytics.service';
+import {
+  AnalyticsDaysQuery,
+  AnalyticsDaysWithLimitQuery,
+  AnalyticsLinkIdParam,
+  analyticsModels
+} from '../../models';
 
 const logger = createLogger('analytics-api');
 
@@ -16,6 +22,8 @@ const logger = createLogger('analytics-api');
  */
 export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
   .use(requireAuth)
+  // Inject shared models for type inference and OpenAPI docs
+  .model(analyticsModels)
 
   // ═══════════════════════════════════════════════════════════════
   // GET /analytics/:linkId/summary - Resumo de Analytics
@@ -64,12 +72,13 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
       }
     },
     {
-      params: t.Object({
-        linkId: t.String({ minLength: 36, maxLength: 36 })
-      }),
-      query: t.Object({
-        days: t.Optional(t.String())
-      })
+      params: AnalyticsLinkIdParam,
+      query: AnalyticsDaysQuery,
+      detail: {
+        tags: ['Analytics'],
+        summary: 'Get analytics summary',
+        description: 'Get summary statistics for a link'
+      }
     }
   )
 
@@ -112,12 +121,14 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
       }
     },
     {
-      params: t.Object({
-        linkId: t.String({ minLength: 36, maxLength: 36 })
-      }),
-      query: t.Object({
-        days: t.Optional(t.String())
-      })
+      params: AnalyticsLinkIdParam,
+      query: AnalyticsDaysQuery,
+      detail: {
+        tags: ['Analytics'],
+        summary: 'Get analytics breakdown',
+        description:
+          'Get detailed breakdown by country, device, browser, and referrer'
+      }
     }
   )
 
@@ -164,12 +175,13 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
       }
     },
     {
-      params: t.Object({
-        linkId: t.String({ minLength: 36, maxLength: 36 })
-      }),
-      query: t.Object({
-        days: t.Optional(t.String())
-      })
+      params: AnalyticsLinkIdParam,
+      query: AnalyticsDaysQuery,
+      detail: {
+        tags: ['Analytics'],
+        summary: 'Get analytics timeseries',
+        description: 'Get daily click statistics for a link'
+      }
     }
   )
 
@@ -214,13 +226,13 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
       }
     },
     {
-      params: t.Object({
-        linkId: t.String({ minLength: 36, maxLength: 36 })
-      }),
-      query: t.Object({
-        limit: t.Optional(t.String()),
-        days: t.Optional(t.String())
-      })
+      params: AnalyticsLinkIdParam,
+      query: AnalyticsDaysWithLimitQuery,
+      detail: {
+        tags: ['Analytics'],
+        summary: 'Get country breakdown',
+        description: 'Get click breakdown by country'
+      }
     }
   )
 
@@ -263,12 +275,14 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
       }
     },
     {
-      params: t.Object({
-        linkId: t.String({ minLength: 36, maxLength: 36 })
-      }),
-      query: t.Object({
-        days: t.Optional(t.String())
-      })
+      params: AnalyticsLinkIdParam,
+      query: AnalyticsDaysQuery,
+      detail: {
+        tags: ['Analytics'],
+        summary: 'Get device breakdown',
+        description:
+          'Get click breakdown by device type (mobile, desktop, tablet)'
+      }
     }
   )
 
@@ -313,38 +327,48 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
       }
     },
     {
-      params: t.Object({
-        linkId: t.String({ minLength: 36, maxLength: 36 })
-      }),
-      query: t.Object({
-        limit: t.Optional(t.String()),
-        days: t.Optional(t.String())
-      })
+      params: AnalyticsLinkIdParam,
+      query: AnalyticsDaysWithLimitQuery,
+      detail: {
+        tags: ['Analytics'],
+        summary: 'Get browser breakdown',
+        description: 'Get click breakdown by browser'
+      }
     }
   )
 
   // ═══════════════════════════════════════════════════════════════
   // GET /analytics/health - Health Check
   // ═══════════════════════════════════════════════════════════════
-  .get('/health', async () => {
-    try {
-      const health = await analyticsService.healthCheck();
+  .get(
+    '/health',
+    async () => {
+      try {
+        const health = await analyticsService.healthCheck();
 
-      return {
-        success: true,
-        data: health
-      };
-    } catch (error) {
-      logger.error('[AnalyticsAPI] Health check failed', {
-        error: error instanceof Error ? error.message : String(error)
-      });
+        return {
+          success: true,
+          data: health
+        };
+      } catch (error) {
+        logger.error('[AnalyticsAPI] Health check failed', {
+          error: error instanceof Error ? error.message : String(error)
+        });
 
-      return {
-        success: false,
-        error: {
-          code: 'HEALTH_CHECK_FAILED',
-          message: 'Analytics service health check failed'
-        }
-      };
+        return {
+          success: false,
+          error: {
+            code: 'HEALTH_CHECK_FAILED',
+            message: 'Analytics service health check failed'
+          }
+        };
+      }
+    },
+    {
+      detail: {
+        tags: ['Analytics'],
+        summary: 'Analytics health check',
+        description: 'Check if analytics service is healthy'
+      }
     }
-  });
+  );

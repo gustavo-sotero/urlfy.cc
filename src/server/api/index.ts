@@ -100,7 +100,23 @@ export const api = new Elysia({ prefix: '/api' })
       .group('/admin', (admin) => admin.use(adminAuditRoutes))
   )
 
-  .onError(({ code, error, set }) => {
+  // Add request ID to all responses
+  .derive(({ request }) => {
+    const requestId =
+      request.headers.get('x-request-id') ||
+      `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    return { requestId };
+  })
+
+  // Set response header with request ID
+  .onAfterHandle(({ set, requestId }) => {
+    set.headers['x-request-id'] = requestId;
+  })
+
+  .onError(({ code, error, set, requestId }) => {
+    // Add request ID to error response headers
+    set.headers['x-request-id'] = requestId;
+
     if (code === 'NOT_FOUND') {
       set.status = 404;
       return {
@@ -108,12 +124,26 @@ export const api = new Elysia({ prefix: '/api' })
         error: {
           code: 'NOT_FOUND',
           message: 'Endpoint not found'
-        }
+        },
+        requestId
       };
     }
 
-    // Log error
-    console.error('API Error:', error);
+    if (code === 'VALIDATION') {
+      set.status = 400;
+      return {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: error.message || 'Validation failed',
+          details: error.all || undefined
+        },
+        requestId
+      };
+    }
+
+    // Log error with request ID for correlation
+    console.error('API Error:', { requestId, error });
 
     set.status = 500;
     return {
@@ -124,6 +154,7 @@ export const api = new Elysia({ prefix: '/api' })
           process.env.NODE_ENV === 'development' && error instanceof Error
             ? error.message
             : 'Internal server error'
-      }
+      },
+      requestId
     };
   });

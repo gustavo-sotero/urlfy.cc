@@ -835,9 +835,101 @@ async function checkTwoFactorEnabled(userId: string): Promise<boolean> {
 
 ---
 
-## 7. Rotas de Autenticação (ElysiaJS)
+## 7. Padrões Elysia para Autenticação
 
-### 7.1 Handler Principal (`src/server/api/v1/auth/index.ts`)
+> 📖 **Referência:** [elysiajs.com/essential/best-practice](https://elysiajs.com/essential/best-practice)
+
+### 7.1 Request-Dependent Service (Macro Pattern)
+
+Para serviços que dependem do contexto HTTP (como autenticação), usamos **Elysia plugins com macros**:
+
+```typescript
+// ✅ Correto: Middleware como Elysia plugin com macro
+export const authMacros = new Elysia({ name: 'Auth.Macros' }).macro({
+  // Macro reutilizável para rotas que requerem auth
+  requireAuth: {
+    async resolve({ request, set }) {
+      const session = await extractSession(request);
+      if (!session) {
+        set.status = 401;
+        throw new Error('UNAUTHORIZED');
+      }
+      return { user: session.user, session: session.session };
+    }
+  },
+  // Macro para rotas de admin
+  requireAdmin: {
+    async resolve({ request, set }) {
+      const session = await extractSession(request);
+      if (!session || session.user.role !== 'admin') {
+        set.status = 403;
+        throw new Error('FORBIDDEN');
+      }
+      return { user: session.user, isAdmin: true };
+    }
+  }
+});
+
+// Uso no controller
+const protectedRoutes = new Elysia()
+  .use(authMacros)
+  .get('/me', ({ user }) => user, { requireAuth: true })
+  .get('/admin/stats', ({ user }) => getStats(), { requireAdmin: true });
+```
+
+### 7.2 Non-Request Service Pattern
+
+Para lógica de autenticação que não depende do HTTP:
+
+```typescript
+// ✅ Correto: abstract class com métodos static
+abstract class AuthService {
+  static async hashApiKey(key: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(key);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  static async validateApiKey(key: string): Promise<ApiKeyResult | null> {
+    const keyHash = await this.hashApiKey(key);
+    // Lógica pura de validação sem HTTP
+    return db.query.apiKeys.findFirst({...});
+  }
+}
+```
+
+### 7.3 Model Pattern para Auth
+
+```typescript
+// src/server/api/models/auth.models.ts
+import { Elysia, t } from 'elysia';
+
+// ✅ TypeBox para validação + tipos
+export const LoginBody = t.Object({
+  email: t.String({ format: 'email' }),
+  password: t.String({ minLength: 8 })
+});
+
+export const TwoFactorBody = t.Object({
+  code: t.String({ minLength: 6, maxLength: 6 })
+});
+
+// ✅ Model injection para OpenAPI
+export const authModels = new Elysia().model({
+  'auth.login': LoginBody,
+  'auth.2fa': TwoFactorBody,
+  'auth.session': SessionResponse
+});
+```
+
+---
+
+## 8. Rotas de Autenticação (ElysiaJS)
+
+### 8.1 Handler Principal (`src/server/api/v1/auth/index.ts`)
 
 ```typescript
 import { Elysia, t } from 'elysia';
@@ -965,7 +1057,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   );
 ```
 
-### 7.2 Rotas de API Keys (`src/server/api/v1/auth/api-keys.ts`)
+### 8.2 Rotas de API Keys (`src/server/api/v1/auth/api-keys.ts`)
 
 ```typescript
 import { Elysia, t } from 'elysia';
@@ -1105,9 +1197,9 @@ export const apiKeyRoutes = new Elysia({ prefix: '/api-keys' })
 
 ---
 
-## 8. Serviço de Usuários
+## 9. Serviço de Usuários
 
-### 8.1 User Service (`src/server/services/user.service.ts`)
+### 9.1 User Service (`src/server/services/user.service.ts`)
 
 ```typescript
 import { db } from '@/server/lib/db';
@@ -1347,7 +1439,7 @@ export class UserService {
 
 ---
 
-## 9. Variáveis de Ambiente
+## 10. Variáveis de Ambiente
 
 ```env
 # ═══════════════════════════════════════════════════════════════════
@@ -1377,9 +1469,9 @@ RESEND_FROM=noreply@urlfy.cc
 
 ---
 
-## 10. Testes
+## 11. Testes
 
-### 10.1 Testes de Autenticação (`src/server/api/v1/auth/__tests__/auth.test.ts`)
+### 11.1 Testes de Autenticação (`src/server/api/v1/auth/__tests__/auth.test.ts`)
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
@@ -1505,7 +1597,7 @@ describe('Auth API', () => {
 
 ---
 
-## 11. Checklist de Implementação
+## 12. Checklist de Implementação
 
 ### Fase 1: Core (Obrigatório)
 
@@ -1544,7 +1636,7 @@ describe('Auth API', () => {
 
 ---
 
-## 12. Referências
+## 13. Referências
 
 - [Better-Auth Documentation](https://www.better-auth.com/)
 - [Drizzle ORM Docs](https://orm.drizzle.team/)

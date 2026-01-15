@@ -10,7 +10,7 @@
  */
 
 import { and, desc, eq, ne } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import { db } from '@/db';
 import {
   session as sessionTable,
@@ -18,10 +18,13 @@ import {
 } from '@/db/schema/auth';
 import type { Session, User } from '@/lib/auth';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
+import { authModels, SessionIdParam } from '../../models';
 
 export const authRoutes = new Elysia({ prefix: '/auth' })
   // Allow optional authentication for session lookup
   .use(optionalAuth)
+  // Inject shared models for type inference and OpenAPI docs
+  .model(authModels)
 
   // ═══════════════════════════════════════════════════════════════════
   // GET CURRENT SESSION WITH FULL USER DETAILS
@@ -207,9 +210,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       };
     },
     {
-      params: t.Object({
-        sessionId: t.String()
-      }),
+      params: SessionIdParam,
       detail: {
         tags: ['Auth', 'Sessions'],
         summary: 'Revoke session',

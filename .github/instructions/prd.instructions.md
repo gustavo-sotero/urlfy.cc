@@ -23,15 +23,16 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 
 ### 1.1 Diferenciais Técnicos (Portfólio)
 
-| Aspecto        | Abordagem                                   |
-| -------------- | ------------------------------------------- |
-| Performance    | Bun runtime com APIs nativas (SQL, Redis)   |
-| Infraestrutura | 100% containerizada (Docker Compose)        |
-| Type-Safety    | End-to-end com ElysiaJS + Drizzle           |
-| Throughput     | Redis nativo + rate limiting sliding window |
-| Analytics      | Event sourcing com agregações diárias       |
-| Observability  | SigNoz (OpenTelemetry nativo)               |
-| Compliance     | LGPD/GDPR (anonimização imediata de IPs)    |
+| Aspecto        | Abordagem                                             |
+| -------------- | ----------------------------------------------------- |
+| Performance    | Bun runtime com APIs nativas (SQL, Redis)             |
+| Infraestrutura | 100% containerizada (Docker Compose)                  |
+| Type-Safety    | End-to-end com ElysiaJS + Drizzle (single source)     |
+| API Pattern    | Feature-based MVC (Controller/Service/Model) - Elysia |
+| Throughput     | Redis nativo + rate limiting sliding window           |
+| Analytics      | Event sourcing com agregações diárias                 |
+| Observability  | SigNoz (OpenTelemetry nativo)                         |
+| Compliance     | LGPD/GDPR (anonimização imediata de IPs)              |
 
 > 📚 **Detalhes técnicos:** Ver [architecture/overview.md](../../docs/architecture/overview.md)
 
@@ -186,7 +187,79 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 
 ---
 
-## 5. Roadmap
+## 5. Padrões de Código Elysia
+
+> 📚 **Referência oficial:** [elysiajs.com/essential/best-practice](https://elysiajs.com/essential/best-practice)
+
+### 5.1 Estrutura Feature-Based (MVC)
+
+Organização por módulos funcionais:
+
+```
+src/server/
+├── api/v1/
+│   ├── links/
+│   │   ├── index.ts      # Controller (Elysia instance)
+│   │   ├── service.ts    # Service (lógica de negócio)
+│   │   └── model.ts      # Model (validação TypeBox)
+│   ├── auth/
+│   └── analytics/
+├── models/               # Schemas centralizados
+└── services/             # Services compartilhados
+```
+
+### 5.2 Controller Pattern
+
+| Prática                        | Recomendação                                        |
+| ------------------------------ | --------------------------------------------------- |
+| **1 Elysia = 1 Controller**    | Cada módulo é uma instância Elysia com prefix       |
+| **Não passar Context inteiro** | Usar destructuring para extrair apenas o necessário |
+| **Testes via handle()**        | Usar `app.handle(new Request(...))` para unit tests |
+| **Decoupling**                 | Controllers não devem conter lógica de negócio      |
+
+### 5.3 Service Pattern
+
+| Tipo                      | Implementação                                                |
+| ------------------------- | ------------------------------------------------------------ |
+| **Non-request dependent** | `abstract class` com métodos `static` (não requer instância) |
+| **Request dependent**     | Elysia instance com `macro` ou `decorate` (plugin singleton) |
+
+### 5.4 Model Pattern (Single Source of Truth)
+
+| Prática                   | Descrição                                                     |
+| ------------------------- | ------------------------------------------------------------- |
+| **Usar `t.Object()`**     | TypeBox para validação runtime + inferência de tipos          |
+| **`typeof model.static`** | Extrair tipo TypeScript do schema                             |
+| **Model Injection**       | Registrar models via `.model()` para OpenAPI e cache de tipos |
+| **Agrupar por domínio**   | `AuthModel`, `LinkModel`, etc.                                |
+
+```typescript
+// ✅ Correto: Single source of truth
+const LinkCreateBody = t.Object({
+  url: t.String({ maxLength: 2048 }),
+  customAlias: t.Optional(t.String({ minLength: 3, maxLength: 20 }))
+});
+type LinkCreateBodyType = typeof LinkCreateBody.static;
+
+// ❌ Incorreto: Tipo separado do schema
+interface LinkCreateBody {
+  url: string;
+  customAlias?: string;
+}
+```
+
+### 5.5 Anti-Patterns
+
+| Anti-Pattern                          | Por quê evitar                                   |
+| ------------------------------------- | ------------------------------------------------ |
+| Classe controller com `Context`       | Perde type-safety e dificulta manutenção         |
+| Passar `Context` inteiro para service | Acoplamento desnecessário, dificulta testes      |
+| Interface/classe como model           | Duplica definições, perde validação runtime      |
+| Decorators em excesso                 | Acopla código ao Elysia, dificulta portabilidade |
+
+---
+
+## 6. Roadmap
 
 ### Fase 1: Core MVP (Visitante)
 
@@ -232,7 +305,7 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 
 ---
 
-## 6. Critérios de Aceite
+## 7. Critérios de Aceite
 
 ### Performance
 
@@ -267,7 +340,7 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 
 ---
 
-## 7. Backlog Futuro
+## 8. Backlog Futuro
 
 - Integrações (Zapier, Slack)
 - Workspaces/Teams
@@ -279,7 +352,7 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 
 ---
 
-## 8. Documentação Relacionada
+## 9. Documentação Relacionada
 
 | Documento                                                                       | Descrição                                     |
 | ------------------------------------------------------------------------------- | --------------------------------------------- |

@@ -58,6 +58,7 @@ Este documento descreve o plano de implementação dividido em módulos lógicos
 | **3.8**  | **UTM Tracking:** Suporte a parâmetros `utm_source`, `utm_medium`, `utm_campaign`.                                                                                       | RF-25                             |
 | **3.9**  | **Idempotency Keys:** Suporte a header `Idempotency-Key` para operações POST seguras com cache Redis (TTL 24h).                                                          | Caching Strategy                  |
 | **3.10** | **Tags & Notes:** Campos `tags` (array) e `notes` (texto) para organização pessoal de links pelos usuários.                                                              | DB Schema                         |
+| **3.11** | **Padrão Elysia MVC:** Organização feature-based com Controller (instância Elysia) + Service (`abstract class` estático) + Model (`t.Object()` TypeBox).                 | Elysia Best Practice              |
 
 ---
 
@@ -168,3 +169,117 @@ Módulo 1 (Infra) ──► Módulo 2 (Auth) ──► Módulo 3 (Links)
 - Módulo 4 depende de 1, 2, 3
 - Módulo 5 depende de 1, 4
 - Módulo 7 depende de todos os anteriores
+
+---
+
+## 📐 Padrões Elysia (Referência Rápida)
+
+> 📖 **Documentação oficial:** [elysiajs.com/essential/best-practice](https://elysiajs.com/essential/best-practice)
+
+### Controller Pattern
+
+```typescript
+// ✅ Correto: 1 Elysia instance = 1 Controller
+const linksController = new Elysia({ prefix: '/links' })
+  .use(linksModels) // Injeção de models
+  .get(
+    '/',
+    async ({ query }) => {
+      /* handler */
+    },
+    { query: ListQuery }
+  )
+  .post(
+    '/',
+    async ({ body, user }) => {
+      /* handler */
+    },
+    { body: CreateBody }
+  );
+
+// ❌ Incorreto: Classe controller com Context
+abstract class Controller {
+  static root(context: Context) {
+    /* NÃO FAZER */
+  }
+}
+```
+
+### Service Pattern
+
+```typescript
+// ✅ Non-request dependent: abstract class + static
+abstract class LinkService {
+  static async create(input: CreateLinkInput): Promise<Link> {
+    // Lógica de negócio pura, sem HTTP
+  }
+}
+
+// ✅ Request dependent: Elysia plugin com macro
+const AuthService = new Elysia({ name: 'Auth.Service' }).macro({
+  isSignedIn: {
+    resolve: ({ cookie }) => {
+      /* ... */
+    }
+  }
+});
+```
+
+### Model Pattern (Single Source of Truth)
+
+```typescript
+// ✅ Correto: TypeBox com tipo inferido
+const LinkCreateBody = t.Object({
+  url: t.String({ maxLength: 2048 }),
+  customAlias: t.Optional(t.String({ minLength: 3, maxLength: 20 }))
+});
+type LinkCreateBodyType = typeof LinkCreateBody.static;
+
+// ✅ Agrupar por domínio
+export const LinksModel = {
+  create: LinkCreateBody,
+  update: LinkUpdateBody,
+  response: LinkResponse
+};
+
+// ❌ Incorreto: Interface separada
+interface LinkCreateBody {
+  url: string;
+} // NÃO FAZER
+```
+
+### Model Injection (OpenAPI + Type Cache)
+
+```typescript
+// Registrar models para melhor performance e OpenAPI
+const linksModels = new Elysia().model({
+  'links.create': LinkCreateBody,
+  'links.update': LinkUpdateBody
+});
+
+const controller = new Elysia()
+  .use(linksModels)
+  .post('/', handler, { body: 'links.create' }); // Referência por nome
+```
+
+### Testes com handle()
+
+```typescript
+import { describe, it, expect } from 'bun:test';
+
+describe('Links Controller', () => {
+  it('should create link', async () => {
+    const response = await linksController
+      .handle(
+        new Request('http://localhost/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: 'https://example.com' })
+        })
+      )
+      .then((r) => r.json());
+
+    expect(response.success).toBe(true);
+  });
+});
+```

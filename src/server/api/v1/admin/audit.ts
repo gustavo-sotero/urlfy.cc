@@ -10,12 +10,13 @@
  */
 
 import { desc, eq } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import { db } from '@/db';
 import { auditLog } from '@/db/schema/audit';
 import type { User } from '@/lib/auth';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
+import { AuditLogQuery, adminModels } from '../../models';
 
 const logger = createLogger('admin-audit');
 
@@ -29,6 +30,8 @@ async function _requireAdmin(context: { user?: User }): Promise<boolean> {
 
 export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   .use(requireAuth)
+  // Inject shared models for type inference and OpenAPI docs
+  .model(adminModels)
 
   // ═══════════════════════════════════════════════════════════════════
   // GET AUDIT LOGS
@@ -155,14 +158,12 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
       }
     },
     {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        action: t.Optional(t.String()),
-        entityType: t.Optional(t.String()),
-        sortBy: t.Optional(t.String()),
-        sortOrder: t.Optional(t.String())
-      })
+      query: AuditLogQuery,
+      detail: {
+        tags: ['Admin', 'Audit'],
+        summary: 'List audit logs',
+        description: 'Get paginated list of audit logs (admin only)'
+      }
     }
   )
 

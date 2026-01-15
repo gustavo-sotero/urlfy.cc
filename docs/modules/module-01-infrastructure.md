@@ -1075,9 +1075,110 @@ export function hashVisitor(ip: string, userAgent: string): string {
 
 ---
 
-## 10. Health Endpoints
+## 10. Padrões Elysia (API Layer)
 
-### 10.1 Implementação (`src/server/api/health.ts`)
+> 📖 **Referência:** [elysiajs.com/essential/best-practice](https://elysiajs.com/essential/best-practice)
+
+### 10.1 Estrutura Feature-Based
+
+Cada feature é organizada em seu próprio diretório com Controller, Service e Model:
+
+```
+src/server/api/v1/
+├── links/
+│   ├── index.ts          # Controller (Elysia instance)
+│   └── ...
+├── auth/
+│   └── ...
+├── models/               # Schemas TypeBox centralizados
+│   ├── links.models.ts
+│   ├── auth.models.ts
+│   └── index.ts
+└── ...
+```
+
+### 10.2 Controller Pattern
+
+```typescript
+// ✅ Correto: 1 Elysia instance = 1 Controller
+import { Elysia } from 'elysia';
+import { linksModels } from '../../models';
+import * as linkService from '../../../services/link.service';
+
+export const linksRouter = new Elysia({ prefix: '/links' })
+  .use(linksModels) // Injeção de models para type cache e OpenAPI
+  .post(
+    '/',
+    async ({ body, user }) => {
+      const link = await linkService.createLink(body, user?.id);
+      return { success: true, data: link };
+    },
+    { body: 'links.create' }
+  ); // Referência por nome registrado
+
+// ❌ Incorreto: Passar Context inteiro para service
+export const badController = new Elysia().get('/', (context) =>
+  SomeService.handle(context)
+); // NÃO FAZER
+```
+
+### 10.3 Service Pattern
+
+```typescript
+// ✅ Non-request dependent: abstract class + static
+// src/server/services/link.service.ts
+abstract class LinkService {
+  static async create(input: CreateLinkInput): Promise<Link> {
+    // Lógica de negócio pura, sem HTTP
+  }
+}
+
+// ✅ Request dependent: Elysia plugin com macro
+// src/server/middleware/auth.middleware.ts
+const AuthMiddleware = new Elysia({ name: 'Auth.Middleware' }).macro({
+  requireAuth: {
+    resolve: ({ cookie, set }) => {
+      if (!cookie.session.value) {
+        set.status = 401;
+        throw new Error('UNAUTHORIZED');
+      }
+      return { session: cookie.session.value };
+    }
+  }
+});
+```
+
+### 10.4 Model Pattern (Single Source of Truth)
+
+```typescript
+// src/server/api/models/links.models.ts
+import { Elysia, t } from 'elysia';
+
+// ✅ TypeBox para validação runtime + inferência de tipos
+export const LinkCreateBody = t.Object({
+  url: t.String({ maxLength: 2048 }),
+  customAlias: t.Optional(t.String({ minLength: 3, maxLength: 20 }))
+});
+type LinkCreateBodyType = typeof LinkCreateBody.static;
+
+// ✅ Agrupar models por domínio
+export const linksModels = new Elysia().model({
+  'links.create': LinkCreateBody,
+  'links.update': LinkUpdateBody,
+  'links.response': LinkResponse
+});
+
+// ❌ Incorreto: Interface separada do schema
+interface LinkInput {
+  url: string;
+} // NÃO FAZER - perde validação runtime
+```
+
+---
+
+## 11. Health Endpoints
+
+### 11.1 Implementação (`src/server/api/health.ts`)
 
 ```typescript
 import { Elysia, t } from 'elysia';
@@ -1208,9 +1309,9 @@ export const healthRoutes = new Elysia({ prefix: '/api/v1' })
 
 ---
 
-## 11. Backup & Disaster Recovery
+## 12. Backup & Disaster Recovery
 
-### 11.1 Script de Backup (`scripts/backup.sh`)
+### 12.1 Script de Backup (`scripts/backup.sh`)
 
 ```bash
 #!/bin/bash
@@ -1288,7 +1389,7 @@ cleanup_old_backups
 log "=== Backup finalizado com sucesso ==="
 ```
 
-### 11.2 Cron para Backup Automático
+### 12.2 Cron para Backup Automático
 
 Adicionar no container de backup (`/etc/cron.d/backup`):
 
@@ -1300,7 +1401,7 @@ Adicionar no container de backup (`/etc/cron.d/backup`):
 0 2 * * * INCLUDE_ANALYTICS=1 /backup.sh >> /var/log/backup.log 2>&1
 ```
 
-### 11.3 Restauração (Procedimento)
+### 12.3 Restauração (Procedimento)
 
 ```bash
 # 1. Parar a aplicação
@@ -1323,9 +1424,9 @@ curl http://localhost:3000/api/v1/health/ready
 
 ---
 
-## 12. Checklist de Implementação
+## 13. Checklist de Implementação
 
-### 12.1 Tarefas
+### 13.1 Tarefas
 
 | Item | Descrição                                        | Status |
 | ---- | ------------------------------------------------ | ------ |
@@ -1348,7 +1449,7 @@ curl http://localhost:3000/api/v1/health/ready
 | 1.17 | Testar `docker-compose up` completo              | ✅     |
 | 1.18 | Validar health checks de todos os containers     | ✅     |
 
-### 12.2 Variáveis de Ambiente Necessárias
+### 13.2 Variáveis de Ambiente Necessárias
 
 ```env
 # Database
@@ -1374,7 +1475,7 @@ PORT=3000
 
 ---
 
-## 13. Referências
+## 14. Referências
 
 - [PRD v3.0.0](../prd.md)
 - [Arquitetura Overview](../architecture/overview.md)

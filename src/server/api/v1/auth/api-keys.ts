@@ -10,7 +10,7 @@
  */
 
 import { and, desc, eq, isNull } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import { apiKey as apiKeyTable } from '@/db/schema/auth';
@@ -21,6 +21,12 @@ import type {
   ApiKeyPermissions,
   NormalizedApiKeyPermissions
 } from '@/types/auth.types';
+import {
+  ApiKeyCreateBody,
+  ApiKeyIdParam,
+  ApiKeyUpdateBody,
+  authModels
+} from '../../models';
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPER: GENERATE API KEY
@@ -85,6 +91,8 @@ async function generateApiKey(
 // ═══════════════════════════════════════════════════════════════════
 export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
   .use(requireAuth)
+  // Inject shared models for type inference and OpenAPI docs
+  .model(authModels)
 
   // ───────────────────────────────────────────────────────────────────
   // LIST API KEYS
@@ -192,28 +200,7 @@ export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
       };
     },
     {
-      body: t.Object({
-        name: t.String({ minLength: 1, maxLength: 100 }),
-        permissions: t.Optional(
-          t.Object({
-            links: t.Optional(
-              t.Object({
-                create: t.Optional(t.Boolean()),
-                read: t.Optional(t.Boolean()),
-                update: t.Optional(t.Boolean()),
-                delete: t.Optional(t.Boolean())
-              })
-            ),
-            analytics: t.Optional(
-              t.Object({
-                read: t.Optional(t.Boolean())
-              })
-            )
-          })
-        ),
-        rateLimit: t.Optional(t.Number({ minimum: 100, maximum: 10000 })),
-        expiresInDays: t.Optional(t.Number({ minimum: 1, maximum: 365 }))
-      }),
+      body: ApiKeyCreateBody,
       detail: {
         tags: ['API Keys'],
         summary: 'Create API key',
@@ -286,29 +273,8 @@ export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
       };
     },
     {
-      params: t.Object({
-        keyId: t.String()
-      }),
-      body: t.Object({
-        name: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
-        permissions: t.Optional(
-          t.Object({
-            links: t.Optional(
-              t.Object({
-                create: t.Optional(t.Boolean()),
-                read: t.Optional(t.Boolean()),
-                update: t.Optional(t.Boolean()),
-                delete: t.Optional(t.Boolean())
-              })
-            ),
-            analytics: t.Optional(
-              t.Object({
-                read: t.Optional(t.Boolean())
-              })
-            )
-          })
-        )
-      }),
+      params: ApiKeyIdParam,
+      body: ApiKeyUpdateBody,
       detail: {
         tags: ['API Keys'],
         summary: 'Update API key',
@@ -382,9 +348,7 @@ export const apiKeysRoutes = new Elysia({ prefix: '/api-keys' })
       };
     },
     {
-      params: t.Object({
-        keyId: t.String()
-      }),
+      params: ApiKeyIdParam,
       detail: {
         tags: ['API Keys'],
         summary: 'Delete API key',

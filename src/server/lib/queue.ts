@@ -1,5 +1,5 @@
-import { type ConnectionOptions, Queue } from 'bullmq';
 import type { ClickEvent } from '@/types/analytics.types';
+import { type ConnectionOptions, Queue } from 'bullmq';
 
 /**
  * NOTA: BullMQ requer ioredis internamente para gerenciar filas.
@@ -54,7 +54,7 @@ const connection = bullmqConnection;
 
 export const QUEUE_NAMES = {
   analytics: 'analytics',
-  analyticsDead: 'analytics:dead',
+  analyticsDead: 'analytics-dead',
   aggregation: 'aggregation',
   cleanup: 'cleanup',
   deletion: 'deletion',
