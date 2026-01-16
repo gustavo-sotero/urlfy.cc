@@ -9,16 +9,15 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq } from 'drizzle-orm';
-import { Elysia } from 'elysia';
-import { nanoid } from 'nanoid';
 import { db } from '@/db';
-import { type DeletionStatus, dataDeletionRequest } from '@/db/schema/audit';
+import { dataDeletionRequest } from '@/db/schema/audit';
 import type { User } from '@/lib/auth';
 import { sendEmail } from '@/server/lib/email';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import { UserService } from '@/server/modules/users';
 import { auditLogService } from '@/server/services/audit.service';
+import { gdprService } from '@/server/services/gdpr.service';
+import { desc, eq } from 'drizzle-orm';
+import { Elysia } from 'elysia';
 
 export const userDataRoutes = new Elysia({ prefix: '/me' })
   .use(requireAuth)
@@ -83,7 +82,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
 
     try {
       // Export all user data
-      const exportData = await UserService.exportUserData(user.id);
+      const exportData = await gdprService.exportUserData(user.id);
 
       // Log the export action
       await auditLogService.log({
@@ -124,47 +123,26 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
 
     try {
       // Check if there's already a pending request
-      const existingRequest = await db
-        .select()
-        .from(dataDeletionRequest)
-        .where(
-          and(
-            eq(dataDeletionRequest.userId, user.id),
-            eq(dataDeletionRequest.status, 'pending' as DeletionStatus)
-          )
-        )
-        .limit(1);
+      const existingRequest = await gdprService.getPendingDeletionRequest(
+        user.id
+      );
 
-      if (existingRequest.length > 0) {
+      if (existingRequest) {
         return {
           success: false,
           error: {
             code: 'REQUEST_ALREADY_EXISTS',
             message: 'You already have a pending deletion request',
             details: {
-              requestId: existingRequest[0].id,
-              requestedAt: existingRequest[0].requestedAt,
-              deadlineAt: existingRequest[0].deadlineAt
+              requestId: existingRequest.requestId,
+              requestedAt: existingRequest.requestedAt,
+              deadlineAt: existingRequest.deadline
             }
           }
         };
       }
 
-      // Create deletion request (72h deadline as per LGPD)
-      const requestedAt = new Date();
-      const deadlineAt = new Date(requestedAt.getTime() + 72 * 60 * 60 * 1000);
-
-      const [request] = await db
-        .insert(dataDeletionRequest)
-        .values({
-          id: nanoid(),
-          userId: user.id,
-          status: 'pending',
-          requestedAt,
-          deadlineAt,
-          dataExported: 'no'
-        })
-        .returning();
+      const request = await gdprService.scheduleDataDeletion(user.id);
 
       // Log the deletion request
       await auditLogService.log({
@@ -173,8 +151,8 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
         entityType: 'user',
         entityId: user.id,
         metadata: {
-          requestId: request.id,
-          deadlineAt: deadlineAt.toISOString()
+          requestId: request.requestId,
+          deadlineAt: request.deadline.toISOString()
         },
         ipAddress: context.request.headers.get('x-forwarded-for') || undefined,
         userAgent: context.request.headers.get('user-agent') || undefined
@@ -187,8 +165,8 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
           template: 'data-deletion-request',
           data: {
             name: user.name,
-            requestId: request.id,
-            deadline: deadlineAt.toISOString()
+            requestId: request.requestId,
+            deadline: request.deadline.toISOString()
           }
         });
       } catch (error) {
@@ -198,9 +176,9 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
       return {
         success: true,
         data: {
-          requestId: request.id,
+          requestId: request.requestId,
           requestedAt: request.requestedAt,
-          deadlineAt: request.deadlineAt,
+          deadlineAt: request.deadline,
           message:
             'Your data deletion request has been received. Your data will be permanently deleted within 72 hours.'
         }

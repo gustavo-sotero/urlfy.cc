@@ -3,11 +3,12 @@
  * Handles data export and deletion requests per GDPR/LGPD regulations
  */
 
-import { eq } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { analyticsEvents, links, user } from '@/db/schema';
+import { type DeletionStatus, dataDeletionRequest } from '@/db/schema/audit';
 import { db } from '@/server/lib/db';
 import { createLogger } from '@/server/lib/telemetry';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
 const logger = createLogger('gdpr');
 
@@ -68,17 +69,20 @@ export class GDPRService {
 
       // Get analytics overview (count all analytics for user's links)
       const linkIds = userLinks.map((link) => link.id);
-      const analyticsData =
+
+      const analyticsSummary =
         linkIds.length > 0
           ? await db
-              .select()
+              .select({
+                totalClicks: sql<number>`count(*)::int`,
+                uniqueVisitors: sql<number>`count(distinct ${analyticsEvents.visitorHash})::int`
+              })
               .from(analyticsEvents)
-              .where(eq(analyticsEvents.linkId, linkIds[0]))
-          : [];
+              .where(inArray(analyticsEvents.linkId, linkIds))
+          : [{ totalClicks: 0, uniqueVisitors: 0 }];
 
-      const totalClicks = analyticsData.length;
-      const uniqueVisitors = new Set(analyticsData.map((a) => a.visitorHash))
-        .size;
+      const totalClicks = analyticsSummary[0]?.totalClicks ?? 0;
+      const uniqueVisitors = analyticsSummary[0]?.uniqueVisitors ?? 0;
 
       return {
         user: {
@@ -131,17 +135,24 @@ export class GDPRService {
    */
   async scheduleDataDeletion(userId: string): Promise<DataDeletionRequest> {
     try {
+      const existing = await this.getPendingDeletionRequest(userId);
+      if (existing) return existing;
+
       const requestId = nanoid();
       const now = new Date();
       const deadline = new Date(now.getTime() + 72 * 60 * 60 * 1000); // 72 hours
 
-      const request: DataDeletionRequest = {
-        requestId,
-        userId,
-        status: 'pending',
-        requestedAt: now,
-        deadline
-      };
+      const [request] = await db
+        .insert(dataDeletionRequest)
+        .values({
+          id: requestId,
+          userId,
+          status: 'pending',
+          requestedAt: now,
+          deadlineAt: deadline,
+          dataExported: 'no'
+        })
+        .returning();
 
       logger.info('Data deletion request scheduled', {
         requestId,
@@ -149,10 +160,15 @@ export class GDPRService {
         deadline
       });
 
-      // Store in Redis or database for async processing
-      // This should be persisted to handle the 72-hour deadline
-
-      return request;
+      return {
+        requestId: request.id,
+        userId: request.userId,
+        status: request.status as DeletionStatus,
+        requestedAt: request.requestedAt,
+        deadline: request.deadlineAt,
+        completedAt: request.completedAt ?? undefined,
+        failureReason: request.failureReason ?? undefined
+      };
     } catch (error) {
       logger.error('Failed to schedule data deletion', {
         error: error instanceof Error ? error.message : String(error),
@@ -233,10 +249,23 @@ export class GDPRService {
     requestId: string
   ): Promise<DataDeletionRequest | null> {
     try {
-      // Fetch from persistence layer (Redis/DB)
-      // This is a placeholder
-      logger.debug('Checking deletion status', { requestId });
-      return null;
+      const [request] = await db
+        .select()
+        .from(dataDeletionRequest)
+        .where(eq(dataDeletionRequest.id, requestId))
+        .limit(1);
+
+      if (!request) return null;
+
+      return {
+        requestId: request.id,
+        userId: request.userId,
+        status: request.status as DeletionStatus,
+        requestedAt: request.requestedAt,
+        deadline: request.deadlineAt,
+        completedAt: request.completedAt ?? undefined,
+        failureReason: request.failureReason ?? undefined
+      };
     } catch (error) {
       logger.error('Failed to get deletion status', {
         error: error instanceof Error ? error.message : String(error),
@@ -251,9 +280,18 @@ export class GDPRService {
    */
   async hasPendingDeletion(userId: string): Promise<boolean> {
     try {
-      // Check persistence layer
-      logger.debug('Checking for pending deletion', { userId });
-      return false;
+      const [request] = await db
+        .select()
+        .from(dataDeletionRequest)
+        .where(
+          and(
+            eq(dataDeletionRequest.userId, userId),
+            eq(dataDeletionRequest.status, 'pending')
+          )
+        )
+        .limit(1);
+
+      return !!request;
     } catch (error) {
       logger.error('Failed to check pending deletion', {
         error: error instanceof Error ? error.message : String(error),
@@ -261,6 +299,33 @@ export class GDPRService {
       });
       return false;
     }
+  }
+
+  async getPendingDeletionRequest(
+    userId: string
+  ): Promise<DataDeletionRequest | null> {
+    const [request] = await db
+      .select()
+      .from(dataDeletionRequest)
+      .where(
+        and(
+          eq(dataDeletionRequest.userId, userId),
+          eq(dataDeletionRequest.status, 'pending')
+        )
+      )
+      .limit(1);
+
+    if (!request) return null;
+
+    return {
+      requestId: request.id,
+      userId: request.userId,
+      status: request.status as DeletionStatus,
+      requestedAt: request.requestedAt,
+      deadline: request.deadlineAt,
+      completedAt: request.completedAt ?? undefined,
+      failureReason: request.failureReason ?? undefined
+    };
   }
 }
 

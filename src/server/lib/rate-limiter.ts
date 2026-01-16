@@ -26,6 +26,19 @@ export interface RateLimitResult {
 }
 
 export const RATE_LIMIT_CONFIGS = {
+  // Health checks
+  'GET /api/v1/health': {
+    guest: { points: 600, duration: 60 },
+    auth: { points: 600, duration: 60 }
+  },
+  'GET /api/v1/health/ready': {
+    guest: { points: 300, duration: 60 },
+    auth: { points: 300, duration: 60 }
+  },
+  'GET /api/v1/health/detailed': {
+    guest: null,
+    auth: { points: 60, duration: 60 }
+  },
   // Link creation
   'POST /api/v1/links': {
     guest: { points: 10, duration: 3600 }, // 10/hour for guests
@@ -47,12 +60,12 @@ export const RATE_LIMIT_CONFIGS = {
     auth: { points: 120, duration: 3600 } // 120/hour
   },
   // Analytics
-  'GET /api/v1/analytics': {
+  'GET /api/v1/analytics/*': {
     guest: null, // Not allowed
     auth: { points: 60, duration: 60 } // 60/min
   },
   // Admin actions
-  'POST /api/v1/admin': {
+  'POST /api/v1/admin/*': {
     guest: null, // Not allowed
     auth: { points: 30, duration: 60 } // 30/min
   },

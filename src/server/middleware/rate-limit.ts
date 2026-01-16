@@ -58,7 +58,7 @@ function getRateLimitConfig(
   method: string,
   path: string,
   isAuthenticated: boolean
-): RateLimitConfig | null {
+): RateLimitConfig | null | undefined {
   // Check exact endpoint match
   for (const [endpoint, config] of Object.entries(RATE_LIMIT_CONFIGS)) {
     if (endpoint.startsWith(method)) {
@@ -66,33 +66,36 @@ function getRateLimitConfig(
       if (!pathPattern) continue;
 
       // Simple path pattern matching
-      const regex = new RegExp(`^${pathPattern.replace(/:[^/]+/g, '[^/]+')}$`);
+      const regex = new RegExp(
+        `^${pathPattern.replace(/:[^/]+/g, '[^/]+').replace(/\*/g, '.*')}$`
+      );
       if (regex.test(path)) {
         const limitConfig = isAuthenticated
           ? (config as { auth?: RateLimitConfig | null }).auth
           : (config as { guest?: RateLimitConfig | null }).guest;
-        if (limitConfig === null || limitConfig === undefined) return null; // Not allowed or undefined
+        if (limitConfig === null) return null; // Not allowed
+        if (limitConfig === undefined) return undefined; // Not configured
         return limitConfig;
       }
     }
   }
 
-  return null;
+  return undefined;
 }
 
 /**
  * Rate limit middleware
  * Returns error response if limit exceeded
  */
-export async function rateLimit(request: Request): Promise<Response | null> {
+export interface RateLimitOutcome {
+  response: Response | null;
+  headers?: Headers;
+}
+
+export async function rateLimit(request: Request): Promise<RateLimitOutcome> {
   const method = request.method;
   const url = new URL(request.url);
   const path = url.pathname;
-
-  // Skip health checks
-  if (path.startsWith('/api/v1/health')) {
-    return null;
-  }
 
   // Get client identifier
   const ip = getClientIP(request);
@@ -103,22 +106,24 @@ export async function rateLimit(request: Request): Promise<Response | null> {
   const isBlocked = await rateLimiter.isIPBlocked(ip);
   if (isBlocked) {
     logger.warn('Blocked IP attempted request', { ip, path });
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: {
-          code: 'RATE_LIMITED',
-          message: 'Your IP has been temporarily blocked'
+    return {
+      response: new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: 'RATE_LIMITED',
+            message: 'Your IP has been temporarily blocked'
+          }
+        }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 900)
+          }
         }
-      }),
-      {
-        status: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 900)
-        }
-      }
-    );
+      )
+    };
   }
 
   // Get rate limit config for this endpoint
@@ -126,24 +131,26 @@ export async function rateLimit(request: Request): Promise<Response | null> {
 
   // No rate limit configured
   if (config === undefined) {
-    return null;
+    return { response: null };
   }
 
   // Endpoint not allowed for this auth level
   if (config === null) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: 'This endpoint requires authentication'
+    return {
+      response: new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'This endpoint requires authentication'
+          }
+        }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
         }
-      }),
-      {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
+      )
+    };
   }
 
   // Check rate limit
@@ -174,27 +181,29 @@ export async function rateLimit(request: Request): Promise<Response | null> {
       headers.set('Retry-After', String(result.retryAfter));
     }
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: {
-          code: 'RATE_LIMITED',
-          message: 'Too many requests. Please try again later.',
-          retryAfter: result.retryAfter
+    return {
+      response: new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: 'RATE_LIMITED',
+            message: 'Too many requests. Please try again later.',
+            retryAfter: result.retryAfter
+          }
+        }),
+        {
+          status: 429,
+          headers: {
+            ...Object.fromEntries(headers.entries()),
+            'Content-Type': 'application/json'
+          }
         }
-      }),
-      {
-        status: 429,
-        headers: {
-          ...Object.fromEntries(headers.entries()),
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+      )
+    };
   }
 
   // Add headers to response (will be handled by wrapper)
-  return null;
+  return { response: null, headers };
 }
 
 /**

@@ -31,6 +31,7 @@ const ALLOWED_HEADERS = [
   'Authorization',
   'X-API-Key',
   'Idempotency-Key',
+  'X-Request-Id',
   'X-Requested-With'
 ];
 

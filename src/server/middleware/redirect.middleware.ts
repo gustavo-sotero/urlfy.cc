@@ -4,11 +4,11 @@
  * Makes internal API calls instead of direct DB access
  */
 
+import { createLogger } from '@/server/lib/telemetry.edge';
+import type { ClickEvent } from '@/types/analytics.types';
 import { jwtVerify } from 'jose';
 import type { NextRequest, NextResponse } from 'next/server';
 import { NextResponse as Response } from 'next/server';
-import { createLogger } from '@/server/lib/telemetry.edge';
-import type { ClickEvent } from '@/types/analytics.types';
 
 const logger = createLogger('redirect-middleware');
 
@@ -18,6 +18,7 @@ interface ResolveResult {
   redirectType?: number;
   linkId?: string;
   error?: string;
+  retryAfter?: number;
 }
 
 /**
@@ -55,9 +56,14 @@ async function resolveLink(
       const error = await response
         .json()
         .catch(() => ({ error: 'UNKNOWN_ERROR' }));
+      const retryAfterHeader = response.headers.get('Retry-After');
+      const retryAfter = retryAfterHeader
+        ? Number.parseInt(retryAfterHeader, 10)
+        : undefined;
       return {
         success: false,
-        error: error.error || 'RESOLVE_FAILED'
+        error: error.error || 'RESOLVE_FAILED',
+        retryAfter
       };
     }
 
@@ -105,7 +111,13 @@ export async function handleRedirect(
 
     if (!result.success) {
       const errorType = result.error ?? 'UNKNOWN_ERROR';
-      return handleError(errorType, shortCode, request, requestId);
+      return handleError(
+        errorType,
+        shortCode,
+        request,
+        requestId,
+        result.retryAfter
+      );
     }
 
     // Dispara evento de analytics (assíncrono, não bloqueia)
@@ -175,7 +187,8 @@ function handleError(
   error: string,
   code: string,
   request: NextRequest,
-  requestId: string
+  requestId: string,
+  retryAfter?: number
 ): NextResponse {
   const baseUrl = request.nextUrl.origin;
 
@@ -254,6 +267,16 @@ function handleError(
           'X-Request-Id': requestId,
           'X-Error-Code': 'REDIRECT_LOOP',
           'Content-Type': 'text/plain'
+        }
+      });
+
+    case 'RATE_LIMITED':
+      return new Response(null, {
+        status: 429,
+        headers: {
+          'X-Request-Id': requestId,
+          'X-Error-Code': 'RATE_LIMITED',
+          ...(retryAfter ? { 'Retry-After': String(retryAfter) } : undefined)
         }
       });
 
