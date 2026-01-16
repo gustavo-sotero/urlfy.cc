@@ -27,7 +27,18 @@ export function getDatabase(): DrizzleDatabase {
 
   try {
     // Usa Bun SQL nativo (PostgreSQL, MySQL ou SQLite)
-    sqlConnection = new SQL(databaseUrl);
+    sqlConnection = new SQL({
+      url: databaseUrl,
+      max: Number.parseInt(process.env.DB_POOL_MAX || '20', 10),
+      idleTimeout: Number.parseInt(
+        process.env.DB_POOL_IDLE_TIMEOUT || '30',
+        10
+      ),
+      connectionTimeout: Number.parseInt(
+        process.env.DB_POOL_CONNECTION_TIMEOUT || '10',
+        10
+      )
+    });
     dbInstance = drizzle(sqlConnection, { schema });
 
     console.log('✅ Database connection established (Bun SQL)');

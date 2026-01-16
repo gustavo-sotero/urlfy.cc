@@ -8,6 +8,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { and, count as countFn, desc, eq, gte, sql, sum } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   analyticsBrowserBreakdown,
@@ -22,7 +23,6 @@ import type {
   AnalyticsSummary,
   TimeSeries
 } from '@/types/analytics.types';
-import { and, count as countFn, desc, eq, gte, sql, sum } from 'drizzle-orm';
 
 const logger = createLogger('analytics-service');
 

@@ -4,9 +4,9 @@
  * Called by Edge middleware to resolve links using full Node.js runtime
  */
 
+import { type NextRequest, NextResponse } from 'next/server';
 import { RATE_LIMIT_CONFIGS, rateLimiter } from '@/server/lib/rate-limiter';
 import { redirectService } from '@/server/services/redirect.service';
-import { type NextRequest, NextResponse } from 'next/server';
 
 // Verify internal API secret
 function verifyInternalRequest(request: NextRequest): boolean {

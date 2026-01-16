@@ -1,5 +1,9 @@
 // src/server/lib/errors.ts
 
+import { createLogger } from './telemetry';
+
+const logger = createLogger('errors');
+
 export class LinkError extends Error {
   constructor(
     public code: LinkErrorCode,
@@ -71,7 +75,12 @@ export function handleLinkError(error: unknown): {
   }
 
   // Erro desconhecido
-  console.error('Unhandled error:', error);
+  const errorMessage =
+    error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
+  logger.error('Unhandled error', {
+    errorMessage,
+    errorStack: error instanceof Error ? error.stack : undefined
+  });
   return {
     success: false,
     error: {

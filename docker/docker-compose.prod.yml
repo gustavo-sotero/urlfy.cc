@@ -39,7 +39,15 @@ services:
           memory: 1G
 
   redis:
-    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction --requirepass ${REDIS_PASSWORD}
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+      --tcp-keepalive 60
+      --timeout 0
+      --requirepass ${REDIS_PASSWORD}
     deploy:
       resources:
         limits:

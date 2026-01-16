@@ -3,7 +3,8 @@ import { type ConnectionOptions, Queue } from 'bullmq';
 
 /**
  * NOTA: BullMQ requer ioredis internamente para gerenciar filas.
- * Para operações de cache e comandos Redis simples, usamos Bun RedisClient nativo.
+ * Para operações de cache e comandos Redis simples, usamos o cliente compartilhado
+ * em src/server/lib/redis (ioredis) para manter compatibilidade.
  * Para filas com BullMQ, mantemos ioredis (é uma dependência do próprio BullMQ).
  */
 
@@ -54,7 +55,7 @@ const connection = bullmqConnection;
 
 export const QUEUE_NAMES = {
   analytics: 'analytics',
-  analyticsDead: 'analytics-dead',
+  analyticsDead: 'analytics:dead',
   aggregation: 'aggregation',
   cleanup: 'cleanup',
   deletion: 'deletion',
