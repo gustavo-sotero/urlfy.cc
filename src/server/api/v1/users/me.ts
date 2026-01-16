@@ -220,3 +220,130 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
       data: requests[0]
     };
   });
+
+/**
+ * Consent preferences storage endpoint
+ * Allows authenticated users to sync their consent preferences to the server
+ */
+export const consentRoutes = new Elysia({ prefix: '/me' })
+  .use(requireAuth)
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SAVE CONSENT PREFERENCES (RF-35 - Consent Banner)
+  // ═══════════════════════════════════════════════════════════════════
+  .post('/consent', async (context) => {
+    const { user, body, request } = context as typeof context & {
+      user: User;
+      body: {
+        analytics: boolean;
+        marketing: boolean;
+        timestamp?: string;
+      };
+      request: Request;
+    };
+
+    try {
+      // Validate body
+      if (
+        typeof body.analytics !== 'boolean' ||
+        typeof body.marketing !== 'boolean'
+      ) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_BODY',
+            message: 'analytics and marketing must be boolean values'
+          }
+        };
+      }
+
+      const preferences = {
+        analytics: body.analytics,
+        marketing: body.marketing,
+        timestamp: body.timestamp || new Date().toISOString()
+      };
+
+      // Store in Redis with user-specific key for quick access
+      const { getRedisClient } = await import('@/server/lib/redis');
+      const redis = getRedisClient();
+
+      await redis.set(
+        `consent:${user.id}`,
+        JSON.stringify(preferences),
+        'EX',
+        86400 * 365 // 1 year expiry
+      );
+
+      // Log the consent update
+      await auditLogService.log({
+        userId: user.id,
+        action: 'user_login', // Using existing action type
+        entityType: 'consent',
+        entityId: user.id,
+        metadata: {
+          action: 'consent_updated',
+          preferences
+        },
+        ipAddress: request.headers.get('x-forwarded-for') || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      });
+
+      return {
+        success: true,
+        data: {
+          message: 'Consent preferences saved',
+          preferences
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'SAVE_FAILED',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Failed to save consent preferences'
+        }
+      };
+    }
+  })
+
+  // ═══════════════════════════════════════════════════════════════════
+  // GET CONSENT PREFERENCES
+  // ═══════════════════════════════════════════════════════════════════
+  .get('/consent', async (context) => {
+    const { user } = context as typeof context & {
+      user: User;
+    };
+
+    try {
+      const { getRedisClient } = await import('@/server/lib/redis');
+      const redis = getRedisClient();
+
+      const stored = await redis.get(`consent:${user.id}`);
+
+      if (!stored) {
+        return {
+          success: true,
+          data: null
+        };
+      }
+
+      return {
+        success: true,
+        data: JSON.parse(stored)
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'FETCH_FAILED',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Failed to fetch consent preferences'
+        }
+      };
+    }
+  });

@@ -8,7 +8,7 @@ import { linksController } from '@/server/modules/links';
 import { usersController } from '@/server/modules/users';
 import { healthRoutes } from './health';
 import { adminAuditRoutes } from './v1/admin/audit';
-import { userDataRoutes } from './v1/users/me';
+import { consentRoutes, userDataRoutes } from './v1/users/me';
 
 // ═══════════════════════════════════════════════════════════════════
 // API PRINCIPAL
@@ -92,6 +92,7 @@ export const api = new Elysia({ prefix: '/api' })
     app
       .use(authController)
       .use(userDataRoutes)
+      .use(consentRoutes)
       .use(usersController)
       .use(linksController)
       .use(analyticsController)

@@ -1,5 +1,5 @@
-import type { ClickEvent } from '@/types/analytics.types';
 import { type ConnectionOptions, Queue } from 'bullmq';
+import type { ClickEvent } from '@/types/analytics.types';
 
 /**
  * NOTA: BullMQ requer ioredis internamente para gerenciar filas.
@@ -55,70 +55,146 @@ const connection = bullmqConnection;
 
 export const QUEUE_NAMES = {
   analytics: 'analytics',
-  analyticsDead: 'analytics:dead',
+  analyticsDead: 'analytics-dead',
   aggregation: 'aggregation',
   cleanup: 'cleanup',
   deletion: 'deletion',
   notifications: 'notifications'
 } as const;
 
+// ═══════════════════════════════════════════════════════════════════
+// LAZY-INITIALIZED QUEUE INSTANCES
+// ═══════════════════════════════════════════════════════════════════
+// Use getter functions to delay queue creation until first use.
+// This prevents initialization errors when infrastructure is not running
+// (e.g., during testing without Redis).
+// ═══════════════════════════════════════════════════════════════════
+
+let _analyticsQueue: Queue<ClickEvent> | undefined;
+let _analyticsDeadQueue: Queue | undefined;
+let _aggregationQueue: Queue | undefined;
+let _cleanupQueue: Queue | undefined;
+let _deletionQueue: Queue | undefined;
+
 // Fila de Analytics (eventos de clique)
-export const analyticsQueue = new Queue(QUEUE_NAMES.analytics, {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 1000 // 1s, 5s, 30s
-    },
-    removeOnComplete: {
-      age: 3600, // Remove após 1 hora
-      count: 1000 // Mantém últimos 1000
-    },
-    removeOnFail: false // Mantém para análise
-  }
-});
+export const analyticsQueue = {
+  get instance(): Queue<ClickEvent> {
+    if (!_analyticsQueue) {
+      _analyticsQueue = new Queue(QUEUE_NAMES.analytics, {
+        connection,
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 1000 // 1s, 5s, 30s
+          },
+          removeOnComplete: {
+            age: 3600, // Remove após 1 hora
+            count: 1000 // Mantém últimos 1000
+          },
+          removeOnFail: false // Mantém para análise
+        }
+      });
+    }
+    return _analyticsQueue;
+  },
+  add: (...args: Parameters<Queue<ClickEvent>['add']>) =>
+    analyticsQueue.instance.add(...args),
+  getWaitingCount: () => analyticsQueue.instance.getWaitingCount(),
+  getFailedCount: () => analyticsQueue.instance.getFailedCount(),
+  close: () => _analyticsQueue?.close() ?? Promise.resolve()
+};
 
 // Dead Letter Queue para analytics falhos
-export const analyticsDeadQueue = new Queue(QUEUE_NAMES.analyticsDead, {
-  connection
-});
+export const analyticsDeadQueue = {
+  get instance(): Queue {
+    if (!_analyticsDeadQueue) {
+      _analyticsDeadQueue = new Queue(QUEUE_NAMES.analyticsDead, {
+        connection
+      });
+    }
+    return _analyticsDeadQueue;
+  },
+  add: (...args: Parameters<Queue['add']>) =>
+    analyticsDeadQueue.instance.add(...args),
+  getJobs: (...args: Parameters<Queue['getJobs']>) =>
+    analyticsDeadQueue.instance.getJobs(...args),
+  getJob: (...args: Parameters<Queue['getJob']>) =>
+    analyticsDeadQueue.instance.getJob(...args),
+  close: () => _analyticsDeadQueue?.close() ?? Promise.resolve()
+};
 
 // Fila de agregação diária
-export const aggregationQueue = new Queue(QUEUE_NAMES.aggregation, {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 5000
+export const aggregationQueue = {
+  get instance(): Queue {
+    if (!_aggregationQueue) {
+      _aggregationQueue = new Queue(QUEUE_NAMES.aggregation, {
+        connection,
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5000
+          }
+        }
+      });
     }
-  }
-});
+    return _aggregationQueue;
+  },
+  add: (...args: Parameters<Queue['add']>) =>
+    aggregationQueue.instance.add(...args),
+  getRepeatableJobs: () => aggregationQueue.instance.getRepeatableJobs(),
+  removeRepeatableByKey: (key: string) =>
+    aggregationQueue.instance.removeRepeatableByKey(key),
+  close: () => _aggregationQueue?.close() ?? Promise.resolve()
+};
 
 // Fila de cleanup
-export const cleanupQueue = new Queue(QUEUE_NAMES.cleanup, {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 5000
+export const cleanupQueue = {
+  get instance(): Queue {
+    if (!_cleanupQueue) {
+      _cleanupQueue = new Queue(QUEUE_NAMES.cleanup, {
+        connection,
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5000
+          }
+        }
+      });
     }
-  }
-});
+    return _cleanupQueue;
+  },
+  add: (...args: Parameters<Queue['add']>) =>
+    cleanupQueue.instance.add(...args),
+  getRepeatableJobs: () => cleanupQueue.instance.getRepeatableJobs(),
+  removeRepeatableByKey: (key: string) =>
+    cleanupQueue.instance.removeRepeatableByKey(key),
+  close: () => _cleanupQueue?.close() ?? Promise.resolve()
+};
 
 // Fila de exclusão de dados (GDPR/LGPD)
-export const deletionQueue = new Queue(QUEUE_NAMES.deletion, {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 5000
+export const deletionQueue = {
+  get instance(): Queue {
+    if (!_deletionQueue) {
+      _deletionQueue = new Queue(QUEUE_NAMES.deletion, {
+        connection,
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5000
+          }
+        }
+      });
     }
-  }
-});
+    return _deletionQueue;
+  },
+  add: (...args: Parameters<Queue['add']>) =>
+    deletionQueue.instance.add(...args),
+  close: () => _deletionQueue?.close() ?? Promise.resolve()
+};
 
 // ═══════════════════════════════════════════════════════════════════
 // INTERFACE DE JOBS

@@ -20,3 +20,7 @@ retry = 0
 
 # Bail on first failure (useful for CI)
 bail = false
+
+# Exclude Playwright e2e tests (they use .spec.ts and should be run with `bun run test:e2e`)
+# Bun test will pick up files matching *.test.ts but NOT *.spec.ts by default,
+# however explicit file patterns can override this if needed.
