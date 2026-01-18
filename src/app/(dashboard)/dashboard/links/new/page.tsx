@@ -27,17 +27,39 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateLink } from '@/lib/hooks/use-links';
+import {
+  parseRedirectType,
+  REDIRECT_TYPES,
+  removeEmptyFields
+} from '@/lib/utils';
+import type { CreateLinkInput } from '@/types/links.types';
+
+// ═══════════════════════════════════════════════════════════════════
+// VALIDATION SCHEMA
+// ═══════════════════════════════════════════════════════════════════
 
 const schema = z.object({
   url: z.string().url('URL inválida'),
   customAlias: z.string().optional(),
   redirectType: z.enum(['301', '302']).optional(),
   expiresAt: z.string().optional(),
-  maxClicks: z.number().optional(),
+  maxClicks: z
+    .number()
+    .positive('O limite deve ser maior que zero')
+    .optional()
+    .or(z.nan())
+    .transform((val) => (Number.isNaN(val) ? undefined : val))
+    .optional(),
   password: z.string().optional(),
   metaTitle: z.string().max(60).optional(),
   metaDescription: z.string().max(160).optional(),
-  metaImage: z.string().url('URL de imagem inválida').optional(),
+  metaImage: z
+    .string()
+    .url('URL de imagem inválida')
+    .optional()
+    .or(z.literal(''))
+    .transform((val) => (val === '' ? undefined : val))
+    .optional(),
   utmSource: z.string().optional(),
   utmMedium: z.string().optional(),
   utmCampaign: z.string().optional(),
@@ -47,6 +69,27 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Transform form data to API payload
+ * Removes empty fields and converts types as needed
+ */
+function transformFormData(data: FormData): CreateLinkInput {
+  const transformed = {
+    ...data,
+    redirectType: parseRedirectType(data.redirectType)
+  };
+
+  return removeEmptyFields(transformed) as unknown as CreateLinkInput;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPONENT
+// ═══════════════════════════════════════════════════════════════════
+
 export default function NewLinkPage() {
   const router = useRouter();
   const createLink = useCreateLink();
@@ -54,21 +97,21 @@ export default function NewLinkPage() {
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      redirectType: '302'
+      redirectType: String(REDIRECT_TYPES.TEMPORARY) as '301' | '302'
     }
   });
 
   const onSubmit = async (data: FormData) => {
     try {
-      const link = await createLink.mutateAsync({
-        ...data,
-        redirectType: data.redirectType
-          ? (Number.parseInt(data.redirectType, 10) as 301 | 302)
-          : undefined
-      });
+      const payload = transformFormData(data);
+      const link = await createLink.mutateAsync(payload);
       router.push(`/dashboard/links?created=${link.id}`);
     } catch (error) {
-      console.error('Failed to create link:', error);
+      // Error is already handled by the mutation hook (toast)
+      // Log for debugging purposes
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to create link:', error);
+      }
     }
   };
 

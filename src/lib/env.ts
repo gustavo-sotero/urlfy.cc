@@ -51,7 +51,7 @@ const envSchema = z.object({
 
   // Email (Resend - verification, reset, welcome, LGPD)
   RESEND_API_KEY: z.string().optional(),
-  RESEND_FROM: z.string().email().optional(),
+  RESEND_FROM: z.string().optional(),
 
   // Trusted origins (comma-separated)
   TRUSTED_ORIGINS: z.string().optional()

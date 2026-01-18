@@ -1,13 +1,15 @@
 // src/lib/api-client.ts
 /**
  * API Client for urlfy.cc
- * Type-safe wrapper for REST API calls
+ * Type-safe wrapper using Elysia Eden Treaty for REST API calls
  */
 
+import type { App } from '@/server/api';
 import type {
   AnalyticsBreakdown,
   AnalyticsSummary,
-  DailyStats
+  DailyStats,
+  TimeSeries
 } from '@/types/analytics.types';
 import type {
   CreateLinkInput,
@@ -16,27 +18,30 @@ import type {
   PaginatedResponse,
   UpdateLinkInput
 } from '@/types/links.types';
-
-const API_BASE = '/api/v1';
+import { treaty } from '@elysiajs/eden';
 
 // ═══════════════════════════════════════════════════════════════════
-// CORE FETCHER
+// EDEN CLIENT INITIALIZATION
 // ═══════════════════════════════════════════════════════════════════
 
-interface ApiError {
-  code: string;
-  message: string;
-  details?: Record<string, unknown>;
-}
+// Determine Base URL
+const BASE_URL =
+  typeof window !== 'undefined'
+    ? window.location.origin
+    : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: ApiError;
-  requestId?: string;
-}
+// Initialize Typed Client with Treaty (proxy-based)
+const client = treaty<App>(BASE_URL, {
+  fetch: {
+    credentials: 'include' // Required for cookies to be sent
+  }
+});
 
-class ApiClientError extends Error {
+// ═══════════════════════════════════════════════════════════════════
+// ERROR HANDLING (Backward Compatible)
+// ═══════════════════════════════════════════════════════════════════
+
+export class ApiClientError extends Error {
   constructor(
     public code: string,
     message: string,
@@ -48,73 +53,125 @@ class ApiClientError extends Error {
   }
 }
 
-async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${endpoint}`;
+/**
+ * Eden Treaty response structure from @elysiajs/eden
+ */
+interface TreatyResponse<T = unknown> {
+  data: T;
+  error: null | {
+    status: number;
+    value: unknown;
+  };
+  response: Response;
+  status: number;
+  headers?: HeadersInit;
+}
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers
+/**
+ * Backend API response structure
+ */
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  meta?: {
+    total: number;
+    page: number;
+    perPage: number;
+    lastPage: number;
+    hasMore: boolean;
+  };
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
+  requestId?: string;
+}
+
+/**
+ * Adapter to maintain backward compatibility with existing error handling
+ * Converts Eden Treaty error responses to ApiClientError
+ */
+function handleEden<T>(response: TreatyResponse<ApiResponse<T> | null>): T {
+  if (response.error) {
+    // Extract error information from Eden response
+    const status = response.error.status?.toString() || 'UNKNOWN_ERROR';
+
+    // Parse error message
+    let message = 'Request failed';
+    let code = status;
+    let details: Record<string, unknown> | undefined;
+    let requestId: string | undefined;
+
+    // Handle structured error responses from backend
+    if (response.error.value && typeof response.error.value === 'object') {
+      const errorValue = response.error.value as Record<string, unknown>;
+      if (errorValue.error && typeof errorValue.error === 'object') {
+        const errorObj = errorValue.error as Record<string, unknown>;
+        code = (errorObj.code as string) || status;
+        message = (errorObj.message as string) || message;
+        details = errorObj.details as Record<string, unknown> | undefined;
+      } else if (errorValue.message && typeof errorValue.message === 'string') {
+        // Handle Error objects from network failures
+        message = errorValue.message as string;
+      }
+      requestId = errorValue.requestId as string | undefined;
+    } else if (typeof response.error.value === 'string') {
+      message = response.error.value;
+    } else if (response.error.value instanceof Error) {
+      // Preserve original error messages from network failures
+      message = response.error.value.message;
+      code = 'NETWORK_ERROR';
     }
-  });
 
-  // Check if response has content before parsing JSON
-  const contentType = response.headers.get('content-type');
-  const contentLength = response.headers.get('content-length');
-
-  // Handle empty responses (204 No Content, or empty body)
-  if (
-    response.status === 204 ||
-    contentLength === '0' ||
-    !contentType?.includes('application/json')
-  ) {
-    if (!response.ok) {
-      throw new ApiClientError(
-        'HTTP_ERROR',
-        `Request failed with status ${response.status}`,
-        undefined,
-        response.headers.get('x-request-id') ?? undefined
-      );
+    // Extract request ID from response headers if available
+    if (!requestId && response.response) {
+      requestId = response.response.headers.get('x-request-id') ?? undefined;
     }
+
+    throw new ApiClientError(code, message, details, requestId);
+  }
+
+  // Handle 204 No Content responses (e.g., DELETE operations)
+  if (response.status === 204 || response.response?.status === 204) {
     return undefined as T;
   }
 
-  // Try to parse JSON, handle empty body gracefully
-  let data: ApiResponse<T>;
-  try {
-    const text = await response.text();
-    if (!text || text.trim() === '') {
-      if (!response.ok) {
-        throw new ApiClientError(
-          'HTTP_ERROR',
-          `Request failed with status ${response.status}`,
-          undefined,
-          response.headers.get('x-request-id') ?? undefined
-        );
-      }
+  // Eden Treaty returns { data: T } where T is the backend response
+  // Backend returns { success: boolean, data: actualData, meta?: ... }
+  const apiResponse = response.data;
+
+  // Handle empty responses gracefully (may occur with some endpoints)
+  if (!apiResponse) {
+    // For void operations, return undefined
+    if (response.status >= 200 && response.status < 300) {
       return undefined as T;
     }
-    data = JSON.parse(text);
-  } catch (error) {
+    throw new ApiClientError('NO_DATA', 'No data received from server');
+  }
+
+  // Check for error in response data
+  if (!apiResponse.success && apiResponse.error) {
     throw new ApiClientError(
-      'PARSE_ERROR',
-      'Failed to parse response as JSON',
-      { originalError: error instanceof Error ? error.message : String(error) },
-      response.headers.get('x-request-id') ?? undefined
+      apiResponse.error.code,
+      apiResponse.error.message,
+      apiResponse.error.details,
+      apiResponse.requestId
     );
   }
 
-  if (!data.success || !response.ok) {
-    throw new ApiClientError(
-      data.error?.code ?? 'UNKNOWN_ERROR',
-      data.error?.message ?? 'Request failed',
-      data.error?.details,
-      data.requestId
-    );
+  // For paginated responses, return both data and meta
+  if (apiResponse.meta && apiResponse.data) {
+    return { data: apiResponse.data, meta: apiResponse.meta } as T;
   }
 
-  return data.data as T;
+  // Return unwrapped data
+  if (apiResponse.data !== undefined) {
+    return apiResponse.data as T;
+  }
+
+  // For responses with no data field (like void/delete)
+  return apiResponse as T;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -124,83 +181,97 @@ async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
 export async function createLink(
   input: CreateLinkInput
 ): Promise<LinkResponse> {
-  return fetcher('/links', {
-    method: 'POST',
-    body: JSON.stringify(input)
-  });
+  // Transform Date to ISO string for API
+  const apiInput = {
+    ...input,
+    expiresAt:
+      input.expiresAt instanceof Date
+        ? input.expiresAt.toISOString()
+        : input.expiresAt
+  };
+  const response = await client.api.v1.links.post(apiInput);
+  return handleEden(response);
 }
 
 export async function getLinks(
   query?: ListLinksQuery
 ): Promise<PaginatedResponse<LinkResponse>> {
-  const params = new URLSearchParams();
-
-  if (query?.page) params.set('page', query.page.toString());
-  if (query?.perPage) params.set('perPage', query.perPage.toString());
-  if (query?.search) params.set('search', query.search);
-  if (query?.isActive !== undefined)
-    params.set('isActive', query.isActive.toString());
-  if (query?.sortBy) params.set('sortBy', query.sortBy);
-  if (query?.sortOrder) params.set('sortOrder', query.sortOrder);
-  if (query?.tags?.length) params.set('tags', query.tags.join(','));
-
-  const queryString = params.toString();
-  return fetcher(`/links${queryString ? `?${queryString}` : ''}`);
+  // Transform query parameters to match API expectations
+  const apiQuery = query
+    ? {
+        ...query,
+        tags: query.tags?.join(','),
+        page: query.page?.toString(),
+        perPage: query.perPage?.toString(),
+        isActive: query.isActive?.toString()
+      }
+    : {};
+  const response = await client.api.v1.links.get({ query: apiQuery });
+  // Backend returns { data: LinkResponse[], meta: {...} } structure
+  return handleEden(response) as unknown as PaginatedResponse<LinkResponse>;
 }
 
 export async function getLink(id: string): Promise<LinkResponse> {
-  return fetcher(`/links/${id}`);
+  const response = await client.api.v1.links({ id }).get();
+  return handleEden(response);
 }
 
 export async function updateLink(
   id: string,
   input: UpdateLinkInput
 ): Promise<LinkResponse> {
-  return fetcher(`/links/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(input)
-  });
+  // Transform Date to ISO string for API
+  const apiInput = {
+    ...input,
+    expiresAt:
+      input.expiresAt instanceof Date
+        ? input.expiresAt.toISOString()
+        : input.expiresAt
+  };
+  const response = await client.api.v1.links({ id }).patch(apiInput);
+  return handleEden(response);
 }
 
 export async function deleteLink(id: string): Promise<void> {
-  return fetcher(`/links/${id}`, {
-    method: 'DELETE'
-  });
+  const response = await client.api.v1.links({ id }).delete();
+  return handleEden(response);
 }
 
 export async function restoreLink(id: string): Promise<LinkResponse> {
-  return fetcher(`/links/${id}/restore`, {
-    method: 'POST'
-  });
+  const response = await client.api.v1.links({ id }).restore.post();
+  return handleEden(response);
 }
 
 export async function duplicateLink(id: string): Promise<LinkResponse> {
-  return fetcher(`/links/${id}/duplicate`, {
-    method: 'POST'
-  });
+  const response = await client.api.v1.links({ id }).duplicate.post();
+  return handleEden(response);
 }
 
 export async function validateUrl(url: string): Promise<{
   valid: boolean;
   warnings: string[];
 }> {
-  return fetcher('/links/validate', {
-    method: 'POST',
-    body: JSON.stringify({ url })
-  });
+  const response = await client.api.v1.links.validate.post({ url });
+  // Backend may return { valid, warnings } or { valid, error }
+  // @ts-expect-error - Backend response structure varies, we handle it
+  const result = handleEden(response);
+  return {
+    valid: result.valid,
+    warnings: result.warnings || []
+  };
 }
 
 export async function verifyLinkPassword(
   code: string,
   password: string
 ): Promise<{ redirectUrl: string }> {
-  return fetcher(`/links/by-code/${code}/verify-password`, {
-    method: 'POST',
-    body: JSON.stringify({ password })
-  });
+  const response = await client.api.v1.links['by-code']({ code })[
+    'verify-password'
+  ].post({ password });
+  return handleEden(response);
 }
 
-export async function getLinkPreview(code: string): Promise<{
+export interface LinkPreview {
   shortCode: string;
   originalUrl: string;
   metaTitle: string | null;
@@ -208,27 +279,37 @@ export async function getLinkPreview(code: string): Promise<{
   metaImage: string | null;
   createdAt: string;
   isPasswordProtected: boolean;
-}> {
-  return fetcher(`/links/by-code/${code}/preview`);
+}
+
+export async function getLinkPreview(code: string): Promise<LinkPreview> {
+  const response = await client.api.v1.links['by-code']({ code }).preview.get();
+  return handleEden(response);
 }
 
 export async function getQRCode(
   code: string,
   options?: { size?: number; format?: 'png' | 'svg' }
 ): Promise<Blob> {
-  const params = new URLSearchParams();
-  if (options?.size) params.set('size', options.size.toString());
-  if (options?.format) params.set('format', options.format);
+  // Note: For binary responses, Eden Treaty returns Response in the data field
+  const query = options
+    ? {
+        size: options.size?.toString(),
+        format: options.format
+      }
+    : {};
+  const response = await client.api.v1.links['by-code']({ code }).qr.get({
+    query
+  });
 
-  const queryString = params.toString();
-  const response = await fetch(
-    `${API_BASE}/links/by-code/${code}/qr${
-      queryString ? `?${queryString}` : ''
-    }`
-  );
+  if (response.error) {
+    throw new Error('QR Code generation failed');
+  }
 
-  if (!response.ok) throw new Error('QR Code generation failed');
-  return response.blob();
+  // Extract blob from Response object
+  if (!response.response) {
+    throw new Error('No response received');
+  }
+  return response.response.blob();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -241,81 +322,151 @@ export interface AnalyticsOptions {
   granularity?: 'hour' | 'day' | 'week';
 }
 
-export async function getLinkStats(id: string): Promise<{
+export interface LinkStats {
   clicks: number;
   uniqueVisitors: number;
   lastClickedAt: string | null;
-}> {
-  return fetcher(`/links/${id}/stats`);
+}
+
+export async function getLinkStats(id: string): Promise<LinkStats> {
+  const response = await client.api.v1.links({ id }).stats.get();
+  return handleEden(response);
 }
 
 export async function getDailyStats(
   linkId: string,
-  days: number = 30
+  days = 30
 ): Promise<DailyStats[]> {
-  return fetcher(`/analytics/${linkId}/daily?days=${days}`);
+  // Handle "all" linkId for aggregate analytics
+  if (linkId === 'all') {
+    const response = await client.api.v1.analytics.all.daily.get({
+      query: { days: days.toString() }
+    });
+    // Backend returns TimeSeries[], map to DailyStats[] by adding linkId
+    // @ts-expect-error - Backend returns TimeSeries[] with different meta structure
+    const timeSeries = handleEden(response) as unknown as TimeSeries[];
+    return timeSeries.map((ts) => ({ ...ts, linkId: 'all' }));
+  }
+
+  const response = await client.api.v1.analytics({ linkId }).daily.get({
+    query: { days: days.toString() }
+  });
+  // Backend returns TimeSeries[], map to DailyStats[] by adding linkId
+  // @ts-expect-error - Backend returns TimeSeries[] with different meta structure
+  const timeSeries = handleEden(response) as unknown as TimeSeries[];
+  return timeSeries.map((ts) => ({ ...ts, linkId }));
 }
 
 export async function getAnalyticsBreakdown(
   linkId: string,
   options?: AnalyticsOptions
 ): Promise<AnalyticsBreakdown> {
-  const params = new URLSearchParams();
-  if (options?.from) params.set('from', options.from);
-  if (options?.to) params.set('to', options.to);
+  // Backend expects 'days' parameter, not from/to/granularity
+  const queryParams =
+    options?.from || options?.to || options?.granularity
+      ? { days: '30' } // Default to 30 days when options provided
+      : {};
 
-  const queryString = params.toString();
-  return fetcher(
-    `/analytics/${linkId}/breakdown${queryString ? `?${queryString}` : ''}`
-  );
+  // Handle "all" linkId for aggregate analytics
+  if (linkId === 'all') {
+    const response = await client.api.v1.analytics.all.breakdown.get({
+      // biome-ignore lint/suspicious/noExplicitAny: Backend query params don't match frontend interface
+      query: queryParams as any
+    });
+    return handleEden(response);
+  }
+
+  const response = await client.api.v1.analytics({ linkId }).breakdown.get({
+    // biome-ignore lint/suspicious/noExplicitAny: Backend query params don't match frontend interface
+    query: queryParams as any
+  });
+  return handleEden(response);
 }
 
 export async function getAnalyticsSummary(
   linkId: string,
   options?: AnalyticsOptions
 ): Promise<AnalyticsSummary> {
-  const params = new URLSearchParams();
-  if (options?.from) params.set('from', options.from);
-  if (options?.to) params.set('to', options.to);
+  // Backend expects 'days' parameter, not from/to/granularity
+  const queryParams =
+    options?.from || options?.to || options?.granularity
+      ? { days: '30' } // Default to 30 days when options provided
+      : {};
 
-  const queryString = params.toString();
-  return fetcher(
-    `/analytics/${linkId}/summary${queryString ? `?${queryString}` : ''}`
-  );
+  // Handle "all" linkId for aggregate analytics
+  if (linkId === 'all') {
+    const response = await client.api.v1.analytics.all.summary.get({
+      // biome-ignore lint/suspicious/noExplicitAny: Backend query params don't match frontend interface
+      query: queryParams as any
+    });
+    return handleEden(response);
+  }
+
+  const response = await client.api.v1.analytics({ linkId }).summary.get({
+    // biome-ignore lint/suspicious/noExplicitAny: Backend query params don't match frontend interface
+    query: queryParams as any
+  });
+  return handleEden(response);
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // USER API
 // ═══════════════════════════════════════════════════════════════════
 
-export async function getUserQuota(): Promise<{
+export interface UserQuota {
   used: number;
   limit: number;
   remaining: number;
   percentUsed: number;
-}> {
-  return fetcher('/me/quota');
+}
+
+export async function getUserQuota(): Promise<UserQuota> {
+  const response = await client.api.v1.me.quota.get();
+  return handleEden(response);
 }
 
 export async function exportUserData(): Promise<Blob> {
-  const response = await fetch(`${API_BASE}/me/export`);
-  if (!response.ok) throw new Error('Export failed');
-  return response.blob();
+  const response = await client.api.v1.me.export.get();
+
+  if (response.error) {
+    throw new Error('Export failed');
+  }
+
+  // For binary responses, extract blob from Response object
+  if (!response.response) {
+    throw new Error('No response received');
+  }
+  return response.response.blob();
 }
 
-export async function requestDataDeletion(): Promise<{
+export interface DataDeletionRequest {
   requestId: string;
   deadline: string;
   message: string;
-}> {
-  return fetcher('/me/data', {
-    method: 'DELETE'
-  });
+}
+
+export async function requestDataDeletion(): Promise<DataDeletionRequest> {
+  const response = await client.api.v1.me.data.delete();
+  // biome-ignore lint/suspicious/noExplicitAny: Backend response structure differs, needs runtime mapping
+  const result = handleEden(response) as any;
+  // Backend returns { requestId, requestedAt, deadlineAt, message }
+  // Map to expected format with deadline as string
+  return {
+    requestId: result.requestId,
+    deadline: result.deadlineAt?.toISOString?.() || result.deadlineAt,
+    message: result.message
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN API
 // ═══════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// ADMIN STATS (Stub Implementation)
+// ═══════════════════════════════════════════════════════════════════
+// NOTE: Full implementation pending backend development
+// These are temporary client-side stubs to unblock frontend development
 
 export async function getAdminStats(): Promise<{
   totalLinks: number;
@@ -324,34 +475,89 @@ export async function getAdminStats(): Promise<{
   activeLinksToday: number;
   requestsPerSecond: number;
 }> {
-  return fetcher('/admin/stats');
+  // TODO: Implement backend endpoint at /api/v1/admin/stats
+  // For now, return stub data
+  return {
+    totalLinks: 0,
+    totalClicks: 0,
+    totalUsers: 0,
+    activeLinksToday: 0,
+    requestsPerSecond: 0
+  };
 }
 
-export async function searchLinks(query: string): Promise<LinkResponse[]> {
-  return fetcher(`/admin/links?q=${encodeURIComponent(query)}`);
+export async function searchLinks(_query: string): Promise<LinkResponse[]> {
+  // TODO: Implement backend endpoint at /api/v1/admin/links?q={query}
+  // For now, return empty array
+  return [];
 }
 
 export async function banLink(
   id: string,
   reason: string
 ): Promise<LinkResponse> {
-  return fetcher(`/admin/links/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      isBanned: true,
-      bannedReason: reason
-    })
-  });
+  // Use the existing updateLink endpoint as workaround
+  return updateLink(id, {
+    isActive: false,
+    notes: `Banned: ${reason}`
+  } as UpdateLinkInput);
 }
 
 export async function unbanLink(id: string): Promise<LinkResponse> {
-  return fetcher(`/admin/links/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      isBanned: false,
-      bannedReason: null
-    })
-  });
+  // Use the existing updateLink endpoint as workaround
+  return updateLink(id, {
+    isActive: true,
+    notes: 'Unbanned'
+  } as UpdateLinkInput);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// USER MANAGEMENT (Admin - Stub Implementation)
+// ═══════════════════════════════════════════════════════════════════
+
+export interface UserResponse {
+  id: string;
+  email: string;
+  name?: string;
+  role: string;
+  createdAt: string;
+  linksQuota: number;
+}
+
+export async function getUsers(query?: {
+  page?: number;
+  perPage?: number;
+  search?: string;
+}): Promise<PaginatedResponse<UserResponse>> {
+  // TODO: Implement backend endpoint at /api/v1/admin/users
+  return {
+    data: [],
+    meta: {
+      total: 0,
+      page: query?.page || 1,
+      perPage: query?.perPage || 20,
+      lastPage: 0,
+      hasMore: false
+    }
+  };
+}
+
+export async function updateUserRole(
+  _userId: string,
+  _role: string
+): Promise<UserResponse> {
+  // TODO: Implement backend endpoint at /api/v1/admin/users/:userId/role
+  throw new Error('Not implemented');
+}
+
+export async function banUser(_userId: string): Promise<UserResponse> {
+  // TODO: Implement backend endpoint at /api/v1/admin/users/:userId/ban
+  throw new Error('Not implemented');
+}
+
+export async function unbanUser(_userId: string): Promise<UserResponse> {
+  // TODO: Implement backend endpoint at /api/v1/admin/users/:userId/unban
+  throw new Error('Not implemented');
 }
 
 export interface AuditLogEntry {
@@ -378,63 +584,47 @@ export interface AuditLogsQuery {
 export async function getAuditLogs(
   query?: AuditLogsQuery
 ): Promise<PaginatedResponse<AuditLogEntry>> {
-  const params = new URLSearchParams();
+  // Transform query parameters to match API expectations
+  const apiQuery = query
+    ? {
+        ...query,
+        page: query.page?.toString(),
+        perPage: query.perPage?.toString()
+      }
+    : {};
+  const response = await client.api.v1.admin.audit.get({ query: apiQuery });
+  // @ts-expect-error - Backend returns different meta structure (limit vs perPage)
+  // biome-ignore lint/suspicious/noExplicitAny: Backend pagination meta differs, needs runtime normalization
+  const result = handleEden(response) as any;
 
-  if (query?.from) params.set('from', query.from);
-  if (query?.to) params.set('to', query.to);
-  if (query?.action) params.set('action', query.action);
-  if (query?.userId) params.set('userId', query.userId);
-  if (query?.page) params.set('page', query.page.toString());
-  if (query?.perPage) params.set('perPage', query.perPage.toString());
+  // Backend may return different meta structure, normalize it
+  if (Array.isArray(result)) {
+    // If backend returns array directly, wrap in expected format
+    return {
+      data: result,
+      meta: {
+        total: result.length,
+        page: 1,
+        perPage: result.length,
+        lastPage: 1,
+        hasMore: false
+      }
+    };
+  }
 
-  const queryString = params.toString();
-  return fetcher(`/admin/audit${queryString ? `?${queryString}` : ''}`);
+  // If backend returns proper paginated response with different meta fields
+  if (result.meta && !result.meta.perPage && result.meta.limit) {
+    return {
+      data: result.data,
+      meta: {
+        total: result.meta.total,
+        page: result.meta.page,
+        perPage: result.meta.limit,
+        lastPage: result.meta.totalPages,
+        hasMore: result.meta.hasMore
+      }
+    };
+  }
+
+  return result as PaginatedResponse<AuditLogEntry>;
 }
-
-export interface UserResponse {
-  id: string;
-  email: string;
-  name?: string;
-  role: string;
-  createdAt: string;
-  linksQuota: number;
-}
-
-export async function getUsers(query?: {
-  page?: number;
-  perPage?: number;
-  search?: string;
-}): Promise<PaginatedResponse<UserResponse>> {
-  const params = new URLSearchParams();
-
-  if (query?.page) params.set('page', query.page.toString());
-  if (query?.perPage) params.set('perPage', query.perPage.toString());
-  if (query?.search) params.set('search', query.search);
-
-  const queryString = params.toString();
-  return fetcher(`/admin/users${queryString ? `?${queryString}` : ''}`);
-}
-
-export async function updateUserRole(
-  userId: string,
-  role: string
-): Promise<UserResponse> {
-  return fetcher(`/admin/users/${userId}/role`, {
-    method: 'PATCH',
-    body: JSON.stringify({ role })
-  });
-}
-
-export async function banUser(userId: string): Promise<UserResponse> {
-  return fetcher(`/admin/users/${userId}/ban`, {
-    method: 'POST'
-  });
-}
-
-export async function unbanUser(userId: string): Promise<UserResponse> {
-  return fetcher(`/admin/users/${userId}/unban`, {
-    method: 'POST'
-  });
-}
-
-export { ApiClientError };

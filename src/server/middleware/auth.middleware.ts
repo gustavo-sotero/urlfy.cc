@@ -49,6 +49,13 @@ export const optionalAuth = new Elysia({ name: 'optional-auth' })
 export const requireAuth = new Elysia({ name: 'require-auth' })
   .derive({ as: 'scoped' }, async ({ request }) => {
     try {
+      // Log headers for debugging
+      logger.debug('Auth headers', {
+        cookie: request.headers.get('cookie'),
+        authorization: request.headers.get('authorization'),
+        hasHeaders: !!request.headers
+      });
+
       const sessionData = await auth.api.getSession({
         headers: request.headers
       });
@@ -64,9 +71,11 @@ export const requireAuth = new Elysia({ name: 'require-auth' })
         session: sessionData?.session as Session | null,
         isAuthenticated: !!(sessionData?.user && sessionData?.session)
       };
-    } catch {
+    } catch (error) {
       // If session validation throws, treat as unauthenticated
-      logger.debug('Session fetch failed, treating as unauthenticated');
+      logger.debug('Session fetch failed, treating as unauthenticated', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       return {
         user: null,
         session: null,

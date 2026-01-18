@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { Resend } from 'resend';
 
 export interface SendEmailOptions {
@@ -5,6 +6,7 @@ export interface SendEmailOptions {
   subject: string;
   text?: string;
   html?: string;
+  react?: ReactElement;
   template?: string;
   data?: Record<string, unknown>;
 }
@@ -28,17 +30,6 @@ function getResendClient(): Resend | null {
   return cachedResend;
 }
 
-function buildFallbackText(options: SendEmailOptions): string {
-  if (options.text) return options.text;
-
-  if (options.template) {
-    const payload = options.data ? JSON.stringify(options.data, null, 2) : '';
-    return `Template: ${options.template}\n\n${payload}`.trim();
-  }
-
-  return '';
-}
-
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
   const from = process.env.RESEND_FROM;
 
@@ -60,8 +51,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
     from,
     to: options.to,
     subject: options.subject,
-    text: buildFallbackText(options),
-    html: options.html
+    react: options.react
   });
 
   if (error) {

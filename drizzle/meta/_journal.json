@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1768086376580,
-      "tag": "0000_condemned_bastion",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1768239730872,
-      "tag": "0001_sparkling_shinobi_shaw",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1768252248131,
-      "tag": "0002_faithful_meltdown",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1768253383321,
-      "tag": "0003_needy_deadpool",
+      "when": 1768589750706,
+      "tag": "0000_moaning_shape",
       "breakpoints": true
     }
   ]

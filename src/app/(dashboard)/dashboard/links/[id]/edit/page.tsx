@@ -23,22 +23,52 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useLink, useUpdateLink } from '@/lib/hooks/use-links';
+import { removeEmptyFields } from '@/lib/utils';
+import type { UpdateLinkInput } from '@/types/links.types';
+
+// ═══════════════════════════════════════════════════════════════════
+// VALIDATION SCHEMA
+// ═══════════════════════════════════════════════════════════════════
 
 const schema = z.object({
   isActive: z.boolean().optional(),
   expiresAt: z.string().optional(),
-  maxClicks: z.number().optional(),
+  maxClicks: z
+    .number()
+    .positive('O limite deve ser maior que zero')
+    .optional()
+    .or(z.nan())
+    .transform((val) => (Number.isNaN(val) ? undefined : val))
+    .optional(),
   metaTitle: z.string().max(60).optional(),
   metaDescription: z.string().max(160).optional(),
   metaImage: z
     .string()
     .url('URL de imagem inválida')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .transform((val) => (val === '' ? undefined : val))
+    .optional(),
   notes: z.string().optional()
 });
 
 type FormData = z.infer<typeof schema>;
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Transform form data to API payload for update
+ * Removes empty fields
+ */
+function transformFormData(data: FormData): UpdateLinkInput {
+  return removeEmptyFields(data) as unknown as UpdateLinkInput;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPONENT
+// ═══════════════════════════════════════════════════════════════════
 
 export default function EditLinkPage() {
   const params = useParams();
@@ -70,16 +100,19 @@ export default function EditLinkPage() {
 
   const onSubmit = async (data: FormData) => {
     try {
+      const payload = transformFormData(data);
+
       await updateLink.mutateAsync({
         id: linkId,
-        data: {
-          ...data,
-          metaImage: data.metaImage || null
-        }
+        data: payload
       });
       router.push(`/dashboard/links/${linkId}`);
     } catch (error) {
-      console.error('Failed to update link:', error);
+      // Error is already handled by the mutation hook (toast)
+      // Log for debugging purposes
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to update link:', error);
+      }
     }
   };
 

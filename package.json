@@ -31,6 +31,7 @@
     "auth:generate": "bun x @better-auth/cli generate --config ./src/lib/auth.cli.ts"
   },
   "dependencies": {
+    "@elysiajs/eden": "^1.4.6",
     "@elysiajs/swagger": "^1.3.1",
     "@hookform/resolvers": "^5.2.2",
     "@maxmind/geoip2-node": "^6.3.4",
@@ -107,6 +108,7 @@
     "@biomejs/biome": "2.2.0",
     "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4",
+    "@types/bun": "^1.3.6",
     "@types/cron": "^2.4.3",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",

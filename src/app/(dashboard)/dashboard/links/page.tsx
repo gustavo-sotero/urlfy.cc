@@ -76,7 +76,7 @@ export default function LinksPage() {
         <QueryError error={error as Error} onRetry={() => refetch()} />
       )}
 
-      {data && (
+      {data?.data && (
         <>
           {data.data.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed p-12 text-center">
@@ -103,7 +103,7 @@ export default function LinksPage() {
           )}
 
           {/* Pagination */}
-          {data.meta.lastPage > 1 && (
+          {data.meta && data.meta.lastPage > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button
                 variant="outline"

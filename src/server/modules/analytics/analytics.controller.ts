@@ -34,6 +34,207 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   .use(AnalyticsModel)
 
   // ═══════════════════════════════════════════════════════════════
+  // GET /analytics/all/summary - Aggregated Summary for All Links
+  // ═══════════════════════════════════════════════════════════════
+  .get(
+    '/all/summary',
+    async ({ user, query, set }) => {
+      try {
+        if (!user) {
+          set.status = 401;
+          return {
+            success: false,
+            error: {
+              code: 'UNAUTHORIZED',
+              message: 'Authentication required'
+            }
+          };
+        }
+
+        const days = query.days ? parseInt(query.days, 10) : 30;
+
+        if (days < 1 || days > 365) {
+          set.status = 400;
+          return {
+            success: false,
+            error: {
+              code: 'INVALID_DAYS_RANGE',
+              message: 'Days must be between 1 and 365'
+            }
+          };
+        }
+
+        const summary = await AnalyticsService.getAllLinksSummary(
+          user.id,
+          days
+        );
+
+        if (!summary) {
+          set.status = 404;
+          return {
+            success: false,
+            error: {
+              code: 'NO_DATA',
+              message: 'No analytics data available'
+            }
+          };
+        }
+
+        return {
+          success: true,
+          data: summary
+        };
+      } catch (error) {
+        logger.error('[AnalyticsAPI] Error getting all links summary', {
+          error: error instanceof Error ? error.message : String(error),
+          userId:
+            error && typeof error === 'object' && 'userId' in error
+              ? error.userId
+              : undefined
+        });
+
+        return handleLinkError(error);
+      }
+    },
+    {
+      query: AnalyticsDaysQuery,
+      detail: {
+        tags: ['Analytics'],
+        summary: 'Get aggregated analytics summary for all links',
+        description: 'Get summary statistics across all user links'
+      }
+    }
+  )
+
+  // ═══════════════════════════════════════════════════════════════
+  // GET /analytics/all/daily - Aggregated Daily Stats for All Links
+  // ═══════════════════════════════════════════════════════════════
+  .get(
+    '/all/daily',
+    async ({ user, query, set }) => {
+      try {
+        if (!user) {
+          set.status = 401;
+          return {
+            success: false,
+            error: {
+              code: 'UNAUTHORIZED',
+              message: 'Authentication required'
+            }
+          };
+        }
+
+        const days = query.days ? parseInt(query.days, 10) : 30;
+
+        if (days < 1 || days > 365) {
+          set.status = 400;
+          return {
+            success: false,
+            error: {
+              code: 'INVALID_DAYS_RANGE',
+              message: 'Days must be between 1 and 365'
+            }
+          };
+        }
+
+        const dailyStats = await AnalyticsService.getAllLinksDailyStats(
+          user.id,
+          days
+        );
+
+        return {
+          success: true,
+          data: dailyStats,
+          meta: {
+            period: `last_${days}_days`,
+            count: dailyStats.length
+          }
+        };
+      } catch (error) {
+        logger.error('[AnalyticsAPI] Error getting all links daily stats', {
+          error: error instanceof Error ? error.message : String(error),
+          userId:
+            error && typeof error === 'object' && 'userId' in error
+              ? error.userId
+              : undefined
+        });
+
+        return handleLinkError(error);
+      }
+    },
+    {
+      query: AnalyticsDaysQuery,
+      detail: {
+        tags: ['Analytics'],
+        summary: 'Get aggregated daily stats for all links',
+        description: 'Get daily click statistics across all user links'
+      }
+    }
+  )
+
+  // ═══════════════════════════════════════════════════════════════
+  // GET /analytics/all/breakdown - Aggregated Breakdown for All Links
+  // ═══════════════════════════════════════════════════════════════
+  .get(
+    '/all/breakdown',
+    async ({ user, query, set }) => {
+      try {
+        if (!user) {
+          set.status = 401;
+          return {
+            success: false,
+            error: {
+              code: 'UNAUTHORIZED',
+              message: 'Authentication required'
+            }
+          };
+        }
+
+        const days = query.days ? parseInt(query.days, 10) : 30;
+
+        if (days < 1 || days > 365) {
+          set.status = 400;
+          return {
+            success: false,
+            error: {
+              code: 'INVALID_DAYS_RANGE',
+              message: 'Days must be between 1 and 365'
+            }
+          };
+        }
+
+        const breakdown = await AnalyticsService.getAllLinksBreakdown(
+          user.id,
+          days
+        );
+
+        return {
+          success: true,
+          data: breakdown
+        };
+      } catch (error) {
+        logger.error('[AnalyticsAPI] Error getting all links breakdown', {
+          error: error instanceof Error ? error.message : String(error),
+          userId:
+            error && typeof error === 'object' && 'userId' in error
+              ? error.userId
+              : undefined
+        });
+
+        return handleLinkError(error);
+      }
+    },
+    {
+      query: AnalyticsDaysQuery,
+      detail: {
+        tags: ['Analytics'],
+        summary: 'Get aggregated breakdown for all links',
+        description: 'Get complete analytics breakdown across all user links'
+      }
+    }
+  )
+
+  // ═══════════════════════════════════════════════════════════════
   // GET /analytics/:linkId/summary - Analytics Summary
   // ═══════════════════════════════════════════════════════════════
   .get(

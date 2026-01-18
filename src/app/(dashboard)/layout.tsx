@@ -1,30 +1,34 @@
 // src/app/(dashboard)/layout.tsx
+
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Sidebar } from '@/components/layout/sidebar';
+import { auth } from '@/lib/auth';
 
 export default async function DashboardLayout({
   children
 }: {
   children: React.ReactNode;
 }) {
-  // TODO: Uncomment when auth is fully configured
-  // const session = await auth();
-  // if (!session) {
-  //   redirect('/login');
-  // }
+  const headersList = await headers();
+  const session = await auth.api.getSession({ headers: headersList });
 
-  // Mock user for development
-  const mockUser = {
-    name: 'Dev User',
-    email: 'dev@urlfy.cc',
-    image: null
+  if (!session?.user) {
+    redirect('/login');
+  }
+
+  const user = {
+    name: session.user.name,
+    email: session.user.email,
+    image: session.user.image
   };
 
   return (
     <div className="flex h-screen">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header user={mockUser} />
+        <Header user={user} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>

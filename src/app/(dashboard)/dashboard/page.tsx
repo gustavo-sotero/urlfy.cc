@@ -45,11 +45,11 @@ export default function DashboardPage() {
   };
 
   // Calculate stats from the links data
-  const totalLinks = linksData?.meta.total || 0;
+  const totalLinks = linksData?.meta?.total || 0;
   const totalClicks =
-    linksData?.data.reduce((sum, link) => sum + link.clicksCount, 0) || 0;
+    linksData?.data?.reduce((sum, link) => sum + link.clicksCount, 0) || 0;
   const activeLinks =
-    linksData?.data.filter((link) => link.isActive).length || 0;
+    linksData?.data?.filter((link) => link.isActive)?.length || 0;
 
   return (
     <div className="space-y-6">
@@ -150,7 +150,7 @@ export default function DashboardPage() {
           )}
 
           {linksData &&
-            (linksData.data.length === 0 ? (
+            (linksData.data?.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed p-8 text-center">
                 <p className="text-muted-foreground">
                   Você ainda não tem links. Crie seu primeiro link!
@@ -161,7 +161,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {linksData.data.map((link) => (
+                {linksData.data?.map((link) => (
                   <LinkCard key={link.id} link={link} onDelete={handleDelete} />
                 ))}
               </div>

@@ -28,11 +28,17 @@ import {
 import { useLinks } from '@/lib/hooks/use-links';
 
 export default function AnalyticsPage() {
-  const [selectedLinkId, setSelectedLinkId] = useState<string>('');
+  const [selectedLinkId, setSelectedLinkId] = useState<string>('all');
   const [days, setDays] = useState('30');
 
   // Get user's links
-  const { data: linksData, isLoading: linksLoading } = useLinks({
+  const {
+    data: linksData,
+    isLoading: linksLoading,
+    isError: linksError,
+    error: linksErrorDetails,
+    refetch: refetchLinks
+  } = useLinks({
     perPage: 100
   });
 
@@ -43,20 +49,24 @@ export default function AnalyticsPage() {
     isError: dailyError,
     error: dailyErrorDetails,
     refetch: refetchDaily
-  } = useDailyStats(selectedLinkId || 'all', Number.parseInt(days, 10), {
-    enabled: !linksLoading
-  });
+  } = useDailyStats(
+    selectedLinkId === 'all' ? 'all' : selectedLinkId,
+    Number.parseInt(days, 10),
+    {
+      enabled: !linksLoading && !linksError
+    }
+  );
 
   const { data: summaryData, isLoading: summaryLoading } = useAnalyticsSummary(
-    selectedLinkId || 'all',
+    selectedLinkId === 'all' ? 'all' : selectedLinkId,
     {
-      enabled: !linksLoading
+      enabled: !linksLoading && !linksError
     }
   );
 
   const { data: breakdownData, isLoading: breakdownLoading } =
-    useAnalyticsBreakdown(selectedLinkId || 'all', {
-      enabled: !linksLoading
+    useAnalyticsBreakdown(selectedLinkId === 'all' ? 'all' : selectedLinkId, {
+      enabled: !linksLoading && !linksError
     });
 
   // Compute totals from daily data or use summary
@@ -73,6 +83,25 @@ export default function AnalyticsPage() {
   }, [dailyData, summaryData]);
 
   const isLoading = linksLoading || dailyLoading || summaryLoading;
+
+  // Check for any errors
+  if (linksError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Analytics</h2>
+          <p className="text-muted-foreground">
+            Visão geral do desempenho dos seus links
+          </p>
+        </div>
+        <QueryError
+          error={linksErrorDetails as Error}
+          onRetry={() => refetchLinks()}
+          title="Erro ao carregar links"
+        />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -115,6 +144,7 @@ export default function AnalyticsPage() {
   const chartCountriesData = breakdownData?.countries || [];
   const chartDevicesData = breakdownData?.devices || [];
   const chartReferrersData = breakdownData?.referrers || [];
+  const links = linksData?.data || [];
 
   return (
     <div className="space-y-6">
@@ -132,8 +162,8 @@ export default function AnalyticsPage() {
               <SelectValue placeholder="Todos os links" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os links</SelectItem>
-              {linksData?.data.map((link) => (
+              <SelectItem value="all">Todos os links</SelectItem>
+              {links.map((link) => (
                 <SelectItem key={link.id} value={link.id}>
                   {link.shortCode}
                 </SelectItem>
@@ -216,10 +246,10 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {linksData?.data.filter((l) => l.isActive).length || 0}
+              {links.filter((l) => l.isActive).length}
             </div>
             <p className="text-xs text-muted-foreground">
-              de {linksData?.meta.total || 0} links totais
+              de {linksData?.meta?.total || links.length} links totais
             </p>
           </CardContent>
         </Card>

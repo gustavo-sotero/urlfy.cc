@@ -158,3 +158,6 @@ export const api = new Elysia({ prefix: '/api' })
       requestId
     };
   });
+
+// Export type for Eden inference
+export type App = typeof api;

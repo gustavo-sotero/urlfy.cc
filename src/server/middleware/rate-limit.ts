@@ -33,19 +33,45 @@ function getClientIP(request: Request): string {
 }
 
 /**
- * Extract authentication token/API key
+ * Extract authentication token/API key or check for session cookie
  */
 function getAuthToken(request: Request): string | null {
   // Bearer token
   const auth = request.headers.get('Authorization');
   if (auth?.startsWith('Bearer ')) {
+    logger.debug('Found Bearer token');
     return auth.slice(7);
   }
 
   // API Key
   const apiKey = request.headers.get('X-API-Key');
   if (apiKey) {
+    logger.debug('Found API Key');
     return apiKey;
+  }
+
+  // Check for Better-Auth session cookie
+  // Better-Auth uses cookies with format: ${cookiePrefix}.session_token
+  // With cookiePrefix "urlfy", the cookie name is: urlfy.session_token
+  const cookieHeader = request.headers.get('Cookie');
+
+  logger.debug('Checking cookies for auth', {
+    hasCookie: !!cookieHeader,
+    cookiePreview: cookieHeader?.substring(0, 100)
+  });
+
+  if (cookieHeader) {
+    // Look for session cookie (Better-Auth format)
+    // Pattern: urlfy.session_token=<token>
+    const sessionMatch = cookieHeader.match(/urlfy\.session_token=([^;]+)/);
+    if (sessionMatch?.[1]) {
+      logger.debug('Found session cookie', {
+        tokenPreview: `${sessionMatch[1].substring(0, 20)}...`
+      });
+      return sessionMatch[1];
+    }
+
+    logger.debug('No urlfy.session_token cookie found in header');
   }
 
   return null;
@@ -101,6 +127,13 @@ export async function rateLimit(request: Request): Promise<RateLimitOutcome> {
   const ip = getClientIP(request);
   const token = getAuthToken(request);
   const isAuthenticated = !!token;
+
+  logger.debug('Rate limit check', {
+    path,
+    method,
+    isAuthenticated,
+    hasToken: !!token
+  });
 
   // Check if IP is blocked
   const isBlocked = await rateLimiter.isIPBlocked(ip);
