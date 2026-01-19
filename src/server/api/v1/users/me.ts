@@ -136,7 +136,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
             details: {
               requestId: existingRequest.requestId,
               requestedAt: existingRequest.requestedAt,
-              deadlineAt: existingRequest.deadline
+              deadline: existingRequest.deadline
             }
           }
         };
@@ -177,8 +177,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
         success: true,
         data: {
           requestId: request.requestId,
-          requestedAt: request.requestedAt,
-          deadlineAt: request.deadline,
+          deadline: request.deadline.toISOString(),
           message:
             'Your data deletion request has been received. Your data will be permanently deleted within 72 hours.'
         }
@@ -215,9 +214,17 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
       };
     }
 
+    // Transform database field names to API response format
+    const request = requests[0];
     return {
       success: true,
-      data: requests[0]
+      data: {
+        id: request.id,
+        status: request.status,
+        requestedAt: request.requestedAt.toISOString(),
+        deadline: request.deadlineAt.toISOString(),
+        completedAt: request.completedAt?.toISOString() ?? null
+      }
     };
   });
 

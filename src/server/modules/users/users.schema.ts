@@ -115,7 +115,7 @@ export const DeletionRequestListItem = t.Object({
   id: t.String(),
   status: t.String(),
   requestedAt: t.String(),
-  deadlineAt: t.String(),
+  deadline: t.String(),
   completedAt: t.Nullable(t.String())
 });
 export type DeletionRequestListItemType = Static<

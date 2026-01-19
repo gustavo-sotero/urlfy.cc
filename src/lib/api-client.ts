@@ -68,18 +68,12 @@ interface TreatyResponse<T = unknown> {
 }
 
 /**
- * Backend API response structure
+ * Backend API success response structure
  */
-interface ApiResponse<T> {
+interface BackendSuccessResponse<T = unknown> {
   success: boolean;
   data?: T;
-  meta?: {
-    total: number;
-    page: number;
-    perPage: number;
-    lastPage: number;
-    hasMore: boolean;
-  };
+  meta?: Record<string, unknown>;
   error?: {
     code: string;
     message: string;
@@ -91,8 +85,13 @@ interface ApiResponse<T> {
 /**
  * Adapter to maintain backward compatibility with existing error handling
  * Converts Eden Treaty error responses to ApiClientError
+ *
+ * This function is intentionally permissive with input types since Eden Treaty
+ * returns union types based on HTTP status codes. The return type T is trusted
+ * based on the caller's expectation.
  */
-function handleEden<T>(response: TreatyResponse<ApiResponse<T> | null>): T {
+
+function handleEden<T>(response: TreatyResponse<unknown>): T {
   if (response.error) {
     // Extract error information from Eden response
     const status = response.error.status?.toString() || 'UNKNOWN_ERROR';
@@ -139,7 +138,7 @@ function handleEden<T>(response: TreatyResponse<ApiResponse<T> | null>): T {
 
   // Eden Treaty returns { data: T } where T is the backend response
   // Backend returns { success: boolean, data: actualData, meta?: ... }
-  const apiResponse = response.data;
+  const apiResponse = response.data as BackendSuccessResponse | null;
 
   // Handle empty responses gracefully (may occur with some endpoints)
   if (!apiResponse) {
@@ -175,6 +174,31 @@ function handleEden<T>(response: TreatyResponse<ApiResponse<T> | null>): T {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// QUERY PARAM HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Converts typed query parameters to string format for API requests
+ * Handles numbers, booleans, arrays, and undefined values
+ */
+function toQueryParams(
+  query: Record<string, string | number | boolean | string[] | undefined | null>
+): Record<string, string | undefined> {
+  const result: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined || value === null) {
+      continue;
+    }
+    if (Array.isArray(value)) {
+      result[key] = value.join(',');
+    } else {
+      result[key] = String(value);
+    }
+  }
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // LINKS API
 // ═══════════════════════════════════════════════════════════════════
 
@@ -196,19 +220,9 @@ export async function createLink(
 export async function getLinks(
   query?: ListLinksQuery
 ): Promise<PaginatedResponse<LinkResponse>> {
-  // Transform query parameters to match API expectations
-  const apiQuery = query
-    ? {
-        ...query,
-        tags: query.tags?.join(','),
-        page: query.page?.toString(),
-        perPage: query.perPage?.toString(),
-        isActive: query.isActive?.toString()
-      }
-    : {};
+  const apiQuery = query ? toQueryParams({ ...query }) : {};
   const response = await client.api.v1.links.get({ query: apiQuery });
-  // Backend returns { data: LinkResponse[], meta: {...} } structure
-  return handleEden(response) as unknown as PaginatedResponse<LinkResponse>;
+  return handleEden<PaginatedResponse<LinkResponse>>(response);
 }
 
 export async function getLink(id: string): Promise<LinkResponse> {
@@ -252,9 +266,7 @@ export async function validateUrl(url: string): Promise<{
   warnings: string[];
 }> {
   const response = await client.api.v1.links.validate.post({ url });
-  // Backend may return { valid, warnings } or { valid, error }
-  // @ts-expect-error - Backend response structure varies, we handle it
-  const result = handleEden(response);
+  const result = handleEden<{ valid: boolean; warnings?: string[] }>(response);
   return {
     valid: result.valid,
     warnings: result.warnings || []
@@ -316,10 +328,13 @@ export async function getQRCode(
 // ANALYTICS API
 // ═══════════════════════════════════════════════════════════════════
 
+/**
+ * Analytics query options
+ * Aligned with backend AnalyticsDaysQuery schema
+ */
 export interface AnalyticsOptions {
-  from?: string;
-  to?: string;
-  granularity?: 'hour' | 'day' | 'week';
+  /** Number of days to query (1-365). Defaults to 30. */
+  days?: number;
 }
 
 export interface LinkStats {
@@ -342,18 +357,14 @@ export async function getDailyStats(
     const response = await client.api.v1.analytics.all.daily.get({
       query: { days: days.toString() }
     });
-    // Backend returns TimeSeries[], map to DailyStats[] by adding linkId
-    // @ts-expect-error - Backend returns TimeSeries[] with different meta structure
-    const timeSeries = handleEden(response) as unknown as TimeSeries[];
+    const timeSeries = handleEden<TimeSeries[]>(response);
     return timeSeries.map((ts) => ({ ...ts, linkId: 'all' }));
   }
 
   const response = await client.api.v1.analytics({ linkId }).daily.get({
     query: { days: days.toString() }
   });
-  // Backend returns TimeSeries[], map to DailyStats[] by adding linkId
-  // @ts-expect-error - Backend returns TimeSeries[] with different meta structure
-  const timeSeries = handleEden(response) as unknown as TimeSeries[];
+  const timeSeries = handleEden<TimeSeries[]>(response);
   return timeSeries.map((ts) => ({ ...ts, linkId }));
 }
 
@@ -361,24 +372,18 @@ export async function getAnalyticsBreakdown(
   linkId: string,
   options?: AnalyticsOptions
 ): Promise<AnalyticsBreakdown> {
-  // Backend expects 'days' parameter, not from/to/granularity
-  const queryParams =
-    options?.from || options?.to || options?.granularity
-      ? { days: '30' } // Default to 30 days when options provided
-      : {};
+  const queryParams = options?.days ? { days: options.days.toString() } : {};
 
   // Handle "all" linkId for aggregate analytics
   if (linkId === 'all') {
     const response = await client.api.v1.analytics.all.breakdown.get({
-      // biome-ignore lint/suspicious/noExplicitAny: Backend query params don't match frontend interface
-      query: queryParams as any
+      query: queryParams
     });
     return handleEden(response);
   }
 
   const response = await client.api.v1.analytics({ linkId }).breakdown.get({
-    // biome-ignore lint/suspicious/noExplicitAny: Backend query params don't match frontend interface
-    query: queryParams as any
+    query: queryParams
   });
   return handleEden(response);
 }
@@ -387,24 +392,18 @@ export async function getAnalyticsSummary(
   linkId: string,
   options?: AnalyticsOptions
 ): Promise<AnalyticsSummary> {
-  // Backend expects 'days' parameter, not from/to/granularity
-  const queryParams =
-    options?.from || options?.to || options?.granularity
-      ? { days: '30' } // Default to 30 days when options provided
-      : {};
+  const queryParams = options?.days ? { days: options.days.toString() } : {};
 
   // Handle "all" linkId for aggregate analytics
   if (linkId === 'all') {
     const response = await client.api.v1.analytics.all.summary.get({
-      // biome-ignore lint/suspicious/noExplicitAny: Backend query params don't match frontend interface
-      query: queryParams as any
+      query: queryParams
     });
     return handleEden(response);
   }
 
   const response = await client.api.v1.analytics({ linkId }).summary.get({
-    // biome-ignore lint/suspicious/noExplicitAny: Backend query params don't match frontend interface
-    query: queryParams as any
+    query: queryParams
   });
   return handleEden(response);
 }
@@ -447,15 +446,7 @@ export interface DataDeletionRequest {
 
 export async function requestDataDeletion(): Promise<DataDeletionRequest> {
   const response = await client.api.v1.me.data.delete();
-  // biome-ignore lint/suspicious/noExplicitAny: Backend response structure differs, needs runtime mapping
-  const result = handleEden(response) as any;
-  // Backend returns { requestId, requestedAt, deadlineAt, message }
-  // Map to expected format with deadline as string
-  return {
-    requestId: result.requestId,
-    deadline: result.deadlineAt?.toISOString?.() || result.deadlineAt,
-    message: result.message
-  };
+  return handleEden<DataDeletionRequest>(response);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -578,53 +569,14 @@ export interface AuditLogsQuery {
   action?: string;
   userId?: string;
   page?: number;
-  perPage?: number;
+  /** Maps to 'limit' in backend query parameter */
+  limit?: number;
 }
 
 export async function getAuditLogs(
   query?: AuditLogsQuery
 ): Promise<PaginatedResponse<AuditLogEntry>> {
-  // Transform query parameters to match API expectations
-  const apiQuery = query
-    ? {
-        ...query,
-        page: query.page?.toString(),
-        perPage: query.perPage?.toString()
-      }
-    : {};
+  const apiQuery = query ? toQueryParams({ ...query }) : {};
   const response = await client.api.v1.admin.audit.get({ query: apiQuery });
-  // @ts-expect-error - Backend returns different meta structure (limit vs perPage)
-  // biome-ignore lint/suspicious/noExplicitAny: Backend pagination meta differs, needs runtime normalization
-  const result = handleEden(response) as any;
-
-  // Backend may return different meta structure, normalize it
-  if (Array.isArray(result)) {
-    // If backend returns array directly, wrap in expected format
-    return {
-      data: result,
-      meta: {
-        total: result.length,
-        page: 1,
-        perPage: result.length,
-        lastPage: 1,
-        hasMore: false
-      }
-    };
-  }
-
-  // If backend returns proper paginated response with different meta fields
-  if (result.meta && !result.meta.perPage && result.meta.limit) {
-    return {
-      data: result.data,
-      meta: {
-        total: result.meta.total,
-        page: result.meta.page,
-        perPage: result.meta.limit,
-        lastPage: result.meta.totalPages,
-        hasMore: result.meta.hasMore
-      }
-    };
-  }
-
-  return result as PaginatedResponse<AuditLogEntry>;
+  return handleEden<PaginatedResponse<AuditLogEntry>>(response);
 }

@@ -20,10 +20,10 @@ export const analyticsKeys = {
   link: (linkId: string) => [...analyticsKeys.all, 'link', linkId] as const,
   daily: (linkId: string, days: number) =>
     [...analyticsKeys.link(linkId), 'daily', days] as const,
-  breakdown: (linkId: string, from?: string, to?: string) =>
-    [...analyticsKeys.link(linkId), 'breakdown', from, to] as const,
-  summary: (linkId: string, from?: string, to?: string) =>
-    [...analyticsKeys.link(linkId), 'summary', from, to] as const
+  breakdown: (linkId: string, days?: string) =>
+    [...analyticsKeys.link(linkId), 'breakdown', days] as const,
+  summary: (linkId: string, days?: string) =>
+    [...analyticsKeys.link(linkId), 'summary', days] as const
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -50,14 +50,13 @@ export function useAnalyticsBreakdown(
     UseQueryOptions<AnalyticsBreakdown>,
     'queryKey' | 'queryFn'
   > & {
-    from?: string;
-    to?: string;
+    days?: number;
   }
 ) {
-  const { from, to, ...queryOptions } = options || {};
+  const { days = 30, ...queryOptions } = options || {};
   return useQuery({
-    queryKey: analyticsKeys.breakdown(linkId, from, to),
-    queryFn: () => api.getAnalyticsBreakdown(linkId, { from, to }),
+    queryKey: analyticsKeys.breakdown(linkId, days.toString()),
+    queryFn: () => api.getAnalyticsBreakdown(linkId, { days }),
     staleTime: 60_000, // 1 minute
     enabled: !!linkId,
     ...queryOptions
@@ -67,14 +66,13 @@ export function useAnalyticsBreakdown(
 export function useAnalyticsSummary(
   linkId: string,
   options?: Omit<UseQueryOptions<AnalyticsSummary>, 'queryKey' | 'queryFn'> & {
-    from?: string;
-    to?: string;
+    days?: number;
   }
 ) {
-  const { from, to, ...queryOptions } = options || {};
+  const { days = 30, ...queryOptions } = options || {};
   return useQuery({
-    queryKey: analyticsKeys.summary(linkId, from, to),
-    queryFn: () => api.getAnalyticsSummary(linkId, { from, to }),
+    queryKey: analyticsKeys.summary(linkId, days.toString()),
+    queryFn: () => api.getAnalyticsSummary(linkId, { days }),
     staleTime: 60_000, // 1 minute
     enabled: !!linkId,
     ...queryOptions

@@ -53,14 +53,23 @@ export interface UserAgentData {
   isBot: boolean;
 }
 
-export interface DailyStats {
-  linkId: string;
+/**
+ * TimeSeries data point returned by backend
+ * This is the canonical type from analytics.schema.ts
+ */
+export interface TimeSeries {
   date: string;
   clicks: number;
   uniqueVisitors: number;
-  topCountry?: string | null;
-  topBrowser?: string | null;
-  topReferrer?: string | null;
+}
+
+/**
+ * DailyStats extends TimeSeries with linkId for client-side context
+ * The linkId is added by the API client, not returned by the backend
+ */
+export interface DailyStats extends TimeSeries {
+  /** Added client-side for context - not returned by backend */
+  linkId: string;
 }
 
 export interface AnalyticsQueryOptions {
@@ -101,10 +110,4 @@ export interface AnalyticsSummary {
   topCountry: string | null;
   topBrowser: string | null;
   topReferrer: string | null;
-}
-
-export interface TimeSeries {
-  date: string;
-  clicks: number;
-  uniqueVisitors: number;
 }

@@ -137,8 +137,8 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
           meta: {
             total,
             page,
-            limit,
-            totalPages: Math.ceil(total / limit),
+            perPage: limit,
+            lastPage: Math.ceil(total / limit),
             hasMore: offset + limit < total
           }
         };
