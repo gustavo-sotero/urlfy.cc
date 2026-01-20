@@ -1,12 +1,13 @@
 // src/lib/providers.tsx
 'use client';
 
+import { ConsentBanner } from '@/components/consent-banner';
+import { AnnouncerProvider } from '@/components/ui/announcer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { type ReactNode, useState } from 'react';
 import { Toaster } from 'sonner';
-import { ConsentBanner } from '@/components/consent-banner';
-import { AnnouncerProvider } from '@/components/ui/announcer';
+import { SessionProvider } from './session-provider';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -30,11 +31,13 @@ export function Providers({ children }: { children: ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        <AnnouncerProvider>
-          <Toaster position="top-right" richColors />
-          {children}
-          <ConsentBanner />
-        </AnnouncerProvider>
+        <SessionProvider>
+          <AnnouncerProvider>
+            <Toaster position="top-right" richColors />
+            {children}
+            <ConsentBanner />
+          </AnnouncerProvider>
+        </SessionProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

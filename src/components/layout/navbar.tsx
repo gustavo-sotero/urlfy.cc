@@ -24,17 +24,23 @@ import {
   SheetContent,
   SheetTrigger
 } from '@/components/ui/sheet';
-import { useSession } from '@/lib/auth.client';
+import { useAuthState } from '@/lib/session-provider';
 
 // Navigation links configuration
-const NAV_LINKS = [
+type NavLink = {
+  href: string;
+  label: string;
+  external?: boolean;
+};
+
+const NAV_LINKS: readonly NavLink[] = [
   { href: '/#features', label: 'Recursos' },
-  { href: '/#pricing', label: 'Preços' },
-  { href: '/#about', label: 'Sobre' }
-] as const;
+  { href: '/about', label: 'Sobre' },
+  { href: '/api/docs', label: 'API Docs', external: true }
+];
 
 export function Navbar() {
-  const { data: session, isPending } = useSession();
+  const { isAuthenticated, isPending } = useAuthState();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -53,15 +59,27 @@ export function Navbar() {
         <div className="hidden items-center gap-6 md:flex">
           {/* Nav Links */}
           <div className="flex items-center gap-4">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {NAV_LINKS.map((link) =>
+              'external' in link && link.external ? (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {link.label}
+                </a>
+              ) : (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              )
+            )}
           </div>
 
           {/* Auth Section */}
@@ -72,7 +90,7 @@ export function Navbar() {
                 <div className="h-9 w-16 animate-pulse rounded-md bg-muted" />
                 <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
               </div>
-            ) : session ? (
+            ) : isAuthenticated ? (
               // Authenticated user
               <Button asChild variant="default">
                 <Link href="/dashboard">Dashboard</Link>
@@ -119,16 +137,29 @@ export function Navbar() {
 
               {/* Mobile Nav Links */}
               <nav className="flex flex-col gap-4">
-                {NAV_LINKS.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setIsOpen(false)}
-                    className="text-lg font-medium transition-colors hover:text-primary"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+                {NAV_LINKS.map((link) =>
+                  'external' in link && link.external ? (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setIsOpen(false)}
+                      className="text-lg font-medium transition-colors hover:text-primary"
+                    >
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setIsOpen(false)}
+                      className="text-lg font-medium transition-colors hover:text-primary"
+                    >
+                      {link.label}
+                    </Link>
+                  )
+                )}
               </nav>
 
               {/* Mobile Auth Section */}
@@ -139,7 +170,7 @@ export function Navbar() {
                     <div className="h-10 animate-pulse rounded-md bg-muted" />
                     <div className="h-10 animate-pulse rounded-md bg-muted" />
                   </div>
-                ) : session ? (
+                ) : isAuthenticated ? (
                   // Authenticated user
                   <Button asChild size="lg" className="w-full">
                     <Link href="/dashboard" onClick={() => setIsOpen(false)}>

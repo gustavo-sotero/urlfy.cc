@@ -17,10 +17,10 @@ import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { useSession } from '@/lib/auth.client';
+import { useAuthState } from '@/lib/session-provider';
 
 export function HeroActions() {
-  const { data: session, isPending } = useSession();
+  const { isAuthenticated, isPending } = useAuthState();
 
   if (isPending) {
     return (
@@ -33,7 +33,7 @@ export function HeroActions() {
     );
   }
 
-  if (session) {
+  if (isAuthenticated) {
     return (
       <div className="flex justify-center gap-4">
         <Button asChild size="lg" className="w-full sm:w-auto">
