@@ -1,6 +1,9 @@
 // src/components/shared/qr-code-button.tsx
 'use client';
 
+import { QrCode } from 'lucide-react';
+import Image from 'next/image';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,9 +20,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { QrCode } from 'lucide-react';
-import Image from 'next/image';
-import { useState } from 'react';
 
 interface Props {
   code?: string;

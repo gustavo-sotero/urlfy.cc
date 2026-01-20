@@ -41,12 +41,12 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
           email: user.email,
           name: user.name,
           emailVerified: user.emailVerified,
-          image: user.image,
+          image: user.image ?? null,
           role: user.role,
           linksQuota: user.linksQuota,
           linksCount: user.linksCount,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt
+          createdAt: user.createdAt.toISOString(),
+          updatedAt: user.updatedAt.toISOString()
         }
       };
     },
@@ -112,9 +112,10 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
   .get(
     '/export',
     async (context) => {
-      const { user, request } = context as typeof context & {
+      const { user, request, set } = context as typeof context & {
         user: User;
         request: Request;
+        set: { status?: number | string };
       };
 
       try {
@@ -136,9 +137,25 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
 
         return {
           success: true,
-          data: exportData
+          data: {
+            user: {
+              id: exportData.user.id,
+              email: exportData.user.email,
+              name: exportData.user.name,
+              createdAt: exportData.user.createdAt.toISOString(),
+              updatedAt: exportData.user.updatedAt.toISOString()
+            },
+            links: exportData.links.map((link) => ({
+              id: link.id,
+              shortCode: link.shortCode,
+              originalUrl: link.originalUrl,
+              createdAt: link.createdAt.toISOString()
+            })),
+            analyticsOverview: exportData.analyticsOverview
+          }
         };
       } catch (error) {
+        set.status = 500;
         return {
           success: false,
           error: {
@@ -154,12 +171,6 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
         summary: 'Export all user data',
         description:
           'Returns a complete export of all user data including profile, links, and analytics overview (LGPD/GDPR compliance)'
-      },
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Ref('users.export')
-        })
       }
     }
   )
@@ -170,9 +181,10 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
   .delete(
     '/data',
     async (context) => {
-      const { user } = context as typeof context & {
+      const { user, set } = context as typeof context & {
         user: User;
         request: Request;
+        set: { status?: number | string };
       };
 
       try {
@@ -182,6 +194,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
         );
 
         if (existingRequest) {
+          set.status = 409;
           return {
             success: false,
             error: {
@@ -189,8 +202,8 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
               message: 'You already have a pending deletion request',
               details: {
                 requestId: existingRequest.requestId,
-                requestedAt: existingRequest.requestedAt,
-                deadline: existingRequest.deadline
+                requestedAt: existingRequest.requestedAt.toISOString(),
+                deadline: existingRequest.deadline.toISOString()
               }
             }
           };
@@ -238,6 +251,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
           }
         };
       } catch (error) {
+        set.status = 500;
         return {
           success: false,
           error: {
@@ -253,16 +267,6 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
         summary: 'Request account deletion',
         description:
           'Schedule complete data deletion within 72 hours (LGPD/GDPR compliance)'
-      },
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Object({
-            requestId: t.String(),
-            deadline: t.String(),
-            message: t.String()
-          })
-        })
       }
     }
   )
@@ -333,7 +337,7 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
   .post(
     '/consent',
     async (context) => {
-      const { user, body, request } = context as typeof context & {
+      const { user, body, request, set } = context as typeof context & {
         user: User;
         body: {
           analytics: boolean;
@@ -341,6 +345,7 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
           timestamp?: string;
         };
         request: Request;
+        set: { status?: number | string };
       };
 
       try {
@@ -349,6 +354,7 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
           typeof body.analytics !== 'boolean' ||
           typeof body.marketing !== 'boolean'
         ) {
+          set.status = 400;
           return {
             success: false,
             error: {
@@ -397,6 +403,7 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
           }
         };
       } catch (error) {
+        set.status = 500;
         return {
           success: false,
           error: {
@@ -416,16 +423,7 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
         description:
           'Store user consent preferences for analytics and marketing (LGPD/GDPR compliance)'
       },
-      body: t.Ref('users.consent.body'),
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Object({
-            message: t.String(),
-            preferences: t.Ref('users.consent.response')
-          })
-        })
-      }
+      body: t.Ref('users.consent.body')
     }
   )
 
@@ -435,8 +433,9 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
   .get(
     '/consent',
     async (context) => {
-      const { user } = context as typeof context & {
+      const { user, set } = context as typeof context & {
         user: User;
+        set: { status?: number | string };
       };
 
       try {
@@ -457,6 +456,7 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
           data: JSON.parse(stored)
         };
       } catch (error) {
+        set.status = 500;
         return {
           success: false,
           error: {
@@ -475,12 +475,6 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
         summary: 'Get consent preferences',
         description:
           'Retrieve stored consent preferences for the authenticated user'
-      },
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Nullable(t.Ref('users.consent.response'))
-        })
       }
     }
   );

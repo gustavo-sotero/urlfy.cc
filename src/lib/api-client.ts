@@ -4,7 +4,6 @@
  * Type-safe wrapper using Elysia Eden Treaty for REST API calls
  */
 
-import { treaty } from '@elysiajs/eden';
 import type { App } from '@/server/api';
 import type {
   AnalyticsBreakdown,
@@ -19,6 +18,7 @@ import type {
   PaginatedResponse,
   UpdateLinkInput
 } from '@/types/links.types';
+import { treaty } from '@elysiajs/eden';
 
 // ═══════════════════════════════════════════════════════════════════
 // EDEN CLIENT INITIALIZATION
@@ -330,7 +330,7 @@ export async function createLink(
         ? input.expiresAt.toISOString()
         : input.expiresAt
   };
-  const response = await client.api.v1.links.post(apiInput);
+  const response = await client.api.links.post(apiInput);
   return handleEden(response);
 }
 
@@ -338,12 +338,12 @@ export async function getLinks(
   query?: ListLinksQuery
 ): Promise<PaginatedResponse<LinkResponse>> {
   const apiQuery = query ? toQueryParams({ ...query }) : {};
-  const response = await client.api.v1.links.get({ query: apiQuery });
+  const response = await client.api.links.get({ query: apiQuery });
   return handleEden<PaginatedResponse<LinkResponse>>(response);
 }
 
 export async function getLink(id: string): Promise<LinkResponse> {
-  const response = await client.api.v1.links({ id }).get();
+  const response = await client.api.links({ id }).get();
   return handleEden(response);
 }
 
@@ -359,22 +359,22 @@ export async function updateLink(
         ? input.expiresAt.toISOString()
         : input.expiresAt
   };
-  const response = await client.api.v1.links({ id }).patch(apiInput);
+  const response = await client.api.links({ id }).patch(apiInput);
   return handleEden(response);
 }
 
 export async function deleteLink(id: string): Promise<void> {
-  const response = await client.api.v1.links({ id }).delete();
+  const response = await client.api.links({ id }).delete();
   return handleEden(response);
 }
 
 export async function restoreLink(id: string): Promise<LinkResponse> {
-  const response = await client.api.v1.links({ id }).restore.post();
+  const response = await client.api.links({ id }).restore.post();
   return handleEden(response);
 }
 
 export async function duplicateLink(id: string): Promise<LinkResponse> {
-  const response = await client.api.v1.links({ id }).duplicate.post();
+  const response = await client.api.links({ id }).duplicate.post();
   return handleEden(response);
 }
 
@@ -384,7 +384,7 @@ export interface UrlValidationResult {
 }
 
 export async function validateUrl(url: string): Promise<UrlValidationResult> {
-  const response = await client.api.v1.links.validate.post({ url });
+  const response = await client.api.links.validate.post({ url });
   const result = handleEden<{ valid: boolean; warnings?: string[] }>(response);
   return {
     valid: result.valid,
@@ -396,7 +396,7 @@ export async function verifyLinkPassword(
   code: string,
   password: string
 ): Promise<{ redirectUrl: string }> {
-  const response = await client.api.v1.links['by-code']({ code })[
+  const response = await client.api.links['by-code']({ code })[
     'verify-password'
   ].post({ password });
   return handleEden(response);
@@ -413,7 +413,7 @@ export interface LinkPreview {
 }
 
 export async function getLinkPreview(code: string): Promise<LinkPreview> {
-  const response = await client.api.v1.links['by-code']({ code }).preview.get();
+  const response = await client.api.links['by-code']({ code }).preview.get();
   return handleEden(response);
 }
 
@@ -435,7 +435,7 @@ export async function getQRCode(
         format: options.format
       }
     : {};
-  const response = await client.api.v1.links['by-code']({ code }).qr.get({
+  const response = await client.api.links['by-code']({ code }).qr.get({
     query
   });
 
@@ -475,7 +475,7 @@ export interface LinkStats {
 }
 
 export async function getLinkStats(id: string): Promise<LinkStats> {
-  const response = await client.api.v1.links({ id }).stats.get();
+  const response = await client.api.links({ id }).stats.get();
   return handleEden(response);
 }
 
@@ -487,7 +487,7 @@ export async function getDailyStats(
 
   // Handle "all" linkId for aggregate analytics
   if (linkId === 'all') {
-    const response = await client.api.v1.analytics.all.daily.get({ query });
+    const response = await client.api.analytics.all.daily.get({ query });
     const result = handleEden<
       TimeSeries[] | { data: TimeSeries[]; meta: unknown }
     >(response);
@@ -495,9 +495,7 @@ export async function getDailyStats(
     return timeSeries.map((ts) => ({ ...ts, linkId: 'all' }));
   }
 
-  const response = await client.api.v1
-    .analytics({ linkId })
-    .daily.get({ query });
+  const response = await client.api.analytics({ linkId }).daily.get({ query });
   const result = handleEden<
     TimeSeries[] | { data: TimeSeries[]; meta: unknown }
   >(response);
@@ -513,13 +511,13 @@ export async function getAnalyticsBreakdown(
 
   // Handle "all" linkId for aggregate analytics
   if (linkId === 'all') {
-    const response = await client.api.v1.analytics.all.breakdown.get({
+    const response = await client.api.analytics.all.breakdown.get({
       query: queryParams
     });
     return handleEden(response);
   }
 
-  const response = await client.api.v1.analytics({ linkId }).breakdown.get({
+  const response = await client.api.analytics({ linkId }).breakdown.get({
     query: queryParams
   });
   return handleEden(response);
@@ -533,13 +531,13 @@ export async function getAnalyticsSummary(
 
   // Handle "all" linkId for aggregate analytics
   if (linkId === 'all') {
-    const response = await client.api.v1.analytics.all.summary.get({
+    const response = await client.api.analytics.all.summary.get({
       query: queryParams
     });
     return handleEden(response);
   }
 
-  const response = await client.api.v1.analytics({ linkId }).summary.get({
+  const response = await client.api.analytics({ linkId }).summary.get({
     query: queryParams
   });
   return handleEden(response);
@@ -557,12 +555,12 @@ export interface UserQuota {
 }
 
 export async function getUserQuota(): Promise<UserQuota> {
-  const response = await client.api.v1.me.quota.get();
+  const response = await client.api.me.quota.get();
   return handleEden(response);
 }
 
 export async function exportUserData(): Promise<Blob> {
-  const response = await client.api.v1.me.export.get();
+  const response = await client.api.me.export.get();
 
   if (response.error) {
     const errorInfo = extractErrorInfo(response.error.value);
@@ -587,7 +585,7 @@ export interface DataDeletionRequest {
 }
 
 export async function requestDataDeletion(): Promise<DataDeletionRequest> {
-  const response = await client.api.v1.me.data.delete();
+  const response = await client.api.me.data.delete();
   return handleEden<DataDeletionRequest>(response);
 }
 
@@ -607,7 +605,7 @@ export interface AdminStats {
  * Get global admin statistics (client-side)
  */
 export async function getAdminStats(): Promise<AdminStats> {
-  const response = await client.api.v1.admin.stats.get();
+  const response = await client.api.admin.stats.get();
   return handleEden(response);
 }
 
@@ -619,7 +617,7 @@ export async function getAdminStatsSSR(
   headers: HeadersInit
 ): Promise<AdminStats> {
   const serverClient = createClientWithHeaders(headers);
-  const response = await serverClient.api.v1.admin.stats.get();
+  const response = await serverClient.api.admin.stats.get();
   return handleEden(response);
 }
 
@@ -629,7 +627,7 @@ export async function getAdminStatsSSR(
 export async function getGrowthStats(
   range: '7d' | '30d' = '7d'
 ): Promise<Array<{ date: string; clicks: number; newUsers: number }>> {
-  const response = await client.api.v1.admin.stats.growth.get({
+  const response = await client.api.admin.stats.growth.get({
     query: { range }
   });
   return handleEden(response);
@@ -643,7 +641,7 @@ export async function getGrowthStatsSSR(
   range: '7d' | '30d' = '7d'
 ): Promise<Array<{ date: string; clicks: number; newUsers: number }>> {
   const serverClient = createClientWithHeaders(headers);
-  const response = await serverClient.api.v1.admin.stats.growth.get({
+  const response = await serverClient.api.admin.stats.growth.get({
     query: { range }
   });
   return handleEden(response);
@@ -653,7 +651,7 @@ export async function getGrowthStatsSSR(
  * Search links by URL or short code
  */
 export async function searchLinks(query: string): Promise<LinkResponse[]> {
-  const response = await client.api.v1.admin.links.search.get({
+  const response = await client.api.admin.links.search.get({
     query: { q: query }
   });
   const result =
@@ -692,7 +690,7 @@ export async function listAdminLinks(params?: {
   limit?: number;
   search?: string;
 }): Promise<PaginatedResponse<LinkResponse>> {
-  const response = await client.api.v1.admin.links.get({
+  const response = await client.api.admin.links.get({
     query: {
       page: params?.page?.toString(),
       limit: params?.limit?.toString(),
@@ -751,7 +749,7 @@ export async function listAdminLinksSSR(
   }
 ): Promise<PaginatedResponse<LinkResponse>> {
   const serverClient = createClientWithHeaders(headers);
-  const response = await serverClient.api.v1.admin.links.get({
+  const response = await serverClient.api.admin.links.get({
     query: {
       page: params?.page?.toString(),
       limit: params?.limit?.toString(),
@@ -802,7 +800,7 @@ export async function listAdminLinksSSR(
  * Ban a link
  */
 export async function banLink(id: string, reason: string): Promise<void> {
-  const response = await client.api.v1.admin.links({ linkId: id }).ban.patch({
+  const response = await client.api.admin.links({ linkId: id }).ban.patch({
     isBanned: true,
     bannedReason: reason
   });
@@ -813,9 +811,7 @@ export async function banLink(id: string, reason: string): Promise<void> {
  * Unban a link
  */
 export async function unbanLink(id: string): Promise<void> {
-  const response = await client.api.v1.admin
-    .links({ linkId: id })
-    .unban.patch();
+  const response = await client.api.admin.links({ linkId: id }).unban.patch();
   handleEden(response);
 }
 
@@ -863,7 +859,7 @@ export async function getUsers(
       })
     : {};
 
-  const response = await client.api.v1.admin.users.get({ query: apiQuery });
+  const response = await client.api.admin.users.get({ query: apiQuery });
   return handleEden<PaginatedResponse<UserResponse>>(response);
 }
 
@@ -879,7 +875,7 @@ export async function updateUser(
     linksQuota?: number;
   }
 ): Promise<UserResponse> {
-  const response = await client.api.v1.admin.users({ userId }).patch(data);
+  const response = await client.api.admin.users({ userId }).patch(data);
   return handleEden(response);
 }
 
@@ -942,6 +938,6 @@ export async function getAuditLogs(
   query?: AuditLogsQuery
 ): Promise<PaginatedResponse<AuditLogEntry>> {
   const apiQuery = query ? toQueryParams({ ...query }) : {};
-  const response = await client.api.v1.admin.audit.get({ query: apiQuery });
+  const response = await client.api.admin.audit.get({ query: apiQuery });
   return handleEden<PaginatedResponse<AuditLogEntry>>(response);
 }

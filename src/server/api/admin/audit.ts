@@ -173,13 +173,15 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   .get(
     '/:id',
     async (context) => {
-      const { user, params } = context as typeof context & {
+      const { user, params, set } = context as typeof context & {
         user: User;
         params: { id: string };
+        set: { status?: number | string };
       };
 
       // Check admin permission
       if (user.role !== 'admin') {
+        set.status = 403;
         return {
           success: false,
           error: {
@@ -198,6 +200,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
           .then((results) => results[0] || null);
 
         if (!log) {
+          set.status = 404;
           return {
             success: false,
             error: {
@@ -223,6 +226,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
           logId: params.id
         });
 
+        set.status = 500;
         return {
           success: false,
           error: {
@@ -238,12 +242,6 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
         tags: ['Admin', 'Audit'],
         summary: 'Get audit log details',
         description: 'Retrieve a single audit log entry by ID (admin only)'
-      },
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Ref('AuditLogResponse')
-        })
       }
     }
   )
@@ -254,14 +252,16 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   .get(
     '/entity/:entityType/:entityId',
     async (context) => {
-      const { user, params, query } = context as typeof context & {
+      const { user, params, query, set } = context as typeof context & {
         user: User;
         params: { entityType: string; entityId: string };
         query: { limit?: string };
+        set: { status?: number | string };
       };
 
       // Check admin permission
       if (user.role !== 'admin') {
+        set.status = 403;
         return {
           success: false,
           error: {
@@ -312,6 +312,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
           entityId: params.entityId
         });
 
+        set.status = 500;
         return {
           success: false,
           error: {
@@ -329,18 +330,6 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
         summary: 'Get audit logs by entity',
         description:
           'Retrieve all audit logs for a specific entity (link, user, etc.) - admin only'
-      },
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Array(t.Ref('AuditLogResponse')),
-          meta: t.Object({
-            count: t.Number(),
-            limit: t.Number(),
-            entityType: t.String(),
-            entityId: t.String()
-          })
-        })
       }
     }
   )
@@ -351,14 +340,16 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   .get(
     '/user/:targetUserId',
     async (context) => {
-      const { user, params, query } = context as typeof context & {
+      const { user, params, query, set } = context as typeof context & {
         user: User;
         params: { targetUserId: string };
         query: { limit?: string };
+        set: { status?: number | string };
       };
 
       // Check admin permission
       if (user.role !== 'admin') {
+        set.status = 403;
         return {
           success: false,
           error: {
@@ -403,6 +394,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
           targetUserId: params.targetUserId
         });
 
+        set.status = 500;
         return {
           success: false,
           error: {
@@ -419,17 +411,6 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
         tags: ['Admin', 'Audit'],
         summary: 'Get audit logs by user',
         description: 'Retrieve all audit logs for a specific user - admin only'
-      },
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Array(t.Ref('AuditLogResponse')),
-          meta: t.Object({
-            count: t.Number(),
-            limit: t.Number(),
-            targetUserId: t.String()
-          })
-        })
       }
     }
   )
@@ -440,12 +421,14 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   .get(
     '/stats/summary',
     async (context) => {
-      const { user } = context as typeof context & {
+      const { user, set } = context as typeof context & {
         user: User;
+        set: { status?: number | string };
       };
 
       // Check admin permission
       if (user.role !== 'admin') {
+        set.status = 403;
         return {
           success: false,
           error: {
@@ -496,6 +479,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
           userId: user.id
         });
 
+        set.status = 500;
         return {
           success: false,
           error: {
@@ -511,12 +495,6 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
         summary: 'Get audit statistics',
         description:
           'Returns aggregated statistics about audit logs including counts by action, entity type, and top users - admin only'
-      },
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Ref('AuditStatsSummaryResponse')
-        })
       }
     }
   );

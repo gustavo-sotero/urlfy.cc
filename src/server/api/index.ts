@@ -1,6 +1,6 @@
-import { auth } from '@/lib/auth';
 import { swagger } from '@elysiajs/swagger';
 import { Elysia } from 'elysia';
+import { auth } from '@/lib/auth';
 // Import from feature-based modules
 import { adminController } from '@/server/modules/admin';
 import { analyticsController } from '@/server/modules/analytics';

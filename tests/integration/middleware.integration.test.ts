@@ -3,12 +3,12 @@
  * Integration tests for root middleware (redirect engine entry point)
  */
 
-import { db } from '@/db';
-import { links } from '@/db/schema';
-import { middleware } from '@/middleware';
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
 import { NextRequest } from 'next/server';
+import { db } from '@/db';
+import { links } from '@/db/schema';
+import { middleware } from '@/middleware';
 
 describe('Root Middleware', () => {
   let testLinkId: string;

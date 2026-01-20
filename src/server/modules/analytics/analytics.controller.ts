@@ -8,10 +8,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { Elysia } from 'elysia';
 import { handleLinkError } from '@/server/lib/errors';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import { Elysia } from 'elysia';
 import {
   AnalyticsDaysQuery,
   AnalyticsDaysWithLimitQuery,
