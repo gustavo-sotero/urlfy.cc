@@ -3,8 +3,14 @@ import { api } from '@/server/api';
 import { antiAbuseMiddleware } from '@/server/middleware/anti-abuse';
 import { addCORSHeaders, corsMiddleware } from '@/server/middleware/cors';
 import { rateLimit } from '@/server/middleware/rate-limit';
+import { MetricsService } from '@/server/services/metrics.service';
 
 async function handle(request: Request): Promise<Response> {
+  // Track request for RPS metrics (fire-and-forget, non-blocking)
+  MetricsService.trackRequest().catch(() => {
+    // Silently ignore tracking errors - metrics should never break requests
+  });
+
   const preflight = await corsMiddleware(request);
   if (preflight) return preflight;
 

@@ -10,6 +10,7 @@ import {
   deletionQueue
 } from '@/server/lib/queue';
 import { createLogger } from '@/server/lib/telemetry';
+import { MetricsService } from '@/server/services/metrics.service';
 
 const logger = createLogger('scheduler');
 
@@ -91,6 +92,31 @@ export const cleanupJob = new CronJob(
   null,
   false,
   'UTC'
+);
+
+// ═══════════════════════════════════════════════════════════════════
+// MÉTRICAS DE PERFORMANCE
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Executes every minute
+ * Calculates requests-per-second for admin dashboard
+ */
+export const rpsCalculationJob = new CronJob(
+  '* * * * *', // Every minute
+  async () => {
+    try {
+      const rps = await MetricsService.calculateRPS();
+      logger.debug('[Scheduler] RPS calculation completed', { rps });
+    } catch (error) {
+      logger.error('[Scheduler] Error calculating RPS', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  },
+  null, // onComplete
+  false, // start (controlled by workers/index.ts)
+  'UTC' // timezone
 );
 
 // ═══════════════════════════════════════════════════════════════════
@@ -203,11 +229,13 @@ export function startScheduler(): void {
     aggregationJob.start();
     cleanupJob.start();
     dataDeletionJob.start();
+    rpsCalculationJob.start();
 
     logger.info('[Scheduler] ✅ All scheduled jobs started');
     logger.debug('[Scheduler] - Aggregation: 02:00 UTC daily');
     logger.debug('[Scheduler] - Cleanup: 03:00 UTC every Sunday');
     logger.debug('[Scheduler] - Data Deletion: every 30 minutes');
+    logger.debug('[Scheduler] - RPS Calculation: every minute');
   } catch (error) {
     logger.error('[Scheduler] Failed to start scheduler', {
       error: error instanceof Error ? error.message : String(error)
@@ -226,6 +254,7 @@ export function stopScheduler(): void {
     aggregationJob.stop();
     cleanupJob.stop();
     dataDeletionJob.stop();
+    rpsCalculationJob.stop();
 
     logger.info('[Scheduler] ✅ All scheduled jobs stopped');
   } catch (error) {

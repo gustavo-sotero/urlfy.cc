@@ -197,7 +197,21 @@ export default function AnalyticsPage() {
               {totalClicks.toLocaleString('pt-BR')}
             </div>
             <p className="text-xs text-muted-foreground">
-              +12% em relação ao período anterior
+              {summaryData?.totalClicksGrowth !== undefined ? (
+                <span
+                  className={`${
+                    summaryData.totalClicksGrowth > 0
+                      ? 'text-green-500'
+                      : summaryData.totalClicksGrowth < 0
+                        ? 'text-red-500'
+                        : ''
+                  }`}
+                >
+                  {summaryData.totalClicksGrowth > 0 ? '+' : ''}
+                  {summaryData.totalClicksGrowth}%
+                </span>
+              ) : null}{' '}
+              em relação ao período anterior
             </p>
           </CardContent>
         </Card>
@@ -214,7 +228,21 @@ export default function AnalyticsPage() {
               {totalVisitors.toLocaleString('pt-BR')}
             </div>
             <p className="text-xs text-muted-foreground">
-              +8% em relação ao período anterior
+              {summaryData?.uniqueVisitorsGrowth !== undefined ? (
+                <span
+                  className={`${
+                    summaryData.uniqueVisitorsGrowth > 0
+                      ? 'text-green-500'
+                      : summaryData.uniqueVisitorsGrowth < 0
+                        ? 'text-red-500'
+                        : ''
+                  }`}
+                >
+                  {summaryData.uniqueVisitorsGrowth > 0 ? '+' : ''}
+                  {summaryData.uniqueVisitorsGrowth}%
+                </span>
+              ) : null}{' '}
+              em relação ao período anterior
             </p>
           </CardContent>
         </Card>

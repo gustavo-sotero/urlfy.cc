@@ -70,22 +70,19 @@ export function useSearchLinks(
 // ═══════════════════════════════════════════════════════════════════
 
 export function useBanLink(
-  options?: UseMutationOptions<
-    LinkResponse,
-    Error,
-    { id: string; reason: string }
-  >
+  options?: UseMutationOptions<void, Error, { id: string; reason: string }>
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       api.banLink(id, reason),
-    onSuccess: (data) => {
-      // Update cache for this specific link
-      queryClient.setQueryData(linkKeys.detail(data.id), data);
+    onSuccess: (_data, variables) => {
       // Invalidate lists and search results
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: linkKeys.detail(variables.id)
+      });
       queryClient.invalidateQueries({ queryKey: adminKeys.all });
     },
     ...options
@@ -93,17 +90,16 @@ export function useBanLink(
 }
 
 export function useUnbanLink(
-  options?: UseMutationOptions<LinkResponse, Error, string>
+  options?: UseMutationOptions<void, Error, string>
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: string) => api.unbanLink(id),
-    onSuccess: (data) => {
-      // Update cache for this specific link
-      queryClient.setQueryData(linkKeys.detail(data.id), data);
+    onSuccess: (_data, id) => {
       // Invalidate lists and search results
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: linkKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: adminKeys.all });
     },
     ...options

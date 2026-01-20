@@ -1,10 +1,6 @@
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { Elysia } from 'elysia';
-import {
-  apiKey as apiKeyTable,
-  twoFactor as twoFactorTable,
-  user as userTable
-} from '@/db/schema/auth';
+import { apiKey as apiKeyTable, user as userTable } from '@/db/schema/auth';
 import type { Session, User } from '@/lib/auth';
 import { auth } from '@/lib/auth';
 import { db } from '@/server/lib/db';
@@ -245,9 +241,16 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
 // ═══════════════════════════════════════════════════════════════════
 export const requireAdmin = new Elysia({ name: 'require-admin' })
   .use(requireAuth)
-  .onBeforeHandle({ as: 'scoped' }, async ({ user, status }) => {
+  .onBeforeHandle({ as: 'scoped' }, ({ user, status }) => {
+    const adminUser = user as User;
+
     // Check if user has admin role
-    if ((user as User).role !== 'admin') {
+    if (adminUser.role !== 'admin') {
+      logger.debug('Admin access denied - insufficient role', {
+        userId: adminUser.id,
+        role: adminUser.role
+      });
+
       return status(403, {
         success: false,
         error: { code: 'FORBIDDEN', message: 'Admin access required' }
@@ -255,9 +258,15 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
     }
 
     // Check if 2FA is enabled for admin (required)
-    const hasTwoFactor = await checkTwoFactorEnabled((user as User).id);
+    // Use twoFactorEnabled from Better-Auth session (authoritative source)
+    const hasTwoFactor = adminUser.twoFactorEnabled ?? false;
 
     if (!hasTwoFactor) {
+      logger.debug('Admin access denied - 2FA not enabled', {
+        userId: adminUser.id,
+        twoFactorEnabled: adminUser.twoFactorEnabled
+      });
+
       return status(403, {
         success: false,
         error: {
@@ -266,6 +275,12 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
         }
       });
     }
+
+    logger.debug('Admin access granted', {
+      userId: adminUser.id,
+      role: adminUser.role,
+      has2FA: true
+    });
   })
   .derive({ as: 'scoped' }, ({ user, session }) => {
     return {
@@ -399,17 +414,4 @@ function normalizePermissions(input: {
       read: input.analytics?.read ?? defaults.analytics.read
     }
   };
-}
-
-/**
- * Check if user has 2FA enabled and verified
- */
-async function checkTwoFactorEnabled(userId: string): Promise<boolean> {
-  const result = await db
-    .select({ verified: twoFactorTable.verified })
-    .from(twoFactorTable)
-    .where(eq(twoFactorTable.userId, userId))
-    .limit(1);
-
-  return result.length > 0 && result[0].verified;
 }

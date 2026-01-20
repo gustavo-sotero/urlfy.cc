@@ -6,6 +6,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server';
 import { RATE_LIMIT_CONFIGS, rateLimiter } from '@/server/lib/rate-limiter';
+import { MetricsService } from '@/server/services/metrics.service';
 import { redirectService } from '@/server/services/redirect.service';
 
 // Verify internal API secret
@@ -24,6 +25,11 @@ export async function POST(
     if (!verifyInternalRequest(request)) {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
+
+    // Track request for RPS metrics (non-blocking)
+    MetricsService.trackRequest().catch(() => {
+      // Intentionally ignored - metrics should never block requests
+    });
 
     const { code } = await params;
     const body = await request.json();

@@ -136,6 +136,8 @@ export type AuditAction =
   | 'disable_2fa'
   | 'export_user_data'
   | 'request_data_deletion'
-  | 'process_data_deletion';
+  | 'process_data_deletion'
+  | 'admin_access_denied'
+  | 'admin_access_granted';
 
 export type DeletionStatus = 'pending' | 'processing' | 'completed' | 'failed';

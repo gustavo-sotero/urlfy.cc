@@ -3,6 +3,7 @@
 
 import { LogOut, Moon, Sun, User } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { signOut } from '@/lib/auth.client';
 
 interface Props {
   user: {
@@ -25,6 +27,7 @@ interface Props {
 
 export function Header({ user }: Props) {
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
 
   const initials =
     user.name
@@ -32,6 +35,11 @@ export function Header({ user }: Props) {
       .map((n) => n[0])
       .join('')
       .toUpperCase() ?? '?';
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/');
+  };
 
   return (
     <header className="flex h-16 items-center justify-between border-b px-6">
@@ -79,11 +87,9 @@ export function Header({ user }: Props) {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href="/api/auth/signout">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sair
-              </a>
+            <DropdownMenuItem onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

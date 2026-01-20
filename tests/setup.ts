@@ -2,6 +2,20 @@
 // Global test setup - runs before all tests
 
 // ═══════════════════════════════════════════════════════════════════
+// HAPPY DOM FOR REACT TESTING
+// ═══════════════════════════════════════════════════════════════════
+import { Window } from 'happy-dom';
+
+const window = new Window();
+const document = window.document;
+
+// Set up global variables for testing
+global.window = window as unknown as Window & typeof globalThis;
+global.document = document as unknown as Document;
+global.navigator = window.navigator as Navigator;
+global.HTMLElement = window.HTMLElement as typeof HTMLElement;
+
+// ═══════════════════════════════════════════════════════════════════
 // ENVIRONMENT VARIABLES (must be set FIRST)
 // ═══════════════════════════════════════════════════════════════════
 // Use Object.defineProperty for read-only properties

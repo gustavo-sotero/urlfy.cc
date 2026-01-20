@@ -8,15 +8,18 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, count as countFn, desc, eq, gte, sql, sum } from 'drizzle-orm';
-import { db } from '@/db';
 import {
-  analyticsBrowserBreakdown,
-  analyticsCountryBreakdown,
-  analyticsDeviceBreakdown,
-  analyticsEvents,
-  linkClicksDaily
-} from '@/db/schema';
+  and,
+  countDistinct,
+  count as countFn,
+  desc,
+  eq,
+  gte,
+  lt,
+  sql
+} from 'drizzle-orm';
+import { db } from '@/db';
+import { analyticsEvents } from '@/db/schema';
 import { links } from '@/db/schema/links';
 import { createLogger } from '@/server/lib/telemetry';
 import type {
@@ -26,6 +29,80 @@ import type {
 } from '@/types/analytics.types';
 
 const logger = createLogger('analytics-service');
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPER TYPES
+// ═══════════════════════════════════════════════════════════════════
+
+interface CountryBreakdownItem {
+  country: string;
+  clicks: number;
+  percentage: number;
+}
+
+interface DeviceBreakdownItem {
+  type: string;
+  clicks: number;
+  percentage: number;
+}
+
+interface BrowserBreakdownItem {
+  name: string;
+  clicks: number;
+  percentage: number;
+}
+
+interface ReferrerBreakdownItem {
+  domain: string;
+  clicks: number;
+  percentage: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Calculate start date from days ago
+ */
+function getStartDate(days: number): Date {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+  return startDate;
+}
+
+/**
+ * Calculate percentage with proper rounding
+ */
+function calculatePercentage(value: number, total: number): number {
+  return total > 0 ? Math.round((value / total) * 100) : 0;
+}
+
+/**
+ * Safely convert to number with fallback
+ */
+function toNumber(value: unknown, fallback = 0): number {
+  const num = Number(value);
+  return Number.isNaN(num) ? fallback : num;
+}
+
+/**
+ * Calculate period-over-period growth percentage
+ *
+ * @param current - Current period value
+ * @param previous - Previous period value
+ * @returns Growth percentage (rounded to integer). Returns 100 when previous is 0 and current > 0
+ *
+ * @example
+ * calculateGrowth(110, 100) // 10 (10% growth)
+ * calculateGrowth(90, 100)  // -10 (-10% decline)
+ * calculateGrowth(100, 0)   // 100 (100% growth from zero)
+ * calculateGrowth(0, 0)     // 0 (no change)
+ */
+function calculateGrowth(current: number, previous: number): number {
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return Math.round(((current - previous) / previous) * 100);
+}
 
 /**
  * Analytics Service - Handles analytics-related operations
@@ -39,34 +116,38 @@ const logger = createLogger('analytics-service');
 export abstract class AnalyticsService {
   /**
    * Get daily stats for a link
+   * Uses real-time data from analytics_events for accurate counts
    */
   static async getDailyStats(
     linkId: string,
     days: number = 30
   ): Promise<TimeSeries[]> {
     try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      const startDate = getStartDate(days);
 
       const stats = await db
         .select({
-          date: linkClicksDaily.date,
-          clicks: linkClicksDaily.clicks,
-          uniqueVisitors: linkClicksDaily.uniqueVisitors
+          date: sql<string>`DATE(${analyticsEvents.createdAt})`.as('date'),
+          clicks: countFn().as('clicks'),
+          uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
+            'uniqueVisitors'
+          )
         })
-        .from(linkClicksDaily)
+        .from(analyticsEvents)
         .where(
           and(
-            eq(linkClicksDaily.linkId, linkId),
-            gte(linkClicksDaily.date, startDate.toISOString().split('T')[0])
+            eq(analyticsEvents.linkId, linkId),
+            gte(analyticsEvents.createdAt, startDate),
+            eq(analyticsEvents.isBot, false)
           )
         )
-        .orderBy(desc(linkClicksDaily.date));
+        .groupBy(sql`DATE(${analyticsEvents.createdAt})`)
+        .orderBy(desc(sql`DATE(${analyticsEvents.createdAt})`));
 
       return stats.map((s) => ({
         date: s.date,
-        clicks: s.clicks,
-        uniqueVisitors: s.uniqueVisitors
+        clicks: toNumber(s.clicks),
+        uniqueVisitors: toNumber(s.uniqueVisitors)
       }));
     } catch (error) {
       logger.error('[AnalyticsService] Error getting daily stats', {
@@ -79,61 +160,45 @@ export abstract class AnalyticsService {
 
   /**
    * Get country breakdown
+   * Uses real-time data from analytics_events
    */
   static async getCountryBreakdown(
     linkId: string,
     limit: number = 10,
     days: number = 30
-  ): Promise<
-    Array<{
-      country: string;
-      clicks: number;
-      percentage: number;
-    }>
-  > {
+  ): Promise<CountryBreakdownItem[]> {
     try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      const dateStr = startDate.toISOString().split('T')[0];
+      const startDate = getStartDate(days);
 
-      // Total clicks in period
-      const totalResult = await db
-        .select({
-          total: sum(analyticsCountryBreakdown.clicks).as('total')
-        })
-        .from(analyticsCountryBreakdown)
-        .where(
-          and(
-            eq(analyticsCountryBreakdown.linkId, linkId),
-            gte(analyticsCountryBreakdown.date, dateStr)
-          )
-        );
-
-      const total = Number(totalResult[0]?.total) || 0;
-
-      // Top countries
+      // Get countries with counts in a single query
       const countries = await db
         .select({
-          country: analyticsCountryBreakdown.country,
-          clicks: sum(analyticsCountryBreakdown.clicks).as('clicks')
+          country: analyticsEvents.country,
+          clicks: countFn().as('clicks')
         })
-        .from(analyticsCountryBreakdown)
+        .from(analyticsEvents)
         .where(
           and(
-            eq(analyticsCountryBreakdown.linkId, linkId),
-            gte(analyticsCountryBreakdown.date, dateStr)
+            eq(analyticsEvents.linkId, linkId),
+            gte(analyticsEvents.createdAt, startDate),
+            eq(analyticsEvents.isBot, false)
           )
         )
-        .groupBy(analyticsCountryBreakdown.country)
+        .groupBy(analyticsEvents.country)
         .orderBy(desc(sql`clicks`))
         .limit(limit);
 
-      return countries.map((c) => ({
-        country: c.country || 'unknown',
-        clicks: Number(c.clicks) || 0,
-        percentage:
-          total > 0 ? Math.round(((Number(c.clicks) || 0) / total) * 100) : 0
-      }));
+      // Calculate total from the results
+      const total = countries.reduce((sum, c) => sum + toNumber(c.clicks), 0);
+
+      return countries.map((c) => {
+        const clicks = toNumber(c.clicks);
+        return {
+          country: c.country ?? 'unknown',
+          clicks,
+          percentage: calculatePercentage(clicks, total)
+        };
+      });
     } catch (error) {
       logger.error('[AnalyticsService] Error getting country breakdown', {
         error: error instanceof Error ? error.message : String(error),
@@ -145,59 +210,41 @@ export abstract class AnalyticsService {
 
   /**
    * Get device breakdown
+   * Uses real-time data from analytics_events
    */
   static async getDeviceBreakdown(
     linkId: string,
     days: number = 30
-  ): Promise<
-    Array<{
-      type: string;
-      clicks: number;
-      percentage: number;
-    }>
-  > {
+  ): Promise<DeviceBreakdownItem[]> {
     try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      const dateStr = startDate.toISOString().split('T')[0];
+      const startDate = getStartDate(days);
 
-      // Total
-      const totalResult = await db
-        .select({
-          total: sum(analyticsDeviceBreakdown.clicks).as('total')
-        })
-        .from(analyticsDeviceBreakdown)
-        .where(
-          and(
-            eq(analyticsDeviceBreakdown.linkId, linkId),
-            gte(analyticsDeviceBreakdown.date, dateStr)
-          )
-        );
-
-      const total = Number(totalResult[0]?.total) || 0;
-
-      // By device
       const devices = await db
         .select({
-          type: analyticsDeviceBreakdown.deviceType,
-          clicks: sum(analyticsDeviceBreakdown.clicks).as('clicks')
+          type: analyticsEvents.deviceType,
+          clicks: countFn().as('clicks')
         })
-        .from(analyticsDeviceBreakdown)
+        .from(analyticsEvents)
         .where(
           and(
-            eq(analyticsDeviceBreakdown.linkId, linkId),
-            gte(analyticsDeviceBreakdown.date, dateStr)
+            eq(analyticsEvents.linkId, linkId),
+            gte(analyticsEvents.createdAt, startDate),
+            eq(analyticsEvents.isBot, false)
           )
         )
-        .groupBy(analyticsDeviceBreakdown.deviceType)
+        .groupBy(analyticsEvents.deviceType)
         .orderBy(desc(sql`clicks`));
 
-      return devices.map((d) => ({
-        type: d.type || 'unknown',
-        clicks: Number(d.clicks) || 0,
-        percentage:
-          total > 0 ? Math.round(((Number(d.clicks) || 0) / total) * 100) : 0
-      }));
+      const total = devices.reduce((sum, d) => sum + toNumber(d.clicks), 0);
+
+      return devices.map((d) => {
+        const clicks = toNumber(d.clicks);
+        return {
+          type: d.type ?? 'unknown',
+          clicks,
+          percentage: calculatePercentage(clicks, total)
+        };
+      });
     } catch (error) {
       logger.error('[AnalyticsService] Error getting device breakdown', {
         error: error instanceof Error ? error.message : String(error),
@@ -209,61 +256,43 @@ export abstract class AnalyticsService {
 
   /**
    * Get browser breakdown
+   * Uses real-time data from analytics_events
    */
   static async getBrowserBreakdown(
     linkId: string,
     limit: number = 10,
     days: number = 30
-  ): Promise<
-    Array<{
-      name: string;
-      clicks: number;
-      percentage: number;
-    }>
-  > {
+  ): Promise<BrowserBreakdownItem[]> {
     try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      const dateStr = startDate.toISOString().split('T')[0];
+      const startDate = getStartDate(days);
 
-      // Total
-      const totalResult = await db
-        .select({
-          total: sum(analyticsBrowserBreakdown.clicks).as('total')
-        })
-        .from(analyticsBrowserBreakdown)
-        .where(
-          and(
-            eq(analyticsBrowserBreakdown.linkId, linkId),
-            gte(analyticsBrowserBreakdown.date, dateStr)
-          )
-        );
-
-      const total = Number(totalResult[0]?.total) || 0;
-
-      // Top browsers
       const browsers = await db
         .select({
-          name: analyticsBrowserBreakdown.browser,
-          clicks: sum(analyticsBrowserBreakdown.clicks).as('clicks')
+          name: analyticsEvents.browser,
+          clicks: countFn().as('clicks')
         })
-        .from(analyticsBrowserBreakdown)
+        .from(analyticsEvents)
         .where(
           and(
-            eq(analyticsBrowserBreakdown.linkId, linkId),
-            gte(analyticsBrowserBreakdown.date, dateStr)
+            eq(analyticsEvents.linkId, linkId),
+            gte(analyticsEvents.createdAt, startDate),
+            eq(analyticsEvents.isBot, false)
           )
         )
-        .groupBy(analyticsBrowserBreakdown.browser)
+        .groupBy(analyticsEvents.browser)
         .orderBy(desc(sql`clicks`))
         .limit(limit);
 
-      return browsers.map((b) => ({
-        name: b.name || 'unknown',
-        clicks: Number(b.clicks) || 0,
-        percentage:
-          total > 0 ? Math.round(((Number(b.clicks) || 0) / total) * 100) : 0
-      }));
+      const total = browsers.reduce((sum, b) => sum + toNumber(b.clicks), 0);
+
+      return browsers.map((b) => {
+        const clicks = toNumber(b.clicks);
+        return {
+          name: b.name ?? 'unknown',
+          clicks,
+          percentage: calculatePercentage(clicks, total)
+        };
+      });
     } catch (error) {
       logger.error('[AnalyticsService] Error getting browser breakdown', {
         error: error instanceof Error ? error.message : String(error),
@@ -275,40 +304,16 @@ export abstract class AnalyticsService {
 
   /**
    * Get referrer domain breakdown
+   * Uses real-time data from analytics_events
    */
   static async getReferrerBreakdown(
     linkId: string,
     limit: number = 10,
     days: number = 30
-  ): Promise<
-    Array<{
-      domain: string;
-      clicks: number;
-      percentage: number;
-    }>
-  > {
+  ): Promise<ReferrerBreakdownItem[]> {
     try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      const startDateString = startDate.toISOString();
+      const startDate = getStartDate(days);
 
-      // Total
-      const totalResult = await db
-        .select({
-          total: countFn().as('total')
-        })
-        .from(analyticsEvents)
-        .where(
-          and(
-            eq(analyticsEvents.linkId, linkId),
-            gte(analyticsEvents.createdAt, new Date(startDateString)),
-            eq(analyticsEvents.isBot, false)
-          )
-        );
-
-      const total = totalResult[0]?.total || 0;
-
-      // Top referrers
       const referrers = await db
         .select({
           domain: analyticsEvents.referrerDomain,
@@ -318,7 +323,7 @@ export abstract class AnalyticsService {
         .where(
           and(
             eq(analyticsEvents.linkId, linkId),
-            gte(analyticsEvents.createdAt, new Date(startDateString)),
+            gte(analyticsEvents.createdAt, startDate),
             eq(analyticsEvents.isBot, false)
           )
         )
@@ -326,11 +331,16 @@ export abstract class AnalyticsService {
         .orderBy(desc(sql`clicks`))
         .limit(limit);
 
-      return referrers.map((r) => ({
-        domain: r.domain || 'direct',
-        clicks: r.clicks || 0,
-        percentage: total > 0 ? Math.round(((r.clicks || 0) / total) * 100) : 0
-      }));
+      const total = referrers.reduce((sum, r) => sum + toNumber(r.clicks), 0);
+
+      return referrers.map((r) => {
+        const clicks = toNumber(r.clicks);
+        return {
+          domain: r.domain ?? 'direct',
+          clicks,
+          percentage: calculatePercentage(clicks, total)
+        };
+      });
     } catch (error) {
       logger.error('[AnalyticsService] Error getting referrer breakdown', {
         error: error instanceof Error ? error.message : String(error),
@@ -342,71 +352,93 @@ export abstract class AnalyticsService {
 
   /**
    * Get complete analytics summary
+   * Uses real-time data from analytics_events for accurate counts
    */
   static async getSummary(
     linkId: string,
     days: number = 30
   ): Promise<AnalyticsSummary | null> {
     try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      const dateStr = startDate.toISOString().split('T')[0];
+      const currentStart = getStartDate(days);
+      const previousStart = getStartDate(days * 2);
+      const previousEnd = currentStart;
 
-      // Total clicks and unique visitors
-      const summary = await db
-        .select({
-          totalClicks: sum(linkClicksDaily.clicks).as('totalClicks'),
-          uniqueVisitors: sum(linkClicksDaily.uniqueVisitors).as(
-            'uniqueVisitors'
-          )
-        })
-        .from(linkClicksDaily)
-        .where(
-          and(
-            eq(linkClicksDaily.linkId, linkId),
-            gte(linkClicksDaily.date, dateStr)
-          )
-        );
-
-      if (!summary[0]) {
-        return null;
-      }
-
-      const totalClicks = Number(summary[0].totalClicks) || 0;
-      const uniqueVisitors = Number(summary[0].uniqueVisitors) || 0;
-      const daysWithData = days; // Simplification
-
-      const [topCountryRow, topBrowserRow, topReferrerRow] = await Promise.all([
+      // Get current and previous period stats in parallel
+      const [
+        currentSummary,
+        previousSummary,
+        topCountryRow,
+        topBrowserRow,
+        topReferrerRow
+      ] = await Promise.all([
+        // Current period stats
         db
           .select({
-            country: analyticsCountryBreakdown.country,
-            clicks: sum(analyticsCountryBreakdown.clicks).as('clicks')
+            totalClicks: countFn().as('totalClicks'),
+            uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
+              'uniqueVisitors'
+            )
           })
-          .from(analyticsCountryBreakdown)
+          .from(analyticsEvents)
           .where(
             and(
-              eq(analyticsCountryBreakdown.linkId, linkId),
-              gte(analyticsCountryBreakdown.date, dateStr)
+              eq(analyticsEvents.linkId, linkId),
+              gte(analyticsEvents.createdAt, currentStart),
+              eq(analyticsEvents.isBot, false)
             )
-          )
-          .groupBy(analyticsCountryBreakdown.country)
-          .orderBy(desc(sql`clicks`))
-          .limit(1),
+          ),
+        // Previous period stats
         db
           .select({
-            browser: analyticsBrowserBreakdown.browser,
-            clicks: sum(analyticsBrowserBreakdown.clicks).as('clicks')
+            totalClicks: countFn().as('totalClicks'),
+            uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
+              'uniqueVisitors'
+            )
           })
-          .from(analyticsBrowserBreakdown)
+          .from(analyticsEvents)
           .where(
             and(
-              eq(analyticsBrowserBreakdown.linkId, linkId),
-              gte(analyticsBrowserBreakdown.date, dateStr)
+              eq(analyticsEvents.linkId, linkId),
+              gte(analyticsEvents.createdAt, previousStart),
+              lt(analyticsEvents.createdAt, previousEnd),
+              eq(analyticsEvents.isBot, false)
+            )
+          ),
+        // Top country
+        db
+          .select({
+            country: analyticsEvents.country,
+            clicks: countFn().as('clicks')
+          })
+          .from(analyticsEvents)
+          .where(
+            and(
+              eq(analyticsEvents.linkId, linkId),
+              gte(analyticsEvents.createdAt, currentStart),
+              eq(analyticsEvents.isBot, false)
             )
           )
-          .groupBy(analyticsBrowserBreakdown.browser)
+          .groupBy(analyticsEvents.country)
           .orderBy(desc(sql`clicks`))
           .limit(1),
+        // Top browser
+        db
+          .select({
+            browser: analyticsEvents.browser,
+            clicks: countFn().as('clicks')
+          })
+          .from(analyticsEvents)
+          .where(
+            and(
+              eq(analyticsEvents.linkId, linkId),
+              gte(analyticsEvents.createdAt, currentStart),
+              eq(analyticsEvents.isBot, false)
+            )
+          )
+          .groupBy(analyticsEvents.browser)
+          .orderBy(desc(sql`clicks`))
+          .limit(1),
+        // Top referrer
         db
           .select({
             domain: analyticsEvents.referrerDomain,
@@ -416,7 +448,7 @@ export abstract class AnalyticsService {
           .where(
             and(
               eq(analyticsEvents.linkId, linkId),
-              gte(analyticsEvents.createdAt, new Date(dateStr)),
+              gte(analyticsEvents.createdAt, currentStart),
               eq(analyticsEvents.isBot, false)
             )
           )
@@ -425,14 +457,20 @@ export abstract class AnalyticsService {
           .limit(1)
       ]);
 
+      const totalClicks = toNumber(currentSummary[0]?.totalClicks);
+      const uniqueVisitors = toNumber(currentSummary[0]?.uniqueVisitors);
+      const previousClicks = toNumber(previousSummary[0]?.totalClicks);
+      const previousVisitors = toNumber(previousSummary[0]?.uniqueVisitors);
+
       return {
         totalClicks,
         uniqueVisitors,
-        avgClicksPerDay:
-          daysWithData > 0 ? Math.round(totalClicks / daysWithData) : 0,
+        avgClicksPerDay: days > 0 ? Math.round(totalClicks / days) : 0,
         topCountry: topCountryRow[0]?.country ?? null,
         topBrowser: topBrowserRow[0]?.browser ?? null,
-        topReferrer: topReferrerRow[0]?.domain ?? null
+        topReferrer: topReferrerRow[0]?.domain ?? null,
+        totalClicksGrowth: calculateGrowth(totalClicks, previousClicks),
+        uniqueVisitorsGrowth: calculateGrowth(uniqueVisitors, previousVisitors)
       };
     } catch (error) {
       logger.error('[AnalyticsService] Error getting summary', {
@@ -486,38 +524,39 @@ export abstract class AnalyticsService {
 
   /**
    * Get aggregated daily stats for all user links
+   * Uses real-time data from analytics_events for accurate counts
    */
   static async getAllLinksDailyStats(
     userId: string,
     days: number = 30
   ): Promise<TimeSeries[]> {
     try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      const startDate = getStartDate(days);
 
       const stats = await db
         .select({
-          date: linkClicksDaily.date,
-          clicks: sum(linkClicksDaily.clicks).as('clicks'),
-          uniqueVisitors: sum(linkClicksDaily.uniqueVisitors).as(
+          date: sql<string>`DATE(${analyticsEvents.createdAt})`.as('date'),
+          clicks: countFn().as('clicks'),
+          uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
             'uniqueVisitors'
           )
         })
-        .from(linkClicksDaily)
-        .innerJoin(links, eq(links.id, linkClicksDaily.linkId))
+        .from(analyticsEvents)
+        .innerJoin(links, eq(links.id, analyticsEvents.linkId))
         .where(
           and(
             eq(links.userId, userId),
-            gte(linkClicksDaily.date, startDate.toISOString().split('T')[0])
+            gte(analyticsEvents.createdAt, startDate),
+            eq(analyticsEvents.isBot, false)
           )
         )
-        .groupBy(linkClicksDaily.date)
-        .orderBy(desc(linkClicksDaily.date));
+        .groupBy(sql`DATE(${analyticsEvents.createdAt})`)
+        .orderBy(desc(sql`DATE(${analyticsEvents.createdAt})`));
 
       return stats.map((s) => ({
         date: s.date,
-        clicks: Number(s.clicks) || 0,
-        uniqueVisitors: Number(s.uniqueVisitors) || 0
+        clicks: toNumber(s.clicks),
+        uniqueVisitors: toNumber(s.uniqueVisitors)
       }));
     } catch (error) {
       logger.error('[AnalyticsService] Error getting all links daily stats', {
@@ -530,37 +569,61 @@ export abstract class AnalyticsService {
 
   /**
    * Get aggregated summary for all user links
+   * Uses real-time data from analytics_events for accurate counts
    */
   static async getAllLinksSummary(
     userId: string,
     days: number = 30
   ): Promise<AnalyticsSummary | null> {
     try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      const dateStr = startDate.toISOString().split('T')[0];
+      const currentStart = getStartDate(days);
+      const previousStart = getStartDate(days * 2);
+      const previousEnd = currentStart;
 
-      // Get aggregated totals
-      const totalsResult = await db
-        .select({
-          totalClicks: sum(linkClicksDaily.clicks).as('totalClicks'),
-          uniqueVisitors: sum(linkClicksDaily.uniqueVisitors).as(
-            'uniqueVisitors'
+      // Get current and previous period stats in parallel
+      const [
+        currentTotals,
+        previousTotals,
+        topCountryRow,
+        topBrowserRow,
+        topReferrerRow
+      ] = await Promise.all([
+        // Current period stats
+        db
+          .select({
+            totalClicks: countFn().as('totalClicks'),
+            uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
+              'uniqueVisitors'
+            )
+          })
+          .from(analyticsEvents)
+          .innerJoin(links, eq(links.id, analyticsEvents.linkId))
+          .where(
+            and(
+              eq(links.userId, userId),
+              gte(analyticsEvents.createdAt, currentStart),
+              eq(analyticsEvents.isBot, false)
+            )
           ),
-          daysWithData: countFn().as('daysWithData')
-        })
-        .from(linkClicksDaily)
-        .innerJoin(links, eq(links.id, linkClicksDaily.linkId))
-        .where(
-          and(eq(links.userId, userId), gte(linkClicksDaily.date, dateStr))
-        );
-
-      const totalClicks = Number(totalsResult[0]?.totalClicks) || 0;
-      const uniqueVisitors = Number(totalsResult[0]?.uniqueVisitors) || 0;
-      const daysWithData = Number(totalsResult[0]?.daysWithData) || 0;
-
-      // Get top metrics from events
-      const [topCountryRow, topBrowserRow, topReferrerRow] = await Promise.all([
+        // Previous period stats
+        db
+          .select({
+            totalClicks: countFn().as('totalClicks'),
+            uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
+              'uniqueVisitors'
+            )
+          })
+          .from(analyticsEvents)
+          .innerJoin(links, eq(links.id, analyticsEvents.linkId))
+          .where(
+            and(
+              eq(links.userId, userId),
+              gte(analyticsEvents.createdAt, previousStart),
+              lt(analyticsEvents.createdAt, previousEnd),
+              eq(analyticsEvents.isBot, false)
+            )
+          ),
+        // Top country
         db
           .select({
             country: analyticsEvents.country,
@@ -571,13 +634,14 @@ export abstract class AnalyticsService {
           .where(
             and(
               eq(links.userId, userId),
-              gte(analyticsEvents.createdAt, new Date(dateStr)),
+              gte(analyticsEvents.createdAt, currentStart),
               eq(analyticsEvents.isBot, false)
             )
           )
           .groupBy(analyticsEvents.country)
           .orderBy(desc(sql`clicks`))
           .limit(1),
+        // Top browser
         db
           .select({
             browser: analyticsEvents.browser,
@@ -588,13 +652,14 @@ export abstract class AnalyticsService {
           .where(
             and(
               eq(links.userId, userId),
-              gte(analyticsEvents.createdAt, new Date(dateStr)),
+              gte(analyticsEvents.createdAt, currentStart),
               eq(analyticsEvents.isBot, false)
             )
           )
           .groupBy(analyticsEvents.browser)
           .orderBy(desc(sql`clicks`))
           .limit(1),
+        // Top referrer
         db
           .select({
             domain: analyticsEvents.referrerDomain,
@@ -605,7 +670,7 @@ export abstract class AnalyticsService {
           .where(
             and(
               eq(links.userId, userId),
-              gte(analyticsEvents.createdAt, new Date(dateStr)),
+              gte(analyticsEvents.createdAt, currentStart),
               eq(analyticsEvents.isBot, false)
             )
           )
@@ -614,14 +679,20 @@ export abstract class AnalyticsService {
           .limit(1)
       ]);
 
+      const totalClicks = toNumber(currentTotals[0]?.totalClicks);
+      const uniqueVisitors = toNumber(currentTotals[0]?.uniqueVisitors);
+      const previousClicks = toNumber(previousTotals[0]?.totalClicks);
+      const previousVisitors = toNumber(previousTotals[0]?.uniqueVisitors);
+
       return {
         totalClicks,
         uniqueVisitors,
-        avgClicksPerDay:
-          daysWithData > 0 ? Math.round(totalClicks / daysWithData) : 0,
+        avgClicksPerDay: days > 0 ? Math.round(totalClicks / days) : 0,
         topCountry: topCountryRow[0]?.country ?? null,
         topBrowser: topBrowserRow[0]?.browser ?? null,
-        topReferrer: topReferrerRow[0]?.domain ?? null
+        topReferrer: topReferrerRow[0]?.domain ?? null,
+        totalClicksGrowth: calculateGrowth(totalClicks, previousClicks),
+        uniqueVisitorsGrowth: calculateGrowth(uniqueVisitors, previousVisitors)
       };
     } catch (error) {
       logger.error('[AnalyticsService] Error getting all links summary', {
@@ -634,120 +705,109 @@ export abstract class AnalyticsService {
 
   /**
    * Get aggregated breakdown for all user links
+   * Uses real-time data from analytics_events for accurate counts
    */
   static async getAllLinksBreakdown(
     userId: string,
     days: number = 30
   ): Promise<AnalyticsBreakdown> {
     try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      const dateStr = startDate.toISOString().split('T')[0];
+      const startDate = getStartDate(days);
 
-      // Get aggregated country breakdown
-      const countries = await db
-        .select({
-          country: analyticsCountryBreakdown.country,
-          clicks: sum(analyticsCountryBreakdown.clicks).as('clicks')
-        })
-        .from(analyticsCountryBreakdown)
-        .innerJoin(links, eq(links.id, analyticsCountryBreakdown.linkId))
-        .where(
-          and(
-            eq(links.userId, userId),
-            gte(analyticsCountryBreakdown.date, dateStr)
-          )
-        )
-        .groupBy(analyticsCountryBreakdown.country)
-        .orderBy(desc(sql`clicks`))
-        .limit(10);
+      // Common where clause for all queries
+      const whereClause = and(
+        eq(links.userId, userId),
+        gte(analyticsEvents.createdAt, startDate),
+        eq(analyticsEvents.isBot, false)
+      );
 
-      // Get aggregated device breakdown
-      const devices = await db
-        .select({
-          deviceType: analyticsDeviceBreakdown.deviceType,
-          clicks: sum(analyticsDeviceBreakdown.clicks).as('clicks')
-        })
-        .from(analyticsDeviceBreakdown)
-        .innerJoin(links, eq(links.id, analyticsDeviceBreakdown.linkId))
-        .where(
-          and(
-            eq(links.userId, userId),
-            gte(analyticsDeviceBreakdown.date, dateStr)
-          )
-        )
-        .groupBy(analyticsDeviceBreakdown.deviceType)
-        .orderBy(desc(sql`clicks`));
+      // Run all breakdown queries in parallel for better performance
+      const [countries, devices, browsers, referrers] = await Promise.all([
+        db
+          .select({
+            country: analyticsEvents.country,
+            clicks: countFn().as('clicks')
+          })
+          .from(analyticsEvents)
+          .innerJoin(links, eq(links.id, analyticsEvents.linkId))
+          .where(whereClause)
+          .groupBy(analyticsEvents.country)
+          .orderBy(desc(sql`clicks`))
+          .limit(10),
+        db
+          .select({
+            deviceType: analyticsEvents.deviceType,
+            clicks: countFn().as('clicks')
+          })
+          .from(analyticsEvents)
+          .innerJoin(links, eq(links.id, analyticsEvents.linkId))
+          .where(whereClause)
+          .groupBy(analyticsEvents.deviceType)
+          .orderBy(desc(sql`clicks`)),
+        db
+          .select({
+            browser: analyticsEvents.browser,
+            clicks: countFn().as('clicks')
+          })
+          .from(analyticsEvents)
+          .innerJoin(links, eq(links.id, analyticsEvents.linkId))
+          .where(whereClause)
+          .groupBy(analyticsEvents.browser)
+          .orderBy(desc(sql`clicks`))
+          .limit(10),
+        db
+          .select({
+            domain: analyticsEvents.referrerDomain,
+            clicks: countFn().as('clicks')
+          })
+          .from(analyticsEvents)
+          .innerJoin(links, eq(links.id, analyticsEvents.linkId))
+          .where(whereClause)
+          .groupBy(analyticsEvents.referrerDomain)
+          .orderBy(desc(sql`clicks`))
+          .limit(10)
+      ]);
 
-      // Get aggregated browser breakdown
-      const browsers = await db
-        .select({
-          browser: analyticsBrowserBreakdown.browser,
-          clicks: sum(analyticsBrowserBreakdown.clicks).as('clicks')
-        })
-        .from(analyticsBrowserBreakdown)
-        .innerJoin(links, eq(links.id, analyticsBrowserBreakdown.linkId))
-        .where(
-          and(
-            eq(links.userId, userId),
-            gte(analyticsBrowserBreakdown.date, dateStr)
-          )
-        )
-        .groupBy(analyticsBrowserBreakdown.browser)
-        .orderBy(desc(sql`clicks`))
-        .limit(10);
-
-      // Get aggregated referrer breakdown
-      const referrers = await db
-        .select({
-          domain: analyticsEvents.referrerDomain,
-          clicks: countFn().as('clicks')
-        })
-        .from(analyticsEvents)
-        .innerJoin(links, eq(links.id, analyticsEvents.linkId))
-        .where(
-          and(
-            eq(links.userId, userId),
-            gte(analyticsEvents.createdAt, new Date(dateStr)),
-            eq(analyticsEvents.isBot, false)
-          )
-        )
-        .groupBy(analyticsEvents.referrerDomain)
-        .orderBy(desc(sql`clicks`))
-        .limit(10);
-
-      // Calculate totals for percentages
+      // Calculate total clicks from all sources for accurate percentages
       const totalClicks = countries.reduce(
-        (sum, c) => sum + Number(c.clicks),
+        (sum, c) => sum + toNumber(c.clicks),
         0
       );
 
       return {
-        countries: countries.map((c) => ({
-          code: c.country,
-          name: c.country,
-          clicks: Number(c.clicks),
-          percentage:
-            totalClicks > 0 ? (Number(c.clicks) / totalClicks) * 100 : 0
-        })),
-        devices: devices.map((d) => ({
-          type: d.deviceType,
-          clicks: Number(d.clicks),
-          percentage:
-            totalClicks > 0 ? (Number(d.clicks) / totalClicks) * 100 : 0
-        })),
-        browsers: browsers.map((b) => ({
-          name: b.browser,
-          clicks: Number(b.clicks),
-          percentage:
-            totalClicks > 0 ? (Number(b.clicks) / totalClicks) * 100 : 0
-        })),
-        referrers: referrers.map((r) => ({
-          domain: r.domain ?? 'direct',
-          clicks: Number(r.clicks),
-          percentage:
-            totalClicks > 0 ? (Number(r.clicks) / totalClicks) * 100 : 0
-        }))
+        countries: countries.map((c) => {
+          const clicks = toNumber(c.clicks);
+          return {
+            code: c.country ?? 'unknown',
+            name: c.country ?? 'Unknown',
+            clicks,
+            percentage: calculatePercentage(clicks, totalClicks)
+          };
+        }),
+        devices: devices.map((d) => {
+          const clicks = toNumber(d.clicks);
+          return {
+            type: d.deviceType ?? 'unknown',
+            clicks,
+            percentage: calculatePercentage(clicks, totalClicks)
+          };
+        }),
+        browsers: browsers.map((b) => {
+          const clicks = toNumber(b.clicks);
+          return {
+            name: b.browser ?? 'Unknown',
+            clicks,
+            percentage: calculatePercentage(clicks, totalClicks)
+          };
+        }),
+        referrers: referrers.map((r) => {
+          const clicks = toNumber(r.clicks);
+          return {
+            domain: r.domain ?? 'direct',
+            clicks,
+            percentage: calculatePercentage(clicks, totalClicks)
+          };
+        })
       };
     } catch (error) {
       logger.error('[AnalyticsService] Error getting all links breakdown', {
@@ -777,18 +837,21 @@ export abstract class AnalyticsService {
       const result = await db
         .select({
           total: countFn().as('total'),
-          latest: sql`MAX(${analyticsEvents.createdAt})`.as('latest')
+          latest: sql<Date>`MAX(${analyticsEvents.createdAt})`.as('latest')
         })
         .from(analyticsEvents);
 
+      const totalEvents = toNumber(result[0]?.total);
+      const latestRaw = result[0]?.latest;
+
       return {
         status: 'ok',
-        totalEvents: Number(result[0]?.total) || 0,
+        totalEvents,
         latestEvent:
-          result[0]?.latest && result[0].latest instanceof Date
-            ? result[0].latest
-            : result[0]?.latest && typeof result[0].latest === 'string'
-              ? new Date(result[0].latest)
+          latestRaw instanceof Date
+            ? latestRaw
+            : typeof latestRaw === 'string'
+              ? new Date(latestRaw)
               : null
       };
     } catch (error) {

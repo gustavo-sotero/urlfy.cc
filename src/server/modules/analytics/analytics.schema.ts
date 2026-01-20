@@ -61,7 +61,9 @@ export const AnalyticsSummary = t.Object({
   avgClicksPerDay: t.Number(),
   topCountry: t.Nullable(t.String()),
   topBrowser: t.Nullable(t.String()),
-  topReferrer: t.Nullable(t.String())
+  topReferrer: t.Nullable(t.String()),
+  totalClicksGrowth: t.Number(),
+  uniqueVisitorsGrowth: t.Number()
 });
 export type AnalyticsSummaryType = Static<typeof AnalyticsSummary>;
 

@@ -2,6 +2,7 @@ import { swagger } from '@elysiajs/swagger';
 import { Elysia } from 'elysia';
 import { auth } from '@/lib/auth';
 // Import from feature-based modules
+import { adminController } from '@/server/modules/admin';
 import { analyticsController } from '@/server/modules/analytics';
 import { authController } from '@/server/modules/auth';
 import { linksController } from '@/server/modules/links';
@@ -85,11 +86,11 @@ export const api = new Elysia({ prefix: '/api' })
   .all('/auth/*', ({ request }) => auth.handler(request))
 
   // Health check
-  .use(healthRoutes)
 
   // API v1 routes
   .group('/v1', (app) =>
     app
+      .use(healthRoutes)
       .use(authController)
       .use(userDataRoutes)
       .use(consentRoutes)
@@ -97,6 +98,7 @@ export const api = new Elysia({ prefix: '/api' })
       .use(linksController)
       .use(analyticsController)
       // Admin routes
+      .use(adminController)
       .group('/admin', (admin) => admin.use(adminAuditRoutes))
   )
 

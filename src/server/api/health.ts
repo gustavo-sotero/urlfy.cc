@@ -8,57 +8,53 @@ import { requireAdmin } from '../middleware/auth.middleware';
 // HEALTH CHECK SIMPLES (público)
 // ═══════════════════════════════════════════════════════════════════
 
-const healthSimple = new Elysia().get(
-  '/health',
-  async () => {
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString()
-    };
-  },
-  {
-    detail: {
-      summary: 'Simple health check',
-      description: 'Returns basic health status',
-      tags: ['Health']
-    }
-  }
-);
-
-// ═══════════════════════════════════════════════════════════════════
-// READINESS CHECK (público)
-// ═══════════════════════════════════════════════════════════════════
-
-const healthReady = new Elysia().get(
-  '/health/ready',
-  async ({ set }) => {
-    const [dbHealth, redisHealth] = await Promise.all([
-      checkDatabaseHealth(),
-      checkRedisHealth()
-    ]);
-
-    const isReady = dbHealth.status === 'ok' && redisHealth.status === 'ok';
-
-    if (!isReady) {
-      set.status = 503;
-    }
-
-    return {
-      status: isReady ? 'ready' : 'not_ready',
-      services: {
-        database: dbHealth.status,
-        redis: redisHealth.status
+const healthSimple = new Elysia()
+  .get(
+    '/health',
+    async () => {
+      return {
+        status: 'ok',
+        timestamp: new Date().toISOString()
+      };
+    },
+    {
+      detail: {
+        summary: 'Simple health check',
+        description: 'Returns basic health status',
+        tags: ['Health']
       }
-    };
-  },
-  {
-    detail: {
-      summary: 'Readiness check',
-      description: 'Checks if all required services are available',
-      tags: ['Health']
     }
-  }
-);
+  )
+  .get(
+    '/health/ready',
+    async ({ set }) => {
+      const [dbHealth, redisHealth] = await Promise.all([
+        checkDatabaseHealth(),
+        checkRedisHealth()
+      ]);
+
+      const isReady = dbHealth.status === 'ok' && redisHealth.status === 'ok';
+
+      if (!isReady) {
+        set.status = 503;
+      }
+
+      return {
+        status: isReady ? 'ready' : 'not_ready',
+        services: {
+          database: dbHealth.status,
+          redis: redisHealth.status
+        }
+      };
+    },
+    {
+      detail: {
+        summary: 'Readiness check',
+        description: 'Checks if all required services are available',
+        tags: ['Health']
+      }
+    }
+  );
 
 // ═══════════════════════════════════════════════════════════════════
 // HEALTH CHECK DETALHADO (admin only)
@@ -126,7 +122,4 @@ const healthDetailed = new Elysia().use(requireAdmin).get(
 // EXPORT
 // ═══════════════════════════════════════════════════════════════════
 
-export const healthRoutes = new Elysia({ prefix: '/api/v1' })
-  .use(healthSimple)
-  .use(healthReady)
-  .use(healthDetailed);
+export const healthRoutes = new Elysia().use(healthSimple).use(healthDetailed);

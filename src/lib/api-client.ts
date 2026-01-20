@@ -4,6 +4,7 @@
  * Type-safe wrapper using Elysia Eden Treaty for REST API calls
  */
 
+import { treaty } from '@elysiajs/eden';
 import type { App } from '@/server/api';
 import type {
   AnalyticsBreakdown,
@@ -18,7 +19,6 @@ import type {
   PaginatedResponse,
   UpdateLinkInput
 } from '@/types/links.types';
-import { treaty } from '@elysiajs/eden';
 
 // ═══════════════════════════════════════════════════════════════════
 // EDEN CLIENT INITIALIZATION
@@ -36,6 +36,52 @@ const client = treaty<App>(BASE_URL, {
     credentials: 'include' // Required for cookies to be sent
   }
 });
+
+/**
+ * Create a client instance with custom headers (e.g., for SSR with cookies)
+ * Use this when calling from Next.js server components to forward authentication
+ *
+ * @example
+ * ```tsx
+ * // In a Next.js server component
+ * import { headers } from 'next/headers';
+ *
+ * async function MyServerComponent() {
+ *   const requestHeaders = await headers();
+ *   const headersObj = Object.fromEntries(requestHeaders.entries());
+ *   const client = createClientWithHeaders(headersObj);
+ *   // Use client...
+ * }
+ * ```
+ */
+export function createClientWithHeaders(headers: HeadersInit) {
+  return treaty<App>(BASE_URL, {
+    fetch: {
+      credentials: 'include'
+    },
+    headers
+  });
+}
+
+/**
+ * Helper to convert Next.js Headers to plain object for API client
+ * @example
+ * ```tsx
+ * import { headers } from 'next/headers';
+ *
+ * const requestHeaders = await headers();
+ * const headersObj = convertHeadersForApiClient(requestHeaders);
+ * ```
+ */
+export function convertHeadersForApiClient(
+  headers: Headers
+): Record<string, string> {
+  const headersObj: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    headersObj[key] = value;
+  });
+  return headersObj;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // ERROR HANDLING (Backward Compatible)
@@ -68,18 +114,78 @@ interface TreatyResponse<T = unknown> {
 }
 
 /**
+ * Backend API error structure
+ */
+interface BackendErrorResponse {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+/**
  * Backend API success response structure
  */
 interface BackendSuccessResponse<T = unknown> {
   success: boolean;
   data?: T;
   meta?: Record<string, unknown>;
-  error?: {
-    code: string;
-    message: string;
-    details?: Record<string, unknown>;
-  };
+  error?: BackendErrorResponse;
   requestId?: string;
+}
+
+/**
+ * Extracts error information from Eden Treaty error response
+ */
+function extractErrorInfo(errorValue: unknown): {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+  requestId?: string;
+} {
+  const fallback = {
+    code: 'UNKNOWN_ERROR',
+    message: 'Request failed'
+  };
+
+  if (!errorValue || typeof errorValue !== 'object') {
+    if (typeof errorValue === 'string') {
+      return { ...fallback, message: errorValue };
+    }
+    if (errorValue instanceof Error) {
+      return {
+        code: 'NETWORK_ERROR',
+        message: errorValue.message
+      };
+    }
+    return fallback;
+  }
+
+  const errorObj = errorValue as Record<string, unknown>;
+
+  // Handle structured error responses from backend
+  if (errorObj.error && typeof errorObj.error === 'object') {
+    const backendError = errorObj.error as Record<string, unknown>;
+    return {
+      code: (backendError.code as string) || fallback.code,
+      message: (backendError.message as string) || fallback.message,
+      details: backendError.details as Record<string, unknown> | undefined,
+      requestId: errorObj.requestId as string | undefined
+    };
+  }
+
+  // Handle Error objects from network failures
+  if (errorObj.message && typeof errorObj.message === 'string') {
+    return {
+      code: 'NETWORK_ERROR',
+      message: errorObj.message,
+      requestId: errorObj.requestId as string | undefined
+    };
+  }
+
+  return {
+    ...fallback,
+    requestId: errorObj.requestId as string | undefined
+  };
 }
 
 /**
@@ -90,45 +196,22 @@ interface BackendSuccessResponse<T = unknown> {
  * returns union types based on HTTP status codes. The return type T is trusted
  * based on the caller's expectation.
  */
-
 function handleEden<T>(response: TreatyResponse<unknown>): T {
   if (response.error) {
-    // Extract error information from Eden response
-    const status = response.error.status?.toString() || 'UNKNOWN_ERROR';
+    const errorInfo = extractErrorInfo(response.error.value);
 
-    // Parse error message
-    let message = 'Request failed';
-    let code = status;
-    let details: Record<string, unknown> | undefined;
-    let requestId: string | undefined;
+    // Extract request ID from response headers if not in error value
+    const requestId =
+      errorInfo.requestId ||
+      response.response?.headers.get('x-request-id') ||
+      undefined;
 
-    // Handle structured error responses from backend
-    if (response.error.value && typeof response.error.value === 'object') {
-      const errorValue = response.error.value as Record<string, unknown>;
-      if (errorValue.error && typeof errorValue.error === 'object') {
-        const errorObj = errorValue.error as Record<string, unknown>;
-        code = (errorObj.code as string) || status;
-        message = (errorObj.message as string) || message;
-        details = errorObj.details as Record<string, unknown> | undefined;
-      } else if (errorValue.message && typeof errorValue.message === 'string') {
-        // Handle Error objects from network failures
-        message = errorValue.message as string;
-      }
-      requestId = errorValue.requestId as string | undefined;
-    } else if (typeof response.error.value === 'string') {
-      message = response.error.value;
-    } else if (response.error.value instanceof Error) {
-      // Preserve original error messages from network failures
-      message = response.error.value.message;
-      code = 'NETWORK_ERROR';
-    }
-
-    // Extract request ID from response headers if available
-    if (!requestId && response.response) {
-      requestId = response.response.headers.get('x-request-id') ?? undefined;
-    }
-
-    throw new ApiClientError(code, message, details, requestId);
+    throw new ApiClientError(
+      errorInfo.code,
+      errorInfo.message,
+      errorInfo.details,
+      requestId
+    );
   }
 
   // Handle 204 No Content responses (e.g., DELETE operations)
@@ -160,7 +243,7 @@ function handleEden<T>(response: TreatyResponse<unknown>): T {
   }
 
   // For paginated responses, return both data and meta
-  if (apiResponse.meta && apiResponse.data) {
+  if (apiResponse.meta && apiResponse.data !== undefined) {
     return { data: apiResponse.data, meta: apiResponse.meta } as T;
   }
 
@@ -172,6 +255,40 @@ function handleEden<T>(response: TreatyResponse<unknown>): T {
   // For responses with no data field (like void/delete)
   return apiResponse as T;
 }
+
+/**
+ * Extracts array data from API response, handling both direct arrays and paginated responses
+ * This utility reduces code duplication in analytics endpoints
+ */
+function extractArrayData<T>(result: unknown): T[] {
+  if (Array.isArray(result)) {
+    return result as T[];
+  }
+
+  if (result && typeof result === 'object' && 'data' in result) {
+    const dataValue = (result as { data: unknown }).data;
+    if (Array.isArray(dataValue)) {
+      return dataValue as T[];
+    }
+  }
+
+  // Log unexpected structure for debugging
+  console.error(
+    '[API Client] Expected array or paginated response, got:',
+    typeof result
+  );
+  return [];
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════
+
+/** Default number of days for analytics queries */
+const DEFAULT_ANALYTICS_DAYS = 30;
+
+/** Default page size for paginated queries */
+const _DEFAULT_PAGE_SIZE = 20;
 
 // ═══════════════════════════════════════════════════════════════════
 // QUERY PARAM HELPERS
@@ -261,15 +378,17 @@ export async function duplicateLink(id: string): Promise<LinkResponse> {
   return handleEden(response);
 }
 
-export async function validateUrl(url: string): Promise<{
+export interface UrlValidationResult {
   valid: boolean;
   warnings: string[];
-}> {
+}
+
+export async function validateUrl(url: string): Promise<UrlValidationResult> {
   const response = await client.api.v1.links.validate.post({ url });
   const result = handleEden<{ valid: boolean; warnings?: string[] }>(response);
   return {
     valid: result.valid,
-    warnings: result.warnings || []
+    warnings: result.warnings ?? []
   };
 }
 
@@ -298,9 +417,16 @@ export async function getLinkPreview(code: string): Promise<LinkPreview> {
   return handleEden(response);
 }
 
+export interface QRCodeOptions {
+  /** Size in pixels (100-1000) */
+  size?: number;
+  /** Output format */
+  format?: 'png' | 'svg';
+}
+
 export async function getQRCode(
   code: string,
-  options?: { size?: number; format?: 'png' | 'svg' }
+  options?: QRCodeOptions
 ): Promise<Blob> {
   // Note: For binary responses, Eden Treaty returns Response in the data field
   const query = options
@@ -314,12 +440,17 @@ export async function getQRCode(
   });
 
   if (response.error) {
-    throw new Error('QR Code generation failed');
+    const errorInfo = extractErrorInfo(response.error.value);
+    throw new ApiClientError(
+      errorInfo.code,
+      errorInfo.message || 'QR Code generation failed',
+      errorInfo.details
+    );
   }
 
   // Extract blob from Response object
   if (!response.response) {
-    throw new Error('No response received');
+    throw new ApiClientError('NO_RESPONSE', 'No response received from server');
   }
   return response.response.blob();
 }
@@ -350,21 +481,27 @@ export async function getLinkStats(id: string): Promise<LinkStats> {
 
 export async function getDailyStats(
   linkId: string,
-  days = 30
+  days = DEFAULT_ANALYTICS_DAYS
 ): Promise<DailyStats[]> {
+  const query = { days: days.toString() };
+
   // Handle "all" linkId for aggregate analytics
   if (linkId === 'all') {
-    const response = await client.api.v1.analytics.all.daily.get({
-      query: { days: days.toString() }
-    });
-    const timeSeries = handleEden<TimeSeries[]>(response);
+    const response = await client.api.v1.analytics.all.daily.get({ query });
+    const result = handleEden<
+      TimeSeries[] | { data: TimeSeries[]; meta: unknown }
+    >(response);
+    const timeSeries = extractArrayData<TimeSeries>(result);
     return timeSeries.map((ts) => ({ ...ts, linkId: 'all' }));
   }
 
-  const response = await client.api.v1.analytics({ linkId }).daily.get({
-    query: { days: days.toString() }
-  });
-  const timeSeries = handleEden<TimeSeries[]>(response);
+  const response = await client.api.v1
+    .analytics({ linkId })
+    .daily.get({ query });
+  const result = handleEden<
+    TimeSeries[] | { data: TimeSeries[]; meta: unknown }
+  >(response);
+  const timeSeries = extractArrayData<TimeSeries>(result);
   return timeSeries.map((ts) => ({ ...ts, linkId }));
 }
 
@@ -428,12 +565,17 @@ export async function exportUserData(): Promise<Blob> {
   const response = await client.api.v1.me.export.get();
 
   if (response.error) {
-    throw new Error('Export failed');
+    const errorInfo = extractErrorInfo(response.error.value);
+    throw new ApiClientError(
+      errorInfo.code,
+      errorInfo.message || 'Data export failed',
+      errorInfo.details
+    );
   }
 
   // For binary responses, extract blob from Response object
   if (!response.response) {
-    throw new Error('No response received');
+    throw new ApiClientError('NO_RESPONSE', 'No response received from server');
   }
   return response.response.blob();
 }
@@ -453,102 +595,325 @@ export async function requestDataDeletion(): Promise<DataDeletionRequest> {
 // ADMIN API
 // ═══════════════════════════════════════════════════════════════════
 
-// ═══════════════════════════════════════════════════════════════════
-// ADMIN STATS (Stub Implementation)
-// ═══════════════════════════════════════════════════════════════════
-// NOTE: Full implementation pending backend development
-// These are temporary client-side stubs to unblock frontend development
-
-export async function getAdminStats(): Promise<{
+export interface AdminStats {
   totalLinks: number;
   totalClicks: number;
   totalUsers: number;
   activeLinksToday: number;
   requestsPerSecond: number;
-}> {
-  // TODO: Implement backend endpoint at /api/v1/admin/stats
-  // For now, return stub data
+}
+
+/**
+ * Get global admin statistics (client-side)
+ */
+export async function getAdminStats(): Promise<AdminStats> {
+  const response = await client.api.v1.admin.stats.get();
+  return handleEden(response);
+}
+
+/**
+ * Get global admin statistics (server-side with headers)
+ * Use this from Next.js server components to forward authentication cookies
+ */
+export async function getAdminStatsSSR(
+  headers: HeadersInit
+): Promise<AdminStats> {
+  const serverClient = createClientWithHeaders(headers);
+  const response = await serverClient.api.v1.admin.stats.get();
+  return handleEden(response);
+}
+
+/**
+ * Get growth statistics for admin dashboard
+ */
+export async function getGrowthStats(
+  range: '7d' | '30d' = '7d'
+): Promise<Array<{ date: string; clicks: number; newUsers: number }>> {
+  const response = await client.api.v1.admin.stats.growth.get({
+    query: { range }
+  });
+  return handleEden(response);
+}
+
+/**
+ * Get growth statistics (server-side with headers)
+ */
+export async function getGrowthStatsSSR(
+  headers: HeadersInit,
+  range: '7d' | '30d' = '7d'
+): Promise<Array<{ date: string; clicks: number; newUsers: number }>> {
+  const serverClient = createClientWithHeaders(headers);
+  const response = await serverClient.api.v1.admin.stats.growth.get({
+    query: { range }
+  });
+  return handleEden(response);
+}
+
+/**
+ * Search links by URL or short code
+ */
+export async function searchLinks(query: string): Promise<LinkResponse[]> {
+  const response = await client.api.v1.admin.links.search.get({
+    query: { q: query }
+  });
+  const result =
+    handleEden<
+      Array<{
+        id: string;
+        shortCode: string;
+        originalUrl: string;
+        isActive: boolean;
+        isBanned: boolean;
+        createdAt: string;
+        clicksCount: number;
+      }>
+    >(response);
+
+  // Transform to LinkResponse format
+  return result.map((link) => ({
+    id: link.id,
+    shortCode: link.shortCode,
+    shortUrl: `${BASE_URL}/${link.shortCode}`,
+    originalUrl: link.originalUrl,
+    redirectType: 302,
+    clicksCount: link.clicksCount,
+    isActive: link.isActive,
+    isBanned: link.isBanned,
+    createdAt: link.createdAt,
+    updatedAt: link.createdAt
+  })) as LinkResponse[];
+}
+
+/**
+ * List links with pagination (client-side)
+ */
+export async function listAdminLinks(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}): Promise<PaginatedResponse<LinkResponse>> {
+  const response = await client.api.v1.admin.links.get({
+    query: {
+      page: params?.page?.toString(),
+      limit: params?.limit?.toString(),
+      search: params?.search
+    }
+  });
+
+  const result = handleEden<{
+    data: Array<{
+      id: string;
+      shortCode: string;
+      originalUrl: string;
+      isActive: boolean;
+      isBanned: boolean;
+      createdAt: string;
+      clicksCount: number;
+    }>;
+    meta: {
+      total: number;
+      page: number;
+      perPage: number;
+      lastPage: number;
+      hasMore: boolean;
+    };
+  }>(response);
+
+  // Transform to LinkResponse format
+  const data = result.data.map((link) => ({
+    id: link.id,
+    shortCode: link.shortCode,
+    shortUrl: `${BASE_URL}/${link.shortCode}`,
+    originalUrl: link.originalUrl,
+    redirectType: 302,
+    clicksCount: link.clicksCount,
+    isActive: link.isActive,
+    isBanned: link.isBanned,
+    createdAt: link.createdAt,
+    updatedAt: link.createdAt
+  })) as LinkResponse[];
+
   return {
-    totalLinks: 0,
-    totalClicks: 0,
-    totalUsers: 0,
-    activeLinksToday: 0,
-    requestsPerSecond: 0
+    data,
+    meta: result.meta
   };
 }
 
-export async function searchLinks(_query: string): Promise<LinkResponse[]> {
-  // TODO: Implement backend endpoint at /api/v1/admin/links?q={query}
-  // For now, return empty array
-  return [];
+/**
+ * List links with pagination (server-side with headers)
+ */
+export async function listAdminLinksSSR(
+  headers: HeadersInit,
+  params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }
+): Promise<PaginatedResponse<LinkResponse>> {
+  const serverClient = createClientWithHeaders(headers);
+  const response = await serverClient.api.v1.admin.links.get({
+    query: {
+      page: params?.page?.toString(),
+      limit: params?.limit?.toString(),
+      search: params?.search
+    }
+  });
+
+  const result = handleEden<{
+    data: Array<{
+      id: string;
+      shortCode: string;
+      originalUrl: string;
+      isActive: boolean;
+      isBanned: boolean;
+      createdAt: string;
+      clicksCount: number;
+    }>;
+    meta: {
+      total: number;
+      page: number;
+      perPage: number;
+      lastPage: number;
+      hasMore: boolean;
+    };
+  }>(response);
+
+  // Transform to LinkResponse format
+  const data = result.data.map((link) => ({
+    id: link.id,
+    shortCode: link.shortCode,
+    shortUrl: `${BASE_URL}/${link.shortCode}`,
+    originalUrl: link.originalUrl,
+    redirectType: 302,
+    clicksCount: link.clicksCount,
+    isActive: link.isActive,
+    isBanned: link.isBanned,
+    createdAt: link.createdAt,
+    updatedAt: link.createdAt
+  })) as LinkResponse[];
+
+  return {
+    data,
+    meta: result.meta
+  };
 }
 
-export async function banLink(
-  id: string,
-  reason: string
-): Promise<LinkResponse> {
-  // Use the existing updateLink endpoint as workaround
-  return updateLink(id, {
-    isActive: false,
-    notes: `Banned: ${reason}`
-  } as UpdateLinkInput);
+/**
+ * Ban a link
+ */
+export async function banLink(id: string, reason: string): Promise<void> {
+  const response = await client.api.v1.admin.links({ linkId: id }).ban.patch({
+    isBanned: true,
+    bannedReason: reason
+  });
+  handleEden(response);
 }
 
-export async function unbanLink(id: string): Promise<LinkResponse> {
-  // Use the existing updateLink endpoint as workaround
-  return updateLink(id, {
-    isActive: true,
-    notes: 'Unbanned'
-  } as UpdateLinkInput);
+/**
+ * Unban a link
+ */
+export async function unbanLink(id: string): Promise<void> {
+  const response = await client.api.v1.admin
+    .links({ linkId: id })
+    .unban.patch();
+  handleEden(response);
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// USER MANAGEMENT (Admin - Stub Implementation)
+// USER MANAGEMENT (Admin)
 // ═══════════════════════════════════════════════════════════════════
 
 export interface UserResponse {
   id: string;
+  name: string;
   email: string;
-  name?: string;
   role: string;
-  createdAt: string;
+  banned: boolean;
+  bannedReason: string | null;
+  bannedAt: string | null;
+  twoFactorEnabled: boolean;
   linksQuota: number;
+  linksCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export async function getUsers(query?: {
+export interface UsersQuery {
   page?: number;
-  perPage?: number;
+  limit?: number;
   search?: string;
-}): Promise<PaginatedResponse<UserResponse>> {
-  // TODO: Implement backend endpoint at /api/v1/admin/users
-  return {
-    data: [],
-    meta: {
-      total: 0,
-      page: query?.page || 1,
-      perPage: query?.perPage || 20,
-      lastPage: 0,
-      hasMore: false
-    }
-  };
+  role?: string;
+  isBanned?: boolean;
 }
 
-export async function updateUserRole(
-  _userId: string,
-  _role: string
+/**
+ * List users with pagination and filters
+ */
+export async function getUsers(
+  query?: UsersQuery
+): Promise<PaginatedResponse<UserResponse>> {
+  const apiQuery = query
+    ? toQueryParams({
+        page: query.page,
+        limit: query.limit,
+        search: query.search,
+        role: query.role,
+        isBanned:
+          query.isBanned !== undefined ? String(query.isBanned) : undefined
+      })
+    : {};
+
+  const response = await client.api.v1.admin.users.get({ query: apiQuery });
+  return handleEden<PaginatedResponse<UserResponse>>(response);
+}
+
+/**
+ * Update user (role, ban status, quota)
+ */
+export async function updateUser(
+  userId: string,
+  data: {
+    role?: string;
+    banned?: boolean;
+    bannedReason?: string;
+    linksQuota?: number;
+  }
 ): Promise<UserResponse> {
-  // TODO: Implement backend endpoint at /api/v1/admin/users/:userId/role
-  throw new Error('Not implemented');
+  const response = await client.api.v1.admin.users({ userId }).patch(data);
+  return handleEden(response);
 }
 
-export async function banUser(_userId: string): Promise<UserResponse> {
-  // TODO: Implement backend endpoint at /api/v1/admin/users/:userId/ban
-  throw new Error('Not implemented');
+/**
+ * Update user role (convenience wrapper)
+ */
+export async function updateUserRole(
+  userId: string,
+  role: string
+): Promise<UserResponse> {
+  return updateUser(userId, { role });
 }
 
-export async function unbanUser(_userId: string): Promise<UserResponse> {
-  // TODO: Implement backend endpoint at /api/v1/admin/users/:userId/unban
-  throw new Error('Not implemented');
+/**
+ * Ban user (convenience wrapper)
+ */
+export async function banUser(
+  userId: string,
+  reason?: string
+): Promise<UserResponse> {
+  return updateUser(userId, {
+    banned: true,
+    bannedReason: reason || 'Banned by administrator'
+  });
+}
+
+/**
+ * Unban user (convenience wrapper)
+ */
+export async function unbanUser(userId: string): Promise<UserResponse> {
+  return updateUser(userId, {
+    banned: false,
+    bannedReason: 'Unbanned by administrator'
+  });
 }
 
 export interface AuditLogEntry {

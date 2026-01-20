@@ -1,31 +1,114 @@
 // src/app/(admin)/layout.tsx
 
-import { Header } from '@/components/layout/header';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { AdminHeader } from '@/components/admin/layout/admin-header';
+import { AdminSidebar } from '@/components/admin/layout/admin-sidebar';
+import { auth } from '@/lib/auth';
+import { auditLogService } from '@/server/services/audit.service';
 
 export default async function AdminLayout({
   children
 }: {
   children: React.ReactNode;
 }) {
-  // TODO: Implement proper session check with Better-Auth
-  // const session = await auth.api.getSession({ headers: await headers() });
+  // ═══════════════════════════════════════════════════════════════════
+  // GUARD 1: Authentication Check
+  // ═══════════════════════════════════════════════════════════════════
+  const requestHeaders = await headers();
 
-  // Check if user is authenticated and is admin
-  // if (!session?.user) {
-  //   redirect('/login');
-  // }
+  // Force fresh session check (bypass cache) for admin routes
+  const session = await auth.api.getSession({
+    headers: requestHeaders,
+    query: { disableCookieCache: true }
+  });
 
-  // TODO: Check if user has admin role
-  // if (session.user.role !== 'admin') {
-  //   redirect('/dashboard');
-  // }
+  if (!session?.user) {
+    redirect('/login?callbackUrl=/admin');
+  }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // GUARD 2: Role Authorization Check
+  // ═══════════════════════════════════════════════════════════════════
+  if (session.user.role !== 'admin') {
+    // Log unauthorized access attempt
+    void auditLogService.log({
+      userId: session.user.id,
+      action: 'admin_access_denied',
+      entityType: 'admin_panel',
+      entityId: 'role_check_failed',
+      metadata: {
+        reason: 'insufficient_role',
+        userRole: session.user.role,
+        requiredRole: 'admin'
+      },
+      ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,
+      userAgent: requestHeaders.get('user-agent') ?? undefined
+    });
+
+    redirect('/dashboard');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // GUARD 3: 2FA Enforcement Check (Session-based)
+  // ═══════════════════════════════════════════════════════════════════
+  // Better-Auth provides 'twoFactorEnabled' directly on the user object
+  // This is the authoritative source maintained by the twoFactor plugin
+  const has2FAEnabled = session.user.twoFactorEnabled || false;
+
+  if (!has2FAEnabled) {
+    // Log 2FA enforcement failure
+    void auditLogService.log({
+      userId: session.user.id,
+      action: 'admin_access_denied',
+      entityType: 'admin_panel',
+      entityId: '2fa_check_failed',
+      metadata: {
+        reason: '2fa_not_enabled',
+        userRole: session.user.role,
+        twoFactorEnabled: session.user.twoFactorEnabled,
+        timestamp: new Date().toISOString()
+      },
+      ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,
+      userAgent: requestHeaders.get('user-agent') ?? undefined
+    });
+
+    redirect('/dashboard/settings?tab=security&error=2fa-required');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SUCCESS: Log successful admin access
+  // ═══════════════════════════════════════════════════════════════════
+  void auditLogService.log({
+    userId: session.user.id,
+    action: 'admin_access_granted',
+    entityType: 'admin_panel',
+    entityId: 'access_granted',
+    metadata: {
+      email: session.user.email,
+      role: session.user.role,
+      has2FA: true
+    },
+    ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,
+    userAgent: requestHeaders.get('user-agent') ?? undefined
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen">
-      <Header
-        user={{ name: 'Admin', email: 'admin@example.com', image: null }}
-      />
-      <main className="container mx-auto py-6">{children}</main>
+    <div className="flex min-h-screen">
+      {/* Desktop Sidebar */}
+      <AdminSidebar className="w-64 hidden md:block" />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Mobile Header with Menu */}
+        <AdminHeader />
+
+        {/* Page Content */}
+        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
+      </div>
     </div>
   );
 }

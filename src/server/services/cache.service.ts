@@ -287,6 +287,56 @@ export class CacheService {
   }
 
   /**
+   * Incrementa o contador de cliques no cache de forma atômica
+   * Usado pelo click.worker para manter o cache sincronizado com o DB
+   *
+   * @param code - Short code do link
+   * @returns O novo valor do contador, ou null se o link não está em cache
+   */
+  async incrementClicksCount(code: string): Promise<number | null> {
+    try {
+      const key = `${CACHE_PREFIX.LINK}${code}`;
+      const cached = await redis.get(key);
+
+      if (!cached) {
+        // Link não está em cache, nada a fazer
+        logger.debug('Cannot increment clicks - link not in cache', { code });
+        return null;
+      }
+
+      const link = JSON.parse(cached) as CachedLink;
+      const newClicksCount = (link.clicksCount ?? 0) + 1;
+
+      // Atualiza o objeto com o novo contador
+      const updatedLink: CachedLink = {
+        ...link,
+        clicksCount: newClicksCount
+      };
+
+      // Preserva o TTL restante
+      const ttl = await redis.ttl(key);
+      const effectiveTtl = ttl > 0 ? ttl : CACHE_TTL.LINK;
+
+      await redis.setex(key, effectiveTtl, JSON.stringify(updatedLink));
+
+      logger.debug('Clicks count incremented in cache', {
+        code,
+        newClicksCount,
+        ttlPreserved: ttl
+      });
+
+      return newClicksCount;
+    } catch (error) {
+      logger.error('Error incrementing clicks count in cache', {
+        code,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      // Não propaga erro - o cache será atualizado na próxima leitura do DB
+      return null;
+    }
+  }
+
+  /**
    * Limpa cache em caso de teste ou manutenção
    * ⚠️ USE COM CUIDADO - Remove TODAS as chaves do Redis
    */

@@ -1,3 +1,4 @@
+import { render } from '@react-email/render';
 import type { ReactElement } from 'react';
 import { Resend } from 'resend';
 
@@ -47,14 +48,30 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
     return;
   }
 
+  // Validate that at least one content field is provided
+  if (!options.html && !options.text && !options.react) {
+    throw new Error(
+      'Email must include at least one of: html, text, or react component'
+    );
+  }
+
+  // Pre-render React component to HTML to avoid Resend SDK rendering issues
+  let htmlContent = options.html;
+  if (!htmlContent && options.react) {
+    htmlContent = await render(options.react);
+  }
+
+  // Resend requires at least one content field (html or text)
+  // We ensure htmlContent exists after rendering react component above
   const { error } = await resend.emails.send({
     from,
     to: options.to,
     subject: options.subject,
-    react: options.react
+    html: htmlContent ?? '',
+    text: options.text
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(`Failed to send email: ${error.message}`);
   }
 }

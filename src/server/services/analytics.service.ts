@@ -421,7 +421,9 @@ export class AnalyticsService {
           daysWithData > 0 ? Math.round(totalClicks / daysWithData) : 0,
         topCountry: topCountryRow[0]?.country ?? null,
         topBrowser: topBrowserRow[0]?.browser ?? null,
-        topReferrer: topReferrerRow[0]?.domain ?? null
+        topReferrer: topReferrerRow[0]?.domain ?? null,
+        totalClicksGrowth: 0,
+        uniqueVisitorsGrowth: 0
       };
     } catch (error) {
       logger.error('[AnalyticsService] Error getting summary', {

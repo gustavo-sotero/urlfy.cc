@@ -34,7 +34,7 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/pricing"
+                  href="/#pricing"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Preços
@@ -42,10 +42,10 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/docs"
+                  href="/#features"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Documentação
+                  Recursos
                 </Link>
               </li>
             </ul>
@@ -73,10 +73,10 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/cookies"
+                  href="/help"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Cookies
+                  Ajuda
                 </Link>
               </li>
             </ul>

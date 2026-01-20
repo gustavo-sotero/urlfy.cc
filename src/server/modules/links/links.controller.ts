@@ -37,6 +37,31 @@ import { LinkService } from './links.service';
 
 type ElysiaSet = { status?: number | string };
 
+interface AuthenticatedUser {
+  id: string;
+  emailVerified?: boolean;
+}
+
+interface OptionalAuthenticatedUser extends AuthenticatedUser {
+  id: string;
+  emailVerified?: boolean;
+}
+
+const ERROR_CODES = {
+  EMAIL_VERIFICATION_REQUIRED: 'EMAIL_VERIFICATION_REQUIRED',
+  INVALID_IDEMPOTENCY_KEY: 'INVALID_IDEMPOTENCY_KEY',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  LINK_NOT_FOUND: 'LINK_NOT_FOUND'
+} as const;
+
+const ERROR_MESSAGES = {
+  EMAIL_VERIFICATION_REQUIRED:
+    'Você deve verificar seu e-mail antes de criar links. Verifique sua caixa de entrada.',
+  INVALID_IDEMPOTENCY_KEY: 'Chave de idempotência inválida',
+  NO_LINKS_PROVIDED: 'Nenhum link fornecido',
+  LINK_NOT_FOUND: 'Link não encontrado'
+} as const;
+
 const handleControllerError = (
   error: unknown,
   set: ElysiaSet
@@ -153,8 +178,8 @@ const publicRoutes = new Elysia()
           return {
             success: false,
             error: {
-              code: 'LINK_NOT_FOUND',
-              message: 'Link não encontrado'
+              code: ERROR_CODES.LINK_NOT_FOUND,
+              message: ERROR_MESSAGES.LINK_NOT_FOUND
             }
           };
         }
@@ -207,8 +232,8 @@ const publicRoutes = new Elysia()
           return {
             success: false,
             error: {
-              code: 'LINK_NOT_FOUND',
-              message: 'Link não encontrado'
+              code: ERROR_CODES.LINK_NOT_FOUND,
+              message: ERROR_MESSAGES.LINK_NOT_FOUND
             }
           };
         }
@@ -246,10 +271,22 @@ const publicRoutes = new Elysia()
     '/',
     async (ctx) => {
       const { body, headers, user, set } = ctx as typeof ctx & {
-        user: { id: string } | null;
+        user: OptionalAuthenticatedUser | null;
         set: ElysiaSet;
       };
       try {
+        // Check email verification for authenticated users
+        if (user && !user.emailVerified) {
+          set.status = 403;
+          return {
+            success: false,
+            error: {
+              code: ERROR_CODES.EMAIL_VERIFICATION_REQUIRED,
+              message: ERROR_MESSAGES.EMAIL_VERIFICATION_REQUIRED
+            }
+          };
+        }
+
         // Verificar idempotency key
         const idempotencyKey = headers['idempotency-key'];
         if (idempotencyKey) {
@@ -258,8 +295,8 @@ const publicRoutes = new Elysia()
             return {
               success: false,
               error: {
-                code: 'INVALID_IDEMPOTENCY_KEY',
-                message: 'Chave de idempotência inválida'
+                code: ERROR_CODES.INVALID_IDEMPOTENCY_KEY,
+                message: ERROR_MESSAGES.INVALID_IDEMPOTENCY_KEY
               }
             };
           }
@@ -328,17 +365,29 @@ const authenticatedRoutes = new Elysia()
     '/bulk',
     async (ctx) => {
       const { body, user, headers, set } = ctx as typeof ctx & {
-        user: { id: string };
+        user: AuthenticatedUser;
         set: ElysiaSet;
       };
       try {
+        // Check email verification
+        if (!user.emailVerified) {
+          set.status = 403;
+          return {
+            success: false,
+            error: {
+              code: ERROR_CODES.EMAIL_VERIFICATION_REQUIRED,
+              message: ERROR_MESSAGES.EMAIL_VERIFICATION_REQUIRED
+            }
+          };
+        }
+
         if (!body.links || body.links.length === 0) {
           set.status = 400;
           return {
             success: false,
             error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Nenhum link fornecido'
+              code: ERROR_CODES.VALIDATION_ERROR,
+              message: ERROR_MESSAGES.NO_LINKS_PROVIDED
             }
           };
         }

@@ -249,6 +249,52 @@ describe('Analytics Integration', () => {
       }
     });
 
+    it('should calculate growth metrics in summary', async () => {
+      // Insert events for current period (last 7 days)
+      const currentDate = new Date();
+      for (let i = 0; i < 5; i++) {
+        await db.insert(analyticsEvents).values({
+          linkId: testLinkId,
+          visitorHash: hashVisitor(`current-visitor-${i}`, testLinkId),
+          country: 'BR',
+          isBot: false,
+          createdAt: new Date(currentDate.getTime() - i * 24 * 60 * 60 * 1000) // Last 5 days
+        });
+      }
+
+      // Insert events for previous period (7-14 days ago)
+      for (let i = 0; i < 3; i++) {
+        const previousDate = new Date(
+          currentDate.getTime() - (7 + i) * 24 * 60 * 60 * 1000
+        );
+        await db.insert(analyticsEvents).values({
+          linkId: testLinkId,
+          visitorHash: hashVisitor(`previous-visitor-${i}`, testLinkId),
+          country: 'US',
+          isBot: false,
+          createdAt: previousDate
+        });
+      }
+
+      // Get summary with growth calculations
+      const summary = await AnalyticsService.getSummary(testLinkId, 7);
+
+      expect(summary).not.toBeNull();
+      if (summary) {
+        // Should have growth fields
+        expect(summary).toHaveProperty('totalClicksGrowth');
+        expect(summary).toHaveProperty('uniqueVisitorsGrowth');
+
+        // Growth should be calculated (5 current vs 3 previous = ~67% growth)
+        expect(typeof summary.totalClicksGrowth).toBe('number');
+        expect(typeof summary.uniqueVisitorsGrowth).toBe('number');
+
+        // With 5 events in current period and 3 in previous, growth should be positive
+        expect(summary.totalClicksGrowth).toBeGreaterThan(0);
+        expect(summary.uniqueVisitorsGrowth).toBeGreaterThan(0);
+      }
+    });
+
     it('should pass health check', async () => {
       const health = await AnalyticsService.healthCheck();
 

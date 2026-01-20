@@ -110,4 +110,6 @@ export interface AnalyticsSummary {
   topCountry: string | null;
   topBrowser: string | null;
   topReferrer: string | null;
+  totalClicksGrowth: number;
+  uniqueVisitorsGrowth: number;
 }

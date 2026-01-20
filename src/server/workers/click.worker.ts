@@ -9,6 +9,7 @@ import { recordMetric } from '@/server/lib/metrics';
 import { hashVisitor } from '@/server/lib/privacy';
 import { bullmqConnection } from '@/server/lib/queue';
 import { createLogger } from '@/server/lib/telemetry';
+import { cacheService } from '@/server/services/cache.service';
 import { parseUserAgent } from '@/server/services/useragent.service';
 import { moveToDLQ } from '@/server/workers/dlq.handler';
 import type { ClickEvent } from '@/types/analytics.types';
@@ -71,6 +72,12 @@ export const clickWorker = new Worker<ClickEvent>(
           lastClickedAt: enriched.timestamp
         })
         .where(eq(links.id, enriched.linkId));
+
+      // Também incrementa o contador no cache para manter consistência
+      // Usa o shortCode do evento para identificar o link no cache
+      if (enriched.shortCode) {
+        await cacheService.incrementClicksCount(enriched.shortCode);
+      }
 
       const duration = Date.now() - startTime;
       recordMetric('analytics_job_processed', 1, {

@@ -3,7 +3,8 @@
 import {
   aggregationJob,
   cleanupJob,
-  dataDeletionJob
+  dataDeletionJob,
+  rpsCalculationJob
 } from '@/server/jobs/scheduler';
 import { createLogger } from '@/server/lib/telemetry';
 import { aggregationWorker } from './aggregation.worker';
@@ -48,6 +49,11 @@ export async function initializeWorkers(): Promise<void> {
       '[WorkersInit] ✅ Data deletion scheduler started (every 30 minutes)'
     );
 
+    rpsCalculationJob.start();
+    logger.info(
+      '[WorkersInit] ✅ RPS calculation scheduler started (every minute)'
+    );
+
     logger.info(
       '[WorkersInit] All workers and schedulers initialized successfully'
     );
@@ -70,6 +76,7 @@ export async function shutdownWorkers(): Promise<void> {
     aggregationJob.stop();
     cleanupJob.stop();
     dataDeletionJob.stop();
+    rpsCalculationJob.stop();
 
     // Close workers
     await Promise.all([
