@@ -100,12 +100,12 @@ export type UserQuotaUpdateBodyType = Static<typeof UserQuotaUpdateBody>;
 // ═══════════════════════════════════════════════════════════════════
 
 export const DeletionRequestResponse = t.Object({
-  id: t.String(),
-  status: t.String(),
-  requestedAt: t.String(),
-  deadline: t.String(),
-  completedAt: t.Nullable(t.String()),
-  message: t.String()
+  id: t.String({ description: 'Request UUID' }),
+  status: t.String({ description: 'Request status' }),
+  requestedAt: t.String({ description: 'ISO timestamp' }),
+  deadline: t.String({ description: 'ISO timestamp' }),
+  completedAt: t.Nullable(t.String({ description: 'ISO timestamp' })),
+  message: t.String({ description: 'Status message' })
 });
 export type DeletionRequestResponseType = Static<
   typeof DeletionRequestResponse
@@ -122,6 +122,65 @@ export type DeletionRequestListItemType = Static<
   typeof DeletionRequestListItem
 >;
 
+export const DataDeletionRequestStatus = t.Object({
+  id: t.String({ description: 'Request UUID' }),
+  status: t.String({
+    description: 'pending | processing | completed | failed'
+  }),
+  requestedAt: t.String({ description: 'ISO timestamp' }),
+  deadline: t.String({ description: 'ISO timestamp (72h after request)' }),
+  completedAt: t.Nullable(t.String({ description: 'ISO timestamp' }))
+});
+export type DataDeletionRequestStatusType = Static<
+  typeof DataDeletionRequestStatus
+>;
+
+// ═══════════════════════════════════════════════════════════════════
+// CONSENT MANAGEMENT (GDPR/LGPD)
+// ═══════════════════════════════════════════════════════════════════
+
+export const UserConsentBody = t.Object({
+  analytics: t.Boolean({ description: 'Consent to analytics tracking' }),
+  marketing: t.Boolean({ description: 'Consent to marketing communications' }),
+  timestamp: t.Optional(t.String({ description: 'ISO timestamp' }))
+});
+export type UserConsentBodyType = Static<typeof UserConsentBody>;
+
+export const UserConsentResponse = t.Object({
+  analytics: t.Boolean(),
+  marketing: t.Boolean(),
+  timestamp: t.String({ description: 'ISO timestamp' })
+});
+export type UserConsentResponseType = Static<typeof UserConsentResponse>;
+
+// ═══════════════════════════════════════════════════════════════════
+// USER DATA EXPORT (GDPR/LGPD)
+// ═══════════════════════════════════════════════════════════════════
+
+export const UserDataExportResponse = t.Object({
+  user: t.Object({
+    id: t.String(),
+    email: t.String(),
+    name: t.Nullable(t.String()),
+    createdAt: t.String({ description: 'ISO timestamp' }),
+    updatedAt: t.String({ description: 'ISO timestamp' })
+  }),
+  links: t.Array(
+    t.Object({
+      id: t.String(),
+      shortCode: t.String(),
+      originalUrl: t.String(),
+      createdAt: t.String({ description: 'ISO timestamp' })
+    })
+  ),
+  analyticsOverview: t.Object({
+    totalClicks: t.Number(),
+    uniqueVisitors: t.Number(),
+    linksCount: t.Number()
+  })
+});
+export type UserDataExportResponseType = Static<typeof UserDataExportResponse>;
+
 // ═══════════════════════════════════════════════════════════════════
 // MODEL REGISTRY FOR INJECTION
 // ═══════════════════════════════════════════════════════════════════
@@ -136,5 +195,9 @@ export const UsersModel = new Elysia({ name: 'users.model' }).model({
   'users.role.body': UserRoleUpdateBody,
   'users.quota.body': UserQuotaUpdateBody,
   'users.deletion.response': DeletionRequestResponse,
-  'users.deletion.item': DeletionRequestListItem
+  'users.deletion.item': DeletionRequestListItem,
+  'users.deletion.status': DataDeletionRequestStatus,
+  'users.consent.body': UserConsentBody,
+  'users.consent.response': UserConsentResponse,
+  'users.export': UserDataExportResponse
 });

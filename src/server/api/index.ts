@@ -77,8 +77,8 @@ export const api = new Elysia({ prefix: '/api' })
         },
         security: [{ bearerAuth: [] }, { cookieAuth: [] }, { apiKeyAuth: [] }]
       },
-      path: '/api/docs',
-      exclude: ['/api/auth/*', '/api/docs', '/api/docs/json']
+      path: '/docs',
+      exclude: ['/auth/*', '/docs', '/docs/json']
     })
   )
 

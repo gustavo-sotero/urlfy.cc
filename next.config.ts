@@ -6,11 +6,11 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // needed for Next.js
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net", // needed for Next.js + Swagger UI
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
       "img-src 'self' data: https:",
-      "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self'",
+      "font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com",
+      "connect-src 'self' https://cdn.jsdelivr.net",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

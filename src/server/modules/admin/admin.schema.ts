@@ -117,6 +117,53 @@ export const AdminUserUpdateBody = t.Object({
 export type AdminUserUpdateBodyType = Static<typeof AdminUserUpdateBody>;
 
 // ═══════════════════════════════════════════════════════════════════
+// AUDIT LOG PARAMS AND RESPONSES
+// ═══════════════════════════════════════════════════════════════════
+
+export const AuditLogIdParam = t.Object({
+  id: t.String({ description: 'Audit log UUID' })
+});
+export type AuditLogIdParamType = Static<typeof AuditLogIdParam>;
+
+export const AuditLogEntityParams = t.Object({
+  entityType: t.String({ description: 'Entity type (link, user, etc.)' }),
+  entityId: t.String({ description: 'Entity UUID' })
+});
+export type AuditLogEntityParamsType = Static<typeof AuditLogEntityParams>;
+
+export const AuditLogUserParam = t.Object({
+  targetUserId: t.String({ description: 'Target user UUID' })
+});
+export type AuditLogUserParamType = Static<typeof AuditLogUserParam>;
+
+export const AuditLogLimitQuery = t.Object({
+  limit: t.Optional(
+    t.String({ description: 'Max results (default: 50, max: 100)' })
+  )
+});
+export type AuditLogLimitQueryType = Static<typeof AuditLogLimitQuery>;
+
+export const AuditStatsSummaryResponse = t.Object({
+  totalLogs: t.Number({ description: 'Total audit log entries' }),
+  actionCounts: t.Record(t.String(), t.Number(), {
+    description: 'Count by action type'
+  }),
+  entityTypeCounts: t.Record(t.String(), t.Number(), {
+    description: 'Count by entity type'
+  }),
+  topUsers: t.Array(
+    t.Object({
+      userId: t.String(),
+      count: t.Number()
+    }),
+    { description: 'Top 10 users by activity' }
+  )
+});
+export type AuditStatsSummaryResponseType = Static<
+  typeof AuditStatsSummaryResponse
+>;
+
+// ═══════════════════════════════════════════════════════════════════
 // MODEL REGISTRY FOR INJECTION
 // ═══════════════════════════════════════════════════════════════════
 
@@ -124,6 +171,11 @@ export const AdminModel = {
   // Audit logs
   AuditLogQuery,
   AuditLogResponse,
+  AuditLogIdParam,
+  AuditLogEntityParams,
+  AuditLogUserParam,
+  AuditLogLimitQuery,
+  AuditStatsSummaryResponse,
   // Link management
   AdminBanLinkBody,
   // Stats

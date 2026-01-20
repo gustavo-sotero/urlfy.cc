@@ -12,11 +12,11 @@ import { Elysia } from 'elysia';
 const SECURITY_HEADERS = {
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js requires these
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net", // Next.js + Swagger UI
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
     "img-src 'self' data: https:",
-    "font-src 'self' data: https://fonts.gstatic.com",
-    "connect-src 'self'",
+    "font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com",
+    "connect-src 'self' https://cdn.jsdelivr.net",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
