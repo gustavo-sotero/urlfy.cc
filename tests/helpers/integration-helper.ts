@@ -7,7 +7,7 @@
  */
 export async function isServerRunning(): Promise<boolean> {
   try {
-    const response = await fetch('http://localhost:3000/api/v1/health', {
+    const response = await fetch('http://localhost:3000/api/health', {
       method: 'GET',
       signal: AbortSignal.timeout(2000) // 2 second timeout
     });

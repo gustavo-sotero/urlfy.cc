@@ -10,7 +10,7 @@ Migrate the `urlfy.cc` backend from a technical layered architecture (split by `
 src/server/
 ├── modules/
 │   ├── links/
-│   │   ├── links.controller.ts   # (Formerly api/v1/links/index.ts)
+│   │   ├── links.controller.ts   # (Formerly api/links/index.ts)
 │   │   ├── links.service.ts      # (Formerly services/link.service.ts)
 │   │   └── links.schema.ts       # (Formerly api/models/links.models.ts)
 │   ├── auth/
@@ -44,7 +44,6 @@ src/server/
 **Target**: `src/server/modules/links/`
 
 1.  **Model Migration (`links.schema.ts`)**:
-
     - Move `src/server/api/models/links.models.ts` to `src/server/modules/links/links.schema.ts`.
     - Ensure all `t.Object` definitions are exported.
     - **Refactor**: Group exports into a single object for injection if not already done.
@@ -58,7 +57,6 @@ src/server/
     ```
 
 2.  **Service Migration (`links.service.ts`)**:
-
     - Move `src/server/services/link.service.ts` to `src/server/modules/links/links.service.ts`.
     - **Refactor**: Convert standalone functions to `static` methods within an `abstract class`.
     - _Rationale_: Prevents instantiation, cleaner import namespaces (`LinkService.create`).
@@ -71,8 +69,7 @@ src/server/
     ```
 
 3.  **Controller Migration (`links.controller.ts`)**:
-
-    - Move `src/server/api/v1/links/index.ts` to `src/server/modules/links/links.controller.ts`.
+    - Move `src/server/api/links/index.ts` to `src/server/modules/links/links.controller.ts`.
     - Update imports to reference local `./links.service` and `./links.schema`.
     - Update `Elysia` instantiation to use the new Model injection pattern.
 
@@ -94,7 +91,7 @@ src/server/
 1.  **Model**: Move `src/server/api/models/auth.models.ts` → `src/server/modules/auth/auth.schema.ts`.
 2.  **Service**: Move `src/server/services/auth.service.ts` → `src/server/modules/auth/auth.service.ts`.
     - Wrap in `abstract class AuthService`.
-3.  **Controller**: Move auth routes from `src/server/api/v1/auth/*` (or existing controller) to `src/server/modules/auth/auth.controller.ts`.
+3.  **Controller**: Move auth routes from `src/server/api/auth/*` (or existing controller) to `src/server/modules/auth/auth.controller.ts`.
 
 ### Phase 4: Users & Analytics Migration
 
@@ -105,7 +102,7 @@ Repeat pattern for `users` and `analytics` modules.
 
 ### Phase 5: Root Router Update
 
-**File**: `src/server/api/v1/index.ts`
+**File**: `src/server/api/index.ts`
 
 Update the root router to import controllers from their new modular locations.
 
@@ -114,9 +111,7 @@ import { linksController } from '@/server/modules/links/links.controller';
 import { authController } from '@/server/modules/auth/auth.controller';
 // ...
 
-const v1 = new Elysia({ prefix: '/v1' })
-  .use(linksController)
-  .use(authController);
+const v1 = new Elysia({ prefix: '' }).use(linksController).use(authController);
 // ...
 ```
 
@@ -125,7 +120,7 @@ const v1 = new Elysia({ prefix: '/v1' })
 1.  Verify no references remain to:
     - `src/server/api/models/`
     - `src/server/services/`
-    - `src/server/api/v1/{feature}/` (old controller folders)
+    - `src/server/api/{feature}/` (old controller folders)
 2.  Delete these directory trees.
 
 ## 3. Best Practice Enforcement

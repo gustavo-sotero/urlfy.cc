@@ -10,7 +10,7 @@
  *
  * Usage:
  *   const client = createElysiaTestClient(api);
- *   const response = await client.get('/api/v1/health');
+ *   const response = await client.get('/api/health');
  *   expect(response.status).toBe(200);
  * ═════════════════════════════════════════════════════════════════════
  */

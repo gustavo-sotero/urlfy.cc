@@ -15,7 +15,7 @@ let serverAvailable = false;
 // Check if server is running before tests
 beforeAll(async () => {
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/health`, {
+    const res = await fetch(`${BASE_URL}/api/health`, {
       signal: AbortSignal.timeout(2000)
     });
     serverAvailable = res.ok;
@@ -30,7 +30,7 @@ beforeAll(async () => {
 });
 
 describe('Security Headers Validation', () => {
-  const testEndpoints = ['/api/v1/health', '/api/v1/links', '/'];
+  const testEndpoints = ['/api/health', '/api/links', '/'];
 
   it('should include Content-Security-Policy header', async () => {
     if (!serverAvailable) return; // Skip if server not running
@@ -151,11 +151,7 @@ describe('Input Validation Edge Cases', () => {
 describe('Authentication & Authorization', () => {
   it('should reject requests without auth token for protected routes', async () => {
     if (!serverAvailable) return; // Skip if server not running
-    const protectedRoutes = [
-      '/api/v1/links',
-      '/api/v1/me',
-      '/api/v1/admin/stats'
-    ];
+    const protectedRoutes = ['/api/links', '/api/me', '/api/admin/stats'];
 
     for (const route of protectedRoutes) {
       const res = await fetch(`${BASE_URL}${route}`, {
@@ -169,7 +165,7 @@ describe('Authentication & Authorization', () => {
 
   it('should reject invalid JWT tokens', async () => {
     if (!serverAvailable) return; // Skip if server not running
-    const res = await fetch(`${BASE_URL}/api/v1/links`, {
+    const res = await fetch(`${BASE_URL}/api/links`, {
       headers: {
         Authorization: 'Bearer invalid_token_here'
       }
@@ -184,7 +180,7 @@ describe('Authentication & Authorization', () => {
     const expiredToken =
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDAwMDAwMDB9.xxx';
 
-    const res = await fetch(`${BASE_URL}/api/v1/links`, {
+    const res = await fetch(`${BASE_URL}/api/links`, {
       headers: {
         Authorization: `Bearer ${expiredToken}`
       }
@@ -198,7 +194,7 @@ describe('CSRF Protection', () => {
   it('should validate SameSite cookie attribute', async () => {
     if (!serverAvailable) return; // Skip if server not running
     // Cookies should have SameSite=Strict or Lax
-    const res = await fetch(`${BASE_URL}/api/v1/health`);
+    const res = await fetch(`${BASE_URL}/api/health`);
     const setCookie = res.headers.get('Set-Cookie');
 
     if (setCookie) {

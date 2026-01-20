@@ -43,7 +43,7 @@ meta: {
 
 ### Files to Modify
 
-1. `src/server/api/v1/admin/audit.ts`
+1. `src/server/api/admin/audit.ts`
    - Line ~85: Change `limit` to `perPage`
    - Line ~86: Change `totalPages` to `lastPage`
 
@@ -399,7 +399,7 @@ interface DataDeletionRequest {
 
 ### Files to Modify
 
-1. `src/server/api/v1/users/me.ts`
+1. `src/server/api/users/me.ts`
    - Line ~140: Rename `deadlineAt` to `deadline`
    - Ensure Date is serialized to ISO string
 
@@ -578,8 +578,8 @@ After implementation, verify:
 
 | File                                                   | Changes                                             |
 | ------------------------------------------------------ | --------------------------------------------------- |
-| `src/server/api/v1/admin/audit.ts`                     | Pagination meta: limit→perPage, totalPages→lastPage |
-| `src/server/api/v1/users/me.ts`                        | DataDeletion: deadlineAt→deadline, serialize Date   |
+| `src/server/api/admin/audit.ts`                        | Pagination meta: limit→perPage, totalPages→lastPage |
+| `src/server/api/users/me.ts`                           | DataDeletion: deadlineAt→deadline, serialize Date   |
 | `src/server/modules/analytics/analytics.controller.ts` | Verify pagination meta consistency                  |
 | `src/server/modules/analytics/analytics.schema.ts`     | Export static types                                 |
 | `src/server/modules/links/links.schema.ts`             | Export static types, optional: use t.Numeric()      |

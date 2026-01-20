@@ -8,10 +8,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia } from 'elysia';
 import { handleLinkError } from '@/server/lib/errors';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia } from 'elysia';
 import {
   AnalyticsDaysQuery,
   AnalyticsDaysWithLimitQuery,
@@ -24,9 +24,9 @@ const logger = createLogger('analytics-api');
 
 /**
  * Analytics API endpoints
- * GET /v1/analytics/:linkId/summary - Analytics summary
- * GET /v1/analytics/:linkId/breakdown - Complete breakdown
- * GET /v1/analytics/:linkId/timeseries - Time series data
+ * GET /analytics/:linkId/summary - Analytics summary
+ * GET /analytics/:linkId/breakdown - Complete breakdown
+ * GET /analytics/:linkId/timeseries - Time series data
  */
 export const analyticsController = new Elysia({ prefix: '/analytics' })
   .use(requireAuth)

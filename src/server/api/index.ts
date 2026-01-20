@@ -1,15 +1,15 @@
+import { auth } from '@/lib/auth';
 import { swagger } from '@elysiajs/swagger';
 import { Elysia } from 'elysia';
-import { auth } from '@/lib/auth';
 // Import from feature-based modules
 import { adminController } from '@/server/modules/admin';
 import { analyticsController } from '@/server/modules/analytics';
 import { authController } from '@/server/modules/auth';
 import { linksController } from '@/server/modules/links';
 import { usersController } from '@/server/modules/users';
+import { adminAuditRoutes } from './admin/audit';
 import { healthRoutes } from './health';
-import { adminAuditRoutes } from './v1/admin/audit';
-import { consentRoutes, userDataRoutes } from './v1/users/me';
+import { consentRoutes, userDataRoutes } from './users/me';
 
 // ═══════════════════════════════════════════════════════════════════
 // API PRINCIPAL
@@ -77,8 +77,8 @@ export const api = new Elysia({ prefix: '/api' })
         },
         security: [{ bearerAuth: [] }, { cookieAuth: [] }, { apiKeyAuth: [] }]
       },
-      path: '/api/v1/docs',
-      exclude: ['/api/auth/*', '/api/v1/docs', '/api/v1/docs/json']
+      path: '/api/docs',
+      exclude: ['/api/auth/*', '/api/docs', '/api/docs/json']
     })
   )
 
@@ -88,7 +88,7 @@ export const api = new Elysia({ prefix: '/api' })
   // Health check
 
   // API v1 routes
-  .group('/v1', (app) =>
+  .group('', (app) =>
     app
       .use(healthRoutes)
       .use(authController)

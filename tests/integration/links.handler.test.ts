@@ -26,12 +26,12 @@ describe('Links Endpoints (handler-level)', () => {
     client = createElysiaTestClient(api);
   });
 
-  describe('POST /api/v1/links/validate', () => {
+  describe('POST /api/links/validate', () => {
     test('should validate a valid URL', async () => {
       const response = await client.post<{
         success: boolean;
         data: { valid: boolean; warnings?: string[]; error?: string };
-      }>('/api/v1/links/validate', { url: 'https://example.com' });
+      }>('/api/links/validate', { url: 'https://example.com' });
 
       expectOk(response);
       expect(response.body.success).toBe(true);
@@ -42,7 +42,7 @@ describe('Links Endpoints (handler-level)', () => {
       const response = await client.post<{
         success: boolean;
         data: { valid: boolean; error?: string };
-      }>('/api/v1/links/validate', { url: 'not-a-valid-url' });
+      }>('/api/links/validate', { url: 'not-a-valid-url' });
 
       expectOk(response);
       expect(response.body.success).toBe(true);
@@ -51,26 +51,26 @@ describe('Links Endpoints (handler-level)', () => {
     });
 
     test('should reject empty URL', async () => {
-      const response = await client.post('/api/v1/links/validate', { url: '' });
+      const response = await client.post('/api/links/validate', { url: '' });
 
       // Validation error for minLength
       expect(response.status).toBeGreaterThanOrEqual(400);
     });
 
     test('should reject URL without body', async () => {
-      const response = await client.post('/api/v1/links/validate', {});
+      const response = await client.post('/api/links/validate', {});
 
       // Validation error for missing required field
       expect(response.status).toBeGreaterThanOrEqual(400);
     });
   });
 
-  describe('GET /api/v1/links/by-code/:code/preview', () => {
+  describe('GET /api/links/by-code/:code/preview', () => {
     test('should return 404 for non-existent link', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string; message: string };
-      }>('/api/v1/links/by-code/nonexistent123/preview');
+      }>('/api/links/by-code/nonexistent123/preview');
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
@@ -78,18 +78,18 @@ describe('Links Endpoints (handler-level)', () => {
     });
   });
 
-  describe('GET /api/v1/links/by-code/:code/qr', () => {
+  describe('GET /api/links/by-code/:code/qr', () => {
     test('should return 404 for non-existent link', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/links/by-code/nonexistent123/qr');
+      }>('/api/links/by-code/nonexistent123/qr');
 
       expect(response.status).toBe(404);
     });
 
     test('should accept valid format query param', async () => {
-      const response = await client.get('/api/v1/links/by-code/test/qr', {
+      const response = await client.get('/api/links/by-code/test/qr', {
         query: { format: 'svg', size: '200' }
       });
 
@@ -98,42 +98,42 @@ describe('Links Endpoints (handler-level)', () => {
     });
   });
 
-  describe('POST /api/v1/links (guest)', () => {
+  describe('POST /api/links (guest)', () => {
     test('should reject creation with invalid URL', async () => {
       const response = await client.post<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/links', { url: 'invalid-url' });
+      }>('/api/links', { url: 'invalid-url' });
 
       // Either validation error or URL validation fails
       expect(response.body.success).toBe(false);
     });
 
     test('should reject creation with empty body', async () => {
-      const response = await client.post('/api/v1/links', {});
+      const response = await client.post('/api/links', {});
 
       expect(response.status).toBeGreaterThanOrEqual(400);
     });
   });
 
-  describe('GET /api/v1/links (authenticated)', () => {
+  describe('GET /api/links (authenticated)', () => {
     test('should require authentication', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/links');
+      }>('/api/links');
 
       expectUnauthorized(response);
       expect(response.body.error?.code).toBe('UNAUTHORIZED');
     });
   });
 
-  describe('POST /api/v1/links/bulk (authenticated)', () => {
+  describe('POST /api/links/bulk (authenticated)', () => {
     test('should require authentication', async () => {
       const response = await client.post<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/links/bulk', {
+      }>('/api/links/bulk', {
         links: [{ url: 'https://example.com' }]
       });
 
@@ -141,32 +141,32 @@ describe('Links Endpoints (handler-level)', () => {
     });
   });
 
-  describe('PATCH /api/v1/links/:id (authenticated)', () => {
+  describe('PATCH /api/links/:id (authenticated)', () => {
     test('should require authentication', async () => {
       const response = await client.patch<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/links/some-uuid', { isActive: false });
+      }>('/api/links/some-uuid', { isActive: false });
 
       expectUnauthorized(response);
     });
   });
 
-  describe('DELETE /api/v1/links/:id (authenticated)', () => {
+  describe('DELETE /api/links/:id (authenticated)', () => {
     test('should require authentication', async () => {
       const response = await client.delete<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/links/some-uuid');
+      }>('/api/links/some-uuid');
 
       expectUnauthorized(response);
     });
   });
 
-  describe('POST /api/v1/links/by-code/:code/verify-password', () => {
+  describe('POST /api/links/by-code/:code/verify-password', () => {
     test('should require password field', async () => {
       const response = await client.post(
-        '/api/v1/links/by-code/test/verify-password',
+        '/api/links/by-code/test/verify-password',
         {}
       );
 

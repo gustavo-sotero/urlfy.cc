@@ -107,5 +107,5 @@ Enable dynamic calculation and display of period-over-period growth percentages 
 ## Verification Plan
 
 1.  **Unit Test**: Verify `calculateGrowth` logic (e.g., 0->100, 100->110, 100->50).
-2.  **Integration**: Check `GET /api/v1/analytics/all/summary?days=30` returns new fields.
+2.  **Integration**: Check `GET /api/analytics/all/summary?days=30` returns new fields.
 3.  **UI**: Verify Dashboard shows correct percentages for a link with known history.

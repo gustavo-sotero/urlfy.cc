@@ -105,12 +105,12 @@ import type { Context } from 'elysia';
 // Configurações por endpoint
 const RATE_LIMITS = {
   // Criação de links
-  'POST /api/v1/links': {
+  'POST /api/links': {
     guest: { points: 10, duration: 3600 }, // 10/hora
     auth: { points: 100, duration: 3600 } // 100/hora
   },
   // Bulk creation
-  'POST /api/v1/links/bulk': {
+  'POST /api/links/bulk': {
     guest: null, // Não permitido
     auth: { points: 20, duration: 3600 }
   },
@@ -120,17 +120,17 @@ const RATE_LIMITS = {
     perLink: { points: 5000, duration: 60 } // 5000/min
   },
   // QR Code
-  'GET /api/v1/links/:code/qr': {
+  'GET /api/links/:code/qr': {
     guest: { points: 30, duration: 3600 },
     auth: { points: 120, duration: 3600 }
   },
   // Analytics
-  'GET /api/v1/analytics/*': {
+  'GET /api/analytics/*': {
     guest: null,
     auth: { points: 60, duration: 60 }
   },
   // Admin
-  'POST /api/v1/admin/*': {
+  'POST /api/admin/*': {
     guest: null,
     auth: { points: 30, duration: 60 }
   }
@@ -624,7 +624,7 @@ export const auditService = new AuditService();
 ### 10.1 Export de Dados
 
 ```typescript
-// src/server/api/v1/me/export.ts
+// src/server/api/me/export.ts
 import { Elysia } from 'elysia';
 import { authMiddleware } from '@/server/middleware/auth';
 import { gdprService } from '@/server/services/gdpr.service';
@@ -648,7 +648,7 @@ export const exportRoute = new Elysia({ prefix: '/me' })
 ### 10.2 Exclusão de Dados
 
 ```typescript
-// src/server/api/v1/me/data.ts
+// src/server/api/me/data.ts
 import { Elysia } from 'elysia';
 import { authMiddleware } from '@/server/middleware/auth';
 import { gdprService } from '@/server/services/gdpr.service';
@@ -784,7 +784,7 @@ export function ConsentBanner() {
 
     // Sincroniza com servidor para usuários autenticados
     try {
-      const response = await fetch('/api/v1/me/consent', {
+      const response = await fetch('/api/me/consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(preferences)
@@ -949,7 +949,7 @@ describe('SQL Injection Tests', () => {
     for (const payload of payloads) {
       const res = await app.handle(
         new Request(
-          `http://localhost/api/v1/links?search=${encodeURIComponent(payload)}`,
+          `http://localhost/api/links?search=${encodeURIComponent(payload)}`,
           {
             headers: { Authorization: 'Bearer valid-token' }
           }
@@ -974,7 +974,7 @@ describe('XSS Tests', () => {
   it('should sanitize XSS in meta tags', async () => {
     for (const payload of xssPayloads) {
       const res = await app.handle(
-        new Request('http://localhost/api/v1/links', {
+        new Request('http://localhost/api/links', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1011,7 +1011,7 @@ describe('SSRF Tests', () => {
   it('should block internal URLs', async () => {
     for (const payload of ssrfPayloads) {
       const res = await app.handle(
-        new Request('http://localhost/api/v1/links', {
+        new Request('http://localhost/api/links', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1045,7 +1045,7 @@ describe('Rate Limiting Tests', () => {
   });
 
   it('should return proper rate limit headers', async () => {
-    const res = await app.handle(new Request('http://localhost/api/v1/links'));
+    const res = await app.handle(new Request('http://localhost/api/links'));
 
     expect(res.headers.get('X-RateLimit-Limit')).toBeDefined();
     expect(res.headers.get('X-RateLimit-Remaining')).toBeDefined();
@@ -1056,7 +1056,7 @@ describe('Rate Limiting Tests', () => {
 describe('CORS Tests', () => {
   it('should block requests from non-allowed origins', async () => {
     const res = await app.handle(
-      new Request('http://localhost/api/v1/links', {
+      new Request('http://localhost/api/links', {
         headers: { Origin: 'https://evil-site.com' }
       })
     );
@@ -1068,7 +1068,7 @@ describe('CORS Tests', () => {
 
   it('should allow requests from allowed origins', async () => {
     const res = await app.handle(
-      new Request('http://localhost/api/v1/links', {
+      new Request('http://localhost/api/links', {
         headers: { Origin: 'https://urlfy.cc' }
       })
     );
@@ -1219,7 +1219,7 @@ async function generateSecurityReport(): Promise<void> {
   });
 
   // 2. Verifica rate limiting
-  const rateLimitRes = await fetch('http://localhost:3000/api/v1/links');
+  const rateLimitRes = await fetch('http://localhost:3000/api/links');
   checks.push({
     category: 'Rate Limiting',
     check: 'Rate limit headers present',

@@ -21,7 +21,7 @@ let serverAvailable = false;
 // Check if server is running before tests
 beforeAll(async () => {
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/health`, {
+    const res = await fetch(`${BASE_URL}/api/health`, {
       signal: AbortSignal.timeout(2000)
     });
     serverAvailable = res.ok;
@@ -41,7 +41,7 @@ beforeAll(async () => {
 describe('CORS Integration Tests', () => {
   it('should reject requests from unauthorized origins', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/health`, {
+    const response = await fetch(`${BASE_URL}/api/health`, {
       method: 'GET',
       headers: {
         Origin: 'https://evil-site.com'
@@ -58,7 +58,7 @@ describe('CORS Integration Tests', () => {
     const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
     for (const origin of allowedOrigins) {
-      const response = await fetch(`${BASE_URL}/api/v1/health`, {
+      const response = await fetch(`${BASE_URL}/api/health`, {
         method: 'GET',
         headers: {
           Origin: origin
@@ -72,7 +72,7 @@ describe('CORS Integration Tests', () => {
 
   it('should handle preflight OPTIONS requests', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/links`, {
+    const response = await fetch(`${BASE_URL}/api/links`, {
       method: 'OPTIONS',
       headers: {
         Origin: 'http://localhost:3000',
@@ -92,7 +92,7 @@ describe('CORS Integration Tests', () => {
 
   it('should reject preflight for unauthorized methods', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/links`, {
+    const response = await fetch(`${BASE_URL}/api/links`, {
       method: 'OPTIONS',
       headers: {
         Origin: 'http://localhost:3000',
@@ -119,7 +119,7 @@ describe('Rate Limiting Integration Tests', () => {
     // Make 15 concurrent requests (limit is 10/hour for guests)
     for (let i = 0; i < 15; i++) {
       requests.push(
-        fetch(`${BASE_URL}/api/v1/links`, {
+        fetch(`${BASE_URL}/api/links`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -140,7 +140,7 @@ describe('Rate Limiting Integration Tests', () => {
 
   it('should return proper rate limit headers', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/health`);
+    const response = await fetch(`${BASE_URL}/api/health`);
 
     // Check for rate limit headers
     const limitHeader =
@@ -159,7 +159,7 @@ describe('Rate Limiting Integration Tests', () => {
     // Make many requests to trigger rate limit
     const requests: Promise<Response>[] = [];
     for (let i = 0; i < 20; i++) {
-      requests.push(fetch(`${BASE_URL}/api/v1/health`));
+      requests.push(fetch(`${BASE_URL}/api/health`));
     }
 
     const responses = await Promise.all(requests);
@@ -179,11 +179,7 @@ describe('Rate Limiting Integration Tests', () => {
 describe('Authentication & Authorization Tests', () => {
   it('should reject requests without authentication to protected endpoints', async () => {
     if (!serverAvailable) return;
-    const protectedEndpoints = [
-      '/api/v1/me',
-      '/api/v1/me/quota',
-      '/api/v1/links/bulk'
-    ];
+    const protectedEndpoints = ['/api/me', '/api/me/quota', '/api/links/bulk'];
 
     for (const endpoint of protectedEndpoints) {
       const response = await fetch(`${BASE_URL}${endpoint}`);
@@ -193,7 +189,7 @@ describe('Authentication & Authorization Tests', () => {
 
   it('should reject requests with invalid tokens', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/me`, {
+    const response = await fetch(`${BASE_URL}/api/me`, {
       headers: {
         Authorization: 'Bearer invalid_token_xyz123'
       }
@@ -212,7 +208,7 @@ describe('Authentication & Authorization Tests', () => {
     ];
 
     for (const apiKey of invalidApiKeys) {
-      const response = await fetch(`${BASE_URL}/api/v1/links`, {
+      const response = await fetch(`${BASE_URL}/api/links`, {
         method: 'POST',
         headers: {
           'X-API-Key': apiKey,
@@ -244,7 +240,7 @@ describe('Input Validation Integration Tests', () => {
     ];
 
     for (const url of maliciousUrls) {
-      const response = await fetch(`${BASE_URL}/api/v1/links`, {
+      const response = await fetch(`${BASE_URL}/api/links`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -268,7 +264,7 @@ describe('Input Validation Integration Tests', () => {
     ];
 
     for (const url of shortenerUrls) {
-      const response = await fetch(`${BASE_URL}/api/v1/links`, {
+      const response = await fetch(`${BASE_URL}/api/links`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -284,7 +280,7 @@ describe('Input Validation Integration Tests', () => {
 
   it('should sanitize XSS in meta tags', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/links`, {
+    const response = await fetch(`${BASE_URL}/api/links`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -324,7 +320,7 @@ describe('Security Headers Integration Tests', () => {
 
   it('should include all required security headers', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/health`);
+    const response = await fetch(`${BASE_URL}/api/health`);
 
     for (const [header, validator] of Object.entries(criticalHeaders)) {
       const value = response.headers.get(header);
@@ -337,7 +333,7 @@ describe('Security Headers Integration Tests', () => {
 
   it('should not expose sensitive server information', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/health`);
+    const response = await fetch(`${BASE_URL}/api/health`);
 
     const serverHeader = response.headers.get('Server');
     const poweredBy = response.headers.get('X-Powered-By');
@@ -359,13 +355,13 @@ describe('Security Headers Integration Tests', () => {
 describe('GDPR/LGPD Compliance Tests', () => {
   it('should require authentication for data export', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/me/export`);
+    const response = await fetch(`${BASE_URL}/api/me/export`);
     expect(response.status).toBe(401);
   });
 
   it('should require authentication for data deletion', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/me/data`, {
+    const response = await fetch(`${BASE_URL}/api/me/data`, {
       method: 'DELETE'
     });
     expect(response.status).toBe(401);
@@ -415,7 +411,7 @@ describe('Error Handling Security', () => {
   it('should not expose stack traces in production', async () => {
     if (!serverAvailable) return;
     // Try to trigger an error
-    const response = await fetch(`${BASE_URL}/api/v1/links/invalid-id`, {
+    const response = await fetch(`${BASE_URL}/api/links/invalid-id`, {
       method: 'GET'
     });
 
@@ -432,7 +428,7 @@ describe('Error Handling Security', () => {
 
   it('should return generic error messages', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/nonexistent`, {
+    const response = await fetch(`${BASE_URL}/api/nonexistent`, {
       method: 'GET'
     });
 
@@ -453,7 +449,7 @@ describe('Error Handling Security', () => {
 describe('Request Tracing', () => {
   it('should include request ID in responses', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/health`);
+    const response = await fetch(`${BASE_URL}/api/health`);
     const requestId = response.headers.get('X-Request-Id');
 
     expect(requestId).toBeDefined();
@@ -462,7 +458,7 @@ describe('Request Tracing', () => {
 
   it('should include request ID in error responses', async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${BASE_URL}/api/v1/nonexistent`);
+    const response = await fetch(`${BASE_URL}/api/nonexistent`);
     const data = await response.json();
 
     expect(data.requestId).toBeDefined();

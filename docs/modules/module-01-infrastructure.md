@@ -118,7 +118,7 @@ services:
     volumes:
       - geoip_data:/app/geoip:ro
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/api/v1/health']
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/api/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -685,15 +685,15 @@ const resource = new Resource({
 // ═══════════════════════════════════════════════════════════════════
 
 const traceExporter = new OTLPTraceExporter({
-  url: `${OTEL_ENDPOINT}/v1/traces`
+  url: `${OTEL_ENDPOINT}/traces`
 });
 
 const metricExporter = new OTLPMetricExporter({
-  url: `${OTEL_ENDPOINT}/v1/metrics`
+  url: `${OTEL_ENDPOINT}/metrics`
 });
 
 const logExporter = new OTLPLogExporter({
-  url: `${OTEL_ENDPOINT}/v1/logs`
+  url: `${OTEL_ENDPOINT}/logs`
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1084,7 +1084,7 @@ export function hashVisitor(ip: string, userAgent: string): string {
 Cada feature é organizada em seu próprio diretório com Controller, Service e Model:
 
 ```
-src/server/api/v1/
+src/server/api/
 ├── links/
 │   ├── index.ts          # Controller (Elysia instance)
 │   └── ...
@@ -1301,7 +1301,7 @@ const healthDetailed = new Elysia().get(
 // EXPORT
 // ═══════════════════════════════════════════════════════════════════
 
-export const healthRoutes = new Elysia({ prefix: '/api/v1' })
+export const healthRoutes = new Elysia({ prefix: '/api' })
   .use(healthSimple)
   .use(healthReady)
   .use(healthDetailed);
@@ -1419,7 +1419,7 @@ docker exec -it urlfy-postgres \
 docker-compose start app
 
 # 4. Verificar health
-curl http://localhost:3000/api/v1/health/ready
+curl http://localhost:3000/api/health/ready
 ```
 
 ---
@@ -1440,9 +1440,9 @@ curl http://localhost:3000/api/v1/health/ready
 | 1.8  | Implementar logger estruturado                   | ✅     |
 | 1.9  | Configurar métricas customizadas                 | ✅     |
 | 1.10 | Setup MaxMind GeoIP com container geoipupdate    | ✅     |
-| 1.11 | Implementar `/api/v1/health`                     | ✅     |
-| 1.12 | Implementar `/api/v1/health/ready`               | ✅     |
-| 1.13 | Implementar `/api/v1/health/detailed`            | ✅     |
+| 1.11 | Implementar `/api/health`                        | ✅     |
+| 1.12 | Implementar `/api/health/ready`                  | ✅     |
+| 1.13 | Implementar `/api/health/detailed`               | ✅     |
 | 1.14 | Configurar script de backup automático           | ✅     |
 | 1.15 | Documentar procedimento de restore               | ✅     |
 | 1.16 | Configurar alertas no SigNoz                     | ✅     |

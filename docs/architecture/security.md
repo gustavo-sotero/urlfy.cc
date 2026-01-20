@@ -143,7 +143,7 @@ return Response.redirect(targetUrl, redirectType, {
       │        └─ Inválido → 401 + redirect /unlock/:code
       └─ Não → Redireciona
 
-2. POST /api/v1/links/:code/verify-password
+2. POST /api/links/:code/verify-password
    └─ Valida senha (bcrypt)
       ├─ Sucesso → Set-Cookie (JWT, 5min TTL)
       └─ Falha → 401
@@ -322,10 +322,10 @@ function getWeeklySalt(): string {
 
 ### Endpoints de Compliance
 
-| Endpoint                 | Descrição                                |
-| ------------------------ | ---------------------------------------- |
-| `GET /api/v1/me/export`  | Exporta todos os dados do usuário (JSON) |
-| `DELETE /api/v1/me/data` | Solicita exclusão de dados               |
+| Endpoint              | Descrição                                |
+| --------------------- | ---------------------------------------- |
+| `GET /api/me/export`  | Exporta todos os dados do usuário (JSON) |
+| `DELETE /api/me/data` | Solicita exclusão de dados               |
 
 ### Processo de Exclusão
 
@@ -360,7 +360,7 @@ function getWeeklySalt(): string {
 ### API Keys
 
 ```http
-GET /api/v1/links
+GET /api/links
 x-api-key: urlfy_sk_live_abc123...
 ```
 

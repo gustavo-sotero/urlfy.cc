@@ -25,78 +25,78 @@ describe('Analytics Endpoints (handler-level)', () => {
     client = createElysiaTestClient(api);
   });
 
-  describe('GET /api/v1/analytics/:linkId/summary', () => {
+  describe('GET /api/analytics/:linkId/summary', () => {
     test('should require authentication', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/analytics/00000000-0000-0000-0000-000000000000/summary');
+      }>('/api/analytics/00000000-0000-0000-0000-000000000000/summary');
 
       expectUnauthorized(response);
     });
   });
 
-  describe('GET /api/v1/analytics/:linkId/breakdown', () => {
+  describe('GET /api/analytics/:linkId/breakdown', () => {
     test('should require authentication', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/analytics/00000000-0000-0000-0000-000000000000/breakdown');
+      }>('/api/analytics/00000000-0000-0000-0000-000000000000/breakdown');
 
       expectUnauthorized(response);
     });
   });
 
-  describe('GET /api/v1/analytics/:linkId/timeseries', () => {
+  describe('GET /api/analytics/:linkId/timeseries', () => {
     test('should require authentication', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/analytics/00000000-0000-0000-0000-000000000000/timeseries');
+      }>('/api/analytics/00000000-0000-0000-0000-000000000000/timeseries');
 
       expectUnauthorized(response);
     });
   });
 
-  describe('GET /api/v1/analytics/:linkId/daily', () => {
+  describe('GET /api/analytics/:linkId/daily', () => {
     test('should require authentication', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/analytics/00000000-0000-0000-0000-000000000000/daily');
+      }>('/api/analytics/00000000-0000-0000-0000-000000000000/daily');
 
       expectUnauthorized(response);
     });
   });
 
-  describe('GET /api/v1/analytics/:linkId/countries', () => {
+  describe('GET /api/analytics/:linkId/countries', () => {
     test('should require authentication', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/analytics/00000000-0000-0000-0000-000000000000/countries');
+      }>('/api/analytics/00000000-0000-0000-0000-000000000000/countries');
 
       expectUnauthorized(response);
     });
   });
 
-  describe('GET /api/v1/analytics/:linkId/devices', () => {
+  describe('GET /api/analytics/:linkId/devices', () => {
     test('should require authentication', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/analytics/00000000-0000-0000-0000-000000000000/devices');
+      }>('/api/analytics/00000000-0000-0000-0000-000000000000/devices');
 
       expectUnauthorized(response);
     });
   });
 
-  describe('GET /api/v1/analytics/:linkId/browsers', () => {
+  describe('GET /api/analytics/:linkId/browsers', () => {
     test('should require authentication', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/analytics/00000000-0000-0000-0000-000000000000/browsers');
+      }>('/api/analytics/00000000-0000-0000-0000-000000000000/browsers');
 
       expectUnauthorized(response);
     });

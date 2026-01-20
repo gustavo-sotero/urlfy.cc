@@ -197,7 +197,7 @@ Organização por módulos funcionais:
 
 ```
 src/server/
-├── api/v1/
+├── api/
 │   ├── links/
 │   │   ├── index.ts      # Controller (Elysia instance)
 │   │   ├── service.ts    # Service (lógica de negócio)

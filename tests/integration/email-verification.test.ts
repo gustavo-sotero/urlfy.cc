@@ -3,12 +3,12 @@
  * Tests that unverified users can log in but cannot create links
  */
 
-import { beforeAll, describe, expect, test } from 'bun:test';
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { user as userTable } from '@/db/schema/auth';
 import { links } from '@/db/schema/links';
 import { api } from '@/server/api';
+import { beforeAll, describe, expect, test } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import { createElysiaTestClient } from '../helpers/elysia-test-client';
 
 // Initialize test client
@@ -53,13 +53,13 @@ describe('Email Verification Enforcement', () => {
     verifiedUser = createdVerified;
   });
 
-  describe('POST /api/v1/links (unverified user)', () => {
+  describe('POST /api/links (unverified user)', () => {
     test('should reject link creation from unverified user', async () => {
       const response = await client.post<{
         success: boolean;
         error?: { code: string; message: string };
       }>(
-        '/api/v1/links',
+        '/api/links',
         {
           url: 'https://example.com/test'
         },
@@ -83,7 +83,7 @@ describe('Email Verification Enforcement', () => {
         success: boolean;
         data?: { id: string; shortCode: string };
       }>(
-        '/api/v1/links',
+        '/api/links',
         {
           url: 'https://example.com/verified-test'
         },
@@ -106,13 +106,13 @@ describe('Email Verification Enforcement', () => {
     });
   });
 
-  describe('POST /api/v1/links/bulk (unverified user)', () => {
+  describe('POST /api/links/bulk (unverified user)', () => {
     test('should reject bulk creation from unverified user', async () => {
       const response = await client.post<{
         success: boolean;
         error?: { code: string; message: string };
       }>(
-        '/api/v1/links/bulk',
+        '/api/links/bulk',
         {
           links: [
             { url: 'https://example.com/1' },
@@ -137,7 +137,7 @@ describe('Email Verification Enforcement', () => {
         success: boolean;
         data?: { created: number; links: Array<{ id: string }> };
       }>(
-        '/api/v1/links/bulk',
+        '/api/links/bulk',
         {
           links: [
             { url: 'https://example.com/bulk1' },
@@ -170,7 +170,7 @@ describe('Email Verification Enforcement', () => {
       const response = await client.post<{
         success: boolean;
         data?: { shortCode: string };
-      }>('/api/v1/links', {
+      }>('/api/links', {
         url: 'https://example.com/guest-test'
       });
 

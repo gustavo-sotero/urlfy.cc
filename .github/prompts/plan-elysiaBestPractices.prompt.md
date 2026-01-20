@@ -55,7 +55,7 @@ Deliverable:
 
 Goal: Eliminate inline duplication of validation schemas; centralize per domain.
 
-- For each domain (links, users, analytics, admin, health), create a `models.ts` file in `src/server/api/v1/<domain>/models.ts` or `src/types/<domain>.models.ts`.
+- For each domain (links, users, analytics, admin, health), create a `models.ts` file in `src/server/api/<domain>/models.ts` or `src/types/<domain>.models.ts`.
 - Standardize naming:
   - `LinkCreateBody`, `LinkUpdateBody`, `UserProfileResponse`, `AnalyticsQueryParams`, etc.
 - Use Elysia `t.*` schemas as the single source of truth.
@@ -209,7 +209,7 @@ Deliverables:
 
 ## Outputs (Expected Files Modified/Added)
 
-- src/server/api/v1/\*\*/models.ts (new)
+- src/server/api/\*\*/models.ts (new)
 - src/server/services/\*_/_.ts (new/updated)
 - tests/helpers/elysia-test-client.ts (new)
 - tests/integration/\*_/_.test.ts (updated)

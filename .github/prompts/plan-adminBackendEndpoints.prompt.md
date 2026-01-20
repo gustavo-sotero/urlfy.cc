@@ -114,10 +114,10 @@ export const adminController = new Elysia({ prefix: '/admin' })
 
 ## 🔌 Passo 4: Integração na API Global
 
-**Arquivo:** `src/server/api/v1/index.ts`
+**Arquivo:** `src/server/api/index.ts`
 
 - Importar `adminController`.
-- Montar o controlador na rota `/v1`.
+- Montar o controlador na rota ``.
 - **Importante:** Remover quaisquer rotas de admin legadas/stubs que estejam poluindo o arquivo principal.
 
 ---

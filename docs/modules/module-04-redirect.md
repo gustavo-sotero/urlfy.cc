@@ -708,10 +708,10 @@ const sdk = new NodeSDK({
     environment: process.env.NODE_ENV
   }),
   traceExporter: new OTLPTraceExporter({
-    url: `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`
+    url: `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT}/traces`
   }),
   metricExporter: new OTLPMetricExporter({
-    url: `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/metrics`
+    url: `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT}/metrics`
   })
 });
 

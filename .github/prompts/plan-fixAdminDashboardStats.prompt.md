@@ -61,7 +61,7 @@ try {
 
 ### 3. Growth Charts (Analytics Data)
 
-**Endpoint**: `GET /api/v1/admin/growth`  
+**Endpoint**: `GET /api/admin/growth`  
 **Service**: `AdminService.getGrowthStats()` (queries `analytics_events` and `user` tables)
 
 **Root Cause**: The `analytics_events` table may be empty because no redirect traffic has been recorded yet.
@@ -351,7 +351,7 @@ MetricsService.trackRequest().catch(() => {
    - Verify `metrics:rps` in Redis is approximately N/60.
 
 2. **Admin Dashboard**:
-   - After RPS calculation, `GET /api/v1/admin/stats` returns non-zero `requestsPerSecond`.
+   - After RPS calculation, `GET /api/admin/stats` returns non-zero `requestsPerSecond`.
 
 ### E2E Tests
 

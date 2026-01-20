@@ -18,7 +18,7 @@ Este documento descreve o plano de implementação dividido em módulos lógicos
 | **1.4** | **Cache Layer:** Configuração do cliente Redis (Bun Native) com tipos e padrões de chaves definidos.                                  | Caching Strategy       |
 | **1.5** | **Observabilidade:** Integração OpenTelemetry com SigNoz, logs estruturados e **alertas** para latência P99, error rate e cache miss. | RNF-09, RNF-10, RNF-11 |
 | **1.6** | **GeoIP Setup:** Container `geoipupdate` com MaxMind GeoLite2 e volume compartilhado.                                                 | RF-19                  |
-| **1.7** | **Health Endpoints:** Implementação de `/api/v1/health` e `/api/v1/health/ready` com verificação de dependências (DB, Redis).         | PRD 6                  |
+| **1.7** | **Health Endpoints:** Implementação de `/api/health` e `/api/health/ready` com verificação de dependências (DB, Redis).               | PRD 6                  |
 | **1.8** | **Backup & DR Strategy:** Configuração de `pg_dump` via cron ou pgBackRest para PostgreSQL (RPO/RTO < 1h). Snapshots Redis opcionais. | PRD 4.5                |
 
 ---
@@ -104,7 +104,7 @@ Este documento descreve o plano de implementação dividido em módulos lógicos
 | **6.5**  | **CSRF Protection:** Cookies com `SameSite=Strict` e proteção automática via Better-Auth.                                              | RNF-04           |
 | **6.6**  | **Input Sanitization:** Sanitização de meta tags OG com DOMPurify e validação de URLs de imagem (whitelist de CDNs ou proxy próprio).  | RNF-05, Security |
 | **6.7**  | **Anti-Abuse:** Detecção de anomalias (>50 falhas login/IP em 5min) e bloqueio automático.                                             | Security         |
-| **6.8**  | **GDPR/LGPD Endpoints:** `GET /api/v1/me/export` para exportação de dados e `DELETE /api/v1/me/data` para exclusão (72h deadline).     | RF-35 a RF-38    |
+| **6.8**  | **GDPR/LGPD Endpoints:** `GET /api/me/export` para exportação de dados e `DELETE /api/me/data` para exclusão (72h deadline).           | RF-35 a RF-38    |
 | **6.9**  | **Consent Banner:** Banner de consentimento para analytics no frontend.                                                                | RF-35            |
 | **6.10** | **Audit Logs:** Tabela `audit_logs` para registrar ações administrativas (ban, unban, role change).                                    | RF-34            |
 

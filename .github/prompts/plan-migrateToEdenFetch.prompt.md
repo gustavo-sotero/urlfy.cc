@@ -25,7 +25,7 @@ The Elysia instance type must be exported to allow inference on the client side.
 // src/server/api/index.ts
 // ... existing code ...
 
-const api = new Elysia({ prefix: '/api/v1' });
+const api = new Elysia({ prefix: '/api' });
 // ... configuration ...
 
 export default api;

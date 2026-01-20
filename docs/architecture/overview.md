@@ -231,7 +231,7 @@ import { trace } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 
 const exporter = new OTLPTraceExporter({
-  url: 'http://signoz:4318/v1/traces'
+  url: 'http://signoz:4318/traces'
 });
 ```
 

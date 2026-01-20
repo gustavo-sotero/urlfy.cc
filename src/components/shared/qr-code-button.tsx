@@ -1,9 +1,6 @@
 // src/components/shared/qr-code-button.tsx
 'use client';
 
-import { QrCode } from 'lucide-react';
-import Image from 'next/image';
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -20,6 +17,9 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { QrCode } from 'lucide-react';
+import Image from 'next/image';
+import { useState } from 'react';
 
 interface Props {
   code?: string;
@@ -43,7 +43,7 @@ export function QRCodeButton({
     return null;
   }
 
-  const qrUrl = `/api/v1/links/by-code/${shortCode}/qr?size=${qrSize}&format=${qrFormat}`;
+  const qrUrl = `/api/links/by-code/${shortCode}/qr?size=${qrSize}&format=${qrFormat}`;
 
   const handleDownload = () => {
     const link = document.createElement('a');

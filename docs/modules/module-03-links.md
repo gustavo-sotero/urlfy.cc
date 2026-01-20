@@ -126,7 +126,7 @@ export type NewLink = typeof links.$inferInsert;
 ```
 src/
 ├── server/
-│   ├── api/v1/
+│   ├── api/
 │   │   └── links/
 │   │       ├── index.ts          # Router principal
 │   │       ├── create.ts         # POST /links
@@ -789,7 +789,7 @@ Este módulo exemplifica a aplicação completa dos padrões recomendados do Ely
 
 ```
 src/server/
-├── api/v1/links/
+├── api/links/
 │   └── index.ts          # Controller (Elysia instance)
 ├── api/models/
 │   └── links.models.ts   # Models (TypeBox schemas)
@@ -1122,7 +1122,10 @@ export async function getLinkByCode(code: string) {
 // src/server/lib/errors.ts
 
 export class LinkError extends Error {
-  constructor(public code: LinkErrorCode, public httpStatus: number = 400) {
+  constructor(
+    public code: LinkErrorCode,
+    public httpStatus: number = 400
+  ) {
     super(code);
     this.name = 'LinkError';
   }

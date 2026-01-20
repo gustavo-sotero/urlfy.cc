@@ -230,7 +230,7 @@ async function handleWithIdempotency<T>(
 **Headers esperados:**
 
 ```http
-POST /api/v1/links
+POST /api/links
 Idempotency-Key: idem_550e8400-e29b-41d4-a716-446655440000
 ```
 

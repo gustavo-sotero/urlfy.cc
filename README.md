@@ -99,14 +99,14 @@ bun run docker:restart
 
 ```bash
 # Simple health check
-curl http://localhost:3000/api/v1/health
+curl http://localhost:3000/api/health
 
 # Readiness check (dependencies)
-curl http://localhost:3000/api/v1/health/ready
+curl http://localhost:3000/api/health/ready
 
 # Detailed health (admin only)
 curl -H "x-api-key: your_admin_key" \
-  http://localhost:3000/api/v1/health/detailed
+  http://localhost:3000/api/health/detailed
 ```
 
 ## 📁 Project Structure

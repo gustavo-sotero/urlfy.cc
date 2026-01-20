@@ -9,7 +9,6 @@ This document describes the backup and disaster recovery procedures for the urlf
 ### What is Backed Up
 
 - **PostgreSQL Database:**
-
   - All application tables (links, users, sessions, etc.)
   - Analytics aggregation tables (link_clicks_daily)
   - Raw analytics events (optional, only in daily full backup)
@@ -67,7 +66,7 @@ gunzip -c urlfy_20260107_020000.sql.gz | docker exec -i urlfy-postgres psql -U u
 docker-compose start app
 
 # Verify health
-curl http://localhost:3000/api/v1/health/ready
+curl http://localhost:3000/api/health/ready
 ```
 
 ### Partial Recovery (Specific Tables)

@@ -60,7 +60,7 @@ await emailService.sendDataDeletionConfirmation({
   firstName: 'João',
   requestDate: new Date(),
   deadlineDate: new Date(Date.now() + 72 * 60 * 60 * 1000), // 72h
-  exportUrl: 'https://urlfy.cc/api/v1/me/export' // Opcional
+  exportUrl: 'https://urlfy.cc/api/me/export' // Opcional
 });
 ```
 

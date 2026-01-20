@@ -699,7 +699,7 @@ export default function RootLayout({
 
 ```typescript
 // src/lib/api-client.ts
-const API_BASE = '/api/v1';
+const API_BASE = '/api';
 
 async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -1307,8 +1307,7 @@ import { forwardRef, ButtonHTMLAttributes, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
-interface AccessibleButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface AccessibleButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
   loadingText?: string;
   children: ReactNode;

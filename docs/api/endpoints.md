@@ -8,11 +8,11 @@
 
 ## Visão Geral
 
-A API REST é construída com **ElysiaJS** rodando em `app/api/[[...slugs]]/route.ts`. Todos os endpoints são versionados sob `/api/v1/`.
+A API REST é construída com **ElysiaJS** rodando em `app/api/[[...slugs]]/route.ts`. Todos os endpoints são versionados sob `/api/`.
 
 **Documentação interativa:**
 
-- Elysia Swagger: `/api/v1/docs`
+- Elysia Swagger: `/api/docs`
 - Better-Auth OpenAPI: `/api/auth/reference`
 
 ---
@@ -96,7 +96,7 @@ A API REST é construída com **ElysiaJS** rodando em `app/api/[[...slugs]]/rout
 ### Health Check
 
 ```http
-GET /api/v1/health
+GET /api/health
 ```
 
 **Response:**
@@ -113,7 +113,7 @@ GET /api/v1/health
 ### Readiness Check
 
 ```http
-GET /api/v1/health/ready
+GET /api/health/ready
 ```
 
 **Response:**
@@ -133,7 +133,7 @@ GET /api/v1/health/ready
 ### Criar Link
 
 ```http
-POST /api/v1/links
+POST /api/links
 Content-Type: application/json
 Idempotency-Key: idem_<uuid>  # Opcional
 ```
@@ -185,7 +185,7 @@ Idempotency-Key: idem_<uuid>  # Opcional
 ### Validar URL
 
 ```http
-POST /api/v1/links/validate
+POST /api/links/validate
 Content-Type: application/json
 ```
 
@@ -214,7 +214,7 @@ Content-Type: application/json
 ### Preview de Link
 
 ```http
-GET /api/v1/links/:code/preview
+GET /api/links/:code/preview
 ```
 
 **Response:**
@@ -239,7 +239,7 @@ GET /api/v1/links/:code/preview
 ### Gerar QR Code
 
 ```http
-GET /api/v1/links/:code/qr?size=200&format=png
+GET /api/links/:code/qr?size=200&format=png
 ```
 
 **Query Parameters:**
@@ -255,7 +255,7 @@ GET /api/v1/links/:code/qr?size=200&format=png
 ### Verificar Senha do Link
 
 ```http
-POST /api/v1/links/:code/verify-password
+POST /api/links/:code/verify-password
 Content-Type: application/json
 ```
 
@@ -297,7 +297,7 @@ Content-Type: application/json
 ### Criar Links em Bulk
 
 ```http
-POST /api/v1/links/bulk
+POST /api/links/bulk
 Authorization: Bearer <token>
 Content-Type: application/json
 ```
@@ -330,7 +330,7 @@ Content-Type: application/json
 ### Listar Links
 
 ```http
-GET /api/v1/links?page=1&perPage=20&sort=createdAt&order=desc
+GET /api/links?page=1&perPage=20&sort=createdAt&order=desc
 Authorization: Bearer <token>
 ```
 
@@ -349,7 +349,7 @@ Authorization: Bearer <token>
 ### Obter Link
 
 ```http
-GET /api/v1/links/:id
+GET /api/links/:id
 Authorization: Bearer <token>
 ```
 
@@ -358,7 +358,7 @@ Authorization: Bearer <token>
 ### Atualizar Link
 
 ```http
-PATCH /api/v1/links/:id
+PATCH /api/links/:id
 Authorization: Bearer <token>
 Content-Type: application/json
 ```
@@ -378,7 +378,7 @@ Content-Type: application/json
 ### Deletar Link
 
 ```http
-DELETE /api/v1/links/:id
+DELETE /api/links/:id
 Authorization: Bearer <token>
 ```
 
@@ -391,7 +391,7 @@ Authorization: Bearer <token>
 ### Restaurar Link
 
 ```http
-POST /api/v1/links/:id/restore
+POST /api/links/:id/restore
 Authorization: Bearer <token>
 ```
 
@@ -400,7 +400,7 @@ Authorization: Bearer <token>
 ### Duplicar Link
 
 ```http
-POST /api/v1/links/:id/duplicate
+POST /api/links/:id/duplicate
 Authorization: Bearer <token>
 ```
 
@@ -422,7 +422,7 @@ Authorization: Bearer <token>
 ### Stats Rápidas
 
 ```http
-GET /api/v1/links/:id/stats
+GET /api/links/:id/stats
 Authorization: Bearer <token>
 ```
 
@@ -444,7 +444,7 @@ Authorization: Bearer <token>
 ### Analytics Detalhado
 
 ```http
-GET /api/v1/analytics/:linkId?from=2026-01-01&to=2026-01-31&granularity=day
+GET /api/analytics/:linkId?from=2026-01-01&to=2026-01-31&granularity=day
 Authorization: Bearer <token>
 ```
 
@@ -499,7 +499,7 @@ Authorization: Bearer <token>
 ### Perfil
 
 ```http
-GET /api/v1/me
+GET /api/me
 Authorization: Bearer <token>
 ```
 
@@ -508,7 +508,7 @@ Authorization: Bearer <token>
 ### Quota
 
 ```http
-GET /api/v1/me/quota
+GET /api/me/quota
 Authorization: Bearer <token>
 ```
 
@@ -531,7 +531,7 @@ Authorization: Bearer <token>
 ### Exportar Dados (LGPD)
 
 ```http
-GET /api/v1/me/export
+GET /api/me/export
 Authorization: Bearer <token>
 ```
 
@@ -542,7 +542,7 @@ Authorization: Bearer <token>
 ### Solicitar Exclusão (LGPD)
 
 ```http
-DELETE /api/v1/me/data
+DELETE /api/me/data
 Authorization: Bearer <token>
 ```
 
@@ -566,7 +566,7 @@ Authorization: Bearer <token>
 ### KPIs Globais
 
 ```http
-GET /api/v1/admin/stats
+GET /api/admin/stats
 Authorization: Bearer <token>
 ```
 
@@ -590,7 +590,7 @@ Authorization: Bearer <token>
 ### Banir Link
 
 ```http
-PATCH /api/v1/admin/links/:id
+PATCH /api/admin/links/:id
 Authorization: Bearer <token>
 Content-Type: application/json
 ```
@@ -609,7 +609,7 @@ Content-Type: application/json
 ### Health Check Detalhado
 
 ```http
-GET /api/v1/health/detailed
+GET /api/health/detailed
 Authorization: Bearer <token>  # Admin only
 ```
 

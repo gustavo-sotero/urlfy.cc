@@ -929,7 +929,7 @@ export const authModels = new Elysia().model({
 
 ## 8. Rotas de Autenticação (ElysiaJS)
 
-### 8.1 Handler Principal (`src/server/api/v1/auth/index.ts`)
+### 8.1 Handler Principal (`src/server/api/auth/index.ts`)
 
 ```typescript
 import { Elysia, t } from 'elysia';
@@ -1057,7 +1057,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   );
 ```
 
-### 8.2 Rotas de API Keys (`src/server/api/v1/auth/api-keys.ts`)
+### 8.2 Rotas de API Keys (`src/server/api/auth/api-keys.ts`)
 
 ```typescript
 import { Elysia, t } from 'elysia';
@@ -1471,7 +1471,7 @@ RESEND_FROM=noreply@urlfy.cc
 
 ## 11. Testes
 
-### 11.1 Testes de Autenticação (`src/server/api/v1/auth/__tests__/auth.test.ts`)
+### 11.1 Testes de Autenticação (`src/server/api/auth/__tests__/auth.test.ts`)
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';

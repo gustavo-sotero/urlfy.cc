@@ -247,7 +247,7 @@ describe('Rate Limiting', () => {
 
   it('should track rate limit by IP', async () => {
     const testIP = '192.168.1.100';
-    const config = RATE_LIMIT_CONFIGS['POST /api/v1/links'].guest as {
+    const config = RATE_LIMIT_CONFIGS['POST /api/links'].guest as {
       points: number;
       duration: number;
     };
@@ -545,7 +545,7 @@ describe('CORS Protection', () => {
 describe('Rate Limiting', () => {
   it('should track rate limit state', async () => {
     const ipKey = 'test-ip-123';
-    const guestConfig = RATE_LIMIT_CONFIGS['POST /api/v1/links'].guest;
+    const guestConfig = RATE_LIMIT_CONFIGS['POST /api/links'].guest;
     const config = guestConfig || { points: 10, duration: 3600 };
 
     const result = await rateLimiter.checkIPLimit(ipKey, config);
@@ -555,7 +555,7 @@ describe('Rate Limiting', () => {
   });
 
   it('should return proper rate limit headers', async () => {
-    const guestConfig = RATE_LIMIT_CONFIGS['POST /api/v1/links'].guest;
+    const guestConfig = RATE_LIMIT_CONFIGS['POST /api/links'].guest;
     const config = guestConfig || { points: 10, duration: 3600 };
     const result = await rateLimiter.checkIPLimit('test-ip', config);
 

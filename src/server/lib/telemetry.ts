@@ -66,19 +66,19 @@ const resource = resourceFromAttributes({
 
 const traceExporter = TELEMETRY_ENABLED
   ? new OTLPTraceExporter({
-      url: `${OTEL_ENDPOINT_URL}/v1/traces`
+      url: `${OTEL_ENDPOINT_URL}/traces`
     })
   : undefined;
 
 const metricExporter = TELEMETRY_ENABLED
   ? new OTLPMetricExporter({
-      url: `${OTEL_ENDPOINT_URL}/v1/metrics`
+      url: `${OTEL_ENDPOINT_URL}/metrics`
     })
   : undefined;
 
 const logExporter = TELEMETRY_ENABLED
   ? new OTLPLogExporter({
-      url: `${OTEL_ENDPOINT_URL}/v1/logs`
+      url: `${OTEL_ENDPOINT_URL}/logs`
     })
   : undefined;
 

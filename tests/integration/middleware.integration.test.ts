@@ -3,12 +3,12 @@
  * Integration tests for root middleware (redirect engine entry point)
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { eq } from 'drizzle-orm';
-import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import { middleware } from '@/middleware';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { eq } from 'drizzle-orm';
+import { NextRequest } from 'next/server';
 
 describe('Root Middleware', () => {
   let testLinkId: string;
@@ -40,7 +40,7 @@ describe('Root Middleware', () => {
 
   describe('Route Matching', () => {
     it('should pass through API routes', async () => {
-      const request = new NextRequest('http://localhost:3000/api/v1/links');
+      const request = new NextRequest('http://localhost:3000/api/links');
       const response = await middleware(request);
 
       // Should return next() which continues to Next.js routing
@@ -182,7 +182,7 @@ describe('Root Middleware', () => {
 
   describe('Performance', () => {
     it('should process system routes quickly', async () => {
-      const request = new NextRequest('http://localhost:3000/api/v1/health');
+      const request = new NextRequest('http://localhost:3000/api/health');
       const start = performance.now();
 
       await middleware(request);

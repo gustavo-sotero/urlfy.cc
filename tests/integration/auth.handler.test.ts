@@ -26,7 +26,7 @@ describe('Auth Endpoints (handler-level)', () => {
     client = createElysiaTestClient(api);
   });
 
-  describe('GET /api/v1/auth/session', () => {
+  describe('GET /api/auth/session', () => {
     test('should return null user when not authenticated', async () => {
       const response = await client.get<{
         success: boolean;
@@ -34,7 +34,7 @@ describe('Auth Endpoints (handler-level)', () => {
           user: null | object;
           session: null | object;
         };
-      }>('/api/v1/auth/session');
+      }>('/api/auth/session');
 
       expectOk(response);
       expect(response.body.success).toBe(true);
@@ -43,45 +43,45 @@ describe('Auth Endpoints (handler-level)', () => {
     });
   });
 
-  describe('GET /api/v1/auth/two-factor/status', () => {
+  describe('GET /api/auth/two-factor/status', () => {
     test('should require authentication', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/auth/two-factor/status');
+      }>('/api/auth/two-factor/status');
 
       expectUnauthorized(response);
     });
   });
 
-  describe('GET /api/v1/auth/sessions', () => {
+  describe('GET /api/auth/sessions', () => {
     test('should require authentication', async () => {
       const response = await client.get<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/auth/sessions');
+      }>('/api/auth/sessions');
 
       expectUnauthorized(response);
     });
   });
 
-  describe('DELETE /api/v1/auth/sessions/:sessionId', () => {
+  describe('DELETE /api/auth/sessions/:sessionId', () => {
     test('should require authentication', async () => {
       const response = await client.delete<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/auth/sessions/some-session-id');
+      }>('/api/auth/sessions/some-session-id');
 
       expectUnauthorized(response);
     });
   });
 
-  describe('POST /api/v1/auth/sessions/revoke-all', () => {
+  describe('POST /api/auth/sessions/revoke-all', () => {
     test('should require authentication', async () => {
       const response = await client.post<{
         success: boolean;
         error?: { code: string };
-      }>('/api/v1/auth/sessions/revoke-all');
+      }>('/api/auth/sessions/revoke-all');
 
       expectUnauthorized(response);
     });

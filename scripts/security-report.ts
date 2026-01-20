@@ -55,7 +55,7 @@ const OUTPUT_FILE = values.output as string;
 
 async function checkServerAvailable(): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/health`, {
+    const res = await fetch(`${BASE_URL}/api/health`, {
       signal: AbortSignal.timeout(5000)
     });
     return res.ok;
@@ -68,7 +68,7 @@ async function checkSecurityHeaders(): Promise<SecurityCheck[]> {
   const checks: SecurityCheck[] = [];
 
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/health`);
+    const res = await fetch(`${BASE_URL}/api/health`);
     const headers = res.headers;
 
     // Content-Security-Policy
@@ -158,7 +158,7 @@ async function checkRateLimiting(): Promise<SecurityCheck[]> {
   const checks: SecurityCheck[] = [];
 
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/health`);
+    const res = await fetch(`${BASE_URL}/api/health`);
 
     const limitHeader =
       res.headers.get('X-RateLimit-Limit') ||
@@ -192,7 +192,7 @@ async function checkCORS(): Promise<SecurityCheck[]> {
 
   try {
     // Test with unauthorized origin
-    const res = await fetch(`${BASE_URL}/api/v1/health`, {
+    const res = await fetch(`${BASE_URL}/api/health`, {
       headers: {
         Origin: 'https://evil-site.com'
       }
@@ -212,7 +212,7 @@ async function checkCORS(): Promise<SecurityCheck[]> {
     });
 
     // Test preflight
-    const preflight = await fetch(`${BASE_URL}/api/v1/links`, {
+    const preflight = await fetch(`${BASE_URL}/api/links`, {
       method: 'OPTIONS',
       headers: {
         Origin: 'http://localhost:3000',
@@ -241,11 +241,7 @@ async function checkCORS(): Promise<SecurityCheck[]> {
 async function checkAuthentication(): Promise<SecurityCheck[]> {
   const checks: SecurityCheck[] = [];
 
-  const protectedEndpoints = [
-    '/api/v1/me',
-    '/api/v1/me/export',
-    '/api/v1/admin/audit'
-  ];
+  const protectedEndpoints = ['/api/me', '/api/me/export', '/api/admin/audit'];
 
   for (const endpoint of protectedEndpoints) {
     try {
@@ -268,7 +264,7 @@ async function checkAuthentication(): Promise<SecurityCheck[]> {
 
   // Test invalid token
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/me`, {
+    const res = await fetch(`${BASE_URL}/api/me`, {
       headers: {
         Authorization: 'Bearer invalid_token'
       }
@@ -302,7 +298,7 @@ async function checkInputValidation(): Promise<SecurityCheck[]> {
 
   for (const { url, name } of maliciousUrls) {
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/links`, {
+      const res = await fetch(`${BASE_URL}/api/links`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

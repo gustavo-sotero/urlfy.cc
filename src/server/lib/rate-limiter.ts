@@ -27,25 +27,25 @@ export interface RateLimitResult {
 
 export const RATE_LIMIT_CONFIGS = {
   // Health checks
-  'GET /api/v1/health': {
+  'GET /api/health': {
     guest: { points: 600, duration: 60 },
     auth: { points: 600, duration: 60 }
   },
-  'GET /api/v1/health/ready': {
+  'GET /api/health/ready': {
     guest: { points: 300, duration: 60 },
     auth: { points: 300, duration: 60 }
   },
-  'GET /api/v1/health/detailed': {
+  'GET /api/health/detailed': {
     guest: null,
     auth: { points: 60, duration: 60 }
   },
   // Link creation
-  'POST /api/v1/links': {
+  'POST /api/links': {
     guest: { points: 10, duration: 3600 }, // 10/hour for guests
     auth: { points: 100, duration: 3600 } // 100/hour for authenticated users
   },
   // Bulk creation
-  'POST /api/v1/links/bulk': {
+  'POST /api/links/bulk': {
     guest: null, // Not allowed
     auth: { points: 20, duration: 3600 } // 20/hour
   },
@@ -55,17 +55,17 @@ export const RATE_LIMIT_CONFIGS = {
     perLink: { points: 5000, duration: 60 } // 5000/min per link
   },
   // QR Code generation
-  'GET /api/v1/links/by-code/:code/qr': {
+  'GET /api/links/by-code/:code/qr': {
     guest: { points: 30, duration: 3600 }, // 30/hour
     auth: { points: 120, duration: 3600 } // 120/hour
   },
   // Analytics
-  'GET /api/v1/analytics/*': {
+  'GET /api/analytics/*': {
     guest: null, // Not allowed
     auth: { points: 60, duration: 60 } // 60/min
   },
   // Admin actions
-  'POST /api/v1/admin/*': {
+  'POST /api/admin/*': {
     guest: null, // Not allowed
     auth: { points: 30, duration: 60 } // 30/min
   },

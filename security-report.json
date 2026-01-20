@@ -71,19 +71,19 @@
     },
     {
       "category": "Authentication",
-      "check": "Protected: /api/v1/me",
+      "check": "Protected: /api/me",
       "status": "fail",
       "details": "Status: 200 (expected 401)"
     },
     {
       "category": "Authentication",
-      "check": "Protected: /api/v1/me/export",
+      "check": "Protected: /api/me/export",
       "status": "fail",
       "details": "Status: 200 (expected 401)"
     },
     {
       "category": "Authentication",
-      "check": "Protected: /api/v1/admin/audit",
+      "check": "Protected: /api/admin/audit",
       "status": "fail",
       "details": "Status: 200 (expected 401)"
     },

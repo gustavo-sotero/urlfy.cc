@@ -31,7 +31,7 @@ export async function antiAbuseMiddleware(
   const path = new URL(request.url).pathname;
 
   // Skip health checks
-  if (path.startsWith('/api/v1/health')) {
+  if (path.startsWith('/api/health')) {
     return null;
   }
 
