@@ -7,7 +7,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import type { User } from '@/lib/auth';
 import {
   PaginatedResponse,
@@ -15,7 +14,8 @@ import {
 } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
-import { AdminModel } from './admin.schema';
+import { Elysia, t } from 'elysia';
+import { AdminModels } from './admin.schema';
 import { AdminService } from './admin.service';
 
 const logger = createLogger('admin-controller');
@@ -28,7 +28,7 @@ export const adminController = new Elysia({ prefix: '/admin' })
   // Apply admin authentication middleware
   .use(requireAdmin)
   // Inject models for type inference and OpenAPI
-  .model(AdminModel)
+  .use(AdminModels)
 
   // ─────────────────────────────────────────────────────────────────
   // GLOBAL STATS
@@ -374,7 +374,9 @@ export const adminController = new Elysia({ prefix: '/admin' })
 
         return {
           success: true as const,
-          message: 'Link banned successfully'
+          data: {
+            message: 'Link banned successfully'
+          }
         };
       } catch (error) {
         logger.error('Failed to ban link', {
@@ -446,7 +448,9 @@ export const adminController = new Elysia({ prefix: '/admin' })
 
         return {
           success: true as const,
-          message: 'Link unbanned successfully'
+          data: {
+            message: 'Link unbanned successfully'
+          }
         };
       } catch (error) {
         logger.error('Failed to unban link', {

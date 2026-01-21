@@ -177,10 +177,14 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
         description: 'Get daily click statistics across all user links'
       },
       response: {
-        200: SuccessResponse(
-          t.Array(t.Ref('analytics.timeseries.datapoint')),
-          'Daily stats for all links'
-        ),
+        200: t.Object({
+          success: t.Literal(true),
+          data: t.Array(t.Ref('analytics.timeseries.datapoint')),
+          meta: t.Object({
+            period: t.String(),
+            count: t.Number()
+          })
+        }),
         400: t.Ref('response.error.400'),
         401: t.Ref('response.error.401')
       }
@@ -425,10 +429,14 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
         description: 'Get daily click statistics for a link'
       },
       response: {
-        200: SuccessResponse(
-          t.Array(t.Ref('analytics.timeseries.datapoint')),
-          'Time series data for the link'
-        ),
+        200: t.Object({
+          success: t.Literal(true),
+          data: t.Array(t.Ref('analytics.timeseries.datapoint')),
+          meta: t.Object({
+            period: t.String(),
+            count: t.Number()
+          })
+        }),
         400: t.Ref('response.error.400'),
         401: t.Ref('response.error.401'),
         403: t.Ref('response.error.403')
@@ -487,10 +495,14 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
         description: 'Get daily click statistics for a link'
       },
       response: {
-        200: SuccessResponse(
-          t.Array(t.Ref('analytics.timeseries.datapoint')),
-          'Daily stats for the link'
-        ),
+        200: t.Object({
+          success: t.Literal(true),
+          data: t.Array(t.Ref('analytics.timeseries.datapoint')),
+          meta: t.Object({
+            period: t.String(),
+            count: t.Number()
+          })
+        }),
         400: t.Ref('response.error.400'),
         401: t.Ref('response.error.401'),
         403: t.Ref('response.error.403')

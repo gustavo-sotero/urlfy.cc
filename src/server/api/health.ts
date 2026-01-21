@@ -1,5 +1,5 @@
-import { checkDatabaseHealth } from '@/db';
 import { Elysia, t } from 'elysia';
+import { checkDatabaseHealth } from '@/db';
 import { checkQueueHealth } from '../lib/queue';
 import { checkRedisHealth } from '../lib/redis';
 import { requireAdmin } from '../middleware/auth.middleware';

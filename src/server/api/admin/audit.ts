@@ -18,7 +18,7 @@ import {
 } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import { AdminModel, AuditLogQuery } from '@/server/modules/admin';
+import { AdminModels, AuditLogQuery } from '@/server/modules/admin';
 import { desc, eq } from 'drizzle-orm';
 import { Elysia, t } from 'elysia';
 
@@ -35,7 +35,7 @@ async function _requireAdmin(context: { user?: User }): Promise<boolean> {
 export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   .use(requireAuth)
   // Inject shared models for type inference and OpenAPI docs
-  .model(AdminModel)
+  .use(AdminModels)
 
   // ═══════════════════════════════════════════════════════════════════
   // GET AUDIT LOGS
@@ -247,7 +247,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
       }
     },
     {
-      params: t.Ref('AuditLogIdParam'),
+      params: t.Ref('admin.audit.id.param'),
       detail: {
         tags: ['Admin', 'Audit'],
         summary: 'Get audit log details',
@@ -340,8 +340,8 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
       }
     },
     {
-      params: t.Ref('AuditLogEntityParams'),
-      query: t.Ref('AuditLogLimitQuery'),
+      params: t.Ref('admin.audit.entity.params'),
+      query: t.Ref('admin.audit.limit.query'),
       detail: {
         tags: ['Admin', 'Audit'],
         summary: 'Get audit logs by entity',
@@ -349,18 +349,16 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
           'Retrieve all audit logs for a specific entity (link, user, etc.) - admin only'
       },
       response: {
-        200: SuccessResponse(
-          t.Object({
-            data: t.Array(t.Ref('admin.audit.response')),
-            meta: t.Object({
-              count: t.Number(),
-              limit: t.Number(),
-              entityType: t.String(),
-              entityId: t.String()
-            })
-          }),
-          'Entity audit logs'
-        ),
+        200: t.Object({
+          success: t.Literal(true),
+          data: t.Array(t.Ref('admin.audit.response')),
+          meta: t.Object({
+            count: t.Number(),
+            limit: t.Number(),
+            entityType: t.String(),
+            entityId: t.String()
+          })
+        }),
         401: t.Ref('response.error.401'),
         403: t.Ref('response.error.403'),
         500: t.Ref('response.error.500')
@@ -439,25 +437,23 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
       }
     },
     {
-      params: t.Ref('AuditLogUserParam'),
-      query: t.Ref('AuditLogLimitQuery'),
+      params: t.Ref('admin.audit.user.param'),
+      query: t.Ref('admin.audit.limit.query'),
       detail: {
         tags: ['Admin', 'Audit'],
         summary: 'Get audit logs by user',
         description: 'Retrieve all audit logs for a specific user - admin only'
       },
       response: {
-        200: SuccessResponse(
-          t.Object({
-            data: t.Array(t.Ref('admin.audit.response')),
-            meta: t.Object({
-              count: t.Number(),
-              limit: t.Number(),
-              targetUserId: t.String()
-            })
-          }),
-          'User audit logs'
-        ),
+        200: t.Object({
+          success: t.Literal(true),
+          data: t.Array(t.Ref('admin.audit.response')),
+          meta: t.Object({
+            count: t.Number(),
+            limit: t.Number(),
+            targetUserId: t.String()
+          })
+        }),
         401: t.Ref('response.error.401'),
         403: t.Ref('response.error.403'),
         500: t.Ref('response.error.500')
