@@ -1,9 +1,9 @@
-import { openapi } from '@elysiajs/openapi';
-import { Elysia } from 'elysia';
-import type { OpenAPIV3 } from 'openapi-types';
 import { auth } from '@/lib/auth';
 import { publicApiV1 } from '@/server/api/v1';
 import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
+import { openapi } from '@elysiajs/openapi';
+import { Elysia } from 'elysia';
+import type { OpenAPIV3 } from 'openapi-types';
 // Import response models
 import { ResponseModels } from '@/server/lib/response.schema';
 // Import from feature-based modules
@@ -19,6 +19,81 @@ import { UsersModel, usersController } from '@/server/modules/users';
 import { adminAuditRoutes } from './admin/audit';
 import { healthRoutes } from './health';
 import { consentRoutes, userDataRoutes } from './users/me';
+
+// ═══════════════════════════════════════════════════════════════════
+// PUBLIC API DOCS (ISOLATED INSTANCE)
+// ═══════════════════════════════════════════════════════════════════
+
+const publicDocsApp = new Elysia()
+  .use(ResponseModels)
+  .use(ApiKeysModel)
+  .use(apiKeysController)
+  .use(publicApiV1)
+  .use(
+    openapi({
+      documentation: {
+        info: {
+          title: 'urlfy.cc Public API',
+          version: '1.0.0',
+          description:
+            'Public API documentation for programmatic access (v1 only)',
+          contact: {
+            name: 'API Support',
+            email: 'support@urlfy.cc'
+          }
+        },
+        servers: [
+          {
+            url: 'http://localhost:3000',
+            description: 'Development server'
+          },
+          {
+            url: 'https://urlfy.cc',
+            description: 'Production server'
+          }
+        ],
+        tags: [
+          { name: 'Public API V1', description: 'Public API V1 endpoints' },
+          {
+            name: 'Public API V1 - Links',
+            description: 'Public API V1 link endpoints'
+          },
+          { name: 'API Keys', description: 'API key management' }
+        ],
+        components: {
+          securitySchemes: {
+            bearerAuth: {
+              type: 'http',
+              scheme: 'bearer',
+              bearerFormat: 'JWT',
+              description: 'JWT session token from Better-Auth'
+            },
+            cookieAuth: {
+              type: 'apiKey',
+              in: 'cookie',
+              name: 'urlfy.session',
+              description: 'Session cookie (automatically set by Better-Auth)'
+            },
+            apiKeyAuth: {
+              type: 'apiKey',
+              in: 'header',
+              name: 'x-api-key',
+              description:
+                'API key for programmatic access (format: urlfy_sk_...)'
+            }
+          }
+        },
+        security: [{ apiKeyAuth: [] }, { bearerAuth: [] }, { cookieAuth: [] }]
+      },
+      path: '/docs',
+      exclude: {
+        paths: ['/docs*']
+      },
+      scalar: {
+        url: '/api/docs/json'
+      }
+    })
+  );
 
 // ═══════════════════════════════════════════════════════════════════
 // API PRINCIPAL
@@ -60,16 +135,10 @@ export const api = new Elysia({ prefix: '/api' })
         ],
         tags: [
           { name: 'Health', description: 'Health check endpoints' },
-          {
-            name: 'Better-Auth',
-            description:
-              'Better-Auth authentication and authorization endpoints'
-          },
           { name: 'Auth', description: 'Authentication endpoints' },
           { name: '2FA', description: 'Two-factor authentication' },
           { name: 'Sessions', description: 'Session management' },
           { name: 'API Keys', description: 'API key management' },
-          { name: 'Public API V1', description: 'Public API V1 endpoints' },
           {
             name: 'Public API V1 - Links',
             description: 'Public API V1 link endpoints'
@@ -77,9 +146,7 @@ export const api = new Elysia({ prefix: '/api' })
           { name: 'Users', description: 'User profile and data' },
           { name: 'Links', description: 'Link management and shortening' },
           { name: 'Admin', description: 'Admin-only endpoints' },
-          { name: 'Stats', description: 'Statistics and analytics' },
-          { name: 'LGPD/GDPR', description: 'Data compliance endpoints' },
-          { name: 'Documentation', description: 'API documentation endpoints' }
+          { name: 'Stats', description: 'Statistics and analytics' }
         ],
         components: {
           securitySchemes: {
@@ -108,18 +175,18 @@ export const api = new Elysia({ prefix: '/api' })
       },
       path: '/internal/docs',
       exclude: {
-        paths: ['/auth/*', '/docs/merged.json']
+        paths: ['/auth/*', '/internal/docs/*', '/docs/*']
       },
       // Configure Scalar UI to use merged spec (includes Better-Auth endpoints)
       scalar: {
-        url: '/api/docs/merged.json'
+        url: '/api/internal/docs/merged.json'
       }
     })
   )
 
   // Merged OpenAPI spec endpoint
   .get(
-    '/docs/merged.json',
+    '/internal/docs/merged.json',
     async () => {
       // Get Elysia spec from the openapi plugin
       const getElysiaSpec = async (): Promise<OpenAPIV3.Document> => {
@@ -150,6 +217,23 @@ export const api = new Elysia({ prefix: '/api' })
       hide: true // Exclude from Elysia OpenAPI (documented separately via Better-Auth)
     }
   })
+
+  // Public API Docs (proxy to isolated instance)
+  .all(
+    '/docs*',
+    ({ request }) => {
+      const url = new URL(request.url);
+      const proxiedPath = url.pathname.replace(/^\/api/, '') + url.search;
+      return publicDocsApp.handle(
+        new Request(`http://localhost${proxiedPath}`, request)
+      );
+    },
+    {
+      detail: {
+        hide: true
+      }
+    }
+  )
 
   // Health check
 

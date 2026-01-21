@@ -13,8 +13,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import type { OpenAPIV3 } from 'openapi-types';
 import { auth } from '@/lib/auth';
+import type { OpenAPIV3 } from 'openapi-types';
 
 // ═══════════════════════════════════════════════════════════════════
 // CACHE CONFIGURATION
@@ -132,14 +132,6 @@ function mergeSpecs(
   );
 
   merged.tags = [...(elysiaSpec.tags || []), ...betterAuthTags];
-
-  // Add Better-Auth tag if not present
-  if (!merged.tags.some((tag) => tag.name === 'Better-Auth')) {
-    merged.tags.push({
-      name: 'Better-Auth',
-      description: 'Authentication and authorization endpoints from Better-Auth'
-    });
-  }
 
   return merged;
 }
