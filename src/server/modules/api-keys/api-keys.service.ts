@@ -1,0 +1,219 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * API KEYS SERVICE - Business logic for key management
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
+import { and, desc, eq, isNull } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { db } from '@/db';
+import { apikey } from '@/db/schema/auth';
+import { parseScopes, serializeScopes } from '@/server/config/scopes';
+import type {
+  ApiKeyCreated,
+  ApiKeyPublic,
+  CreateApiKeyInput
+} from '@/types/api-keys.types';
+
+// ─── Key Generation ───────────────────────────────────────────────
+
+function generateApiKey(): { key: string; prefix: string; hash: string } {
+  const prefix = 'urlfy_sk'; // sk = secret key
+  const secret = nanoid(32); // 32 char random string
+  const key = `${prefix}_${secret}`;
+
+  // Hash for secure storage lookup (optional, depends on your security model)
+  const hash = Bun.hash(key).toString(16);
+
+  return { key, prefix, hash };
+}
+
+// ─── Status Determination ─────────────────────────────────────────
+
+function determineKeyStatus(
+  key: typeof apikey.$inferSelect
+): ApiKeyPublic['status'] {
+  if (key.revokedAt) return 'revoked';
+  if (key.expiresAt && key.expiresAt < new Date()) return 'expired';
+
+  const limit = key.remaining ?? key.rateLimitMax ?? 1000;
+  if (key.usageCount && key.usageCount >= limit) return 'quota_exceeded';
+
+  return 'active';
+}
+
+// ─── Transform DB Record to Public ────────────────────────────────
+
+function toPublic(key: typeof apikey.$inferSelect): ApiKeyPublic {
+  return {
+    id: key.id,
+    name: key.name,
+    prefix: key.prefix ?? key.keyPrefix ?? null,
+    scopes: parseScopes(key.permissions),
+    createdAt: key.createdAt,
+    lastUsedAt: key.lastUsedAt ?? null,
+    expiresAt: key.expiresAt ?? null,
+    usageCount: key.usageCount ?? 0,
+    rateLimit: {
+      enabled: key.rateLimitEnabled ?? true,
+      max: key.rateLimitMax ?? 1000,
+      windowMs: key.rateLimitTimeWindow ?? 3600000
+    },
+    status: determineKeyStatus(key)
+  };
+}
+
+// ─── Service Class ────────────────────────────────────────────────
+
+// biome-ignore lint/complexity/noStaticOnlyClass: Intentional pattern per ElysiaJS best practices for stateless services
+export abstract class ApiKeysService {
+  /**
+   * List all API keys for a user.
+   */
+  static async listByUser(userId: string): Promise<ApiKeyPublic[]> {
+    const keys = await db
+      .select()
+      .from(apikey)
+      .where(and(eq(apikey.userId, userId), isNull(apikey.deletedAt)))
+      .orderBy(desc(apikey.createdAt));
+
+    return keys.map(toPublic);
+  }
+
+  /**
+   * Get a single API key by ID (must belong to user).
+   */
+  static async getById(
+    keyId: string,
+    userId: string
+  ): Promise<ApiKeyPublic | null> {
+    const [key] = await db
+      .select()
+      .from(apikey)
+      .where(
+        and(
+          eq(apikey.id, keyId),
+          eq(apikey.userId, userId),
+          isNull(apikey.deletedAt)
+        )
+      )
+      .limit(1);
+
+    return key ? toPublic(key) : null;
+  }
+
+  /**
+   * Create a new API key.
+   * Returns the full key (only shown once).
+   */
+  static async create(
+    userId: string,
+    input: CreateApiKeyInput
+  ): Promise<ApiKeyCreated> {
+    const { key, prefix, hash } = generateApiKey();
+    const id = nanoid();
+
+    const [created] = await db
+      .insert(apikey)
+      .values({
+        id,
+        userId,
+        key,
+        keyHash: hash,
+        prefix,
+        keyPrefix: prefix,
+        name: input.name,
+        permissions: serializeScopes(input.scopes),
+        expiresAt: input.expiresAt ?? null,
+        rateLimitEnabled: input.rateLimit?.enabled ?? true,
+        rateLimitMax: input.rateLimit?.max ?? 1000,
+        rateLimitTimeWindow: input.rateLimit?.windowMs ?? 3600000,
+        enabled: true,
+        usageCount: 0
+      })
+      .returning();
+
+    return {
+      ...toPublic(created),
+      key // Only returned on creation
+    };
+  }
+
+  /**
+   * Revoke an API key (soft delete).
+   */
+  static async revoke(
+    keyId: string,
+    userId: string,
+    reason?: string
+  ): Promise<boolean> {
+    const [result] = await db
+      .update(apikey)
+      .set({
+        revokedAt: new Date(),
+        metadata: reason ? JSON.stringify({ revokeReason: reason }) : undefined
+      })
+      .where(
+        and(
+          eq(apikey.id, keyId),
+          eq(apikey.userId, userId),
+          isNull(apikey.deletedAt),
+          isNull(apikey.revokedAt)
+        )
+      )
+      .returning({ id: apikey.id });
+
+    return !!result;
+  }
+
+  /**
+   * Permanently delete an API key.
+   */
+  static async delete(keyId: string, userId: string): Promise<boolean> {
+    const [result] = await db
+      .delete(apikey)
+      .where(and(eq(apikey.id, keyId), eq(apikey.userId, userId)))
+      .returning({ id: apikey.id });
+
+    return !!result;
+  }
+
+  /**
+   * Rollover: Create new key and revoke old one atomically.
+   */
+  static async rollover(
+    keyId: string,
+    userId: string
+  ): Promise<ApiKeyCreated | null> {
+    const [existing] = await db
+      .select()
+      .from(apikey)
+      .where(
+        and(
+          eq(apikey.id, keyId),
+          eq(apikey.userId, userId),
+          isNull(apikey.deletedAt)
+        )
+      )
+      .limit(1);
+
+    if (!existing) return null;
+
+    // Create new key with same config
+    const newKey = await ApiKeysService.create(userId, {
+      name: `${existing.name ?? 'API Key'} (Rollover)`,
+      scopes: parseScopes(existing.permissions),
+      expiresAt: existing.expiresAt,
+      rateLimit: {
+        enabled: existing.rateLimitEnabled ?? true,
+        max: existing.rateLimitMax ?? 1000,
+        windowMs: existing.rateLimitTimeWindow ?? 3600000
+      }
+    });
+
+    // Revoke old key
+    await ApiKeysService.revoke(keyId, userId, 'Replaced by rollover');
+
+    return newKey;
+  }
+}

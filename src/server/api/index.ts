@@ -1,8 +1,9 @@
-import { auth } from '@/lib/auth';
-import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import type { OpenAPIV3 } from 'openapi-types';
+import { auth } from '@/lib/auth';
+import { publicApiV1 } from '@/server/api/v1';
+import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 // Import response models
 import { ResponseModels } from '@/server/lib/response.schema';
 // Import from feature-based modules
@@ -11,6 +12,7 @@ import {
   AnalyticsModel,
   analyticsController
 } from '@/server/modules/analytics';
+import { ApiKeysModel, apiKeysController } from '@/server/modules/api-keys';
 import { AuthModels, authController } from '@/server/modules/auth';
 import { LinksModel, linksController } from '@/server/modules/links';
 import { UsersModel, usersController } from '@/server/modules/users';
@@ -30,6 +32,7 @@ export const api = new Elysia({ prefix: '/api' })
   .use(UsersModel)
   .use(AnalyticsModel)
   .use(AdminModels)
+  .use(ApiKeysModel)
 
   // OpenAPI Documentation - Scalar UI will be configured to use merged spec
   .use(
@@ -66,6 +69,11 @@ export const api = new Elysia({ prefix: '/api' })
           { name: '2FA', description: 'Two-factor authentication' },
           { name: 'Sessions', description: 'Session management' },
           { name: 'API Keys', description: 'API key management' },
+          { name: 'Public API V1', description: 'Public API V1 endpoints' },
+          {
+            name: 'Public API V1 - Links',
+            description: 'Public API V1 link endpoints'
+          },
           { name: 'Users', description: 'User profile and data' },
           { name: 'Links', description: 'Link management and shortening' },
           { name: 'Admin', description: 'Admin-only endpoints' },
@@ -137,7 +145,11 @@ export const api = new Elysia({ prefix: '/api' })
   )
 
   // Better-Auth routes (must be first, as it handles /api/auth/*)
-  .all('/auth/*', ({ request }) => auth.handler(request))
+  .all('/auth/*', ({ request }) => auth.handler(request), {
+    detail: {
+      hide: true // Exclude from Elysia OpenAPI (documented separately via Better-Auth)
+    }
+  })
 
   // Health check
 
@@ -149,12 +161,16 @@ export const api = new Elysia({ prefix: '/api' })
       .use(userDataRoutes)
       .use(consentRoutes)
       .use(usersController)
+      .use(apiKeysController)
       .use(linksController)
       .use(analyticsController)
       // Admin routes
       .use(adminController)
       .group('/admin', (admin) => admin.use(adminAuditRoutes))
   )
+
+  // Public API v1
+  .use(publicApiV1)
 
   // Add request ID to all responses
   .derive(({ request }) => {
