@@ -7,6 +7,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import type { User } from '@/lib/auth';
 import {
   PaginatedResponse,
@@ -14,7 +15,6 @@ import {
 } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
-import { Elysia, t } from 'elysia';
 import { AdminModels } from './admin.schema';
 import { AdminService } from './admin.service';
 

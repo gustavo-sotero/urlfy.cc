@@ -8,9 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
-import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import {
   apiKey as apiKeyTable,
@@ -26,6 +23,9 @@ import type {
   ApiKeyPermissions,
   NormalizedApiKeyPermissions
 } from '@/types/auth.types';
+import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
+import { nanoid } from 'nanoid';
 
 import {
   ApiKeyCreateBody,
@@ -188,7 +188,8 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
       detail: {
         tags: ['Auth'],
         summary: 'Get current session details',
-        description: 'Returns the current user session with full user details'
+        description: 'Returns the current user session with full user details',
+        security: [] // Public endpoint - returns null session if not authenticated
       },
       response: {
         200: SuccessResponse(t.Ref('auth.session.response'))

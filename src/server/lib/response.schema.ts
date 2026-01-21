@@ -4,11 +4,58 @@
  * ═════════════════════════════════════════════════════════════════════
  * Module: Core Library
  * Pattern: TypeBox schemas for OpenAPI response documentation
- * Spec: plan-fixOpenapiResponseSchemas.prompt.md
+ * Spec: plan-openApiResponses.prompt.md
+ *
+ * This module provides:
+ * - SuccessResponse<T>: Wrapper for successful API responses
+ * - PaginatedResponse<T>: Wrapper for paginated list responses
+ * - ErrorResponse: Standard error envelope
+ * - CommonErrors: Pre-defined error schemas by HTTP status code
+ * - ResponseModels: Elysia plugin registering all response models
  * ═════════════════════════════════════════════════════════════════════
  */
 
 import { Elysia, type TSchema, t } from 'elysia';
+
+// ═══════════════════════════════════════════════════════════════════
+// ERROR CODES ENUM (Single Source of Truth)
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * All possible error codes used in the API.
+ * Aligned with docs/api/endpoints.md
+ */
+export const ErrorCodes = t.Union(
+  [
+    t.Literal('VALIDATION_ERROR'),
+    t.Literal('UNAUTHORIZED'),
+    t.Literal('PASSWORD_REQUIRED'),
+    t.Literal('INVALID_PASSWORD'),
+    t.Literal('FORBIDDEN'),
+    t.Literal('NOT_FOUND'),
+    t.Literal('LINK_NOT_FOUND'),
+    t.Literal('USER_NOT_FOUND'),
+    t.Literal('SESSION_NOT_FOUND'),
+    t.Literal('LINK_EXPIRED'),
+    t.Literal('REDIRECT_LOOP'),
+    t.Literal('URL_MALICIOUS'),
+    t.Literal('INVALID_URL'),
+    t.Literal('RATE_LIMITED'),
+    t.Literal('LINK_BANNED'),
+    t.Literal('QUOTA_EXCEEDED'),
+    t.Literal('INTERNAL_ERROR'),
+    t.Literal('REQUEST_ALREADY_EXISTS'),
+    t.Literal('CONFLICT'),
+    t.Literal('EMAIL_VERIFICATION_REQUIRED'),
+    t.Literal('INVALID_IDEMPOTENCY_KEY'),
+    t.Literal('EXPORT_FAILED'),
+    t.Literal('DELETION_FAILED'),
+    t.Literal('NO_DATA'),
+    t.Literal('INVALID_DAYS_RANGE'),
+    t.Literal('2FA_REQUIRED')
+  ],
+  { description: 'Standard API error codes' }
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // RESPONSE WRAPPER TYPES
@@ -25,134 +72,395 @@ export const SuccessResponse = <T extends TSchema>(
 ) =>
   t.Object(
     {
-      success: t.Literal(true),
+      success: t.Literal(true, { default: true }),
       data: dataSchema
     },
-    { description: description ?? 'Successful response' }
+    {
+      description: description ?? 'Successful response',
+      examples: [{ success: true, data: {} }]
+    }
   );
 
 /**
  * Creates a paginated success response schema wrapper
  * @param itemSchema - The schema for each item in the `data` array
+ * @param description - Optional description for OpenAPI docs
  */
-export const PaginatedResponse = <T extends TSchema>(itemSchema: T) =>
-  t.Object({
-    success: t.Literal(true),
-    data: t.Array(itemSchema),
-    meta: t.Object({
-      total: t.Number({ description: 'Total number of items' }),
-      page: t.Number({ description: 'Current page number' }),
-      perPage: t.Number({ description: 'Items per page' }),
-      lastPage: t.Number({ description: 'Last page number' }),
-      hasMore: t.Boolean({ description: 'Whether there are more pages' })
-    })
-  });
+export const PaginatedResponse = <T extends TSchema>(
+  itemSchema: T,
+  description?: string
+) =>
+  t.Object(
+    {
+      success: t.Literal(true, { default: true }),
+      data: t.Array(itemSchema),
+      meta: t.Object(
+        {
+          total: t.Number({
+            description: 'Total number of items',
+            examples: [100]
+          }),
+          page: t.Number({ description: 'Current page number', examples: [1] }),
+          perPage: t.Number({ description: 'Items per page', examples: [20] }),
+          lastPage: t.Number({
+            description: 'Last page number',
+            examples: [5]
+          }),
+          hasMore: t.Boolean({
+            description: 'Whether there are more pages',
+            examples: [true]
+          })
+        },
+        { description: 'Pagination metadata' }
+      )
+    },
+    {
+      description: description ?? 'Paginated response'
+    }
+  );
 
 /**
- * Standard error response schema
+ * Standard error response schema with examples
  */
 export const ErrorResponse = t.Object(
   {
-    success: t.Literal(false),
-    error: t.Object({
-      code: t.String({ description: 'Error code (e.g., VALIDATION_ERROR)' }),
-      message: t.String({ description: 'Human-readable error message' }),
-      details: t.Optional(
-        t.Unknown({ description: 'Additional error details' })
-      )
-    }),
-    requestId: t.Optional(t.String({ description: 'Request correlation ID' }))
+    success: t.Literal(false, { default: false }),
+    error: t.Object(
+      {
+        code: t.String({
+          description: 'Error code for programmatic handling',
+          examples: ['VALIDATION_ERROR', 'NOT_FOUND', 'UNAUTHORIZED']
+        }),
+        message: t.String({
+          description: 'Human-readable error message',
+          examples: ['Validation failed', 'Resource not found']
+        }),
+        details: t.Optional(
+          t.Unknown({
+            description: 'Additional error context (validation errors, etc.)'
+          })
+        )
+      },
+      { description: 'Error details' }
+    ),
+    requestId: t.Optional(
+      t.String({
+        description: 'Request correlation ID for debugging',
+        examples: ['req_abc123xyz']
+      })
+    )
   },
-  { description: 'Error response' }
+  {
+    description: 'Standard error response envelope',
+    examples: [
+      {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid input data'
+        },
+        requestId: 'req_abc123xyz'
+      }
+    ]
+  }
 );
 
 // ═══════════════════════════════════════════════════════════════════
-// COMMON ERROR RESPONSES BY STATUS CODE
+// COMMON ERROR RESPONSES BY STATUS CODE (with examples)
 // ═══════════════════════════════════════════════════════════════════
 
 export const CommonErrors = {
-  400: ErrorResponse,
-  401: t.Object({
-    success: t.Literal(false),
-    error: t.Object({
-      code: t.Literal('UNAUTHORIZED'),
-      message: t.String()
-    })
-  }),
-  403: t.Object({
-    success: t.Literal(false),
-    error: t.Object({
-      code: t.Literal('FORBIDDEN'),
-      message: t.String()
-    })
-  }),
-  404: t.Object({
-    success: t.Literal(false),
-    error: t.Object({
-      code: t.Literal('NOT_FOUND'),
-      message: t.String()
-    })
-  }),
-  409: t.Object({
-    success: t.Literal(false),
-    error: t.Object({
-      code: t.Union([
-        t.Literal('REQUEST_ALREADY_EXISTS'),
-        t.Literal('CONFLICT')
-      ]),
-      message: t.String(),
-      details: t.Optional(t.Unknown())
-    })
-  }),
-  410: t.Object({
-    success: t.Literal(false),
-    error: t.Object({
-      code: t.Literal('LINK_EXPIRED'),
-      message: t.String()
-    })
-  }),
-  421: t.Object({
-    success: t.Literal(false),
-    error: t.Object({
-      code: t.Literal('REDIRECT_LOOP'),
-      message: t.String()
-    })
-  }),
-  422: t.Object({
-    success: t.Literal(false),
-    error: t.Object({
-      code: t.Union([
-        t.Literal('URL_MALICIOUS'),
-        t.Literal('VALIDATION_ERROR'),
-        t.Literal('INVALID_URL')
-      ]),
-      message: t.String()
-    })
-  }),
-  429: t.Object({
-    success: t.Literal(false),
-    error: t.Object({
-      code: t.Literal('RATE_LIMITED'),
-      message: t.String(),
-      retryAfter: t.Optional(
-        t.Number({ description: 'Seconds until retry allowed' })
-      )
-    })
-  }),
-  451: t.Object({
-    success: t.Literal(false),
-    error: t.Object({
-      code: t.Literal('LINK_BANNED'),
-      message: t.String()
-    })
-  }),
-  500: t.Object({
-    success: t.Literal(false),
-    error: t.Object({
-      code: t.Literal('INTERNAL_ERROR'),
-      message: t.String()
-    })
-  })
+  400: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.String({
+          examples: ['VALIDATION_ERROR', 'INVALID_IDEMPOTENCY_KEY']
+        }),
+        message: t.String({
+          examples: ['Invalid input data', 'Idempotency key is invalid']
+        }),
+        details: t.Optional(t.Unknown())
+      }),
+      requestId: t.Optional(t.String({ examples: ['req_abc123xyz'] }))
+    },
+    {
+      description: 'Bad Request - Invalid input or validation error',
+      examples: [
+        {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'URL is required' },
+          requestId: 'req_abc123xyz'
+        }
+      ]
+    }
+  ),
+
+  401: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Union([
+          t.Literal('UNAUTHORIZED'),
+          t.Literal('INVALID_PASSWORD'),
+          t.Literal('PASSWORD_REQUIRED')
+        ]),
+        message: t.String({
+          examples: ['Authentication required', 'Invalid password']
+        })
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description:
+        'Unauthorized - Authentication required or invalid credentials',
+      examples: [
+        {
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+        }
+      ]
+    }
+  ),
+
+  403: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Union([
+          t.Literal('FORBIDDEN'),
+          t.Literal('EMAIL_VERIFICATION_REQUIRED'),
+          t.Literal('2FA_REQUIRED'),
+          t.Literal('QUOTA_EXCEEDED')
+        ]),
+        message: t.String({
+          examples: ['Access denied', 'Email verification required']
+        })
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description:
+        'Forbidden - Insufficient permissions or verification required',
+      examples: [
+        {
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You do not have permission to access this resource'
+          }
+        }
+      ]
+    }
+  ),
+
+  404: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Union([
+          t.Literal('NOT_FOUND'),
+          t.Literal('LINK_NOT_FOUND'),
+          t.Literal('USER_NOT_FOUND'),
+          t.Literal('SESSION_NOT_FOUND')
+        ]),
+        message: t.String({ examples: ['Link not found', 'User not found'] })
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description: 'Not Found - Resource does not exist',
+      examples: [
+        {
+          success: false,
+          error: { code: 'LINK_NOT_FOUND', message: 'Link not found' }
+        }
+      ]
+    }
+  ),
+
+  409: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Union([
+          t.Literal('REQUEST_ALREADY_EXISTS'),
+          t.Literal('CONFLICT')
+        ]),
+        message: t.String({
+          examples: ['A deletion request already exists', 'Resource conflict']
+        }),
+        details: t.Optional(t.Unknown())
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description: 'Conflict - Resource already exists or operation conflicts',
+      examples: [
+        {
+          success: false,
+          error: { code: 'CONFLICT', message: 'Custom alias already in use' }
+        }
+      ]
+    }
+  ),
+
+  410: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Literal('LINK_EXPIRED'),
+        message: t.String({ examples: ['This link has expired'] })
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description: 'Gone - Link has expired',
+      examples: [
+        {
+          success: false,
+          error: {
+            code: 'LINK_EXPIRED',
+            message: 'This link expired on 2026-01-01T00:00:00Z'
+          }
+        }
+      ]
+    }
+  ),
+
+  421: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Literal('REDIRECT_LOOP'),
+        message: t.String({ examples: ['Redirect depth exceeded (max: 3)'] })
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description: 'Misdirected Request - Redirect loop detected',
+      examples: [
+        {
+          success: false,
+          error: {
+            code: 'REDIRECT_LOOP',
+            message: 'Redirect depth exceeded (max: 3)'
+          }
+        }
+      ]
+    }
+  ),
+
+  422: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Union([
+          t.Literal('URL_MALICIOUS'),
+          t.Literal('VALIDATION_ERROR'),
+          t.Literal('INVALID_URL')
+        ]),
+        message: t.String({
+          examples: ['URL detected as malicious', 'Invalid URL format']
+        })
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description: 'Unprocessable Entity - URL validation failed',
+      examples: [
+        {
+          success: false,
+          error: {
+            code: 'URL_MALICIOUS',
+            message: 'URL detected as potentially malicious'
+          }
+        }
+      ]
+    }
+  ),
+
+  429: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Literal('RATE_LIMITED'),
+        message: t.String({
+          examples: ['Too many requests, please try again later']
+        }),
+        retryAfter: t.Optional(
+          t.Number({
+            description: 'Seconds until retry allowed',
+            examples: [60]
+          })
+        )
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description: 'Too Many Requests - Rate limit exceeded',
+      examples: [
+        {
+          success: false,
+          error: {
+            code: 'RATE_LIMITED',
+            message: 'Rate limit exceeded',
+            retryAfter: 60
+          }
+        }
+      ]
+    }
+  ),
+
+  451: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Literal('LINK_BANNED'),
+        message: t.String({
+          examples: ['This link has been banned for violating terms of service']
+        })
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description:
+        'Unavailable For Legal Reasons - Link banned for TOS violation',
+      examples: [
+        {
+          success: false,
+          error: {
+            code: 'LINK_BANNED',
+            message: 'This link has been banned for violating terms of service'
+          }
+        }
+      ]
+    }
+  ),
+
+  500: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Literal('INTERNAL_ERROR'),
+        message: t.String({ examples: ['Internal server error'] })
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description: 'Internal Server Error',
+      examples: [
+        {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred'
+          },
+          requestId: 'req_abc123xyz'
+        }
+      ]
+    }
+  )
 } as const;
 
 // ═══════════════════════════════════════════════════════════════════

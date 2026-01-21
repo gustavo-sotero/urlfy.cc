@@ -182,52 +182,126 @@ export const ValidateUrlBody = t.Object({
 export type ValidateUrlBodyType = Static<typeof ValidateUrlBody>;
 
 // ═══════════════════════════════════════════════════════════════════
-// LINK RESPONSES
+// LINK RESPONSES (with examples for OpenAPI)
 // ═══════════════════════════════════════════════════════════════════
 
-export const LinkResponse = t.Object({
-  id: t.String(),
-  shortCode: t.String(),
-  shortUrl: t.String(),
-  originalUrl: t.String(),
-  redirectType: t.Union([t.Literal(301), t.Literal(302)]),
-  clicksCount: t.Number(),
-  maxClicks: t.Nullable(t.Number()),
-  isActive: t.Boolean(),
-  isBanned: t.Boolean(),
-  bannedReason: t.Nullable(t.String()),
-  isProtected: t.Boolean(),
-  expiresAt: t.Nullable(t.String()),
-  metaTitle: t.Nullable(t.String()),
-  metaDescription: t.Nullable(t.String()),
-  metaImage: t.Nullable(t.String()),
-  utmSource: t.Nullable(t.String()),
-  utmMedium: t.Nullable(t.String()),
-  utmCampaign: t.Nullable(t.String()),
-  tags: t.Nullable(t.Array(t.String())),
-  notes: t.Nullable(t.String()),
-  lastClickedAt: t.Nullable(t.String()),
-  createdAt: t.String(),
-  updatedAt: t.String()
-});
+export const LinkResponse = t.Object(
+  {
+    id: t.String({ examples: ['550e8400-e29b-41d4-a716-446655440000'] }),
+    shortCode: t.String({ examples: ['abc123'] }),
+    shortUrl: t.String({ examples: ['https://urlfy.cc/abc123'] }),
+    originalUrl: t.String({ examples: ['https://example.com/very-long-url'] }),
+    redirectType: t.Union([t.Literal(301), t.Literal(302)], {
+      description: '301 (permanent) or 302 (temporary)',
+      examples: [302]
+    }),
+    clicksCount: t.Number({ examples: [42] }),
+    maxClicks: t.Nullable(t.Number({ examples: [1000] })),
+    isActive: t.Boolean({ examples: [true] }),
+    isBanned: t.Boolean({ examples: [false] }),
+    bannedReason: t.Nullable(t.String()),
+    isProtected: t.Boolean({
+      description: 'Whether link is password protected',
+      examples: [false]
+    }),
+    expiresAt: t.Nullable(t.String({ examples: ['2026-02-01T00:00:00Z'] })),
+    metaTitle: t.Nullable(t.String({ examples: ['Custom Title'] })),
+    metaDescription: t.Nullable(
+      t.String({ examples: ['Custom description for social sharing'] })
+    ),
+    metaImage: t.Nullable(
+      t.String({ examples: ['https://cdn.example.com/image.png'] })
+    ),
+    utmSource: t.Nullable(t.String({ examples: ['twitter'] })),
+    utmMedium: t.Nullable(t.String({ examples: ['social'] })),
+    utmCampaign: t.Nullable(t.String({ examples: ['launch'] })),
+    tags: t.Nullable(
+      t.Array(t.String(), { examples: [['marketing', 'campaign']] })
+    ),
+    notes: t.Nullable(t.String({ examples: ['Internal campaign link'] })),
+    lastClickedAt: t.Nullable(t.String({ examples: ['2026-01-06T12:30:00Z'] })),
+    createdAt: t.String({ examples: ['2026-01-06T12:00:00Z'] }),
+    updatedAt: t.String({ examples: ['2026-01-06T12:00:00Z'] })
+  },
+  {
+    description: 'Complete link object with all properties',
+    examples: [
+      {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        shortCode: 'abc123',
+        shortUrl: 'https://urlfy.cc/abc123',
+        originalUrl: 'https://example.com/very-long-url',
+        redirectType: 302,
+        clicksCount: 42,
+        maxClicks: null,
+        isActive: true,
+        isBanned: false,
+        bannedReason: null,
+        isProtected: false,
+        expiresAt: null,
+        metaTitle: null,
+        metaDescription: null,
+        metaImage: null,
+        utmSource: null,
+        utmMedium: null,
+        utmCampaign: null,
+        tags: null,
+        notes: null,
+        lastClickedAt: null,
+        createdAt: '2026-01-06T12:00:00Z',
+        updatedAt: '2026-01-06T12:00:00Z'
+      }
+    ]
+  }
+);
 export type LinkResponseType = Static<typeof LinkResponse>;
 
-export const LinkPreviewResponse = t.Object({
-  shortCode: t.String(),
-  originalUrl: t.String(),
-  metaTitle: t.Nullable(t.String()),
-  metaDescription: t.Nullable(t.String()),
-  metaImage: t.Nullable(t.String()),
-  createdAt: t.String(),
-  isPasswordProtected: t.Boolean()
-});
+export const LinkPreviewResponse = t.Object(
+  {
+    shortCode: t.String({ examples: ['abc123'] }),
+    originalUrl: t.String({ examples: ['https://example.com'] }),
+    metaTitle: t.Nullable(t.String({ examples: ['Example Domain'] })),
+    metaDescription: t.Nullable(
+      t.String({ examples: ['This domain is for use in examples.'] })
+    ),
+    metaImage: t.Nullable(t.String()),
+    createdAt: t.String({ examples: ['2026-01-06T12:00:00Z'] }),
+    isPasswordProtected: t.Boolean({ examples: [false] })
+  },
+  {
+    description: 'Link preview information for public display',
+    examples: [
+      {
+        shortCode: 'abc123',
+        originalUrl: 'https://example.com',
+        metaTitle: 'Example Domain',
+        metaDescription: 'This domain is for use in examples.',
+        metaImage: null,
+        createdAt: '2026-01-06T12:00:00Z',
+        isPasswordProtected: false
+      }
+    ]
+  }
+);
 export type LinkPreviewResponseType = Static<typeof LinkPreviewResponse>;
 
-export const LinkStatsResponse = t.Object({
-  clicks: t.Number(),
-  uniqueVisitors: t.Number(),
-  lastClickedAt: t.Nullable(t.String())
-});
+export const LinkStatsResponse = t.Object(
+  {
+    clicks: t.Number({ examples: [1234] }),
+    uniqueVisitors: t.Number({ examples: [890] }),
+    lastClickedAt: t.Nullable(t.String({ examples: ['2026-01-06T11:30:00Z'] }))
+  },
+  {
+    description: 'Quick link statistics',
+    examples: [
+      {
+        clicks: 1234,
+        uniqueVisitors: 890,
+        lastClickedAt: '2026-01-06T11:30:00Z'
+      }
+    ]
+  }
+);
 export type LinkStatsResponseType = Static<typeof LinkStatsResponse>;
 
 // ═══════════════════════════════════════════════════════════════════

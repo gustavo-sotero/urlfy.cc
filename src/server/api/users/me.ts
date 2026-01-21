@@ -148,7 +148,11 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
               originalUrl: link.originalUrl,
               createdAt: link.createdAt.toISOString()
             })),
-            analyticsOverview: exportData.analyticsOverview
+            analyticsOverview: {
+              totalClicks: exportData.analyticsOverview.totalClicks,
+              uniqueVisitors: exportData.analyticsOverview.uniqueVisitors,
+              linksCount: exportData.links.length
+            }
           }
         };
       } catch (error) {
@@ -170,17 +174,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
           'Returns a complete export of all user data including profile, links, and analytics overview (LGPD/GDPR compliance)'
       },
       response: {
-        200: SuccessResponse(
-          t.Object({
-            user: t.Ref('users.profile'),
-            links: t.Array(t.Ref('links.response')),
-            analyticsOverview: t.Object({
-              totalClicks: t.Number(),
-              uniqueVisitors: t.Number()
-            })
-          }),
-          'User data export'
-        ),
+        200: SuccessResponse(t.Ref('users.export'), 'User data export'),
         401: t.Ref('response.error.401'),
         500: t.Ref('response.error.500')
       }
@@ -444,7 +438,7 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
       },
       body: t.Ref('users.consent.body'),
       response: {
-        200: SuccessResponse(t.Ref('users.consent.response')),
+        200: SuccessResponse(t.Ref('users.consent.save.response')),
         400: t.Ref('response.error.400'),
         401: t.Ref('response.error.401'),
         500: t.Ref('response.error.500')

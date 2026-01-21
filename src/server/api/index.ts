@@ -1,6 +1,8 @@
+import { auth } from '@/lib/auth';
+import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
-import { auth } from '@/lib/auth';
+import type { OpenAPIV3 } from 'openapi-types';
 // Import response models
 import { ResponseModels } from '@/server/lib/response.schema';
 // Import from feature-based modules
@@ -29,15 +31,15 @@ export const api = new Elysia({ prefix: '/api' })
   .use(AnalyticsModel)
   .use(AdminModels)
 
-  // OpenAPI Documentation
+  // OpenAPI Documentation - Scalar UI will be configured to use merged spec
   .use(
     openapi({
       documentation: {
         info: {
-          title: 'urlfy.cc API',
+          title: 'urlfy.cc Complete API',
           version: '1.0.0',
           description:
-            'High-performance URL shortener with analytics and API access',
+            'Comprehensive API documentation including link management, analytics, authentication (Better-Auth), and admin endpoints',
           contact: {
             name: 'API Support',
             email: 'support@urlfy.cc'
@@ -55,6 +57,11 @@ export const api = new Elysia({ prefix: '/api' })
         ],
         tags: [
           { name: 'Health', description: 'Health check endpoints' },
+          {
+            name: 'Better-Auth',
+            description:
+              'Better-Auth authentication and authorization endpoints'
+          },
           { name: 'Auth', description: 'Authentication endpoints' },
           { name: '2FA', description: 'Two-factor authentication' },
           { name: 'Sessions', description: 'Session management' },
@@ -63,7 +70,8 @@ export const api = new Elysia({ prefix: '/api' })
           { name: 'Links', description: 'Link management and shortening' },
           { name: 'Admin', description: 'Admin-only endpoints' },
           { name: 'Stats', description: 'Statistics and analytics' },
-          { name: 'LGPD/GDPR', description: 'Data compliance endpoints' }
+          { name: 'LGPD/GDPR', description: 'Data compliance endpoints' },
+          { name: 'Documentation', description: 'API documentation endpoints' }
         ],
         components: {
           securitySchemes: {
@@ -92,9 +100,40 @@ export const api = new Elysia({ prefix: '/api' })
       },
       path: '/docs',
       exclude: {
-        paths: ['/auth/*']
+        paths: ['/auth/*', '/docs/merged.json']
+      },
+      // Configure Scalar UI to use merged spec (includes Better-Auth endpoints)
+      scalar: {
+        url: '/api/docs/merged.json'
       }
     })
+  )
+
+  // Merged OpenAPI spec endpoint
+  .get(
+    '/docs/merged.json',
+    async () => {
+      // Get Elysia spec from the openapi plugin
+      const getElysiaSpec = async (): Promise<OpenAPIV3.Document> => {
+        // Access the swagger JSON endpoint internally
+        const elysiaSpecResponse = await api.handle(
+          new Request('http://localhost/api/docs/json')
+        );
+        return (await elysiaSpecResponse.json()) as OpenAPIV3.Document;
+      };
+
+      const mergedSpec = await getMergedOpenAPISpec(getElysiaSpec);
+      return mergedSpec;
+    },
+    {
+      detail: {
+        summary: 'Get merged OpenAPI specification',
+        description:
+          'Returns the complete OpenAPI spec including Elysia and Better-Auth endpoints',
+        tags: ['Documentation'],
+        security: [] // Public endpoint
+      }
+    }
   )
 
   // Better-Auth routes (must be first, as it handles /api/auth/*)

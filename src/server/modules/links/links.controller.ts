@@ -115,24 +115,40 @@ const publicRoutes = new Elysia()
       detail: {
         tags: ['Links'],
         summary: 'Validate URL',
-        description: 'Check if a URL is valid before creating a link'
+        description: 'Check if a URL is valid before creating a link',
+        security: [] // Public endpoint - no authentication required
       },
       response: {
-        200: t.Object({
-          success: t.Literal(true),
-          data: t.Union([
-            t.Object({
-              valid: t.Literal(true),
-              warnings: t.Array(t.String())
-            }),
-            t.Object({
-              valid: t.Literal(false),
-              error: t.Optional(t.String())
-            })
-          ])
-        }),
+        200: t.Object(
+          {
+            success: t.Literal(true),
+            data: t.Union([
+              t.Object({
+                valid: t.Literal(true),
+                warnings: t.Array(t.String())
+              }),
+              t.Object({
+                valid: t.Literal(false),
+                error: t.Optional(t.String())
+              })
+            ])
+          },
+          {
+            description: 'URL validation result',
+            examples: [
+              {
+                success: true,
+                data: {
+                  valid: true,
+                  warnings: []
+                }
+              }
+            ]
+          }
+        ),
         400: t.Ref('response.error.400'),
-        422: t.Ref('response.error.422')
+        422: t.Ref('response.error.422'),
+        429: t.Ref('response.error.429')
       }
     }
   )
@@ -181,17 +197,26 @@ const publicRoutes = new Elysia()
       detail: {
         tags: ['Links'],
         summary: 'Verify link password',
-        description: 'Verify password for password-protected links'
+        description: 'Verify password for password-protected links',
+        security: [] // Public endpoint - no authentication required
       },
       response: {
         200: SuccessResponse(
           t.Object({
-            redirectUrl: t.String({ description: 'Relative redirect URL' }),
-            shortUrl: t.String({ description: 'Full short URL' })
-          })
+            redirectUrl: t.String({
+              description: 'Relative redirect URL',
+              examples: ['/abc123']
+            }),
+            shortUrl: t.String({
+              description: 'Full short URL',
+              examples: ['https://urlfy.cc/abc123']
+            })
+          }),
+          'Password verified successfully'
         ),
         401: t.Ref('response.error.401'),
-        404: t.Ref('response.error.404')
+        404: t.Ref('response.error.404'),
+        429: t.Ref('response.error.429')
       }
     }
   )
@@ -245,12 +270,14 @@ const publicRoutes = new Elysia()
       detail: {
         tags: ['Links'],
         summary: 'Generate QR code',
-        description: 'Generate a QR code image for a short link'
+        description: 'Generate a QR code image for a short link',
+        security: [] // Public endpoint - no authentication required
       },
       response: {
         200: t.File({ description: 'QR Code image (PNG or SVG)' }),
         404: t.Ref('response.error.404'),
-        422: t.Ref('response.error.422')
+        422: t.Ref('response.error.422'),
+        429: t.Ref('response.error.429')
       }
     }
   )
@@ -295,11 +322,13 @@ const publicRoutes = new Elysia()
       detail: {
         tags: ['Links'],
         summary: 'Preview link metadata',
-        description: 'Get link preview information including OG tags'
+        description: 'Get link preview information including OG tags',
+        security: [] // Public endpoint - no authentication required
       },
       response: {
         200: SuccessResponse(t.Ref('links.preview.response')),
-        404: t.Ref('response.error.404')
+        404: t.Ref('response.error.404'),
+        429: t.Ref('response.error.429')
       }
     }
   )
@@ -384,7 +413,8 @@ const publicRoutes = new Elysia()
       detail: {
         tags: ['Links'],
         summary: 'Create short link',
-        description: 'Create a new shortened URL (guest or authenticated)'
+        description: 'Create a new shortened URL (guest or authenticated)',
+        security: [] // Public endpoint - authentication is optional
       },
       response: {
         201: SuccessResponse(
@@ -393,7 +423,9 @@ const publicRoutes = new Elysia()
         ),
         400: t.Ref('response.error.400'),
         403: t.Ref('response.error.403'),
-        422: t.Ref('response.error.422')
+        409: t.Ref('response.error.409'),
+        422: t.Ref('response.error.422'),
+        429: t.Ref('response.error.429')
       }
     }
   );
