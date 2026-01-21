@@ -5,7 +5,7 @@
  * TypeBox schemas for admin endpoints
  */
 
-import { type Static, t } from 'elysia';
+import { Elysia, type Static, t } from 'elysia';
 
 // ═══════════════════════════════════════════════════════════════════
 // AUDIT LOG SCHEMAS
@@ -117,6 +117,25 @@ export const AdminUserUpdateBody = t.Object({
 export type AdminUserUpdateBodyType = Static<typeof AdminUserUpdateBody>;
 
 // ═══════════════════════════════════════════════════════════════════
+// LINK MANAGEMENT SCHEMAS
+// ═══════════════════════════════════════════════════════════════════
+
+export const AdminLinkResponse = t.Object({
+  id: t.String(),
+  shortCode: t.String(),
+  originalUrl: t.String(),
+  userId: t.Nullable(t.String()),
+  clicksCount: t.Number(),
+  isActive: t.Boolean(),
+  isBanned: t.Boolean(),
+  bannedReason: t.Nullable(t.String()),
+  expiresAt: t.Nullable(t.String()),
+  createdAt: t.String(),
+  updatedAt: t.String()
+});
+export type AdminLinkResponseType = Static<typeof AdminLinkResponse>;
+
+// ═══════════════════════════════════════════════════════════════════
 // AUDIT LOG PARAMS AND RESPONSES
 // ═══════════════════════════════════════════════════════════════════
 
@@ -164,9 +183,32 @@ export type AuditStatsSummaryResponseType = Static<
 >;
 
 // ═══════════════════════════════════════════════════════════════════
-// MODEL REGISTRY FOR INJECTION
+// ELYSIA MODEL PLUGIN (for OpenAPI $ref support)
 // ═══════════════════════════════════════════════════════════════════
 
+export const AdminModels = new Elysia({ name: 'admin.model' }).model({
+  'admin.audit.query': AuditLogQuery,
+  'admin.audit.response': AuditLogResponse,
+  'admin.audit.id.param': AuditLogIdParam,
+  'admin.audit.entity.params': AuditLogEntityParams,
+  'admin.audit.user.param': AuditLogUserParam,
+  'admin.audit.limit.query': AuditLogLimitQuery,
+  'admin.audit.stats.summary': AuditStatsSummaryResponse,
+  'admin.link.ban.body': AdminBanLinkBody,
+  'admin.link.response': AdminLinkResponse,
+  'admin.stats.response': AdminStatsResponse,
+  'admin.growth.response': GrowthStatsResponse,
+  'admin.growth.query': GrowthStatsQuery,
+  'admin.user.list.query': AdminUserListQuery,
+  'admin.user.response': AdminUserResponse,
+  'admin.user.update.body': AdminUserUpdateBody,
+  AdminUserListQuery: AdminUserListQuery,
+  AdminBanLinkBody: AdminBanLinkBody,
+  AdminUserUpdateBody: AdminUserUpdateBody,
+  GrowthStatsQuery: GrowthStatsQuery
+});
+
+// Legacy export for backward compatibility
 export const AdminModel = {
   // Audit logs
   AuditLogQuery,
@@ -178,6 +220,7 @@ export const AdminModel = {
   AuditStatsSummaryResponse,
   // Link management
   AdminBanLinkBody,
+  AdminLinkResponse,
   // Stats
   AdminStatsResponse,
   GrowthStatsResponse,

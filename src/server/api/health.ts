@@ -1,5 +1,5 @@
-import { Elysia } from 'elysia';
 import { checkDatabaseHealth } from '@/db';
+import { Elysia, t } from 'elysia';
 import { checkQueueHealth } from '../lib/queue';
 import { checkRedisHealth } from '../lib/redis';
 import { requireAdmin } from '../middleware/auth.middleware';
@@ -13,7 +13,7 @@ const healthSimple = new Elysia()
     '/health',
     async () => {
       return {
-        status: 'ok',
+        status: 'ok' as const,
         timestamp: new Date().toISOString()
       };
     },
@@ -22,6 +22,12 @@ const healthSimple = new Elysia()
         summary: 'Simple health check',
         description: 'Returns basic health status',
         tags: ['Health']
+      },
+      response: {
+        200: t.Object({
+          status: t.Literal('ok'),
+          timestamp: t.String({ format: 'date-time' })
+        })
       }
     }
   )
@@ -40,7 +46,7 @@ const healthSimple = new Elysia()
       }
 
       return {
-        status: isReady ? 'ready' : 'not_ready',
+        status: isReady ? ('ready' as const) : ('not_ready' as const),
         services: {
           database: dbHealth.status,
           redis: redisHealth.status
@@ -52,6 +58,22 @@ const healthSimple = new Elysia()
         summary: 'Readiness check',
         description: 'Checks if all required services are available',
         tags: ['Health']
+      },
+      response: {
+        200: t.Object({
+          status: t.Union([t.Literal('ready'), t.Literal('not_ready')]),
+          services: t.Object({
+            database: t.String(),
+            redis: t.String()
+          })
+        }),
+        503: t.Object({
+          status: t.Literal('not_ready'),
+          services: t.Object({
+            database: t.String(),
+            redis: t.String()
+          })
+        })
       }
     }
   );
@@ -79,7 +101,7 @@ const healthDetailed = new Elysia().use(requireAdmin).get(
       queueHealth.status === 'ok';
 
     return {
-      status: isHealthy ? 'healthy' : 'degraded',
+      status: isHealthy ? ('healthy' as const) : ('degraded' as const),
       timestamp: new Date().toISOString(),
       services: {
         database: {
@@ -114,6 +136,38 @@ const healthDetailed = new Elysia().use(requireAdmin).get(
         'Returns detailed health metrics for all services. Requires admin authentication with 2FA enabled.',
       tags: ['Health', 'Admin'],
       security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+    },
+    response: {
+      200: t.Object({
+        status: t.Union([t.Literal('healthy'), t.Literal('degraded')]),
+        timestamp: t.String({ format: 'date-time' }),
+        services: t.Object({
+          database: t.Object({
+            status: t.String(),
+            latencyMs: t.Optional(t.Number()),
+            error: t.Optional(t.String())
+          }),
+          redis: t.Object({
+            status: t.String(),
+            latencyMs: t.Optional(t.Number()),
+            error: t.Optional(t.String())
+          }),
+          queue: t.Object({
+            status: t.String(),
+            pendingJobs: t.Optional(t.Number()),
+            failedJobs: t.Optional(t.Number())
+          })
+        }),
+        uptime: t.Number(),
+        memory: t.Object({
+          used: t.Number(),
+          total: t.Number(),
+          rss: t.Number()
+        }),
+        latencyMs: t.Number()
+      }),
+      401: t.Ref('response.error.401'),
+      403: t.Ref('response.error.403')
     }
   }
 );

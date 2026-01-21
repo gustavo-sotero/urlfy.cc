@@ -12,6 +12,10 @@
 import { db } from '@/db';
 import { auditLog } from '@/db/schema/audit';
 import type { User } from '@/lib/auth';
+import {
+  PaginatedResponse,
+  SuccessResponse
+} from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import { AdminModel, AuditLogQuery } from '@/server/modules/admin';
@@ -163,6 +167,12 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
         tags: ['Admin', 'Audit'],
         summary: 'List audit logs',
         description: 'Get paginated list of audit logs (admin only)'
+      },
+      response: {
+        200: PaginatedResponse(t.Ref('admin.audit.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -242,6 +252,13 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
         tags: ['Admin', 'Audit'],
         summary: 'Get audit log details',
         description: 'Retrieve a single audit log entry by ID (admin only)'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('admin.audit.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -330,6 +347,23 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
         summary: 'Get audit logs by entity',
         description:
           'Retrieve all audit logs for a specific entity (link, user, etc.) - admin only'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            data: t.Array(t.Ref('admin.audit.response')),
+            meta: t.Object({
+              count: t.Number(),
+              limit: t.Number(),
+              entityType: t.String(),
+              entityId: t.String()
+            })
+          }),
+          'Entity audit logs'
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -411,6 +445,22 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
         tags: ['Admin', 'Audit'],
         summary: 'Get audit logs by user',
         description: 'Retrieve all audit logs for a specific user - admin only'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            data: t.Array(t.Ref('admin.audit.response')),
+            meta: t.Object({
+              count: t.Number(),
+              limit: t.Number(),
+              targetUserId: t.String()
+            })
+          }),
+          'User audit logs'
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -495,6 +545,12 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
         summary: 'Get audit statistics',
         description:
           'Returns aggregated statistics about audit logs including counts by action, entity type, and top users - admin only'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('admin.audit.stats.summary')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        500: t.Ref('response.error.500')
       }
     }
   );

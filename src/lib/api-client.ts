@@ -4,6 +4,7 @@
  * Type-safe wrapper using Elysia Eden Treaty for REST API calls
  */
 
+import { treaty } from '@elysiajs/eden';
 import type { App } from '@/server/api';
 import type {
   AnalyticsBreakdown,
@@ -18,7 +19,6 @@ import type {
   PaginatedResponse,
   UpdateLinkInput
 } from '@/types/links.types';
-import { treaty } from '@elysiajs/eden';
 
 // ═══════════════════════════════════════════════════════════════════
 // EDEN CLIENT INITIALIZATION

@@ -8,7 +8,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { type Static, t } from 'elysia';
+import { Elysia, type Static, t } from 'elysia';
 
 // ═══════════════════════════════════════════════════════════════════
 // LINK CREATE
@@ -231,9 +231,25 @@ export const LinkStatsResponse = t.Object({
 export type LinkStatsResponseType = Static<typeof LinkStatsResponse>;
 
 // ═══════════════════════════════════════════════════════════════════
-// MODEL REGISTRY FOR INJECTION
+// ELYSIA MODEL PLUGIN (for OpenAPI $ref support)
 // ═══════════════════════════════════════════════════════════════════
 
+export const LinksModel = new Elysia({ name: 'links.model' }).model({
+  'links.create': LinkCreateBody,
+  'links.update': LinkUpdateBody,
+  'links.bulk.create': LinkBulkCreateBody,
+  'links.list.query': LinkListQuery,
+  'links.id.param': LinkIdParam,
+  'links.code.param': LinkCodeParam,
+  'links.qr.query': QrCodeQuery,
+  'links.password.verify': VerifyPasswordBody,
+  'links.url.validate': ValidateUrlBody,
+  'links.response': LinkResponse,
+  'links.preview.response': LinkPreviewResponse,
+  'links.stats.response': LinkStatsResponse
+});
+
+// Legacy export for backward compatibility (optional, can be removed after migration)
 export const LinkModel = {
   LinkCreateBody,
   LinkUpdateBody,

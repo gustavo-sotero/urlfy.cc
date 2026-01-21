@@ -9,6 +9,10 @@
 
 import { Elysia, t } from 'elysia';
 import type { User } from '@/lib/auth';
+import {
+  PaginatedResponse,
+  SuccessResponse
+} from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
 import { AdminModel } from './admin.schema';
@@ -59,17 +63,10 @@ export const adminController = new Elysia({ prefix: '/admin' })
         description: 'Returns dashboard statistics for administrators'
       },
       response: {
-        200: t.Object({
-          success: t.Literal(true),
-          data: t.Ref('AdminStatsResponse')
-        }),
-        500: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
-            message: t.String()
-          })
-        })
+        200: SuccessResponse(t.Ref('admin.stats.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -109,17 +106,14 @@ export const adminController = new Elysia({ prefix: '/admin' })
       },
       query: 'GrowthStatsQuery',
       response: {
-        200: t.Object({
-          success: t.Literal(true),
-          data: t.Array(t.Ref('GrowthStatsResponse'))
-        }),
-        500: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
-            message: t.String()
-          })
-        })
+        200: SuccessResponse(
+          t.Array(t.Ref('admin.growth.response')),
+          'Growth statistics'
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        400: t.Ref('response.error.400'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -159,24 +153,10 @@ export const adminController = new Elysia({ prefix: '/admin' })
       },
       query: 'AdminUserListQuery',
       response: {
-        200: t.Object({
-          success: t.Literal(true),
-          data: t.Array(t.Ref('AdminUserResponse')),
-          meta: t.Object({
-            total: t.Number(),
-            page: t.Number(),
-            perPage: t.Number(),
-            lastPage: t.Number(),
-            hasMore: t.Boolean()
-          })
-        }),
-        500: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
-            message: t.String()
-          })
-        })
+        200: PaginatedResponse(t.Ref('admin.user.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -258,31 +238,11 @@ export const adminController = new Elysia({ prefix: '/admin' })
       }),
       body: 'AdminUserUpdateBody',
       response: {
-        200: t.Object({
-          success: t.Literal(true),
-          data: t.Ref('AdminUserResponse')
-        }),
-        403: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
-            message: t.String()
-          })
-        }),
-        404: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
-            message: t.String()
-          })
-        }),
-        500: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
-            message: t.String()
-          })
-        })
+        200: SuccessResponse(t.Ref('admin.user.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -335,34 +295,10 @@ export const adminController = new Elysia({ prefix: '/admin' })
         )
       }),
       response: {
-        200: t.Object({
-          success: t.Literal(true),
-          data: t.Array(
-            t.Object({
-              id: t.String(),
-              shortCode: t.String(),
-              originalUrl: t.String(),
-              isActive: t.Boolean(),
-              isBanned: t.Boolean(),
-              createdAt: t.String(),
-              clicksCount: t.Number()
-            })
-          ),
-          meta: t.Object({
-            total: t.Number(),
-            page: t.Number(),
-            perPage: t.Number(),
-            lastPage: t.Number(),
-            hasMore: t.Boolean()
-          })
-        }),
-        500: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
-            message: t.String()
-          })
-        })
+        200: PaginatedResponse(t.Ref('admin.link.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -407,27 +343,13 @@ export const adminController = new Elysia({ prefix: '/admin' })
         limit: t.Optional(t.String({ description: 'Max results (1-100)' }))
       }),
       response: {
-        200: t.Object({
-          success: t.Literal(true),
-          data: t.Array(
-            t.Object({
-              id: t.String(),
-              shortCode: t.String(),
-              originalUrl: t.String(),
-              isActive: t.Boolean(),
-              isBanned: t.Boolean(),
-              createdAt: t.String(),
-              clicksCount: t.Number()
-            })
-          )
-        }),
-        500: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
-            message: t.String()
-          })
-        })
+        200: SuccessResponse(
+          t.Array(t.Ref('admin.link.response')),
+          'Search results'
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -496,24 +418,15 @@ export const adminController = new Elysia({ prefix: '/admin' })
       }),
       body: 'AdminBanLinkBody',
       response: {
-        200: t.Object({
-          success: t.Literal(true),
-          message: t.String()
-        }),
-        404: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
+        200: SuccessResponse(
+          t.Object({
             message: t.String()
           })
-        }),
-        500: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
-            message: t.String()
-          })
-        })
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -576,24 +489,15 @@ export const adminController = new Elysia({ prefix: '/admin' })
         linkId: t.String()
       }),
       response: {
-        200: t.Object({
-          success: t.Literal(true),
-          message: t.String()
-        }),
-        404: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
+        200: SuccessResponse(
+          t.Object({
             message: t.String()
           })
-        }),
-        500: t.Object({
-          success: t.Literal(false),
-          error: t.Object({
-            code: t.String(),
-            message: t.String()
-          })
-        })
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404'),
+        500: t.Ref('response.error.500')
       }
     }
   );

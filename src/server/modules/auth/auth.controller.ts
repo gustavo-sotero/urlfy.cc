@@ -8,9 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
-import { Elysia } from 'elysia';
-import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import {
   apiKey as apiKeyTable,
@@ -19,12 +16,16 @@ import {
 } from '@/db/schema/auth';
 import type { Session, User } from '@/lib/auth';
 import { redis } from '@/server/lib/redis';
+import { SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
 import { auditLogService } from '@/server/services/audit.service';
 import type {
   ApiKeyPermissions,
   NormalizedApiKeyPermissions
 } from '@/types/auth.types';
+import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
+import { nanoid } from 'nanoid';
 
 import {
   ApiKeyCreateBody,
@@ -160,7 +161,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
       }
 
       return {
-        success: true,
+        success: true as const,
         data: {
           user: {
             id: user.id,
@@ -188,6 +189,9 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         tags: ['Auth'],
         summary: 'Get current session details',
         description: 'Returns the current user session with full user details'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('auth.session.response'))
       }
     }
   )
@@ -217,7 +221,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         const enabled = result.length > 0 && result[0].verified;
 
         return {
-          success: true,
+          success: true as const,
           data: {
             enabled,
             verified: enabled,
@@ -226,7 +230,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         };
       } catch {
         return {
-          success: true,
+          success: true as const,
           data: {
             enabled: false,
             verified: false,
@@ -241,6 +245,10 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         summary: 'Get 2FA status',
         description:
           'Check if two-factor authentication is enabled for the current user'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('auth.2fa.status.response')),
+        401: t.Ref('response.error.401')
       }
     }
   )
@@ -265,7 +273,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         .orderBy(desc(sessionTable.createdAt));
 
       return {
-        success: true,
+        success: true as const,
         data: sessions.map((s) => ({
           id: s.id,
           isCurrent: s.id === session.id,
@@ -281,6 +289,10 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         tags: ['Auth', 'Sessions'],
         summary: 'List user sessions',
         description: 'Get all active sessions for the current user'
+      },
+      response: {
+        200: SuccessResponse(t.Array(t.Ref('auth.session.list.response'))),
+        401: t.Ref('response.error.401')
       }
     }
   )
@@ -308,7 +320,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
 
       if (deleted.length === 0) {
         return {
-          success: false,
+          success: false as const,
           error: {
             code: 'SESSION_NOT_FOUND',
             message: 'Session not found or already revoked'
@@ -317,7 +329,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
       }
 
       return {
-        success: true,
+        success: true as const,
         data: {
           message: 'Session revoked successfully'
         }
@@ -329,6 +341,15 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         tags: ['Auth', 'Sessions'],
         summary: 'Revoke session',
         description: 'Revoke a specific session (logout from that device)'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            message: t.String()
+          })
+        ),
+        401: t.Ref('response.error.401'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -362,6 +383,14 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         tags: ['Auth', 'Sessions'],
         summary: 'Revoke all other sessions',
         description: 'Logout from all devices except the current one'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            message: t.String()
+          })
+        ),
+        401: t.Ref('response.error.401')
       }
     }
   )
@@ -384,7 +413,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         );
 
       return {
-        success: true,
+        success: true as const,
         data: {
           message: 'All other sessions revoked successfully'
         }
@@ -395,6 +424,14 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         tags: ['Auth', 'Sessions'],
         summary: 'Revoke all other sessions',
         description: 'Logout from all devices except the current one'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            message: t.String()
+          })
+        ),
+        401: t.Ref('response.error.401')
       }
     }
   );
@@ -417,7 +454,7 @@ sessionRoutes.post(
       );
 
     return {
-      success: true,
+      success: true as const,
       data: {
         message: 'All other sessions revoked successfully'
       }
@@ -428,6 +465,14 @@ sessionRoutes.post(
       tags: ['Auth', 'Sessions'],
       summary: 'Revoke all other sessions',
       description: 'Logout from all devices except the current one'
+    },
+    response: {
+      200: SuccessResponse(
+        t.Object({
+          message: t.String()
+        })
+      ),
+      401: t.Ref('response.error.401')
     }
   }
 );
@@ -473,7 +518,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         .orderBy(desc(apiKeyTable.createdAt));
 
       return {
-        success: true,
+        success: true as const,
         data: keys.map((key) => ({
           id: key.id,
           name: key.name,
@@ -493,6 +538,10 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         summary: 'List API keys',
         description:
           'Get all API keys for the current user (keys are never returned)'
+      },
+      response: {
+        200: SuccessResponse(t.Array(t.Ref('auth.apikey.response'))),
+        401: t.Ref('response.error.401')
       }
     }
   )
@@ -531,7 +580,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
       );
 
       return {
-        success: true,
+        success: true as const,
         data: {
           id: created.id,
           name: created.name,
@@ -552,6 +601,14 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         summary: 'Create API key',
         description:
           'Generate a new API key with specified permissions. The key is only shown once.'
+      },
+      response: {
+        201: SuccessResponse(
+          t.Ref('auth.apikey.create.response'),
+          'API key created successfully'
+        ),
+        401: t.Ref('response.error.401'),
+        400: t.Ref('response.error.400')
       }
     }
   )
@@ -599,7 +656,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
 
       if (!updated) {
         return {
-          success: false,
+          success: false as const,
           error: {
             code: 'API_KEY_NOT_FOUND',
             message: 'API key not found'
@@ -608,7 +665,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
       }
 
       return {
-        success: true,
+        success: true as const,
         data: {
           id: updated.id,
           name: updated.name,
@@ -625,6 +682,18 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         summary: 'Update API key',
         description:
           'Update API key name or permissions (key itself cannot be changed)'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            id: t.String(),
+            name: t.String(),
+            permissions: t.Ref('auth.apikey.permissions'),
+            updatedAt: t.Date()
+          })
+        ),
+        401: t.Ref('response.error.401'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -661,7 +730,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
 
       if (!deleted) {
         return {
-          success: false,
+          success: false as const,
           error: {
             code: 'API_KEY_NOT_FOUND',
             message: 'API key not found'
@@ -686,7 +755,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
       }
 
       return {
-        success: true,
+        success: true as const,
         data: {
           message: 'API key deleted successfully'
         }
@@ -698,6 +767,15 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         tags: ['API Keys'],
         summary: 'Delete API key',
         description: 'Soft delete an API key (revokes access immediately)'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            message: t.String()
+          })
+        ),
+        401: t.Ref('response.error.401'),
+        404: t.Ref('response.error.404')
       }
     }
   );

@@ -10,9 +10,13 @@
  */
 
 import { desc, eq, ilike, or, sql } from 'drizzle-orm';
-import { Elysia } from 'elysia';
+import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { user as userTable } from '@/db/schema/auth';
+import {
+  PaginatedResponse,
+  SuccessResponse
+} from '@/server/lib/response.schema';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
 import {
   UserBanBody,
@@ -76,7 +80,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         .offset((page - 1) * perPage);
 
       return {
-        success: true,
+        success: true as const,
         data: users,
         meta: {
           total: Number(count),
@@ -93,6 +97,11 @@ export const usersController = new Elysia({ prefix: '/users' })
         tags: ['Admin', 'Users'],
         summary: 'List all users',
         description: 'Get paginated list of users with search (admin only)'
+      },
+      response: {
+        200: PaginatedResponse(t.Ref('admin.user.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403')
       }
     }
   )
@@ -107,7 +116,7 @@ export const usersController = new Elysia({ prefix: '/users' })
 
       if (!user) {
         return {
-          success: false,
+          success: false as const,
           error: {
             code: 'USER_NOT_FOUND',
             message: 'User not found'
@@ -116,7 +125,7 @@ export const usersController = new Elysia({ prefix: '/users' })
       }
 
       return {
-        success: true,
+        success: true as const,
         data: user
       };
     },
@@ -126,6 +135,12 @@ export const usersController = new Elysia({ prefix: '/users' })
         tags: ['Admin', 'Users'],
         summary: 'Get user details',
         description: 'Get detailed user information (admin only)'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('admin.user.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -154,7 +169,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         );
 
         return {
-          success: true,
+          success: true as const,
           data: {
             id: bannedUser.id,
             email: bannedUser.email,
@@ -164,7 +179,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         };
       } catch (error) {
         return {
-          success: false,
+          success: false as const,
           error: {
             code: 'BAN_FAILED',
             message:
@@ -180,6 +195,19 @@ export const usersController = new Elysia({ prefix: '/users' })
         tags: ['Admin', 'Users'],
         summary: 'Ban user',
         description: 'Ban a user and revoke all sessions (admin only)'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            id: t.String(),
+            email: t.String(),
+            bannedAt: t.Date(),
+            bannedReason: t.String()
+          })
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -202,7 +230,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         const unbannedUser = await UserService.unbanUser(userId, adminUser.id);
 
         return {
-          success: true,
+          success: true as const,
           data: {
             id: unbannedUser.id,
             email: unbannedUser.email,
@@ -211,7 +239,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         };
       } catch (error) {
         return {
-          success: false,
+          success: false as const,
           error: {
             code: 'UNBAN_FAILED',
             message:
@@ -226,6 +254,18 @@ export const usersController = new Elysia({ prefix: '/users' })
         tags: ['Admin', 'Users'],
         summary: 'Unban user',
         description: 'Remove ban from a user (admin only)'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            id: t.String(),
+            email: t.String(),
+            message: t.String()
+          })
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -254,7 +294,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         );
 
         return {
-          success: true,
+          success: true as const,
           data: {
             id: updatedUser.id,
             email: updatedUser.email,
@@ -263,7 +303,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         };
       } catch (error) {
         return {
-          success: false,
+          success: false as const,
           error: {
             code: 'UPDATE_ROLE_FAILED',
             message:
@@ -281,6 +321,18 @@ export const usersController = new Elysia({ prefix: '/users' })
         tags: ['Admin', 'Users'],
         summary: 'Update user role',
         description: 'Change user role between user and admin (admin only)'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            id: t.String(),
+            email: t.String(),
+            role: t.Union([t.Literal('user'), t.Literal('admin')])
+          })
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -300,7 +352,7 @@ export const usersController = new Elysia({ prefix: '/users' })
 
         if (!updated) {
           return {
-            success: false,
+            success: false as const,
             error: {
               code: 'USER_NOT_FOUND',
               message: 'User not found'
@@ -309,7 +361,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         }
 
         return {
-          success: true,
+          success: true as const,
           data: {
             id: updated.id,
             linksQuota: updated.linksQuota
@@ -317,7 +369,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         };
       } catch (error) {
         return {
-          success: false,
+          success: false as const,
           error: {
             code: 'UPDATE_QUOTA_FAILED',
             message:
@@ -333,6 +385,17 @@ export const usersController = new Elysia({ prefix: '/users' })
         tags: ['Admin', 'Users'],
         summary: 'Update user quota',
         description: "Change user's link creation quota (admin only)"
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            id: t.String(),
+            linksQuota: t.Number()
+          })
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -369,7 +432,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         .where(eq(userTable.role, 'admin'));
 
       return {
-        success: true,
+        success: true as const,
         data: {
           totalUsers: Number(totalUsers),
           activeUsers: Number(activeUsers),
@@ -383,6 +446,18 @@ export const usersController = new Elysia({ prefix: '/users' })
         tags: ['Admin', 'Stats'],
         summary: 'Get global user statistics',
         description: 'Get aggregated statistics about users (admin only)'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            totalUsers: t.Number(),
+            activeUsers: t.Number(),
+            bannedUsers: t.Number(),
+            adminUsers: t.Number()
+          })
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403')
       }
     }
   );

@@ -9,16 +9,17 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { desc, eq } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema/audit';
 import type { User } from '@/lib/auth';
 import { sendEmail } from '@/server/lib/email';
+import { SuccessResponse } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import { UsersModel } from '@/server/modules/users/users.schema';
 import { auditLogService } from '@/server/services/audit.service';
 import { gdprService } from '@/server/services/gdpr.service';
-import { desc, eq } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
 
 export const userDataRoutes = new Elysia({ prefix: '/me' })
   .use(requireAuth)
@@ -35,7 +36,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
       };
 
       return {
-        success: true,
+        success: true as const,
         data: {
           id: user.id,
           email: user.email,
@@ -57,10 +58,8 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
         description: "Returns the authenticated user's profile information"
       },
       response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Ref('users.profile')
-        })
+        200: SuccessResponse(t.Ref('users.profile')),
+        401: t.Ref('response.error.401')
       }
     }
   )
@@ -81,7 +80,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
       const percentUsed = limit > 0 ? Math.round((used / limit) * 100) : 0;
 
       return {
-        success: true,
+        success: true as const,
         data: {
           used,
           limit,
@@ -98,10 +97,8 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
           "Returns the authenticated user's link creation quota and usage statistics"
       },
       response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Ref('users.quota')
-        })
+        200: SuccessResponse(t.Ref('users.quota')),
+        401: t.Ref('response.error.401')
       }
     }
   )
@@ -171,6 +168,21 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
         summary: 'Export all user data',
         description:
           'Returns a complete export of all user data including profile, links, and analytics overview (LGPD/GDPR compliance)'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            user: t.Ref('users.profile'),
+            links: t.Array(t.Ref('links.response')),
+            analyticsOverview: t.Object({
+              totalClicks: t.Number(),
+              uniqueVisitors: t.Number()
+            })
+          }),
+          'User data export'
+        ),
+        401: t.Ref('response.error.401'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -242,7 +254,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
         }
 
         return {
-          success: true,
+          success: true as const,
           data: {
             requestId: request.requestId,
             deadline: request.deadline.toISOString(),
@@ -253,7 +265,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
       } catch (error) {
         set.status = 500;
         return {
-          success: false,
+          success: false as const,
           error: {
             code: 'REQUEST_FAILED',
             message: error instanceof Error ? error.message : 'Request failed'
@@ -267,6 +279,12 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
         summary: 'Request account deletion',
         description:
           'Schedule complete data deletion within 72 hours (LGPD/GDPR compliance)'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('users.deletion.response')),
+        401: t.Ref('response.error.401'),
+        409: t.Ref('response.error.409'),
+        500: t.Ref('response.error.500')
       }
     }
   )
@@ -297,7 +315,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
       // Transform database field names to API response format
       const request = requests[0];
       return {
-        success: true,
+        success: true as const,
         data: {
           id: request.id,
           status: request.status,
@@ -315,10 +333,11 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
           'Returns the status of any active or completed data deletion request'
       },
       response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Nullable(t.Ref('users.deletion.status'))
-        })
+        200: SuccessResponse(
+          t.Nullable(t.Ref('users.deletion.status')),
+          'Deletion request status'
+        ),
+        401: t.Ref('response.error.401')
       }
     }
   );
@@ -396,7 +415,7 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
         });
 
         return {
-          success: true,
+          success: true as const,
           data: {
             message: 'Consent preferences saved',
             preferences
@@ -405,7 +424,7 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
       } catch (error) {
         set.status = 500;
         return {
-          success: false,
+          success: false as const,
           error: {
             code: 'SAVE_FAILED',
             message:
@@ -423,7 +442,13 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
         description:
           'Store user consent preferences for analytics and marketing (LGPD/GDPR compliance)'
       },
-      body: t.Ref('users.consent.body')
+      body: t.Ref('users.consent.body'),
+      response: {
+        200: SuccessResponse(t.Ref('users.consent.response')),
+        400: t.Ref('response.error.400'),
+        401: t.Ref('response.error.401'),
+        500: t.Ref('response.error.500')
+      }
     }
   )
 
@@ -452,13 +477,13 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
         }
 
         return {
-          success: true,
+          success: true as const,
           data: JSON.parse(stored)
         };
       } catch (error) {
         set.status = 500;
         return {
-          success: false,
+          success: false as const,
           error: {
             code: 'FETCH_FAILED',
             message:
@@ -475,6 +500,14 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
         summary: 'Get consent preferences',
         description:
           'Retrieve stored consent preferences for the authenticated user'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Nullable(t.Ref('users.consent.response')),
+          'Consent preferences'
+        ),
+        401: t.Ref('response.error.401'),
+        500: t.Ref('response.error.500')
       }
     }
   );

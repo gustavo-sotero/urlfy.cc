@@ -1,12 +1,17 @@
-import { swagger } from '@elysiajs/swagger';
+import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import { auth } from '@/lib/auth';
+// Import response models
+import { ResponseModels } from '@/server/lib/response.schema';
 // Import from feature-based modules
-import { adminController } from '@/server/modules/admin';
-import { analyticsController } from '@/server/modules/analytics';
-import { authController } from '@/server/modules/auth';
-import { linksController } from '@/server/modules/links';
-import { usersController } from '@/server/modules/users';
+import { AdminModels, adminController } from '@/server/modules/admin';
+import {
+  AnalyticsModel,
+  analyticsController
+} from '@/server/modules/analytics';
+import { AuthModels, authController } from '@/server/modules/auth';
+import { LinksModel, linksController } from '@/server/modules/links';
+import { UsersModel, usersController } from '@/server/modules/users';
 import { adminAuditRoutes } from './admin/audit';
 import { healthRoutes } from './health';
 import { consentRoutes, userDataRoutes } from './users/me';
@@ -16,9 +21,17 @@ import { consentRoutes, userDataRoutes } from './users/me';
 // ═══════════════════════════════════════════════════════════════════
 
 export const api = new Elysia({ prefix: '/api' })
-  // OpenAPI/Swagger Documentation
+  // Register all models FIRST for OpenAPI $ref support
+  .use(ResponseModels)
+  .use(LinksModel)
+  .use(AuthModels)
+  .use(UsersModel)
+  .use(AnalyticsModel)
+  .use(AdminModels)
+
+  // OpenAPI Documentation
   .use(
-    swagger({
+    openapi({
       documentation: {
         info: {
           title: 'urlfy.cc API',
@@ -78,7 +91,9 @@ export const api = new Elysia({ prefix: '/api' })
         security: [{ bearerAuth: [] }, { cookieAuth: [] }, { apiKeyAuth: [] }]
       },
       path: '/docs',
-      exclude: ['/auth/*', '/docs', '/docs/json']
+      exclude: {
+        paths: ['/auth/*']
+      }
     })
   )
 

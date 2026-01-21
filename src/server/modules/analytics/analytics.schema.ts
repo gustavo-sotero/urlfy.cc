@@ -143,5 +143,8 @@ export const AnalyticsModel = new Elysia({ name: 'analytics.model' }).model({
   'analytics.country.item': CountryBreakdownItem,
   'analytics.device.item': DeviceBreakdownItem,
   'analytics.referrer.item': ReferrerBreakdownItem,
-  'analytics.breakdown.item': BreakdownItem
+  'analytics.breakdown.item': BreakdownItem,
+  'analytics.breakdown.country': CountryBreakdownItem,
+  'analytics.breakdown.device': DeviceBreakdownItem,
+  'analytics.breakdown.browser': BreakdownItem
 });

@@ -8,7 +8,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { type Static, t } from 'elysia';
+import { Elysia, type Static, t } from 'elysia';
 
 // ═══════════════════════════════════════════════════════════════════
 // API KEY SCHEMAS
@@ -87,7 +87,8 @@ export const ApiKeyCreateResponse = t.Object({
   permissions: ApiKeyPermissions,
   rateLimit: t.Number(),
   expiresAt: t.Nullable(t.String()),
-  createdAt: t.String()
+  createdAt: t.String(),
+  warning: t.Optional(t.String({ description: 'Warning about key visibility' }))
 });
 export type ApiKeyCreateResponseType = Static<typeof ApiKeyCreateResponse>;
 
@@ -150,9 +151,23 @@ export const SessionListResponse = t.Object({
 export type SessionListResponseType = Static<typeof SessionListResponse>;
 
 // ═══════════════════════════════════════════════════════════════════
-// MODEL REGISTRY FOR INJECTION
+// ELYSIA MODEL PLUGIN (for OpenAPI $ref support)
 // ═══════════════════════════════════════════════════════════════════
 
+export const AuthModels = new Elysia({ name: 'auth.model' }).model({
+  'auth.apikey.permissions': ApiKeyPermissions,
+  'auth.apikey.create': ApiKeyCreateBody,
+  'auth.apikey.update': ApiKeyUpdateBody,
+  'auth.apikey.param': ApiKeyIdParam,
+  'auth.apikey.response': ApiKeyResponse,
+  'auth.apikey.create.response': ApiKeyCreateResponse,
+  'auth.session.response': SessionResponse,
+  'auth.session.list.response': SessionListResponse,
+  'auth.session.param': SessionIdParam,
+  'auth.2fa.status.response': TwoFactorStatusResponse
+});
+
+// Legacy export for backward compatibility
 export const AuthModel = {
   ApiKeyPermissions,
   ApiKeyCreateBody,

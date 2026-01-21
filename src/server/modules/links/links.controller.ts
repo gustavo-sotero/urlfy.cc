@@ -9,7 +9,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { Elysia } from 'elysia';
+import { Elysia, t } from 'elysia';
 
 import { handleLinkError } from '@/server/lib/errors';
 import {
@@ -17,6 +17,10 @@ import {
   setIdempotency,
   validateIdempotencyKey
 } from '@/server/lib/idempotency';
+import {
+  PaginatedResponse,
+  SuccessResponse
+} from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
 import * as qrService from '@/server/services/qr.service';
 import { validateUrlAsync } from '@/server/services/url-validator';
@@ -90,7 +94,7 @@ const publicRoutes = new Elysia()
 
       if (validation.valid) {
         return {
-          success: true,
+          success: true as const,
           data: {
             valid: true,
             warnings: []
@@ -99,7 +103,7 @@ const publicRoutes = new Elysia()
       }
 
       return {
-        success: true,
+        success: true as const,
         data: {
           valid: false,
           error: validation.error
@@ -112,6 +116,23 @@ const publicRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Validate URL',
         description: 'Check if a URL is valid before creating a link'
+      },
+      response: {
+        200: t.Object({
+          success: t.Literal(true),
+          data: t.Union([
+            t.Object({
+              valid: t.Literal(true),
+              warnings: t.Array(t.String())
+            }),
+            t.Object({
+              valid: t.Literal(false),
+              error: t.Optional(t.String())
+            })
+          ])
+        }),
+        400: t.Ref('response.error.400'),
+        422: t.Ref('response.error.422')
       }
     }
   )
@@ -144,7 +165,7 @@ const publicRoutes = new Elysia()
           params.code
         }`;
         return {
-          success: true,
+          success: true as const,
           data: {
             redirectUrl: `/${params.code}`,
             shortUrl
@@ -161,6 +182,16 @@ const publicRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Verify link password',
         description: 'Verify password for password-protected links'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            redirectUrl: t.String({ description: 'Relative redirect URL' }),
+            shortUrl: t.String({ description: 'Full short URL' })
+          })
+        ),
+        401: t.Ref('response.error.401'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -215,6 +246,11 @@ const publicRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Generate QR code',
         description: 'Generate a QR code image for a short link'
+      },
+      response: {
+        200: t.File({ description: 'QR Code image (PNG or SVG)' }),
+        404: t.Ref('response.error.404'),
+        422: t.Ref('response.error.422')
       }
     }
   )
@@ -239,7 +275,7 @@ const publicRoutes = new Elysia()
         }
 
         return {
-          success: true,
+          success: true as const,
           data: {
             shortCode: link.shortCode,
             originalUrl: link.originalUrl,
@@ -260,6 +296,10 @@ const publicRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Preview link metadata',
         description: 'Get link preview information including OG tags'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('links.preview.response')),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -345,6 +385,15 @@ const publicRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Create short link',
         description: 'Create a new shortened URL (guest or authenticated)'
+      },
+      response: {
+        201: SuccessResponse(
+          t.Ref('links.response'),
+          'Link created successfully'
+        ),
+        400: t.Ref('response.error.400'),
+        403: t.Ref('response.error.403'),
+        422: t.Ref('response.error.422')
       }
     }
   );
@@ -456,6 +505,22 @@ const authenticatedRoutes = new Elysia()
         summary: 'Create multiple links',
         description:
           'Create multiple shortened URLs in a single request (max 100)'
+      },
+      response: {
+        201: SuccessResponse(
+          t.Object({
+            created: t.Number({
+              description: 'Number of successfully created links'
+            }),
+            failed: t.Number({
+              description: 'Number of failed link creations'
+            }),
+            results: t.Array(t.Ref('links.response'))
+          }),
+          'Bulk creation result'
+        ),
+        400: t.Ref('response.error.400'),
+        403: t.Ref('response.error.403')
       }
     }
   )
@@ -505,6 +570,10 @@ const authenticatedRoutes = new Elysia()
         tags: ['Links'],
         summary: 'List user links',
         description: 'Get paginated list of user links with filters'
+      },
+      response: {
+        200: PaginatedResponse(t.Ref('links.response')),
+        401: t.Ref('response.error.401')
       }
     }
   )
@@ -535,6 +604,12 @@ const authenticatedRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Get link by ID',
         description: 'Get link details by UUID'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('links.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -566,6 +641,13 @@ const authenticatedRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Update link',
         description: 'Update link properties'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('links.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404'),
+        422: t.Ref('response.error.422')
       }
     }
   )
@@ -594,6 +676,12 @@ const authenticatedRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Delete link',
         description: 'Soft delete a link (recoverable for 30 days)'
+      },
+      response: {
+        204: t.Void({ description: 'Link deleted successfully' }),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -624,6 +712,12 @@ const authenticatedRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Restore deleted link',
         description: 'Restore a soft-deleted link'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('links.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -655,6 +749,15 @@ const authenticatedRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Duplicate link',
         description: 'Create a copy of an existing link'
+      },
+      response: {
+        201: SuccessResponse(
+          t.Ref('links.response'),
+          'Link duplicated successfully'
+        ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -685,6 +788,12 @@ const authenticatedRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Toggle link status',
         description: 'Toggle link active/inactive status'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('links.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404')
       }
     }
   )
@@ -719,6 +828,12 @@ const authenticatedRoutes = new Elysia()
         tags: ['Links'],
         summary: 'Get link stats',
         description: 'Get quick statistics for a link'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('links.stats.response')),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403'),
+        404: t.Ref('response.error.404')
       }
     }
   );
