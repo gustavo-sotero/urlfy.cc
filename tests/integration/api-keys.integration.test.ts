@@ -4,6 +4,10 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
+import { db } from '@/db';
+import { apikey, user } from '@/db/schema/auth';
+import { Scopes } from '@/server/config/scopes';
+import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
 import {
   afterAll,
   afterEach,
@@ -13,16 +17,13 @@ import {
   expect,
   it
 } from 'bun:test';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-import { db } from '@/db';
-import { apikey } from '@/db/schema/auth';
-import { Scopes } from '@/server/config/scopes';
-import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
 import { requireDatabase } from '../helpers/integration-helper';
 
 // Test user ID
 const TEST_USER_ID = `test-user-${nanoid(8)}`;
+const TEST_USER_EMAIL = `test-${nanoid(8)}@urlfy.test`;
 const createdKeyIds: string[] = [];
 
 // Cleanup helper
@@ -40,6 +41,12 @@ async function cleanupTestKeys() {
 describe('ApiKeysService', () => {
   beforeAll(async () => {
     await requireDatabase();
+
+    await db.insert(user).values({
+      id: TEST_USER_ID,
+      name: 'API Keys Test User',
+      email: TEST_USER_EMAIL
+    });
   });
 
   beforeEach(async () => {
@@ -54,6 +61,10 @@ describe('ApiKeysService', () => {
 
   afterAll(async () => {
     await cleanupTestKeys();
+
+    await db
+      .delete(user)
+      .where(and(eq(user.id, TEST_USER_ID), eq(user.email, TEST_USER_EMAIL)));
   });
 
   describe('create', () => {
@@ -184,6 +195,27 @@ describe('ApiKeysService', () => {
 
       const result = await ApiKeysService.getById(created.id, 'different-user');
       expect(result).toBeNull();
+    });
+
+    it('should mark key as quota_exceeded when usage reaches limit', async () => {
+      const created = await ApiKeysService.create(TEST_USER_ID, {
+        name: 'Quota Key',
+        scopes: [Scopes.LINKS_READ],
+        rateLimit: {
+          enabled: true,
+          max: 2,
+          windowMs: 60000
+        }
+      });
+      createdKeyIds.push(created.id);
+
+      await db
+        .update(apikey)
+        .set({ usageCount: 2 })
+        .where(eq(apikey.id, created.id));
+
+      const fetched = await ApiKeysService.getById(created.id, TEST_USER_ID);
+      expect(fetched?.status).toBe('quota_exceeded');
     });
   });
 

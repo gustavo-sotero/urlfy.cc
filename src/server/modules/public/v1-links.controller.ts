@@ -13,7 +13,7 @@ import { Elysia, t } from 'elysia';
 import { Scopes } from '@/server/config/scopes';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireApiKey } from '@/server/middleware/api-key.guard';
-import { LinksModel } from '@/server/modules/links';
+import { type LinkCreateBodyType, LinksModel } from '@/server/modules/links';
 import { LinkService } from '@/server/modules/links/links.service';
 import type { ApiKeyContext } from '@/types/api-keys.types';
 
@@ -24,72 +24,85 @@ const logger = createLogger('v1-links-controller');
  */
 type WithApiKey<T> = T & { apiKey: ApiKeyContext['apiKey'] };
 
+// ─── Shared Handlers ─────────────────────────────────────────────
+const createLinkHandler = async (ctx: {
+  body: LinkCreateBodyType;
+  apiKey?: ApiKeyContext['apiKey'];
+}) => {
+  const { body } = ctx;
+  const apiKey = ctx.apiKey as ApiKeyContext['apiKey'];
+
+  try {
+    const link = await LinkService.createLink(
+      {
+        url: body.url,
+        customAlias: body.customAlias,
+        expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+        maxClicks: body.maxClicks,
+        password: body.password,
+        redirectType: body.redirectType,
+        metaTitle: body.metaTitle,
+        metaDescription: body.metaDescription,
+        metaImage: body.metaImage,
+        utmSource: body.utmSource,
+        utmMedium: body.utmMedium,
+        utmCampaign: body.utmCampaign,
+        tags: body.tags,
+        notes: body.notes
+      },
+      apiKey.userId,
+      'api-key' // IP hash placeholder for API keys
+    );
+
+    return {
+      success: true as const,
+      data: LinkService.formatLinkResponse(link)
+    };
+  } catch (error) {
+    logger.error('Failed to create link via API', {
+      userId: apiKey.userId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+
+    if (error instanceof Error && 'code' in error) {
+      const errorWithCode = error as Error & { code: string };
+      return {
+        success: false as const,
+        error: {
+          code: errorWithCode.code,
+          message: error.message
+        }
+      };
+    }
+
+    throw error;
+  }
+};
+
 // ─── Write Operations (links:write) ───────────────────────────────
 const writeOperations = new Elysia({ name: 'V1Links.Write' })
   .use(LinksModel)
   .use(requireApiKey({ scopes: [Scopes.LINKS_WRITE] }))
 
   // Create Link
-  .post(
-    '/',
-    async (ctx) => {
-      const { body, apiKey } = ctx as WithApiKey<typeof ctx>;
-
-      try {
-        const link = await LinkService.createLink(
-          {
-            url: body.url,
-            customAlias: body.customAlias,
-            expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
-            maxClicks: body.maxClicks,
-            password: body.password,
-            redirectType: body.redirectType,
-            metaTitle: body.metaTitle,
-            metaDescription: body.metaDescription,
-            metaImage: body.metaImage,
-            utmSource: body.utmSource,
-            utmMedium: body.utmMedium,
-            utmCampaign: body.utmCampaign,
-            tags: body.tags,
-            notes: body.notes
-          },
-          apiKey.userId,
-          'api-key' // IP hash placeholder for API keys
-        );
-
-        return {
-          success: true as const,
-          data: LinkService.formatLinkResponse(link)
-        };
-      } catch (error) {
-        logger.error('Failed to create link via API', {
-          userId: apiKey.userId,
-          error: error instanceof Error ? error.message : String(error)
-        });
-
-        if (error instanceof Error && 'code' in error) {
-          const errorWithCode = error as Error & { code: string };
-          return {
-            success: false as const,
-            error: {
-              code: errorWithCode.code,
-              message: error.message
-            }
-          };
-        }
-
-        throw error;
-      }
-    },
-    {
-      body: 'links.create',
-      detail: {
-        summary: 'Shorten URL',
-        description: 'Create a new shortened link',
-        security: [{ apiKeyAuth: [] }]
-      }
+  .post('/', createLinkHandler, {
+    body: 'links.create',
+    detail: {
+      summary: 'Shorten URL',
+      description: 'Create a new shortened link',
+      security: [{ apiKeyAuth: [] }]
     }
-  )
+  })
+
+  // Create Link (Alias)
+  .post('/shorten', createLinkHandler, {
+    body: 'links.create',
+    detail: {
+      summary: 'Shorten URL (Alias)',
+      description: 'Alias for creating a new shortened link',
+      security: [{ apiKeyAuth: [] }]
+    }
+  })
 
   // Delete Link
   .delete(
@@ -163,7 +176,12 @@ const readOperations = new Elysia({ name: 'V1Links.Read' })
         security: [{ apiKeyAuth: [] }]
       }
     }
-  )
+  );
+
+// ─── List Operations (links:read, no quota increment) ────────────
+const listOperations = new Elysia({ name: 'V1Links.List' })
+  .use(LinksModel)
+  .use(requireApiKey({ scopes: [Scopes.LINKS_READ], skipQuotaIncrement: true }))
 
   // List Links
   .get(
@@ -194,7 +212,8 @@ const readOperations = new Elysia({ name: 'V1Links.Read' })
       query: 'links.list.query',
       detail: {
         summary: 'List Links',
-        description: 'Get paginated list of your links',
+        description:
+          'Get paginated list of your links (does not consume quota)',
         security: [{ apiKeyAuth: [] }]
       }
     }
@@ -255,4 +274,5 @@ export const v1LinksController = new Elysia({
   // Mount operation groups - each with isolated scope requirements
   .use(writeOperations)
   .use(readOperations)
+  .use(listOperations)
   .use(analyticsOperations);

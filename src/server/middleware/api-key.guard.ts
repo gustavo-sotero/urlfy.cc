@@ -6,14 +6,14 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { eq, sql } from 'drizzle-orm';
-import { Elysia } from 'elysia';
 import { db } from '@/db';
 import { apikey } from '@/db/schema/auth';
 import { hasScopes, parseScopes, type Scope } from '@/server/config/scopes';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { ApiKeyContext, ApiKeyError } from '@/types/api-keys.types';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { Elysia } from 'elysia';
 
 const logger = createLogger('api-key-guard');
 
@@ -129,7 +129,13 @@ export function requireApiKey(options: RequireApiKeyOptions) {
       const [keyRecord] = await db
         .select()
         .from(apikey)
-        .where(eq(apikey.key, apiKeyHeader))
+        .where(
+          and(
+            eq(apikey.key, apiKeyHeader),
+            isNull(apikey.deletedAt),
+            eq(apikey.enabled, true)
+          )
+        )
         .limit(1);
 
       if (!keyRecord) {
@@ -190,17 +196,26 @@ export function requireApiKey(options: RequireApiKeyOptions) {
         );
       }
 
-      // 7. Increment usage count asynchronously (fire-and-forget)
+      // 7. Check quota usage
+      const quotaLimit = keyRecord.remaining ?? keyRecord.rateLimitMax ?? 1000;
+      const usageCount = keyRecord.usageCount ?? 0;
+      if (usageCount >= quotaLimit) {
+        return errorResponse('QUOTA_EXCEEDED');
+      }
+
+      // 8. Increment usage count asynchronously (fire-and-forget)
       if (!options.skipQuotaIncrement) {
         incrementUsage(keyRecord.id);
       }
 
-      // 8. Store in state for derive
+      // 9. Store in state for derive
+      const decrement = options.skipQuotaIncrement ? 0 : 1;
+      const remaining = Math.max(0, quotaLimit - usageCount - decrement);
       (store as ApiKeyGuardStore).apiKeyData = {
         id: keyRecord.id,
         userId: keyRecord.userId,
         scopes: keyScopes,
-        remaining: keyRecord.remaining ?? 0
+        remaining
       };
     })
     .derive({ as: 'local' }, ({ store }) => ({
