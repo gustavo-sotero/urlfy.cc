@@ -98,7 +98,7 @@ export const api = new Elysia({ prefix: '/api' })
         },
         security: [{ bearerAuth: [] }, { cookieAuth: [] }, { apiKeyAuth: [] }]
       },
-      path: '/docs',
+      path: '/internal/docs',
       exclude: {
         paths: ['/auth/*', '/docs/merged.json']
       },
@@ -117,7 +117,7 @@ export const api = new Elysia({ prefix: '/api' })
       const getElysiaSpec = async (): Promise<OpenAPIV3.Document> => {
         // Access the swagger JSON endpoint internally
         const elysiaSpecResponse = await api.handle(
-          new Request('http://localhost/api/docs/json')
+          new Request('http://localhost/api/internal/docs/json')
         );
         return (await elysiaSpecResponse.json()) as OpenAPIV3.Document;
       };
