@@ -189,8 +189,7 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
     '/:id',
     async ({ params, apiKey, set }) => {
       try {
-        // biome-ignore lint/style/noNonNullAssertion: apiKey guaranteed non-null by requireApiKey middleware
-        await LinkService.softDeleteLink(params.id, apiKey!.userId);
+        await LinkService.softDeleteLink(params.id, apiKey?.userId);
         return {
           success: true as const,
           data: {
@@ -244,8 +243,7 @@ const readOperations = new Elysia({ name: 'V1Links.Read' })
   .get(
     '/:id',
     async ({ params, apiKey, set }) => {
-      // biome-ignore lint/style/noNonNullAssertion: apiKey guaranteed non-null by requireApiKey middleware
-      const link = await LinkService.getLinkById(params.id, apiKey!.userId);
+      const link = await LinkService.getLinkById(params.id, apiKey?.userId);
 
       if (!link) {
         set.status = 404;
@@ -297,8 +295,7 @@ const listOperations = new Elysia({ name: 'V1Links.List' })
   .get(
     '/',
     async ({ query, apiKey }) => {
-      // biome-ignore lint/style/noNonNullAssertion: apiKey guaranteed non-null by requireApiKey middleware
-      const result = await LinkService.listUserLinks(apiKey!.userId, {
+      const result = await LinkService.listUserLinks(apiKey?.userId, {
         page: query.page ? Number.parseInt(query.page, 10) : 1,
         perPage: query.perPage ? Number.parseInt(query.perPage, 10) : 20,
         sortBy: query.sortBy ?? 'createdAt',
@@ -349,8 +346,7 @@ const analyticsOperations = new Elysia({ name: 'V1Links.Analytics' })
     '/:id/stats',
     async ({ params, apiKey, set }) => {
       // First verify the link belongs to the user
-      // biome-ignore lint/style/noNonNullAssertion: apiKey guaranteed non-null by requireApiKey middleware
-      const link = await LinkService.getLinkById(params.id, apiKey!.userId);
+      const link = await LinkService.getLinkById(params.id, apiKey?.userId);
 
       if (!link) {
         set.status = 404;

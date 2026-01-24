@@ -23,7 +23,6 @@ export async function initializeWorkers(): Promise<void> {
     logger.info('[WorkersInit] Starting worker initialization...');
 
     // Registra handlers de DLQ
-    // @ts-expect-error - Worker parameter type differs from Queue, intentionally used for setup
     await setupDLQHandlers(clickWorker);
     logger.info('[WorkersInit] ✅ DLQ handler setup');
 

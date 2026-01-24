@@ -1405,3 +1405,4 @@ describe('Custom Alias Validator', () => {
 - [Caching Strategy](../architecture/caching-strategy.md)
 - [API Endpoints](../api/endpoints.md)
 - [Elysia Best Practices](https://elysiajs.com/essential/best-practice)
+

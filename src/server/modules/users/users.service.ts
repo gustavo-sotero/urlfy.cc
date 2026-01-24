@@ -28,8 +28,7 @@ import { auditLogService } from '@/server/services/audit.service';
  * - Clean import namespace (UserService.create)
  * - Stateless methods
  */
-// biome-ignore lint/complexity/noStaticOnlyClass: Intentional pattern per ElysiaJS best practices for stateless services
-export abstract class UserService {
+export const UserService = {
   // ═══════════════════════════════════════════════════════════════════
   // USER CRUD OPERATIONS
   // ═══════════════════════════════════════════════════════════════════
@@ -37,7 +36,7 @@ export abstract class UserService {
   /**
    * Get user by ID (excluding deleted users)
    */
-  static async getUserById(userId: string): Promise<User | null> {
+  async getUserById(userId: string): Promise<User | null> {
     const [user] = await db
       .select()
       .from(userTable)
@@ -45,12 +44,12 @@ export abstract class UserService {
       .limit(1);
 
     return user || null;
-  }
+  },
 
   /**
    * Get user by email (excluding deleted users)
    */
-  static async getUserByEmail(email: string): Promise<User | null> {
+  async getUserByEmail(email: string): Promise<User | null> {
     const [user] = await db
       .select()
       .from(userTable)
@@ -58,12 +57,12 @@ export abstract class UserService {
       .limit(1);
 
     return user || null;
-  }
+  },
 
   /**
    * Update user profile
    */
-  static async updateUser(
+  async updateUser(
     userId: string,
     data: {
       name?: string;
@@ -86,36 +85,36 @@ export abstract class UserService {
     }
 
     return user;
-  }
+  },
 
   /**
    * Increment user's link count
    */
-  static async incrementLinksCount(userId: string): Promise<void> {
+  async incrementLinksCount(userId: string): Promise<void> {
     await db
       .update(userTable)
       .set({
         linksCount: sql`${userTable.linksCount} + 1`
       })
       .where(eq(userTable.id, userId));
-  }
+  },
 
   /**
    * Decrement user's link count
    */
-  static async decrementLinksCount(userId: string): Promise<void> {
+  async decrementLinksCount(userId: string): Promise<void> {
     await db
       .update(userTable)
       .set({
         linksCount: sql`${userTable.linksCount} - 1`
       })
       .where(eq(userTable.id, userId));
-  }
+  },
 
   /**
    * Check if user has available quota
    */
-  static async hasAvailableQuota(userId: string): Promise<boolean> {
+  async hasAvailableQuota(userId: string): Promise<boolean> {
     const [user] = await db
       .select({
         linksCount: userTable.linksCount,
@@ -128,7 +127,7 @@ export abstract class UserService {
     if (!user) return false;
 
     return user.linksCount < user.linksQuota;
-  }
+  },
 
   // ═══════════════════════════════════════════════════════════════════
   // ADMIN OPERATIONS
@@ -137,7 +136,7 @@ export abstract class UserService {
   /**
    * Ban a user
    */
-  static async banUser(
+  async banUser(
     userId: string,
     reason: string,
     adminId: string
@@ -172,12 +171,12 @@ export abstract class UserService {
     }
 
     return user;
-  }
+  },
 
   /**
    * Unban a user
    */
-  static async unbanUser(userId: string, adminId: string): Promise<User> {
+  async unbanUser(userId: string, adminId: string): Promise<User> {
     const [user] = await db
       .update(userTable)
       .set({
@@ -204,12 +203,12 @@ export abstract class UserService {
     }
 
     return user;
-  }
+  },
 
   /**
    * Update user role
    */
-  static async updateUserRole(
+  async updateUserRole(
     userId: string,
     role: 'user' | 'admin',
     adminId: string
@@ -238,7 +237,7 @@ export abstract class UserService {
     }
 
     return user;
-  }
+  },
 
   // ═══════════════════════════════════════════════════════════════════
   // LGPD/GDPR COMPLIANCE
@@ -247,9 +246,7 @@ export abstract class UserService {
   /**
    * Export all user data (LGPD/GDPR)
    */
-  static async exportUserData(
-    userId: string
-  ): Promise<Record<string, unknown>> {
+  async exportUserData(userId: string): Promise<Record<string, unknown>> {
     // Get user data
     const [user] = await db
       .select()
@@ -327,12 +324,12 @@ export abstract class UserService {
       apiKeys,
       exportDate: new Date().toISOString()
     };
-  }
+  },
 
   /**
    * Soft delete user account (LGPD/GDPR)
    */
-  static async softDeleteUser(userId: string): Promise<void> {
+  async softDeleteUser(userId: string): Promise<void> {
     await db
       .update(userTable)
       .set({
@@ -353,12 +350,12 @@ export abstract class UserService {
       .where(eq(apiKeyTable.userId, userId));
 
     // Note: Links and analytics would be handled by link service
-  }
+  },
 
   /**
    * Hard delete user account (permanent, use with caution)
    */
-  static async hardDeleteUser(userId: string): Promise<void> {
+  async hardDeleteUser(userId: string): Promise<void> {
     // Delete in order due to foreign key constraints
     await db.delete(sessionTable).where(eq(sessionTable.userId, userId));
     await db.delete(accountTable).where(eq(accountTable.userId, userId));
@@ -369,12 +366,12 @@ export abstract class UserService {
     await db.delete(userTable).where(eq(userTable.id, userId));
 
     // Note: Links and analytics would be handled by link service
-  }
+  },
 
   /**
    * Check if user can be deleted (has no active dependencies)
    */
-  static async canDeleteUser(userId: string): Promise<{
+  async canDeleteUser(userId: string): Promise<{
     canDelete: boolean;
     blockers: string[];
   }> {
@@ -402,4 +399,4 @@ export abstract class UserService {
       blockers
     };
   }
-}
+};

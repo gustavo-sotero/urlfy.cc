@@ -260,3 +260,4 @@ Formato JSON com campos padronizados:
 - **PostgreSQL:** `pg_dump` via cron ou **pgBackRest** para PITR
 - **Redis:** Dados são cache, não requerem backup (RDB snapshots opcionais)
 - **Volumes Docker:** Named volumes com backup externo (rsync, restic)
+

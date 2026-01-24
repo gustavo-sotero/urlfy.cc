@@ -164,3 +164,4 @@ Módulo 1 (Infra) ──► Módulo 2 (Auth) ──► Módulo 3 (Links)
 - Módulo 4 depende de 1, 2, 3
 - Módulo 5 depende de 1, 4
 - Módulo 7 depende de todos os anteriores
+

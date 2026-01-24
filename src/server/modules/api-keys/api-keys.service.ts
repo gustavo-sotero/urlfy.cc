@@ -65,12 +65,11 @@ function toPublic(key: typeof apikey.$inferSelect): ApiKeyPublic {
 
 // ─── Service Class ────────────────────────────────────────────────
 
-// biome-ignore lint/complexity/noStaticOnlyClass: Intentional pattern per ElysiaJS best practices for stateless services
-export abstract class ApiKeysService {
+export const ApiKeysService = {
   /**
    * List all API keys for a user.
    */
-  static async listByUser(userId: string): Promise<ApiKeyPublic[]> {
+  async listByUser(userId: string): Promise<ApiKeyPublic[]> {
     const keys = await db
       .select()
       .from(apikey)
@@ -78,15 +77,12 @@ export abstract class ApiKeysService {
       .orderBy(desc(apikey.createdAt));
 
     return keys.map(toPublic);
-  }
+  },
 
   /**
    * Get a single API key by ID (must belong to user).
    */
-  static async getById(
-    keyId: string,
-    userId: string
-  ): Promise<ApiKeyPublic | null> {
+  async getById(keyId: string, userId: string): Promise<ApiKeyPublic | null> {
     const [key] = await db
       .select()
       .from(apikey)
@@ -100,13 +96,13 @@ export abstract class ApiKeysService {
       .limit(1);
 
     return key ? toPublic(key) : null;
-  }
+  },
 
   /**
    * Create a new API key.
    * Returns the full key (only shown once).
    */
-  static async create(
+  async create(
     userId: string,
     input: CreateApiKeyInput
   ): Promise<ApiKeyCreated> {
@@ -137,12 +133,12 @@ export abstract class ApiKeysService {
       ...toPublic(created),
       key // Only returned on creation
     };
-  }
+  },
 
   /**
    * Revoke an API key (soft delete).
    */
-  static async revoke(
+  async revoke(
     keyId: string,
     userId: string,
     reason?: string
@@ -164,27 +160,24 @@ export abstract class ApiKeysService {
       .returning({ id: apikey.id });
 
     return !!result;
-  }
+  },
 
   /**
    * Permanently delete an API key.
    */
-  static async delete(keyId: string, userId: string): Promise<boolean> {
+  async delete(keyId: string, userId: string): Promise<boolean> {
     const [result] = await db
       .delete(apikey)
       .where(and(eq(apikey.id, keyId), eq(apikey.userId, userId)))
       .returning({ id: apikey.id });
 
     return !!result;
-  }
+  },
 
   /**
    * Rollover: Create new key and revoke old one atomically.
    */
-  static async rollover(
-    keyId: string,
-    userId: string
-  ): Promise<ApiKeyCreated | null> {
+  async rollover(keyId: string, userId: string): Promise<ApiKeyCreated | null> {
     const [existing] = await db
       .select()
       .from(apikey)
@@ -216,4 +209,4 @@ export abstract class ApiKeysService {
 
     return newKey;
   }
-}
+};

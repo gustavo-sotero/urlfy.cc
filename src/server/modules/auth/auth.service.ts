@@ -50,8 +50,7 @@ interface ApiKeyValidationResult {
  * AuthService - Handles all authentication-related business logic
  * Uses abstract class with static methods pattern for non-request dependent logic
  */
-// biome-ignore lint/complexity/noStaticOnlyClass: Intentional pattern per ElysiaJS best practices for stateless services
-export abstract class AuthService {
+export const AuthService = {
   // ─────────────────────────────────────────────────────────────────
   // SESSION MANAGEMENT
   // ─────────────────────────────────────────────────────────────────
@@ -59,9 +58,7 @@ export abstract class AuthService {
   /**
    * Validate a session from request headers
    */
-  static async validateSession(
-    headers: Headers
-  ): Promise<SessionValidationResult> {
+  async validateSession(headers: Headers): Promise<SessionValidationResult> {
     try {
       const sessionData = await auth.api.getSession({ headers });
 
@@ -108,22 +105,19 @@ export abstract class AuthService {
         reason: 'Session validation failed'
       };
     }
-  }
+  },
 
   /**
    * Get session data from headers
    */
-  static async getSession(headers: Headers) {
+  async getSession(headers: Headers) {
     return await auth.api.getSession({ headers });
-  }
+  },
 
   /**
    * Revoke a specific session
    */
-  static async revokeSession(
-    sessionId: string,
-    userId: string
-  ): Promise<boolean> {
+  async revokeSession(sessionId: string, userId: string): Promise<boolean> {
     const deleted = await db
       .delete(sessionTable)
       .where(
@@ -132,24 +126,24 @@ export abstract class AuthService {
       .returning();
 
     return deleted.length > 0;
-  }
+  },
 
   /**
    * Revoke all sessions for a user (logout from all devices)
    */
-  static async revokeAllSessions(userId: string): Promise<number> {
+  async revokeAllSessions(userId: string): Promise<number> {
     const deleted = await db
       .delete(sessionTable)
       .where(eq(sessionTable.userId, userId))
       .returning();
 
     return deleted.length;
-  }
+  },
 
   /**
    * Revoke all sessions except the current one
    */
-  static async revokeOtherSessions(
+  async revokeOtherSessions(
     userId: string,
     currentSessionId: string
   ): Promise<number> {
@@ -178,7 +172,7 @@ export abstract class AuthService {
     }
 
     return deletedCount;
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // API KEY MANAGEMENT
@@ -187,7 +181,7 @@ export abstract class AuthService {
   /**
    * Validate an API key
    */
-  static async validateApiKey(apiKey: string): Promise<ApiKeyValidationResult> {
+  async validateApiKey(apiKey: string): Promise<ApiKeyValidationResult> {
     // Check format
     if (!apiKey.startsWith('urlfy_sk_')) {
       return {
@@ -257,12 +251,12 @@ export abstract class AuthService {
       keyId: result.id,
       permissions
     };
-  }
+  },
 
   /**
    * Generate a new API key
    */
-  static async generateApiKey(
+  async generateApiKey(
     userId: string,
     name: string,
     permissions: ApiKeyPermissions
@@ -298,12 +292,12 @@ export abstract class AuthService {
       keyId: created.id,
       plainKey: key
     };
-  }
+  },
 
   /**
    * Revoke an API key
    */
-  static async revokeApiKey(keyId: string, userId: string): Promise<boolean> {
+  async revokeApiKey(keyId: string, userId: string): Promise<boolean> {
     const [updated] = await db
       .update(apiKeyTable)
       .set({ revokedAt: new Date() })
@@ -311,12 +305,12 @@ export abstract class AuthService {
       .returning();
 
     return !!updated;
-  }
+  },
 
   /**
    * Update API key last used timestamp
    */
-  static async updateApiKeyUsage(keyId: string): Promise<void> {
+  async updateApiKeyUsage(keyId: string): Promise<void> {
     await db
       .update(apiKeyTable)
       .set({
@@ -324,7 +318,7 @@ export abstract class AuthService {
         usageCount: sql`${apiKeyTable.usageCount} + 1`
       })
       .where(eq(apiKeyTable.id, keyId));
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // TWO-FACTOR AUTHENTICATION
@@ -333,7 +327,7 @@ export abstract class AuthService {
   /**
    * Check if 2FA is enabled for a user
    */
-  static async isTwoFactorEnabled(userId: string): Promise<boolean> {
+  async isTwoFactorEnabled(userId: string): Promise<boolean> {
     const result = await db
       .select({ verified: twoFactorTable.verified })
       .from(twoFactorTable)
@@ -341,12 +335,12 @@ export abstract class AuthService {
       .limit(1);
 
     return result.length > 0 && result[0].verified;
-  }
+  },
 
   /**
    * Check if 2FA is required for admin access
    */
-  static async isAdminWithTwoFactor(userId: string): Promise<{
+  async isAdminWithTwoFactor(userId: string): Promise<{
     isAdmin: boolean;
     hasTwoFactor: boolean;
     canAccess: boolean;
@@ -374,7 +368,7 @@ export abstract class AuthService {
       hasTwoFactor,
       canAccess: hasTwoFactor // Admins must have 2FA
     };
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // HELPER METHODS
@@ -383,18 +377,18 @@ export abstract class AuthService {
   /**
    * Hash an API key using SHA-256
    */
-  private static async hashApiKey(key: string): Promise<string> {
+  async hashApiKey(key: string): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(key);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-  }
+  },
 
   /**
    * Normalize permissions (fill in defaults)
    */
-  private static normalizePermissions(
+  normalizePermissions(
     permissions: ApiKeyPermissions
   ): NormalizedApiKeyPermissions {
     const defaults: NormalizedApiKeyPermissions = {
@@ -420,14 +414,12 @@ export abstract class AuthService {
         read: permissions.analytics?.read ?? defaults.analytics.read
       }
     };
-  }
+  },
 
   /**
    * Parse permissions from database string
    */
-  private static parsePermissions(
-    permissions: string | null
-  ): NormalizedApiKeyPermissions {
+  parsePermissions(permissions: string | null): NormalizedApiKeyPermissions {
     if (!permissions) {
       return AuthService.normalizePermissions({});
     }
@@ -439,4 +431,4 @@ export abstract class AuthService {
       return AuthService.normalizePermissions({});
     }
   }
-}
+};

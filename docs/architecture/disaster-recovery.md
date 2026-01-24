@@ -222,3 +222,4 @@ docker exec urlfy-backup ls -lh /backups
 # Delete old backups manually
 docker exec urlfy-backup find /backups -name "*.sql.gz" -mtime +30 -delete
 ```
+

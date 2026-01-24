@@ -658,3 +658,4 @@ Link: </api/v2/links>; rel="successor-version"
 1. **Anúncio:** 90 dias antes
 2. **Período de transição:** Mínimo 6 meses
 3. **Remoção:** Retorna `410 Gone`
+

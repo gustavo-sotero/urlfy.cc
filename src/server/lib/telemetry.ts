@@ -87,11 +87,15 @@ const logExporter = TELEMETRY_ENABLED
 // ═══════════════════════════════════════════════════════════════════
 
 const loggerProvider = new LoggerProvider({ resource });
+// Generic type to allow access to addLogRecordProcessor
+type LoggerProviderWithProcessor = LoggerProvider & {
+  addLogRecordProcessor: (processor: unknown) => void;
+};
+
 if (logExporter && 'addLogRecordProcessor' in loggerProvider) {
-  // biome-ignore lint/suspicious/noExplicitAny: API compatibility with OpenTelemetry SDK versions
-  (loggerProvider as any).addLogRecordProcessor(
-    new BatchLogRecordProcessor(logExporter)
-  );
+  (
+    loggerProvider as unknown as LoggerProviderWithProcessor
+  ).addLogRecordProcessor(new BatchLogRecordProcessor(logExporter));
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -146,7 +150,7 @@ export async function shutdownTelemetry() {
 // LOGGER ESTRUTURADO
 // ═══════════════════════════════════════════════════════════════════
 
-import { trace } from '@opentelemetry/api';
+import { type Attributes, trace } from '@opentelemetry/api';
 
 export interface LogContext {
   traceId?: string;
@@ -183,8 +187,7 @@ export function createLogger(name: string) {
     logger.emit({
       severityText: level.toUpperCase(),
       body: JSON.stringify(logRecord),
-      // biome-ignore lint/suspicious/noExplicitAny: OpenTelemetry attributes accept flexible types
-      attributes: logRecord as any
+      attributes: logRecord as unknown as Attributes
     });
 
     // Console log para desenvolvimento
@@ -327,8 +330,11 @@ const originalCacheHitsAdd = cacheHits.add.bind(cacheHits);
 const originalCacheMissesAdd = cacheMisses.add.bind(cacheMisses);
 
 // Override add methods to track locally
-// biome-ignore lint/suspicious/noExplicitAny: Required to override OpenTelemetry Counter method
-(cacheHits as any).add = (
+type MutableMetric = {
+  add: (value: number, attributes?: Record<string, string>) => void;
+};
+
+(cacheHits as unknown as MutableMetric).add = (
   value: number,
   attributes?: Record<string, string>
 ) => {
@@ -336,8 +342,7 @@ const originalCacheMissesAdd = cacheMisses.add.bind(cacheMisses);
   return originalCacheHitsAdd(value, attributes);
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: Required to override OpenTelemetry Counter method
-(cacheMisses as any).add = (
+(cacheMisses as unknown as MutableMetric).add = (
   value: number,
   attributes?: Record<string, string>
 ) => {

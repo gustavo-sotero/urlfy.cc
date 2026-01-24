@@ -376,3 +376,4 @@ Configurados no SigNoz:
 | API Abuse        | > 1000 req/min por API key      | Throttle + alerta     |
 | Suspicious Link  | Link reportado 3+ vezes         | Review queue + alerta |
 | Failed Deletions | LGPD deadline em 12h            | Alerta urgente        |
+

@@ -1394,3 +1394,4 @@ describe('Analytics Performance', () => {
 - [ ] Testes unitários de workers
 - [ ] Testes de integração end-to-end
 - [ ] Testes de performance
+

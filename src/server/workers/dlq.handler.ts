@@ -1,6 +1,6 @@
 // src/server/workers/dlq.handler.ts
 
-import type { Job } from 'bullmq';
+import type { Job, Worker } from 'bullmq';
 import { recordMetric } from '@/server/lib/metrics';
 import { analyticsDeadQueue, analyticsQueue } from '@/server/lib/queue';
 import { createLogger } from '@/server/lib/telemetry';
@@ -28,9 +28,7 @@ interface DLQJob {
  * Configura handlers de DLQ para uma fila
  * Deve ser chamado após criar o worker
  */
-export async function setupDLQHandlers(
-  _queue: typeof analyticsQueue
-): Promise<void> {
+export async function setupDLQHandlers(_worker: Worker): Promise<void> {
   logger.info('[DLQHandler] Setting up DLQ handlers for queue');
 
   // Processa jobs falhados periodicamente

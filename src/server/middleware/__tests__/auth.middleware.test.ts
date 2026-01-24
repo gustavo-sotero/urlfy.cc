@@ -172,18 +172,18 @@ describe('Auth Middleware', () => {
     if (adminSignUpResult?.user) {
       adminUser.id = adminSignUpResult.user.id;
 
+      if (!db || !userTable || !twoFactorTable) {
+        throw new Error('Database tables not initialized');
+      }
+
       // Update to admin role
-      // biome-ignore lint/style/noNonNullAssertion: Infrastructure check guarantees non-null
-      await db!
-        // biome-ignore lint/style/noNonNullAssertion: Infrastructure check guarantees non-null
-        .update(userTable!)
+      await db
+        .update(userTable)
         .set({ role: 'admin' })
-        // biome-ignore lint/style/noNonNullAssertion: Infrastructure check guarantees non-null
-        .where(eq(userTable!.id, adminUser.id));
+        .where(eq(userTable.id, adminUser.id));
 
       // Enable 2FA for admin
-      // biome-ignore lint/style/noNonNullAssertion: Infrastructure check guarantees non-null
-      await db!.insert(twoFactorTable!).values({
+      await db.insert(twoFactorTable).values({
         id: nanoid(),
         userId: adminUser.id,
         secret: 'test-secret',
@@ -214,8 +214,11 @@ describe('Auth Middleware', () => {
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
 
-    // biome-ignore lint/style/noNonNullAssertion: Infrastructure check guarantees non-null
-    await db!.insert(apiKeyTable!).values({
+    if (!db || !apiKeyTable) {
+      throw new Error('Database tables not initialized');
+    }
+
+    await db.insert(apiKeyTable).values({
       id: nanoid(),
       userId: testUser.id,
       name: 'Test API Key',
@@ -302,8 +305,7 @@ describe('Auth Middleware', () => {
     function createApp() {
       if (!requireAuth) throw new Error('Middleware not available');
       return new Elysia().use(requireAuth).get('/test', (context) => ({
-        // biome-ignore lint/suspicious/noExplicitAny: Test context typing
-        userId: (context as any).user.id
+        userId: (context as unknown as { user: { id: string } }).user.id
       }));
     }
 
@@ -353,10 +355,9 @@ describe('Auth Middleware', () => {
     function createApp() {
       if (!apiKeyAuth) throw new Error('Middleware not available');
       return new Elysia().use(apiKeyAuth).get('/test', (context) => ({
-        // biome-ignore lint/suspicious/noExplicitAny: Test context typing
-        userId: (context as any).user.id,
-        // biome-ignore lint/suspicious/noExplicitAny: Test context typing
-        keyName: (context as any).apiKey?.name
+        userId: (context as unknown as { user: { id: string } }).user.id,
+        keyName: (context as unknown as { apiKey?: { name: string } }).apiKey
+          ?.name
       }));
     }
 
@@ -554,12 +555,16 @@ describe('Auth Middleware', () => {
   describe('requireAdmin middleware', () => {
     function createApp() {
       if (!requireAdmin) throw new Error('Middleware not available');
-      return new Elysia().use(requireAdmin).get('/test', (context) => ({
-        // biome-ignore lint/suspicious/noExplicitAny: Test context typing
-        userId: (context as any).user.id,
-        // biome-ignore lint/suspicious/noExplicitAny: Test context typing
-        isAdmin: (context as any).isAdmin
-      }));
+      return new Elysia().use(requireAdmin).get('/test', (context) => {
+        const { user, isAdmin } = context as unknown as {
+          user: { id: string };
+          isAdmin: boolean;
+        };
+        return {
+          userId: user.id,
+          isAdmin
+        };
+      });
     }
 
     it('should allow admin users with 2FA enabled', async () => {

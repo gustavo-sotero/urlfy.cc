@@ -54,8 +54,7 @@ const BASE_URL = process.env.PUBLIC_URL || 'https://urlfy.cc';
  * LinkService - Handles all link-related business logic
  * Uses abstract class with static methods pattern for non-request dependent logic
  */
-// biome-ignore lint/complexity/noStaticOnlyClass: Intentional pattern per ElysiaJS best practices for stateless services
-export abstract class LinkService {
+export const LinkService = {
   // ─────────────────────────────────────────────────────────────────
   // PASSWORD VERIFICATION
   // ─────────────────────────────────────────────────────────────────
@@ -66,10 +65,7 @@ export abstract class LinkService {
    * @param password - Senha fornecida
    * @returns true se a senha está correta
    */
-  static async verifyLinkPassword(
-    code: string,
-    password: string
-  ): Promise<boolean> {
+  async verifyLinkPassword(code: string, password: string): Promise<boolean> {
     const link = await LinkService.getLinkByCode(code);
 
     if (!link) {
@@ -84,7 +80,7 @@ export abstract class LinkService {
     const isValid = await Bun.password.verify(password, link.passwordHash);
 
     return isValid;
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // CREATE
@@ -97,7 +93,7 @@ export abstract class LinkService {
    * @param ipHash - Hash do IP do criador
    * @returns Link criado
    */
-  static async createLink(
+  async createLink(
     input: CreateLinkInput,
     userId?: string,
     ipHash?: string
@@ -179,7 +175,7 @@ export abstract class LinkService {
       .returning();
 
     return link;
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // LIST (Paginated)
@@ -188,7 +184,7 @@ export abstract class LinkService {
   /**
    * Lista links de um usuário com paginação e filtros
    */
-  static async listUserLinks(
+  async listUserLinks(
     userId: string,
     query: ListLinksQuery = {}
   ): Promise<PaginatedResponse<Link>> {
@@ -259,7 +255,7 @@ export abstract class LinkService {
         hasMore: page < lastPage
       }
     };
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // GET
@@ -268,7 +264,7 @@ export abstract class LinkService {
   /**
    * Busca link por ID (verifica ownership)
    */
-  static async getLinkById(id: string, userId: string): Promise<Link> {
+  async getLinkById(id: string, userId: string): Promise<Link> {
     const [link] = await db
       .select()
       .from(links)
@@ -282,12 +278,12 @@ export abstract class LinkService {
     }
 
     return link;
-  }
+  },
 
   /**
    * Busca link por ID (sem verificação de ownership)
    */
-  static async getLinkByIdUnsafe(id: string): Promise<Link> {
+  async getLinkByIdUnsafe(id: string): Promise<Link> {
     const [link] = await db
       .select()
       .from(links)
@@ -299,12 +295,12 @@ export abstract class LinkService {
     }
 
     return link;
-  }
+  },
 
   /**
    * Busca link por short code (público)
    */
-  static async getLinkByCode(code: string): Promise<Link | null> {
+  async getLinkByCode(code: string): Promise<Link | null> {
     const [link] = await db
       .select()
       .from(links)
@@ -312,7 +308,7 @@ export abstract class LinkService {
       .limit(1);
 
     return link ?? null;
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // UPDATE
@@ -321,7 +317,7 @@ export abstract class LinkService {
   /**
    * Atualiza um link existente
    */
-  static async updateLink(
+  async updateLink(
     id: string,
     userId: string,
     input: UpdateLinkInput
@@ -414,7 +410,7 @@ export abstract class LinkService {
     }
 
     return updated;
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // DELETE
@@ -423,7 +419,7 @@ export abstract class LinkService {
   /**
    * Soft delete de um link
    */
-  static async softDeleteLink(id: string, userId: string): Promise<void> {
+  async softDeleteLink(id: string, userId: string): Promise<void> {
     const link = await LinkService.getLinkById(id, userId);
 
     await db
@@ -432,12 +428,12 @@ export abstract class LinkService {
       .where(eq(links.id, id));
 
     await LinkService.invalidateLinkCache(link.shortCode, 'delete');
-  }
+  },
 
   /**
    * Restaura um link deletado
    */
-  static async restoreLink(id: string, userId: string): Promise<Link> {
+  async restoreLink(id: string, userId: string): Promise<Link> {
     const [link] = await db
       .select()
       .from(links)
@@ -461,7 +457,7 @@ export abstract class LinkService {
     await LinkService.invalidateLinkCache(link.shortCode, 'update');
 
     return restored;
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // DUPLICATE
@@ -470,7 +466,7 @@ export abstract class LinkService {
   /**
    * Duplica um link existente
    */
-  static async duplicateLink(id: string, userId: string): Promise<Link> {
+  async duplicateLink(id: string, userId: string): Promise<Link> {
     const original = await LinkService.getLinkById(id, userId);
 
     const newCode = await generateUniqueCode();
@@ -497,7 +493,7 @@ export abstract class LinkService {
       .returning();
 
     return duplicate;
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // UTILITIES
@@ -506,7 +502,7 @@ export abstract class LinkService {
   /**
    * Toggle status ativo/inativo
    */
-  static async toggleLinkActive(id: string, userId: string): Promise<Link> {
+  async toggleLinkActive(id: string, userId: string): Promise<Link> {
     const link = await LinkService.getLinkById(id, userId);
 
     const [updated] = await db
@@ -518,12 +514,12 @@ export abstract class LinkService {
     await LinkService.invalidateLinkCache(link.shortCode, 'update');
 
     return updated;
-  }
+  },
 
   /**
    * Formata link para resposta da API
    */
-  static formatLinkResponse(link: Link): LinkResponse {
+  formatLinkResponse(link: Link): LinkResponse {
     return {
       id: link.id,
       shortCode: link.shortCode,
@@ -549,7 +545,7 @@ export abstract class LinkService {
       createdAt: link.createdAt.toISOString(),
       updatedAt: link.updatedAt.toISOString()
     };
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // CACHE INVALIDATION
@@ -558,7 +554,7 @@ export abstract class LinkService {
   /**
    * Invalida cache de um link
    */
-  private static async invalidateLinkCache(
+  async invalidateLinkCache(
     code: string,
     reason: 'update' | 'ban' | 'delete'
   ): Promise<void> {
@@ -582,4 +578,4 @@ export abstract class LinkService {
       console.warn('Failed to invalidate link cache:', error);
     }
   }
-}
+};

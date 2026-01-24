@@ -1275,3 +1275,4 @@ generateSecurityReport();
 - [x] Container scanning com Trivy
 - [x] Script de relatório de conformidade
 - [ ] Validação em securityheaders.com (A+) - Requer deploy em produção
+

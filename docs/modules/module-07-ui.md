@@ -1668,3 +1668,4 @@ test.describe('Links Management', () => {
 - [ ] Testes E2E básicos (Playwright)
 - [ ] Testes de navegação por teclado
 - [ ] Testes de screen reader announcements
+

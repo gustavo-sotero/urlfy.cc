@@ -1491,3 +1491,4 @@ PORT=3000
 ---
 
 > **Próximo módulo:** [Módulo 2: Autenticação & Identidade](./module-02-authentication.md)
+

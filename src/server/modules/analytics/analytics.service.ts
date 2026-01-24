@@ -112,13 +112,12 @@ function calculateGrowth(current: number, previous: number): number {
  * - Clean import namespace (AnalyticsService.getDailyStats)
  * - Stateless methods
  */
-// biome-ignore lint/complexity/noStaticOnlyClass: Intentional pattern per ElysiaJS best practices for stateless services
-export abstract class AnalyticsService {
+export const AnalyticsService = {
   /**
    * Get daily stats for a link
    * Uses real-time data from analytics_events for accurate counts
    */
-  static async getDailyStats(
+  async getDailyStats(
     linkId: string,
     days: number = 30
   ): Promise<TimeSeries[]> {
@@ -162,13 +161,13 @@ export abstract class AnalyticsService {
       });
       throw error;
     }
-  }
+  },
 
   /**
    * Get country breakdown
    * Uses real-time data from analytics_events
    */
-  static async getCountryBreakdown(
+  async getCountryBreakdown(
     linkId: string,
     limit: number = 10,
     days: number = 30
@@ -212,13 +211,13 @@ export abstract class AnalyticsService {
       });
       return [];
     }
-  }
+  },
 
   /**
    * Get device breakdown
    * Uses real-time data from analytics_events
    */
-  static async getDeviceBreakdown(
+  async getDeviceBreakdown(
     linkId: string,
     days: number = 30
   ): Promise<DeviceBreakdownItem[]> {
@@ -258,13 +257,13 @@ export abstract class AnalyticsService {
       });
       return [];
     }
-  }
+  },
 
   /**
    * Get browser breakdown
    * Uses real-time data from analytics_events
    */
-  static async getBrowserBreakdown(
+  async getBrowserBreakdown(
     linkId: string,
     limit: number = 10,
     days: number = 30
@@ -306,13 +305,13 @@ export abstract class AnalyticsService {
       });
       return [];
     }
-  }
+  },
 
   /**
    * Get referrer domain breakdown
    * Uses real-time data from analytics_events
    */
-  static async getReferrerBreakdown(
+  async getReferrerBreakdown(
     linkId: string,
     limit: number = 10,
     days: number = 30
@@ -354,13 +353,13 @@ export abstract class AnalyticsService {
       });
       return [];
     }
-  }
+  },
 
   /**
    * Get complete analytics summary
    * Uses real-time data from analytics_events for accurate counts
    */
-  static async getSummary(
+  async getSummary(
     linkId: string,
     days: number = 30
   ): Promise<AnalyticsSummary | null> {
@@ -485,12 +484,12 @@ export abstract class AnalyticsService {
       });
       return null;
     }
-  }
+  },
 
   /**
    * Get complete breakdown for a period
    */
-  static async getCompleteBreakdown(
+  async getCompleteBreakdown(
     linkId: string,
     days: number = 30
   ): Promise<AnalyticsBreakdown> {
@@ -526,13 +525,13 @@ export abstract class AnalyticsService {
         referrers: []
       };
     }
-  }
+  },
 
   /**
    * Get aggregated daily stats for all user links
    * Uses real-time data from analytics_events for accurate counts
    */
-  static async getAllLinksDailyStats(
+  async getAllLinksDailyStats(
     userId: string,
     days: number = 30
   ): Promise<TimeSeries[]> {
@@ -577,13 +576,13 @@ export abstract class AnalyticsService {
       });
       throw error;
     }
-  }
+  },
 
   /**
    * Get aggregated summary for all user links
    * Uses real-time data from analytics_events for accurate counts
    */
-  static async getAllLinksSummary(
+  async getAllLinksSummary(
     userId: string,
     days: number = 30
   ): Promise<AnalyticsSummary | null> {
@@ -713,13 +712,13 @@ export abstract class AnalyticsService {
       });
       return null;
     }
-  }
+  },
 
   /**
    * Get aggregated breakdown for all user links
    * Uses real-time data from analytics_events for accurate counts
    */
-  static async getAllLinksBreakdown(
+  async getAllLinksBreakdown(
     userId: string,
     days: number = 30
   ): Promise<AnalyticsBreakdown> {
@@ -834,13 +833,13 @@ export abstract class AnalyticsService {
         referrers: []
       };
     }
-  }
+  },
 
   /**
    * Health check for analytics data
    * Useful for monitoring
    */
-  static async healthCheck(): Promise<{
+  async healthCheck(): Promise<{
     status: 'ok' | 'error';
     totalEvents: number;
     latestEvent: Date | null;
@@ -878,4 +877,4 @@ export abstract class AnalyticsService {
       };
     }
   }
-}
+};

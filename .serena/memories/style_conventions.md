@@ -7,3 +7,4 @@ Code style and conventions:
 - Server-side resource init guarded with typeof window === "undefined" where needed.
 - Keep business logic in src/server or src/lib, not UI components.
 - TailwindCSS + Shadcn UI for UI components.
+

@@ -298,3 +298,4 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 ---
 
 _Este documento define O QUE o sistema deve fazer. Para detalhes de COMO, consulte a documentação de arquitetura._
+

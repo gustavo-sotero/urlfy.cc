@@ -212,3 +212,4 @@ Se `RESEND_API_KEY` não estiver definido, o sistema apenas loga no console:
 - [Resend Docs - React Components](https://resend.com/docs/send-with-react)
 - [Resend Docs - Next.js](https://resend.com/docs/send-with-nextjs)
 - [React Email - Component Library](https://react.email)
+

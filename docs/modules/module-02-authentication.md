@@ -1646,3 +1646,4 @@ describe('Auth API', () => {
 ---
 
 _Este documento define a implementação do sistema de autenticação. Para requisitos, consulte o [PRD](../prd.md)._
+

@@ -783,8 +783,7 @@ const authenticatedRoutes = new Elysia()
     '/:id/toggle',
     async ({ params, user, set }) => {
       try {
-        // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
-        const link = await LinkService.toggleLinkActive(params.id, user!.id);
+        const link = await LinkService.toggleLinkActive(params.id, user?.id);
         return {
           success: true,
           data: LinkService.formatLinkResponse(link)
@@ -816,8 +815,7 @@ const authenticatedRoutes = new Elysia()
     '/:id/stats',
     async ({ params, user, set }) => {
       try {
-        // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
-        const link = await LinkService.getLinkById(params.id, user!.id);
+        const link = await LinkService.getLinkById(params.id, user?.id);
         return {
           success: true,
           data: {

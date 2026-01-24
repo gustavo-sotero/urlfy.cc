@@ -36,8 +36,7 @@ export const apiKeysController = new Elysia({
   .get(
     '/',
     async ({ user }) => {
-      // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
-      const keys = await ApiKeysService.listByUser(user!.id);
+      const keys = await ApiKeysService.listByUser(user?.id);
 
       // Serialize dates to strings for response
       const serializedKeys = keys.map((key) => ({
@@ -75,8 +74,7 @@ export const apiKeysController = new Elysia({
   .get(
     '/:id',
     async ({ params, user, set }) => {
-      // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
-      const key = await ApiKeysService.getById(params.id, user!.id);
+      const key = await ApiKeysService.getById(params.id, user?.id);
 
       if (!key) {
         set.status = 404;
@@ -124,8 +122,7 @@ export const apiKeysController = new Elysia({
   .post(
     '/',
     async ({ body, user, set }) => {
-      // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
-      const createdKey = await ApiKeysService.create(user!.id, {
+      const createdKey = await ApiKeysService.create(user?.id, {
         name: body.name,
         scopes: body.scopes,
         expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
@@ -220,8 +217,7 @@ export const apiKeysController = new Elysia({
   .post(
     '/:id/rollover',
     async ({ params, user, set }) => {
-      // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
-      const newKey = await ApiKeysService.rollover(params.id, user!.id);
+      const newKey = await ApiKeysService.rollover(params.id, user?.id);
 
       if (!newKey) {
         set.status = 404;
@@ -271,8 +267,7 @@ export const apiKeysController = new Elysia({
   .delete(
     '/:id',
     async ({ params, user, set }) => {
-      // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
-      const success = await ApiKeysService.delete(params.id, user!.id);
+      const success = await ApiKeysService.delete(params.id, user?.id);
 
       if (!success) {
         set.status = 404;

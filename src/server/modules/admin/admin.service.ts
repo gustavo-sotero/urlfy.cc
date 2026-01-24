@@ -31,8 +31,7 @@ const logger = createLogger('admin-service');
  * AdminService - Handles all admin-related business logic
  * Uses abstract class with static methods pattern for non-request dependent logic
  */
-// biome-ignore lint/complexity/noStaticOnlyClass: Intentional pattern per ElysiaJS best practices for stateless services
-export abstract class AdminService {
+export const AdminService = {
   // ─────────────────────────────────────────────────────────────────
   // GLOBAL STATS
   // ─────────────────────────────────────────────────────────────────
@@ -41,7 +40,7 @@ export abstract class AdminService {
    * Get global KPIs for admin dashboard
    * Executes parallel queries for performance
    */
-  static async getGlobalStats(): Promise<AdminStatsResponseType> {
+  async getGlobalStats(): Promise<AdminStatsResponseType> {
     try {
       // Execute all count queries in parallel
       const [
@@ -107,13 +106,13 @@ export abstract class AdminService {
       logger.error('Failed to fetch global stats', { error });
       throw error;
     }
-  }
+  },
 
   /**
    * Get growth statistics for analytics visualization
    * Returns time series data for clicks and new users
    */
-  static async getGrowthStats(range: '7d' | '30d' = '7d'): Promise<
+  async getGrowthStats(range: '7d' | '30d' = '7d'): Promise<
     Array<{
       date: string;
       clicks: number;
@@ -182,7 +181,7 @@ export abstract class AdminService {
       logger.error('Failed to fetch growth stats', { error, range });
       throw error;
     }
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // USER MANAGEMENT
@@ -191,7 +190,7 @@ export abstract class AdminService {
   /**
    * List users with pagination and filters
    */
-  static async listUsers(query: AdminUserListQueryType): Promise<{
+  async listUsers(query: AdminUserListQueryType): Promise<{
     data: AdminUserResponseType[];
     meta: {
       total: number;
@@ -297,13 +296,13 @@ export abstract class AdminService {
       logger.error('Failed to list users', { error, query });
       throw error;
     }
-  }
+  },
 
   /**
    * Update user status (role, ban status, quota)
    * Creates audit log entry in transaction
    */
-  static async updateUserStatus(
+  async updateUserStatus(
     userId: string,
     data: AdminUserUpdateBodyType,
     adminId: string,
@@ -390,7 +389,7 @@ export abstract class AdminService {
       });
       throw error;
     }
-  }
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // LINK MANAGEMENT
@@ -400,7 +399,7 @@ export abstract class AdminService {
    * Ban a link
    * Creates audit log and invalidates cache
    */
-  static async banLink(
+  async banLink(
     linkId: string,
     reason: string,
     adminId: string,
@@ -463,13 +462,13 @@ export abstract class AdminService {
       logger.error('Failed to ban link', { error, linkId, reason, adminId });
       throw error;
     }
-  }
+  },
 
   /**
    * Unban a link
    * Creates audit log and invalidates cache
    */
-  static async unbanLink(
+  async unbanLink(
     linkId: string,
     adminId: string,
     ipAddress?: string
@@ -530,12 +529,12 @@ export abstract class AdminService {
       logger.error('Failed to unban link', { error, linkId, adminId });
       throw error;
     }
-  }
+  },
 
   /**
    * Search links by URL or short code
    */
-  static async searchLinks(
+  async searchLinks(
     searchQuery: string,
     limit = 50
   ): Promise<
@@ -588,13 +587,13 @@ export abstract class AdminService {
       logger.error('Failed to search links', { error, searchQuery });
       throw error;
     }
-  }
+  },
 
   /**
    * List all links with pagination
    * Returns latest links by default if no search query provided
    */
-  static async listLinks(query?: {
+  async listLinks(query?: {
     page?: string;
     limit?: string;
     search?: string;
@@ -701,4 +700,4 @@ export abstract class AdminService {
       throw error;
     }
   }
-}
+};

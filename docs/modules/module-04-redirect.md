@@ -1446,3 +1446,4 @@ describe('Redirect Integration', () => {
 - [ ] Testes de carga k6
 - [ ] Métricas OpenTelemetry
 - [ ] Alertas SigNoz configurados
+

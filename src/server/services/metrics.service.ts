@@ -26,8 +26,7 @@ const CALC_INTERVAL_SECONDS = 60;
  *
  * @see https://elysiajs.com/essential/best-practice.html#service-pattern
  */
-// biome-ignore lint/complexity/noStaticOnlyClass: ElysiaJS pattern for non-request dependent services
-export abstract class MetricsService {
+export const MetricsService = {
   /**
    * Increment the request counter.
    * Call this on every tracked request (e.g., redirects, API calls).
@@ -35,14 +34,14 @@ export abstract class MetricsService {
    * Uses Redis INCR for atomic, lock-free counting.
    * Time Complexity: O(1)
    */
-  static async trackRequest(): Promise<void> {
+  async trackRequest(): Promise<void> {
     try {
       await redis.incr(REDIS_KEYS.REQUEST_COUNT);
     } catch (error) {
       // Non-blocking: metrics should never break the request flow
       logger.warn('Failed to track request metric', { error });
     }
-  }
+  },
 
   /**
    * Calculate and store the requests-per-second metric.
@@ -56,7 +55,7 @@ export abstract class MetricsService {
    *
    * @returns The calculated RPS value, or null on error.
    */
-  static async calculateRPS(): Promise<number | null> {
+  async calculateRPS(): Promise<number | null> {
     try {
       const now = Date.now();
 
@@ -91,4 +90,4 @@ export abstract class MetricsService {
       return null;
     }
   }
-}
+};
