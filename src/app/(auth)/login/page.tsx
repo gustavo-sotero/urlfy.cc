@@ -24,7 +24,7 @@ import { Separator } from '@/components/ui/separator';
 import { authClient } from '@/lib/auth.client';
 
 const schema = z.object({
-  email: z.string().email('Email inválido'),
+  email: z.email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres')
 });
 

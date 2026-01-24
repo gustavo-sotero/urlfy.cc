@@ -42,6 +42,19 @@ export default function TermsPage(): JSX.Element {
             vinculado a estes Termos de Uso. Se você não concordar com qualquer
             parte destes termos, não poderá usar nosso Serviço.
           </p>
+          <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+            <p className="font-semibold text-foreground">
+              ⚠️ Natureza do Serviço
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              O urlfy.cc é um{' '}
+              <strong>projeto educacional e de demonstração técnica</strong>,
+              não um produto comercial. Este serviço é fornecido
+              <strong> "AS IS"</strong> (como está) para fins de portfólio e
+              aprendizado. Não há garantias de disponibilidade, persistência de
+              dados ou SLA (Service Level Agreement).
+            </p>
+          </div>
         </section>
 
         <section className="mt-8">
@@ -49,9 +62,10 @@ export default function TermsPage(): JSX.Element {
             2. Descrição do Serviço
           </h2>
           <p>
-            O urlfy.cc é um serviço de encurtamento de URLs que permite aos
-            usuários transformar links longos em versões mais curtas e
-            gerenciáveis. O Serviço inclui, mas não se limita a:
+            O urlfy.cc é um serviço de encurtamento de URLs desenvolvido como
+            projeto de portfólio que permite aos usuários transformar links
+            longos em versões mais curtas e gerenciáveis. O Serviço inclui, mas
+            não se limita a:
           </p>
           <ul className="list-disc pl-6 space-y-2">
             <li>Criação de links encurtados</li>
@@ -60,6 +74,11 @@ export default function TermsPage(): JSX.Element {
             <li>Proteção por senha e expiração de links</li>
             <li>Geração de QR Codes</li>
           </ul>
+          <p className="mt-4 text-sm text-muted-foreground">
+            <strong>Importante:</strong> Este serviço pode ser descontinuado,
+            modificado ou ter seus dados apagados a qualquer momento sem aviso
+            prévio, visto que se trata de um ambiente de demonstração.
+          </p>
         </section>
 
         <section className="mt-8">
@@ -85,7 +104,11 @@ export default function TermsPage(): JSX.Element {
 
         <section className="mt-8">
           <h2 className="text-2xl font-semibold mt-8 mb-4">4. Uso Aceitável</h2>
-          <p>Você concorda em NÃO usar o Serviço para:</p>
+          <p>
+            Este é um serviço de demonstração para fins educacionais. Você
+            concorda em utilizá-lo de forma responsável e ética.
+          </p>
+          <p className="mt-4">Você concorda em NÃO usar o Serviço para:</p>
           <ul className="list-disc pl-6 space-y-2">
             <li>
               Criar links para conteúdo ilegal, malicioso, phishing ou spam
@@ -99,6 +122,11 @@ export default function TermsPage(): JSX.Element {
             <li>Usar automação excessiva ou técnicas de scraping</li>
             <li>Sobrecarregar ou interferir com a infraestrutura do Serviço</li>
           </ul>
+          <p className="mt-4 text-sm text-muted-foreground">
+            <strong>Nota:</strong> Por se tratar de um projeto educacional, o
+            uso deve estar limitado a fins de teste e demonstração. Uso
+            comercial intensivo não é recomendado.
+          </p>
         </section>
 
         <section className="mt-8">
@@ -136,11 +164,35 @@ export default function TermsPage(): JSX.Element {
           <h2 className="text-2xl font-semibold mt-8 mb-4">
             7. Limitação de Responsabilidade
           </h2>
-          <p>
-            O Serviço é fornecido "como está" e "conforme disponível". Não
-            garantimos que o Serviço estará sempre disponível, ininterrupto ou
-            livre de erros. Em nenhuma circunstância seremos responsáveis por
-            danos indiretos, incidentais ou consequentes.
+          <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+            <p className="font-semibold text-foreground mb-2">
+              Isenção de Garantias (Projeto Educacional)
+            </p>
+            <p>
+              O Serviço é fornecido <strong>"COMO ESTÁ"</strong> e{' '}
+              <strong>"CONFORME DISPONÍVEL"</strong> sem garantias de qualquer
+              tipo, expressas ou implícitas, incluindo, mas não se limitando a:
+            </p>
+            <ul className="list-disc pl-6 space-y-2 mt-2">
+              <li>Disponibilidade contínua ou uptime (não há SLA definido)</li>
+              <li>
+                Persistência de dados (backups podem não existir ou serem
+                incompletos)
+              </li>
+              <li>Correção de bugs ou manutenção regular</li>
+              <li>Performance consistente</li>
+              <li>Suporte técnico</li>
+            </ul>
+          </div>
+          <p className="mt-4">
+            Como este é um <strong>projeto de portfólio</strong>, não garantimos
+            que o Serviço estará sempre disponível, ininterrupto ou livre de
+            erros. Em nenhuma circunstância seremos responsáveis por danos
+            indiretos, incidentais, consequentes ou perda de dados.
+          </p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            <strong>Recomendação:</strong> Não utilize este serviço para links
+            críticos de negócio ou que requerem garantias de disponibilidade.
           </p>
         </section>
 

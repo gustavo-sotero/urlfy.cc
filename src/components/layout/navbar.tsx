@@ -35,7 +35,7 @@ type NavLink = {
 
 const NAV_LINKS: readonly NavLink[] = [
   { href: '/#features', label: 'Recursos' },
-  { href: '/about', label: 'Sobre' },
+  { href: '/project', label: 'O Projeto' },
   { href: '/api/docs', label: 'API Docs', external: true }
 ];
 

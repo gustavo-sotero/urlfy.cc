@@ -158,10 +158,18 @@ export abstract class AdminService {
 
       // Convert to maps for easier lookup
       const clicksMap = new Map(
-        clicksData.map((item) => [item.date, Number(item.clicks)])
+        clicksData.map((item) => {
+          // item.date is always a string from the SQL query
+          const key = String(item.date).substring(0, 10);
+          return [key, Number(item.clicks)];
+        })
       );
       const usersMap = new Map(
-        usersData.map((item) => [item.date, Number(item.newUsers)])
+        usersData.map((item) => {
+          // item.date is always a string from the SQL query
+          const key = String(item.date).substring(0, 10);
+          return [key, Number(item.newUsers)];
+        })
       );
 
       // Combine data with all dates (filling missing dates with 0)
@@ -595,10 +603,14 @@ export abstract class AdminService {
       id: string;
       shortCode: string;
       originalUrl: string;
+      userId: string | null;
+      clicksCount: number;
       isActive: boolean;
       isBanned: boolean;
+      bannedReason: string | null;
+      expiresAt: string | null;
       createdAt: string;
-      clicksCount: number;
+      updatedAt: string;
     }>;
     meta: {
       total: number;
@@ -643,10 +655,14 @@ export abstract class AdminService {
             id: links.id,
             shortCode: links.shortCode,
             originalUrl: links.originalUrl,
+            userId: links.userId,
+            clicksCount: links.clicksCount,
             isActive: links.isActive,
             isBanned: links.isBanned,
+            bannedReason: links.bannedReason,
+            expiresAt: links.expiresAt,
             createdAt: links.createdAt,
-            clicksCount: links.clicksCount
+            updatedAt: links.updatedAt
           })
           .from(links)
           .where(whereClause)
@@ -663,10 +679,14 @@ export abstract class AdminService {
           id: link.id,
           shortCode: link.shortCode,
           originalUrl: link.originalUrl,
+          userId: link.userId,
+          clicksCount: link.clicksCount,
           isActive: link.isActive,
           isBanned: link.isBanned,
+          bannedReason: link.bannedReason,
+          expiresAt: link.expiresAt ? link.expiresAt.toISOString() : null,
           createdAt: link.createdAt.toISOString(),
-          clicksCount: link.clicksCount
+          updatedAt: link.updatedAt.toISOString()
         })),
         meta: {
           total,

@@ -27,7 +27,7 @@ import { authClient } from '@/lib/auth.client';
 const schema = z
   .object({
     name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
-    email: z.string().email('Email inválido'),
+    email: z.email('Email inválido'),
     password: z.string().min(8, 'Senha deve ter no mínimo 8 caracteres'),
     confirmPassword: z.string(),
     acceptTerms: z.boolean().refine((val) => val === true, {

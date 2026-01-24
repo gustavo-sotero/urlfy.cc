@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════
 # STAGE 1: Dependencies
 # ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:1 AS dependencies
+FROM oven/bun:slim AS dependencies
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ RUN bun install --frozen-lockfile --production=false
 # ═══════════════════════════════════════════════════════════════════
 # STAGE 2: Builder
 # ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:1 AS builder
+FROM oven/bun:slim AS builder
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ RUN bun run build
 # ═══════════════════════════════════════════════════════════════════
 # STAGE 3: Runner
 # ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:1-slim AS runner
+FROM oven/bun:slim AS runner
 
 WORKDIR /app
 

@@ -1,6 +1,6 @@
 // src/components/layout/footer.tsx
 
-import { Github, Twitter } from 'lucide-react';
+import { Github, Rocket } from 'lucide-react';
 import Link from 'next/link';
 
 export function Footer() {
@@ -16,7 +16,8 @@ export function Footer() {
               urlfy.cc
             </Link>
             <p className="text-sm text-muted-foreground">
-              Encurtador de URLs rápido, seguro e com analytics detalhados.
+              Projeto de portfólio: Encurtador de URLs com arquitetura moderna e
+              alta performance.
             </p>
           </div>
 
@@ -34,18 +35,18 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/#pricing"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Preços
-                </Link>
-              </li>
-              <li>
-                <Link
                   href="/#features"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Recursos
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/api/docs"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  API Docs
                 </Link>
               </li>
             </ul>
@@ -82,34 +83,56 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Social */}
+          {/* Developer/Project */}
           <div className="space-y-4">
-            <h4 className="font-semibold">Social</h4>
-            <div className="flex gap-4">
-              <a
-                href="https://github.com/urlfy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="GitHub"
-              >
-                <Github className="h-5 w-5" />
-              </a>
-              <a
-                href="https://twitter.com/urlfy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Twitter"
-              >
-                <Twitter className="h-5 w-5" />
-              </a>
-            </div>
+            <h4 className="font-semibold">Projeto</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link
+                  href="/project"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Sobre o Projeto
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/gustavo-sotero/urlfy.cc"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+                >
+                  <Github className="h-3 w-3" />
+                  Repositório
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://gustavo-sotero.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+                >
+                  <Rocket className="h-3 w-3" />
+                  Portfólio
+                </a>
+              </li>
+            </ul>
           </div>
         </div>
 
         <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p>© {currentYear} urlfy.cc. Todos os direitos reservados.</p>
+          <p>
+            © {currentYear} urlfy.cc - Projeto Educacional por{' '}
+            <a
+              href="https://gustavo-sotero.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              Gustavo Sotero
+            </a>
+          </p>
         </div>
       </div>
     </footer>

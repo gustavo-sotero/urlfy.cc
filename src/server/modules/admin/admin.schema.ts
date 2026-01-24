@@ -28,7 +28,7 @@ export const AuditLogResponse = t.Object(
     action: t.String({ examples: ['ban_link'] }),
     entityType: t.String({ examples: ['link'] }),
     entityId: t.Nullable(t.String({ examples: ['link_456def'] })),
-    metadata: t.Any({ examples: [{ reason: 'Spam/Phishing' }] }),
+    metadata: t.Unknown({ examples: [{ reason: 'Spam/Phishing' }] }),
     ipAddress: t.Nullable(t.String({ examples: ['192.168.1.1'] })),
     userAgent: t.Nullable(
       t.String({ examples: ['Mozilla/5.0 (Windows NT 10.0; Win64; x64)'] })
@@ -127,6 +127,7 @@ export type GrowthStatsResponseType = Static<typeof GrowthStatsResponse>;
 export const GrowthStatsQuery = t.Object({
   range: t.Optional(
     t.Union([t.Literal('7d'), t.Literal('30d')], {
+      default: '7d',
       description: 'Time range (default: 7d)'
     })
   )
@@ -267,12 +268,12 @@ export const AuditStatsSummaryResponse = t.Object(
       description: 'Total audit log entries',
       examples: [15000]
     }),
-    actionCounts: t.Record(t.String(), t.Number(), {
-      description: 'Count by action type',
+    actionCounts: t.Unknown({
+      description: 'Count by action type (Record<string, number>)',
       examples: [{ ban_link: 150, unban_link: 45, ban_user: 30 }]
     }),
-    entityTypeCounts: t.Record(t.String(), t.Number(), {
-      description: 'Count by entity type',
+    entityTypeCounts: t.Unknown({
+      description: 'Count by entity type (Record<string, number>)',
       examples: [{ link: 500, user: 200 }]
     }),
     topUsers: t.Array(
@@ -301,6 +302,65 @@ export const AuditStatsSummaryResponse = t.Object(
 export type AuditStatsSummaryResponseType = Static<
   typeof AuditStatsSummaryResponse
 >;
+
+// ═══════════════════════════════════════════════════════════════════
+// EXAMPLE CONSTANTS (for OpenAPI docs)
+// ═══════════════════════════════════════════════════════════════════
+
+export const ADMIN_STATS_EXAMPLE: AdminStatsResponseType = {
+  totalLinks: 50000,
+  totalClicks: 1500000,
+  totalUsers: 2000,
+  activeLinksToday: 5000,
+  requestsPerSecond: 150
+};
+
+export const GROWTH_STATS_EXAMPLE: GrowthStatsResponseType = {
+  date: '2026-01-06',
+  clicks: 5000,
+  newUsers: 25
+};
+
+export const ADMIN_USER_EXAMPLE: AdminUserResponseType = {
+  id: 'user_123abc',
+  name: 'John Doe',
+  email: 'john@example.com',
+  role: 'user',
+  banned: false,
+  bannedReason: null,
+  bannedAt: null,
+  twoFactorEnabled: true,
+  linksQuota: 100,
+  linksCount: 45,
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-06T12:00:00Z'
+};
+
+export const ADMIN_LINK_EXAMPLE: AdminLinkResponseType = {
+  id: '550e8400-e29b-41d4-a716-446655440000',
+  shortCode: 'abc123',
+  originalUrl: 'https://example.com/long-url',
+  userId: 'user_123abc',
+  clicksCount: 1234,
+  isActive: true,
+  isBanned: false,
+  bannedReason: null,
+  expiresAt: '2026-02-01T00:00:00Z',
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-06T12:00:00Z'
+};
+
+export const AUDIT_LOG_EXAMPLE: AuditLogResponseType = {
+  id: '550e8400-e29b-41d4-a716-446655440000',
+  userId: 'user_123abc',
+  action: 'ban_link',
+  entityType: 'link',
+  entityId: 'link_456def',
+  metadata: { reason: 'Spam/Phishing' },
+  ipAddress: '192.168.1.1',
+  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+  createdAt: '2026-01-06T12:00:00Z'
+};
 
 // ═══════════════════════════════════════════════════════════════════
 // ELYSIA MODEL PLUGIN (for OpenAPI $ref support)

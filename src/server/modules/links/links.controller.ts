@@ -11,6 +11,7 @@
 import { createHash } from 'node:crypto';
 import { Elysia, t } from 'elysia';
 
+import { jwtPlugin } from '@/server/config/plugins';
 import { handleLinkError } from '@/server/lib/errors';
 import {
   checkIdempotency,
@@ -18,6 +19,7 @@ import {
   validateIdempotencyKey
 } from '@/server/lib/idempotency';
 import {
+  ErrorRef,
   PaginatedResponse,
   SuccessResponse
 } from '@/server/lib/response.schema';
@@ -31,7 +33,7 @@ import {
   LinkCreateBody,
   LinkIdParam,
   LinkListQuery,
-  LinkModel,
+  LinksModel,
   LinkUpdateBody,
   QrCodeQuery,
   ValidateUrlBody,
@@ -80,9 +82,9 @@ const handleControllerError = (
 // ═══════════════════════════════════════════════════════════════════
 
 const publicRoutes = new Elysia()
+  .use(jwtPlugin)
+  .use(LinksModel)
   .use(optionalAuth)
-  // Inject shared models for type inference and OpenAPI docs
-  .model(LinkModel)
 
   // ─────────────────────────────────────────────────────────────────
   // POST /links/validate - Validar URL
@@ -146,9 +148,9 @@ const publicRoutes = new Elysia()
             ]
           }
         ),
-        400: t.Ref('response.error.400'),
-        422: t.Ref('response.error.422'),
-        429: t.Ref('response.error.429')
+        400: ErrorRef(400),
+        422: ErrorRef(422),
+        429: ErrorRef(429)
       }
     }
   )
@@ -158,7 +160,7 @@ const publicRoutes = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/by-code/:code/verify-password',
-    async ({ params, body, set }) => {
+    async ({ params, body, set, jwt, cookie }) => {
       try {
         const isValid = await LinkService.verifyLinkPassword(
           params.code,
@@ -175,6 +177,23 @@ const publicRoutes = new Elysia()
             }
           };
         }
+
+        // Generate JWT token for unlock
+        const token = await jwt.sign({
+          code: params.code,
+          type: 'unlock'
+        });
+
+        // Set cookie with the token
+        const cookieName = `urlfy_unlock_${params.code}`;
+        cookie[cookieName].set({
+          value: token,
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 300 // 5 minutes
+        });
 
         // Retorna URL para redirect
         const shortUrl = `${process.env.PUBLIC_URL || 'https://urlfy.cc'}/${
@@ -214,9 +233,9 @@ const publicRoutes = new Elysia()
           }),
           'Password verified successfully'
         ),
-        401: t.Ref('response.error.401'),
-        404: t.Ref('response.error.404'),
-        429: t.Ref('response.error.429')
+        401: ErrorRef(401),
+        404: ErrorRef(404),
+        429: ErrorRef(429)
       }
     }
   )
@@ -274,10 +293,12 @@ const publicRoutes = new Elysia()
         security: [] // Public endpoint - no authentication required
       },
       response: {
-        200: t.File({ description: 'QR Code image (PNG or SVG)' }),
-        404: t.Ref('response.error.404'),
-        422: t.Ref('response.error.422'),
-        429: t.Ref('response.error.429')
+        200: t.Union([t.String(), t.Uint8Array()], {
+          description: 'QR Code image (PNG or SVG)'
+        }),
+        404: ErrorRef(404),
+        422: ErrorRef(422),
+        429: ErrorRef(429)
       }
     }
   )
@@ -327,8 +348,8 @@ const publicRoutes = new Elysia()
       },
       response: {
         200: SuccessResponse(t.Ref('links.preview.response')),
-        404: t.Ref('response.error.404'),
-        429: t.Ref('response.error.429')
+        404: ErrorRef(404),
+        429: ErrorRef(429)
       }
     }
   )
@@ -421,11 +442,11 @@ const publicRoutes = new Elysia()
           t.Ref('links.response'),
           'Link created successfully'
         ),
-        400: t.Ref('response.error.400'),
-        403: t.Ref('response.error.403'),
-        409: t.Ref('response.error.409'),
-        422: t.Ref('response.error.422'),
-        429: t.Ref('response.error.429')
+        400: ErrorRef(400),
+        403: ErrorRef(403),
+        409: ErrorRef(409),
+        422: ErrorRef(422),
+        429: ErrorRef(429)
       }
     }
   );
@@ -435,9 +456,8 @@ const publicRoutes = new Elysia()
 // ═══════════════════════════════════════════════════════════════════
 
 const authenticatedRoutes = new Elysia()
+  .use(LinksModel)
   .use(requireAuth)
-  // Inject shared models
-  .model(LinkModel)
 
   // ─────────────────────────────────────────────────────────────────
   // POST /links/bulk - Criar múltiplos links
@@ -551,8 +571,8 @@ const authenticatedRoutes = new Elysia()
           }),
           'Bulk creation result'
         ),
-        400: t.Ref('response.error.400'),
-        403: t.Ref('response.error.403')
+        400: ErrorRef(400),
+        403: ErrorRef(403)
       }
     }
   )
@@ -605,7 +625,7 @@ const authenticatedRoutes = new Elysia()
       },
       response: {
         200: PaginatedResponse(t.Ref('links.response')),
-        401: t.Ref('response.error.401')
+        401: ErrorRef(401)
       }
     }
   )
@@ -639,9 +659,9 @@ const authenticatedRoutes = new Elysia()
       },
       response: {
         200: SuccessResponse(t.Ref('links.response')),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   )
@@ -676,10 +696,10 @@ const authenticatedRoutes = new Elysia()
       },
       response: {
         200: SuccessResponse(t.Ref('links.response')),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404'),
-        422: t.Ref('response.error.422')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404),
+        422: ErrorRef(422)
       }
     }
   )
@@ -711,9 +731,9 @@ const authenticatedRoutes = new Elysia()
       },
       response: {
         204: t.Void({ description: 'Link deleted successfully' }),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   )
@@ -747,9 +767,9 @@ const authenticatedRoutes = new Elysia()
       },
       response: {
         200: SuccessResponse(t.Ref('links.response')),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   )
@@ -787,9 +807,9 @@ const authenticatedRoutes = new Elysia()
           t.Ref('links.response'),
           'Link duplicated successfully'
         ),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   )
@@ -823,9 +843,9 @@ const authenticatedRoutes = new Elysia()
       },
       response: {
         200: SuccessResponse(t.Ref('links.response')),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   )
@@ -863,9 +883,9 @@ const authenticatedRoutes = new Elysia()
       },
       response: {
         200: SuccessResponse(t.Ref('links.stats.response')),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   );
@@ -875,5 +895,6 @@ const authenticatedRoutes = new Elysia()
 // ═══════════════════════════════════════════════════════════════════
 
 export const linksController = new Elysia({ prefix: '/links' })
+  .use(LinksModel)
   .use(publicRoutes)
   .use(authenticatedRoutes);

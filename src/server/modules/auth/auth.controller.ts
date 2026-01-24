@@ -19,7 +19,7 @@ import {
 } from '@/db/schema/auth';
 import type { Session, User } from '@/lib/auth';
 import { redis } from '@/server/lib/redis';
-import { SuccessResponse } from '@/server/lib/response.schema';
+import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
 import { auditLogService } from '@/server/services/audit.service';
 import type {
@@ -249,7 +249,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
       },
       response: {
         200: SuccessResponse(t.Ref('auth.2fa.status.response')),
-        401: t.Ref('response.error.401')
+        401: ErrorRef(401)
       }
     }
   )
@@ -293,7 +293,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
       },
       response: {
         200: SuccessResponse(t.Array(t.Ref('auth.session.list.response'))),
-        401: t.Ref('response.error.401')
+        401: ErrorRef(401)
       }
     }
   )
@@ -349,8 +349,8 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
             message: t.String()
           })
         ),
-        401: t.Ref('response.error.401'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        404: ErrorRef(404)
       }
     }
   )
@@ -391,7 +391,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
             message: t.String()
           })
         ),
-        401: t.Ref('response.error.401')
+        401: ErrorRef(401)
       }
     }
   )
@@ -432,7 +432,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
             message: t.String()
           })
         ),
-        401: t.Ref('response.error.401')
+        401: ErrorRef(401)
       }
     }
   );
@@ -473,7 +473,7 @@ sessionRoutes.post(
           message: t.String()
         })
       ),
-      401: t.Ref('response.error.401')
+      401: ErrorRef(401)
     }
   }
 );
@@ -542,7 +542,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
       },
       response: {
         200: SuccessResponse(t.Array(t.Ref('auth.apikey.response'))),
-        401: t.Ref('response.error.401')
+        401: ErrorRef(401)
       }
     }
   )
@@ -608,8 +608,8 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
           t.Ref('auth.apikey.create.response'),
           'API key created successfully'
         ),
-        401: t.Ref('response.error.401'),
-        400: t.Ref('response.error.400')
+        401: ErrorRef(401),
+        400: ErrorRef(400)
       }
     }
   )
@@ -693,8 +693,8 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
             updatedAt: t.Date()
           })
         ),
-        401: t.Ref('response.error.401'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        404: ErrorRef(404)
       }
     }
   )
@@ -775,8 +775,8 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
             message: t.String()
           })
         ),
-        401: t.Ref('response.error.401'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        404: ErrorRef(404)
       }
     }
   );

@@ -9,8 +9,18 @@
 
 import { Elysia, t } from 'elysia';
 import type { User } from '@/lib/auth';
+import {
+  ErrorRef,
+  ResponseModels,
+  SuccessResponse
+} from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import { ApiKeysModel } from './api-keys.schema';
+import {
+  API_KEY_CREATED_EXAMPLE,
+  API_KEY_LIST_EXAMPLE,
+  API_KEY_RESPONSE_EXAMPLE,
+  ApiKeysModel
+} from './api-keys.schema';
 import { ApiKeysService } from './api-keys.service';
 
 // After requireAuth middleware, user is guaranteed to be non-null
@@ -23,6 +33,7 @@ export const apiKeysController = new Elysia({
   }
 })
   .use(ApiKeysModel)
+  .use(ResponseModels)
   .use(requireAuth) // Injects `user` into context
 
   // ─── List Keys ──────────────────────────────────────────────────
@@ -52,6 +63,14 @@ export const apiKeysController = new Elysia({
       detail: {
         summary: 'List API Keys',
         description: 'Get all API keys for the authenticated user'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('apikeys.list'), {
+          description: 'List of user API keys',
+          example: API_KEY_LIST_EXAMPLE
+        }),
+        401: ErrorRef(401),
+        500: ErrorRef(500)
       }
     }
   )
@@ -92,6 +111,15 @@ export const apiKeysController = new Elysia({
       detail: {
         summary: 'Get API Key',
         description: 'Get details of a specific API key'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('apikeys.response'), {
+          description: 'API key details',
+          example: API_KEY_RESPONSE_EXAMPLE
+        }),
+        401: ErrorRef(401),
+        404: t.Ref('apikeys.error.notfound'),
+        500: ErrorRef(500)
       }
     }
   )
@@ -127,6 +155,16 @@ export const apiKeysController = new Elysia({
         summary: 'Create API Key',
         description:
           'Create a new API key. The full key is returned only once - save it securely!'
+      },
+      response: {
+        201: SuccessResponse(t.Ref('apikeys.created'), {
+          description:
+            'API key created successfully. Save the key value as it will not be shown again.',
+          example: API_KEY_CREATED_EXAMPLE
+        }),
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        500: ErrorRef(500)
       }
     }
   )
@@ -169,6 +207,17 @@ export const apiKeysController = new Elysia({
       detail: {
         summary: 'Revoke API Key',
         description: 'Revoke an API key (soft delete)'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            message: t.String()
+          }),
+          'API key revoked successfully'
+        ),
+        401: ErrorRef(401),
+        404: t.Ref('apikeys.error.notfound'),
+        500: ErrorRef(500)
       }
     }
   )
@@ -210,6 +259,16 @@ export const apiKeysController = new Elysia({
         summary: 'Rollover API Key',
         description:
           'Create a new key with the same configuration and revoke the old one'
+      },
+      response: {
+        200: SuccessResponse(t.Ref('apikeys.created'), {
+          description:
+            'New API key created and old key revoked. Save the new key value as it will not be shown again.',
+          example: API_KEY_CREATED_EXAMPLE
+        }),
+        401: ErrorRef(401),
+        404: t.Ref('apikeys.error.notfound'),
+        500: ErrorRef(500)
       }
     }
   )
@@ -232,8 +291,13 @@ export const apiKeysController = new Elysia({
         };
       }
 
-      set.status = 204;
-      return;
+      return {
+        success: true,
+        data: {
+          deleted: true as const,
+          id: params.id
+        }
+      };
     },
     {
       params: t.Object({
@@ -242,6 +306,18 @@ export const apiKeysController = new Elysia({
       detail: {
         summary: 'Delete API Key',
         description: 'Permanently delete an API key'
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            deleted: t.Literal(true),
+            id: t.String({ format: 'uuid' })
+          }),
+          'API key permanently deleted'
+        ),
+        401: ErrorRef(401),
+        404: t.Ref('apikeys.error.notfound'),
+        500: ErrorRef(500)
       }
     }
   );

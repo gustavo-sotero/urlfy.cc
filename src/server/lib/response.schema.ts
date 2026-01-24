@@ -62,35 +62,153 @@ export const ErrorCodes = t.Union(
 // ═══════════════════════════════════════════════════════════════════
 
 /**
+ * Options for success response wrapper
+ */
+interface SuccessResponseOptions {
+  /** Optional description for OpenAPI docs */
+  description?: string;
+  /** Optional example data to display in OpenAPI docs */
+  example?: unknown;
+}
+
+/**
+ * Error examples by status code for OpenAPI documentation
+ */
+export const ERROR_EXAMPLES = {
+  400: {
+    success: false,
+    error: { code: 'VALIDATION_ERROR', message: 'URL is required' },
+    requestId: 'req_abc123xyz'
+  },
+  401: {
+    success: false,
+    error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+  },
+  403: {
+    success: false,
+    error: {
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to access this resource'
+    }
+  },
+  404: {
+    success: false,
+    error: { code: 'LINK_NOT_FOUND', message: 'Link not found' }
+  },
+  409: {
+    success: false,
+    error: { code: 'CONFLICT', message: 'Custom alias already in use' }
+  },
+  410: {
+    success: false,
+    error: {
+      code: 'LINK_EXPIRED',
+      message: 'This link expired on 2026-01-01T00:00:00Z'
+    }
+  },
+  422: {
+    success: false,
+    error: {
+      code: 'URL_MALICIOUS',
+      message: 'URL detected as potentially malicious'
+    }
+  },
+  429: {
+    success: false,
+    error: {
+      code: 'RATE_LIMITED',
+      message: 'Rate limit exceeded',
+      retryAfter: 60
+    }
+  },
+  451: {
+    success: false,
+    error: {
+      code: 'LINK_BANNED',
+      message: 'This link has been banned for violating terms of service'
+    }
+  },
+  500: {
+    success: false,
+    error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
+    requestId: 'req_abc123xyz'
+  }
+} as const;
+
+/**
+ * Creates an error response reference with inline example for proper Swagger UI display.
+ * Use this instead of t.Ref('response.error.XXX') for better documentation.
+ *
+ * @param statusCode - HTTP status code
+ * @returns Schema with reference and example
+ */
+export function ErrorRef(statusCode: keyof typeof ERROR_EXAMPLES) {
+  const example = ERROR_EXAMPLES[statusCode];
+
+  // Return a reference to the registered model
+  return t.Ref(`response.error.${statusCode}`, {
+    examples: [example]
+  });
+}
+
+/**
  * Creates a success response schema wrapper
  * @param dataSchema - The schema for the `data` field
- * @param description - Optional description for OpenAPI docs
+ * @param descriptionOrOptions - Description string or options object
+ *
+ * Note: When using t.Ref(), pass an example to ensure proper documentation.
+ * Example: SuccessResponse(t.Ref('links.response'), { description: '...', example: { id: '...', ... } })
  */
 export const SuccessResponse = <T extends TSchema>(
   dataSchema: T,
-  description?: string
-) =>
-  t.Object(
+  descriptionOrOptions?: string | SuccessResponseOptions
+) => {
+  const options: SuccessResponseOptions =
+    typeof descriptionOrOptions === 'string'
+      ? { description: descriptionOrOptions }
+      : (descriptionOrOptions ?? {});
+
+  return t.Object(
     {
       success: t.Literal(true, { default: true }),
       data: dataSchema
     },
     {
-      description: description ?? 'Successful response',
-      examples: [{ success: true, data: {} }]
+      description: options.description ?? 'Successful response',
+      ...(options.example
+        ? { examples: [{ success: true, data: options.example }] }
+        : {})
     }
   );
+};
+
+/**
+ * Options for paginated response wrapper
+ */
+interface PaginatedResponseOptions {
+  /** Optional description for OpenAPI docs */
+  description?: string;
+  /** Optional example item to display in OpenAPI docs */
+  exampleItem?: unknown;
+}
 
 /**
  * Creates a paginated success response schema wrapper
  * @param itemSchema - The schema for each item in the `data` array
- * @param description - Optional description for OpenAPI docs
+ * @param descriptionOrOptions - Description string or options object
+ *
+ * Note: When using t.Ref(), pass an exampleItem to ensure proper documentation.
  */
 export const PaginatedResponse = <T extends TSchema>(
   itemSchema: T,
-  description?: string
-) =>
-  t.Object(
+  descriptionOrOptions?: string | PaginatedResponseOptions
+) => {
+  const options: PaginatedResponseOptions =
+    typeof descriptionOrOptions === 'string'
+      ? { description: descriptionOrOptions }
+      : (descriptionOrOptions ?? {});
+
+  return t.Object(
     {
       success: t.Literal(true, { default: true }),
       data: t.Array(itemSchema),
@@ -115,9 +233,27 @@ export const PaginatedResponse = <T extends TSchema>(
       )
     },
     {
-      description: description ?? 'Paginated response'
+      description: options.description ?? 'Paginated response',
+      ...(options.exampleItem
+        ? {
+            examples: [
+              {
+                success: true,
+                data: [options.exampleItem],
+                meta: {
+                  total: 100,
+                  page: 1,
+                  perPage: 20,
+                  lastPage: 5,
+                  hasMore: true
+                }
+              }
+            ]
+          }
+        : {})
     }
   );
+};
 
 /**
  * Standard error response schema with examples
@@ -274,6 +410,34 @@ export const CommonErrors = {
         {
           success: false,
           error: { code: 'LINK_NOT_FOUND', message: 'Link not found' }
+        }
+      ]
+    }
+  ),
+
+  402: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Literal('QUOTA_EXCEEDED'),
+        message: t.String({
+          examples: [
+            'You have reached your link quota. Upgrade your plan to create more links.'
+          ]
+        })
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description: 'Payment Required - Quota Exceeded',
+      examples: [
+        {
+          success: false,
+          error: {
+            code: 'QUOTA_EXCEEDED',
+            message:
+              'You have reached your link quota. Upgrade your plan to create more links.'
+          }
         }
       ]
     }
@@ -471,6 +635,7 @@ export const ResponseModels = new Elysia({ name: 'response.models' }).model({
   'response.error': ErrorResponse,
   'response.error.400': CommonErrors[400],
   'response.error.401': CommonErrors[401],
+  'response.error.402': CommonErrors[402],
   'response.error.403': CommonErrors[403],
   'response.error.404': CommonErrors[404],
   'response.error.409': CommonErrors[409],

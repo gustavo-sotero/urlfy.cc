@@ -11,9 +11,20 @@
 
 import { Elysia, t } from 'elysia';
 import { Scopes } from '@/server/config/scopes';
+import {
+  ErrorRef,
+  PaginatedResponse,
+  ResponseModels,
+  SuccessResponse
+} from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireApiKey } from '@/server/middleware/api-key.guard';
-import { type LinkCreateBodyType, LinksModel } from '@/server/modules/links';
+import {
+  LINK_RESPONSE_EXAMPLE,
+  LINK_STATS_EXAMPLE,
+  type LinkCreateBodyType,
+  LinksModel
+} from '@/server/modules/links';
 import { LinkService } from '@/server/modules/links/links.service';
 import type { ApiKeyContext } from '@/types/api-keys.types';
 
@@ -82,6 +93,7 @@ const createLinkHandler = async (ctx: {
 // ─── Write Operations (links:write) ───────────────────────────────
 const writeOperations = new Elysia({ name: 'V1Links.Write' })
   .use(LinksModel)
+  .use(ResponseModels)
   .use(requireApiKey({ scopes: [Scopes.LINKS_WRITE] }))
 
   // Create Link
@@ -91,6 +103,19 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
       summary: 'Shorten URL',
       description: 'Create a new shortened link',
       security: [{ apiKeyAuth: [] }]
+    },
+    response: {
+      201: SuccessResponse(t.Ref('links.response'), {
+        description: 'Link created successfully',
+        example: LINK_RESPONSE_EXAMPLE
+      }),
+      400: ErrorRef(400),
+      401: ErrorRef(401),
+      403: ErrorRef(403),
+      409: ErrorRef(409),
+      422: ErrorRef(422),
+      429: ErrorRef(429),
+      500: ErrorRef(500)
     }
   })
 
@@ -101,6 +126,19 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
       summary: 'Shorten URL (Alias)',
       description: 'Alias for creating a new shortened link',
       security: [{ apiKeyAuth: [] }]
+    },
+    response: {
+      201: SuccessResponse(t.Ref('links.response'), {
+        description: 'Link created successfully',
+        example: LINK_RESPONSE_EXAMPLE
+      }),
+      400: ErrorRef(400),
+      401: ErrorRef(401),
+      403: ErrorRef(403),
+      409: ErrorRef(409),
+      422: ErrorRef(422),
+      429: ErrorRef(429),
+      500: ErrorRef(500)
     }
   })
 
@@ -112,8 +150,13 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
 
       try {
         await LinkService.softDeleteLink(params.id, apiKey.userId);
-        set.status = 204;
-        return;
+        return {
+          success: true as const,
+          data: {
+            deleted: true as const,
+            id: params.id
+          }
+        };
       } catch (_error) {
         set.status = 404;
         return {
@@ -133,6 +176,19 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
         summary: 'Delete Link',
         description: 'Soft delete a link',
         security: [{ apiKeyAuth: [] }]
+      },
+      response: {
+        200: SuccessResponse(
+          t.Object({
+            deleted: t.Literal(true),
+            id: t.String({ format: 'uuid' })
+          }),
+          'Link deleted successfully (soft delete)'
+        ),
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404),
+        500: ErrorRef(500)
       }
     }
   );
@@ -140,6 +196,7 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
 // ─── Read Operations (links:read) ─────────────────────────────────
 const readOperations = new Elysia({ name: 'V1Links.Read' })
   .use(LinksModel)
+  .use(ResponseModels)
   .use(requireApiKey({ scopes: [Scopes.LINKS_READ] }))
 
   // Get Single Link
@@ -174,6 +231,18 @@ const readOperations = new Elysia({ name: 'V1Links.Read' })
         summary: 'Get Link',
         description: 'Retrieve a specific link by ID',
         security: [{ apiKeyAuth: [] }]
+      },
+      response: {
+        200: SuccessResponse(t.Ref('links.response'), {
+          description: 'Link details retrieved successfully',
+          example: LINK_RESPONSE_EXAMPLE
+        }),
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404),
+        410: ErrorRef(410),
+        451: ErrorRef(451),
+        500: ErrorRef(500)
       }
     }
   );
@@ -181,6 +250,7 @@ const readOperations = new Elysia({ name: 'V1Links.Read' })
 // ─── List Operations (links:read, no quota increment) ────────────
 const listOperations = new Elysia({ name: 'V1Links.List' })
   .use(LinksModel)
+  .use(ResponseModels)
   .use(requireApiKey({ scopes: [Scopes.LINKS_READ], skipQuotaIncrement: true }))
 
   // List Links
@@ -205,7 +275,8 @@ const listOperations = new Elysia({ name: 'V1Links.List' })
 
       return {
         success: true as const,
-        ...result
+        data: result.data.map((link) => LinkService.formatLinkResponse(link)),
+        meta: result.meta
       };
     },
     {
@@ -215,12 +286,23 @@ const listOperations = new Elysia({ name: 'V1Links.List' })
         description:
           'Get paginated list of your links (does not consume quota)',
         security: [{ apiKeyAuth: [] }]
+      },
+      response: {
+        200: PaginatedResponse(t.Ref('links.response'), {
+          description: 'Paginated list of user links',
+          exampleItem: LINK_RESPONSE_EXAMPLE
+        }),
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        429: ErrorRef(429),
+        500: ErrorRef(500)
       }
     }
   );
 
 // ─── Analytics Operations (analytics:read) ────────────────────────
 const analyticsOperations = new Elysia({ name: 'V1Links.Analytics' })
+  .use(ResponseModels)
   .use(requireApiKey({ scopes: [Scopes.ANALYTICS_READ] }))
 
   // Get Link Stats
@@ -260,6 +342,16 @@ const analyticsOperations = new Elysia({ name: 'V1Links.Analytics' })
         summary: 'Get Link Statistics',
         description: 'Get basic statistics for a link',
         security: [{ apiKeyAuth: [] }]
+      },
+      response: {
+        200: SuccessResponse(t.Ref('links.stats.response'), {
+          description: 'Link statistics retrieved successfully',
+          example: LINK_STATS_EXAMPLE
+        }),
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404),
+        500: ErrorRef(500)
       }
     }
   );

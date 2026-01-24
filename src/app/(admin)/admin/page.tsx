@@ -1,58 +1,40 @@
 // src/app/(admin)/admin/page.tsx
+'use client';
 
-import { headers } from 'next/headers';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { StatsCards } from '@/components/admin';
 import { AnalyticsErrorBoundary } from '@/components/admin/analytics-error-boundary';
 import { GrowthChart } from '@/components/admin/charts/growth-chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  convertHeadersForApiClient,
-  getAdminStatsSSR,
-  getGrowthStatsSSR
-} from '@/lib/api-client';
+import { getAdminStats, getGrowthStats } from '@/lib/api-client';
 
-// Force dynamic rendering for authenticated pages
-export const dynamic = 'force-dynamic';
+export default function AdminDashboard() {
+  const [growthRange, setGrowthRange] = useState<'7d' | '30d'>('7d');
 
-async function fetchAdminStats() {
-  try {
-    const requestHeaders = await headers();
-    const headersObj = convertHeadersForApiClient(requestHeaders);
+  // Query for admin stats
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    error: statsError
+  } = useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: getAdminStats,
+    refetchInterval: 30_000 // Refetch every 30 seconds
+  });
 
-    return await getAdminStatsSSR(headersObj);
-  } catch (error) {
-    console.error('Failed to fetch admin stats:', error);
-    // Return fallback data
-    return {
-      totalLinks: 0,
-      totalClicks: 0,
-      totalUsers: 0,
-      activeLinksToday: 0,
-      requestsPerSecond: 0
-    };
-  }
-}
-
-async function fetchGrowthStats(range: '7d' | '30d' = '7d') {
-  try {
-    const requestHeaders = await headers();
-    const headersObj = convertHeadersForApiClient(requestHeaders);
-
-    return await getGrowthStatsSSR(headersObj, range);
-  } catch (error) {
-    console.error('Failed to fetch growth stats:', error);
-    // Return empty array as fallback
-    return [];
-  }
-}
-
-export default async function AdminDashboard() {
-  const [stats, growthStats7d, growthStats30d] = await Promise.all([
-    fetchAdminStats(),
-    fetchGrowthStats('7d'),
-    fetchGrowthStats('30d')
-  ]);
+  // Query for growth stats (reactive to range change)
+  const {
+    data: growthStats,
+    isLoading: growthLoading,
+    error: growthError
+  } = useQuery({
+    queryKey: ['admin', 'growth', growthRange],
+    queryFn: () => getGrowthStats(growthRange),
+    refetchInterval: 60_000 // Refetch every minute
+  });
 
   return (
     <div className="space-y-6">
@@ -61,7 +43,30 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Global Stats */}
-      <StatsCards stats={stats} />
+      {statsLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : statsError ? (
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <p className="text-sm text-destructive">
+              Erro ao carregar estatísticas. Tente novamente.
+            </p>
+          </CardContent>
+        </Card>
+      ) : stats ? (
+        <StatsCards stats={stats} />
+      ) : null}
 
       {/* Growth Analytics */}
       <AnalyticsErrorBoundary fallbackTitle="Crescimento da Plataforma">
@@ -70,23 +75,26 @@ export default async function AdminDashboard() {
             <CardTitle>Crescimento da Plataforma</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="7d" className="space-y-4">
+            <Tabs
+              value={growthRange}
+              onValueChange={(v) => setGrowthRange(v as '7d' | '30d')}
+              className="space-y-4"
+            >
               <TabsList>
                 <TabsTrigger value="7d">Últimos 7 dias</TabsTrigger>
                 <TabsTrigger value="30d">Últimos 30 dias</TabsTrigger>
               </TabsList>
-              <TabsContent value="7d">
-                {growthStats7d.length > 0 ? (
-                  <GrowthChart data={growthStats7d} />
-                ) : (
-                  <div className="text-center text-sm text-muted-foreground py-8">
-                    Nenhum dado disponível
+              <TabsContent value={growthRange}>
+                {growthLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-[300px] w-full" />
                   </div>
-                )}
-              </TabsContent>
-              <TabsContent value="30d">
-                {growthStats30d.length > 0 ? (
-                  <GrowthChart data={growthStats30d} />
+                ) : growthError ? (
+                  <div className="text-center text-sm text-destructive py-8">
+                    Erro ao carregar dados de crescimento
+                  </div>
+                ) : growthStats && growthStats.length > 0 ? (
+                  <GrowthChart data={growthStats} />
                 ) : (
                   <div className="text-center text-sm text-muted-foreground py-8">
                     Nenhum dado disponível
@@ -110,7 +118,13 @@ export default async function AdminDashboard() {
                 <span className="text-sm text-muted-foreground">
                   Requisições/segundo
                 </span>
-                <span className="font-medium">{stats.requestsPerSecond}</span>
+                {statsLoading ? (
+                  <Skeleton className="h-5 w-12" />
+                ) : (
+                  <span className="font-medium">
+                    {stats?.requestsPerSecond ?? 0}
+                  </span>
+                )}
               </div>
             </div>
           </CardContent>

@@ -24,6 +24,8 @@ const EXCLUDED_PATHS = [
   '/terms', // Terms of service
   '/privacy', // Privacy policy
   '/cookies', // Cookie policy
+  '/project', // Project routes
+  '/internal', // Internal routes
   '/_next', // Next.js internals
   '/favicon.ico', // Favicon
   '/robots.txt', // Robots
@@ -49,7 +51,7 @@ export const config = {
 };
 
 /**
- * Next.js Proxy function (renamed from middleware in Next.js 16)
+ * Next.js Proxy function (Next.js 16 requires 'proxy' export name)
  * Intercepts all requests and decides if it's a short code or system route
  */
 export async function proxy(request: NextRequest) {

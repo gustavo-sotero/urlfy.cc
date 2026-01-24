@@ -1,10 +1,9 @@
 // src/server/middleware/redirect.middleware.ts
 /**
- * Edge Runtime compatible redirect middleware
+ * Redirect middleware
  * Makes internal API calls instead of direct DB access
  */
 
-import { jwtVerify } from 'jose';
 import type { NextRequest, NextResponse } from 'next/server';
 import { NextResponse as Response } from 'next/server';
 import { createLogger } from '@/server/lib/telemetry.edge';
@@ -22,13 +21,13 @@ interface ResolveResult {
 }
 
 /**
- * Resolve link via internal API call (Edge Runtime compatible)
+ * Resolve link via internal API call
  */
 async function resolveLink(
   request: NextRequest,
   shortCode: string,
   depth: number,
-  hasPasswordCookie: boolean
+  passwordToken: string | undefined
 ): Promise<ResolveResult> {
   try {
     // Construct internal API URL
@@ -43,7 +42,7 @@ async function resolveLink(
       },
       body: JSON.stringify({
         depth,
-        hasPasswordCookie,
+        passwordToken,
         ip:
           request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
           request.headers.get('x-real-ip') ||
@@ -98,15 +97,15 @@ export async function handleRedirect(
       10
     );
 
-    // Verifica se há cookie de senha válido
-    const hasPasswordCookie = await checkPasswordCookie(request, shortCode);
+    // Extrai token de senha (se existe cookie)
+    const passwordToken = getPasswordToken(request, shortCode);
 
-    // Resolve o link via internal API (Edge Runtime compatible)
+    // Resolve o link via internal API
     const result = await resolveLink(
       request,
       shortCode,
       currentDepth,
-      hasPasswordCookie
+      passwordToken
     );
 
     if (!result.success) {
@@ -389,45 +388,27 @@ function getClientIp(request: NextRequest): string {
   }
 
   // Fallback para unknown se nenhum header disponível
-  // NextRequest não expõe IP diretamente no Edge Runtime
+  // NextRequest não expõe IP diretamente
   return 'unknown';
 }
 
 /**
- * Verifica cookie de senha para links protegidos
- * Retorna true se o cookie é válido
+ * Get password token from cookie if present
+ * Simply retrieves the cookie value without verification
+ * JWT verification happens in the internal API
  */
-export async function checkPasswordCookie(
+export function getPasswordToken(
   request: NextRequest,
   code: string
-): Promise<boolean> {
+): string | undefined {
   try {
     const cookieName = `urlfy_unlock_${code}`;
-    const token = request.cookies.get(cookieName)?.value;
-
-    if (!token) {
-      return false;
-    }
-
-    // Verifica JWT usando jose (Edge Runtime compatible)
-    const secret = new TextEncoder().encode(
-      process.env.JWT_SECRET ?? 'urlfy-secret-key'
-    );
-
-    const { payload } = await jwtVerify(token, secret);
-
-    // Verifica se o payload contém o código correto
-    return (
-      payload.code === code &&
-      payload.type === 'unlock' &&
-      typeof payload.exp === 'number' &&
-      payload.exp * 1000 > Date.now()
-    );
+    return request.cookies.get(cookieName)?.value;
   } catch (error) {
-    logger.error('Error checking password cookie', {
+    logger.error('Error retrieving password cookie', {
       code,
       error: error instanceof Error ? error.message : String(error)
     });
-    return false;
+    return undefined;
   }
 }

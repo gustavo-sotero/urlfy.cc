@@ -127,7 +127,9 @@ export abstract class AnalyticsService {
 
       const stats = await db
         .select({
-          date: sql<string>`DATE(${analyticsEvents.createdAt})`.as('date'),
+          date: sql<Date | string>`DATE(${analyticsEvents.createdAt})`.as(
+            'date'
+          ),
           clicks: countFn().as('clicks'),
           uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
             'uniqueVisitors'
@@ -145,7 +147,11 @@ export abstract class AnalyticsService {
         .orderBy(desc(sql`DATE(${analyticsEvents.createdAt})`));
 
       return stats.map((s) => ({
-        date: s.date,
+        // Ensure date is a string in YYYY-MM-DD format
+        date:
+          s.date instanceof Date
+            ? s.date.toISOString().split('T')[0]
+            : String(s.date),
         clicks: toNumber(s.clicks),
         uniqueVisitors: toNumber(s.uniqueVisitors)
       }));
@@ -535,7 +541,9 @@ export abstract class AnalyticsService {
 
       const stats = await db
         .select({
-          date: sql<string>`DATE(${analyticsEvents.createdAt})`.as('date'),
+          date: sql<Date | string>`DATE(${analyticsEvents.createdAt})`.as(
+            'date'
+          ),
           clicks: countFn().as('clicks'),
           uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
             'uniqueVisitors'
@@ -554,7 +562,11 @@ export abstract class AnalyticsService {
         .orderBy(desc(sql`DATE(${analyticsEvents.createdAt})`));
 
       return stats.map((s) => ({
-        date: s.date,
+        // Ensure date is a string in YYYY-MM-DD format
+        date:
+          s.date instanceof Date
+            ? s.date.toISOString().split('T')[0]
+            : String(s.date),
         clicks: toNumber(s.clicks),
         uniqueVisitors: toNumber(s.uniqueVisitors)
       }));

@@ -1,6 +1,6 @@
 /**
  * Next.js Instrumentation Hook
- * Runs once when the server starts (only in Node.js, not Edge Runtime)
+ * Runs once when the server starts
  * @see https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
 

@@ -11,10 +11,10 @@ const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
   PORT: z.string().default('3000'),
-  NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
+  NEXT_PUBLIC_APP_URL: z.url().default('http://localhost:3000'),
 
   // Database
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.url(),
 
   // Redis
   REDIS_URL: z.string().default('redis://localhost:6379'),
@@ -39,7 +39,13 @@ const envSchema = z.object({
 
   // Better-Auth
   BETTER_AUTH_SECRET: z.string().min(32),
-  BETTER_AUTH_URL: z.string().url().optional(),
+  BETTER_AUTH_URL: z.url().optional(),
+
+  // JWT (for password-protected links)
+  JWT_SECRET: z.string().min(32).optional(),
+
+  // Internal API security
+  INTERNAL_API_SECRET: z.string().min(16).default('dev-secret'),
 
   // OAuth - Google
   GOOGLE_CLIENT_ID: z.string().optional(),

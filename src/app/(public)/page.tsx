@@ -2,22 +2,23 @@
  * ═════════════════════════════════════════════════════════════════════
  * LANDING PAGE - Homepage
  * ═════════════════════════════════════════════════════════════════════
- * Main landing page with Hero, Features, Pricing, About, and CTA sections.
+ * Main landing page with Hero, Features, About, and CTA sections.
+ * Positioned as an educational/portfolio project.
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { BarChart3, Check, Shield, Zap } from 'lucide-react';
+import { BarChart3, Github, Info, Rocket, Shield, Zap } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { JSX } from 'react';
 import { LinkForm } from '@/components/forms/link-form';
 import { HeroActions } from '@/components/home/hero-actions';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
@@ -36,6 +37,24 @@ export const metadata: Metadata = {
 export default function LandingPage(): JSX.Element {
   return (
     <>
+      {/* Project Disclaimer */}
+      <section className="border-b bg-muted/50 py-4">
+        <div className="container mx-auto px-4">
+          <Alert className="border-primary/50 bg-primary/5">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertTitle>Projeto Educacional & Portfólio</AlertTitle>
+            <AlertDescription>
+              Este é um projeto de demonstração técnica e não um produto
+              comercial. Desenvolvido para showcasing de habilidades em
+              arquitetura de software e engenharia de performance.{' '}
+              <Link href="/project" className="underline font-medium">
+                Saiba mais sobre o projeto
+              </Link>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </section>
+
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20">
         <div className="mx-auto max-w-4xl space-y-8 text-center">
@@ -103,160 +122,6 @@ export default function LandingPage(): JSX.Element {
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="border-t py-20">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-5xl space-y-12">
-            <div className="space-y-4 text-center">
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Planos para todos
-              </h2>
-              <p className="text-lg text-muted-foreground">
-                Escolha o plano ideal para suas necessidades
-              </p>
-            </div>
-
-            <div className="grid gap-8 md:grid-cols-3">
-              {/* Hobby Plan */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Hobby</CardTitle>
-                  <CardDescription>
-                    Para uso pessoal e projetos pequenos
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="text-4xl font-bold">Grátis</div>
-                    <p className="text-sm text-muted-foreground">
-                      Sempre gratuito
-                    </p>
-                  </div>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>100 links por mês</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>Analytics básico</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>Links expiráveis</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>QR Codes</span>
-                    </li>
-                  </ul>
-                </CardContent>
-                <CardFooter>
-                  <Button asChild variant="outline" className="w-full">
-                    <Link href="/signup">Começar grátis</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              {/* Creator Plan */}
-              <Card className="border-primary">
-                <CardHeader>
-                  <div className="mb-2 inline-block rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                    Popular
-                  </div>
-                  <CardTitle>Creator</CardTitle>
-                  <CardDescription>
-                    Para criadores de conteúdo e profissionais
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="text-4xl font-bold">
-                      R$ 29<span className="text-lg font-normal">/mês</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Cobrança mensal
-                    </p>
-                  </div>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>1.000 links por mês</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>Analytics avançado</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>Aliases customizados</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>Proteção por senha</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>Meta tags customizadas</span>
-                    </li>
-                  </ul>
-                </CardContent>
-                <CardFooter>
-                  <Button asChild className="w-full">
-                    <Link href="/signup">Começar agora</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              {/* Business Plan */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Business</CardTitle>
-                  <CardDescription>Para equipes e empresas</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="text-4xl font-bold">
-                      R$ 99<span className="text-lg font-normal">/mês</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Cobrança mensal
-                    </p>
-                  </div>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>Links ilimitados</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>API de integração</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>Webhooks</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>Múltiplos usuários</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>Suporte prioritário</span>
-                    </li>
-                  </ul>
-                </CardContent>
-                <CardFooter>
-                  <Button asChild variant="outline" className="w-full">
-                    <Link href="/signup">Começar agora</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* About Section */}
       <section id="about" className="border-t bg-muted/30 py-20">
         <div className="container mx-auto px-4">
@@ -279,6 +144,92 @@ export default function LandingPage(): JSX.Element {
                 alguém que quer compartilhar um link, estamos aqui para ajudar.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section id="about" className="border-t bg-muted/30 py-20">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto max-w-3xl space-y-8 text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Sobre o Projeto
+            </h2>
+            <div className="space-y-4 text-lg text-muted-foreground">
+              <p>
+                O{' '}
+                <span className="font-semibold text-foreground">urlfy.cc</span>{' '}
+                é um projeto de portfólio e estudo de caso sobre arquitetura de
+                software moderna. Desenvolvido com foco em performance,
+                type-safety e boas práticas de engenharia.
+              </p>
+              <p>
+                Combinando tecnologias de ponta como{' '}
+                <strong className="text-foreground">Bun</strong>,{' '}
+                <strong className="text-foreground">Next.js</strong> e{' '}
+                <strong className="text-foreground">ElysiaJS</strong>, este
+                projeto demonstra competências técnicas em arquitetura
+                full-stack, otimização de performance e infraestrutura
+                containerizada.
+              </p>
+            </div>
+            <div className="flex justify-center gap-4">
+              <Button asChild>
+                <Link href="/project">
+                  <Rocket className="mr-2 h-4 w-4" />
+                  Detalhes Técnicos
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Author/Developer Section */}
+      <section className="border-t py-20">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto max-w-5xl">
+            <div className="text-center space-y-4 mb-12">
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Conheça o Desenvolvedor
+              </h2>
+            </div>
+            <Card className="max-w-2xl mx-auto">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl">Gustavo Sotero</CardTitle>
+                <CardDescription>Full-Stack Developer</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <p className="text-center text-muted-foreground">
+                  Desenvolvedor especializado em arquitetura de sistemas de alta
+                  performance, TypeScript e infraestrutura moderna. Este projeto
+                  representa uma demonstração prática de competências técnicas
+                  em engenharia de software.
+                </p>
+                <div className="flex flex-wrap justify-center gap-4">
+                  <Button asChild variant="default">
+                    <a
+                      href="https://gustavo-sotero.dev"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Rocket className="mr-2 h-4 w-4" />
+                      Portfólio
+                    </a>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <a
+                      href="https://github.com/gustavo-sotero/urlfy.cc"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Github className="mr-2 h-4 w-4" />
+                      GitHub
+                    </a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>

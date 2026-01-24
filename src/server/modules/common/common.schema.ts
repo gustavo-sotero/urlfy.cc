@@ -37,7 +37,7 @@ export type PaginationMetaType = Static<typeof PaginationMeta>;
 export const ApiError = t.Object({
   code: t.String({ description: 'Error code' }),
   message: t.String({ description: 'Human-readable error message' }),
-  details: t.Optional(t.Any({ description: 'Additional error details' }))
+  details: t.Optional(t.Unknown({ description: 'Additional error details' }))
 });
 export type ApiErrorType = Static<typeof ApiError>;
 

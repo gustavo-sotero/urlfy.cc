@@ -6,14 +6,14 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import type { Elysia } from 'elysia';
 import { db } from '@/db';
 import { apikey } from '@/db/schema/auth';
 import { hasScopes, parseScopes, type Scope } from '@/server/config/scopes';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { ApiKeyContext, ApiKeyError } from '@/types/api-keys.types';
-import { and, eq, isNull, sql } from 'drizzle-orm';
-import { Elysia } from 'elysia';
 
 const logger = createLogger('api-key-guard');
 
@@ -111,18 +111,13 @@ interface RequireApiKeyOptions {
   skipQuotaIncrement?: boolean;
 }
 
-interface ApiKeyGuardStore {
-  apiKeyData: ApiKeyContext['apiKey'] | null;
-}
-
 export function requireApiKey(options: RequireApiKeyOptions) {
-  return new Elysia({ name: 'Guard.RequireApiKey' })
-    .state('apiKeyData', null as ApiKeyContext['apiKey'] | null)
-    .onBeforeHandle(async ({ request, set, store }) => {
+  return (app: Elysia) =>
+    app.derive({ as: 'global' }, async ({ request, set }) => {
       // 1. Extract API key from header
       const apiKeyHeader = request.headers.get('x-api-key');
       if (!apiKeyHeader) {
-        return errorResponse('MISSING_KEY');
+        throw errorResponse('MISSING_KEY');
       }
 
       // 2. Query database for key
@@ -142,17 +137,17 @@ export function requireApiKey(options: RequireApiKeyOptions) {
         logger.warn('Invalid API key attempt', {
           prefix: apiKeyHeader.slice(0, 15)
         });
-        return errorResponse('INVALID_KEY');
+        throw errorResponse('INVALID_KEY');
       }
 
       // 3. Check if key is revoked
       if (keyRecord.revokedAt) {
-        return errorResponse('KEY_REVOKED');
+        throw errorResponse('KEY_REVOKED');
       }
 
       // 4. Check if key has expired
       if (keyRecord.expiresAt && keyRecord.expiresAt < new Date()) {
-        return errorResponse('KEY_EXPIRED');
+        throw errorResponse('KEY_EXPIRED');
       }
 
       // 5. Parse scopes and verify permissions
@@ -163,7 +158,7 @@ export function requireApiKey(options: RequireApiKeyOptions) {
           keyScopes,
           requiredScopes: options.scopes
         });
-        return errorResponse('SCOPE_DENIED', options.scopes);
+        throw errorResponse('SCOPE_DENIED', options.scopes);
       }
 
       // 6. Check rate limit
@@ -183,7 +178,7 @@ export function requireApiKey(options: RequireApiKeyOptions) {
           set.headers['X-RateLimit-Reset'] = String(
             Math.floor(rateLimitResult.resetAt / 1000)
           );
-          return errorResponse('RATE_LIMITED');
+          throw errorResponse('RATE_LIMITED');
         }
 
         // Set rate limit headers
@@ -200,7 +195,7 @@ export function requireApiKey(options: RequireApiKeyOptions) {
       const quotaLimit = keyRecord.remaining ?? keyRecord.rateLimitMax ?? 1000;
       const usageCount = keyRecord.usageCount ?? 0;
       if (usageCount >= quotaLimit) {
-        return errorResponse('QUOTA_EXCEEDED');
+        throw errorResponse('QUOTA_EXCEEDED');
       }
 
       // 8. Increment usage count asynchronously (fire-and-forget)
@@ -211,14 +206,16 @@ export function requireApiKey(options: RequireApiKeyOptions) {
       // 9. Store in state for derive
       const decrement = options.skipQuotaIncrement ? 0 : 1;
       const remaining = Math.max(0, quotaLimit - usageCount - decrement);
-      (store as ApiKeyGuardStore).apiKeyData = {
+
+      const apiKey: ApiKeyContext['apiKey'] = {
         id: keyRecord.id,
         userId: keyRecord.userId,
         scopes: keyScopes,
         remaining
       };
-    })
-    .derive({ as: 'local' }, ({ store }) => ({
-      apiKey: (store as ApiKeyGuardStore).apiKeyData
-    }));
+
+      return {
+        apiKey
+      };
+    });
 }

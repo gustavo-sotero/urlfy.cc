@@ -305,6 +305,48 @@ export const LinkStatsResponse = t.Object(
 export type LinkStatsResponseType = Static<typeof LinkStatsResponse>;
 
 // ═══════════════════════════════════════════════════════════════════
+// EXAMPLE DATA (for OpenAPI documentation)
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Example link response for use in OpenAPI documentation
+ */
+export const LINK_RESPONSE_EXAMPLE: LinkResponseType = {
+  id: '550e8400-e29b-41d4-a716-446655440000',
+  shortCode: 'abc123',
+  shortUrl: 'https://urlfy.cc/abc123',
+  originalUrl: 'https://example.com/very-long-url',
+  redirectType: 302,
+  clicksCount: 42,
+  maxClicks: null,
+  isActive: true,
+  isBanned: false,
+  bannedReason: null,
+  isProtected: false,
+  expiresAt: null,
+  metaTitle: null,
+  metaDescription: null,
+  metaImage: null,
+  utmSource: null,
+  utmMedium: null,
+  utmCampaign: null,
+  tags: null,
+  notes: null,
+  lastClickedAt: null,
+  createdAt: '2026-01-06T12:00:00Z',
+  updatedAt: '2026-01-06T12:00:00Z'
+};
+
+/**
+ * Example link stats response for use in OpenAPI documentation
+ */
+export const LINK_STATS_EXAMPLE: LinkStatsResponseType = {
+  clicks: 1234,
+  uniqueVisitors: 890,
+  lastClickedAt: '2026-01-06T11:30:00Z'
+};
+
+// ═══════════════════════════════════════════════════════════════════
 // ELYSIA MODEL PLUGIN (for OpenAPI $ref support)
 // ═══════════════════════════════════════════════════════════════════
 

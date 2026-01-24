@@ -4,6 +4,7 @@
 import { CheckCircle2, Loader2, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { ApiKeysManager } from '@/components/dashboard/settings/api-keys-manager';
 import {
   BackupCodes,
   DisableTwoFactor
@@ -183,17 +184,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* API Keys */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Chaves de API</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Use API keys para acessar programaticamente seus links
-          </p>
-          <Button variant="outline">Gerar nova chave</Button>
-        </CardContent>
-      </Card>
+      <ApiKeysManager />
 
       {/* Danger Zone */}
       <Card className="border-destructive">

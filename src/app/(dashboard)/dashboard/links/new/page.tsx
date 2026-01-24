@@ -39,7 +39,7 @@ import type { CreateLinkInput } from '@/types/links.types';
 // ═══════════════════════════════════════════════════════════════════
 
 const schema = z.object({
-  url: z.string().url('URL inválida'),
+  url: z.url('URL inválida'),
   customAlias: z.string().optional(),
   redirectType: z.enum(['301', '302']).optional(),
   expiresAt: z.string().optional(),

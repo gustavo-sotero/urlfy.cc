@@ -13,8 +13,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { auth } from '@/lib/auth';
 import type { OpenAPIV3 } from 'openapi-types';
+import { auth } from '@/lib/auth';
 
 // ═══════════════════════════════════════════════════════════════════
 // CACHE CONFIGURATION

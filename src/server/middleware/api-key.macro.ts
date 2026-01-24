@@ -17,14 +17,14 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { Elysia } from 'elysia';
 import { db } from '@/db';
 import { apikey } from '@/db/schema/auth';
 import { hasScopes, parseScopes, type Scope } from '@/server/config/scopes';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { ApiKeyContext, ApiKeyError } from '@/types/api-keys.types';
-import { and, eq, isNull, sql } from 'drizzle-orm';
-import { Elysia } from 'elysia';
 
 const logger = createLogger('api-key-macro');
 

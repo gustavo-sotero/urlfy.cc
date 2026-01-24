@@ -1,8 +1,8 @@
 // src/server/lib/telemetry.edge.ts
 /**
- * Edge-compatible telemetry
+ * Middleware-compatible telemetry
  *
- * Next.js Edge Runtime doesn't support Node.js modules.
+ * Next.js Middleware environment doesn't support Node.js modules.
  * This is a lightweight implementation for middleware only.
  *
  * For full OpenTelemetry instrumentation, use telemetry.ts in API routes.
@@ -23,7 +23,7 @@ export interface EdgeLogger {
 }
 
 /**
- * Creates a simple logger for Edge Runtime
+ * Creates a simple logger for Middleware
  * Logs are sent to console in development and can be collected by external logging services
  */
 export function createLogger(name: string): EdgeLogger {

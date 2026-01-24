@@ -201,37 +201,10 @@ export default function HelpPage(): JSX.Element {
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2 text-muted-foreground">
-                  <p>Oferecemos três planos:</p>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>
-                      <strong className="text-foreground">
-                        Hobby (Grátis):
-                      </strong>{' '}
-                      Até 100 links/mês com analytics básico
-                    </li>
-                    <li>
-                      <strong className="text-foreground">
-                        Creator (R$ 29/mês):
-                      </strong>{' '}
-                      1.000 links/mês, analytics avançado, aliases customizados,
-                      proteção por senha
-                    </li>
-                    <li>
-                      <strong className="text-foreground">
-                        Business (R$ 99/mês):
-                      </strong>{' '}
-                      Links ilimitados, API, webhooks, múltiplos usuários
-                    </li>
-                  </ul>
-                  <p className="mt-4">
-                    Veja todos os detalhes na{' '}
-                    <Link
-                      href="/#pricing"
-                      className="text-primary hover:underline"
-                    >
-                      página de preços
-                    </Link>
-                    .
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Nota:</strong> Como este é um projeto educacional e
+                    de portfólio, não há planos comerciais. O serviço é gratuito
+                    para fins de demonstração e teste de funcionalidades.
                   </p>
                 </div>
               </AccordionContent>

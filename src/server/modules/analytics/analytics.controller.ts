@@ -10,10 +10,12 @@
 
 import { Elysia, t } from 'elysia';
 import { handleLinkError } from '@/server/lib/errors';
-import { SuccessResponse } from '@/server/lib/response.schema';
+import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import {
+  ANALYTICS_BREAKDOWN_EXAMPLE,
+  ANALYTICS_SUMMARY_EXAMPLE,
   AnalyticsDaysQuery,
   AnalyticsDaysWithLimitQuery,
   AnalyticsLinkIdParam,
@@ -105,10 +107,13 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
         description: 'Get summary statistics across all user links'
       },
       response: {
-        200: SuccessResponse(t.Ref('analytics.summary')),
-        400: t.Ref('response.error.400'),
-        401: t.Ref('response.error.401'),
-        404: t.Ref('response.error.404')
+        200: SuccessResponse(t.Ref('analytics.summary'), {
+          description: 'Analytics summary statistics',
+          example: ANALYTICS_SUMMARY_EXAMPLE
+        }),
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        404: ErrorRef(404)
       }
     }
   )
@@ -185,8 +190,8 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
             count: t.Number()
           })
         }),
-        400: t.Ref('response.error.400'),
-        401: t.Ref('response.error.401')
+        400: ErrorRef(400),
+        401: ErrorRef(401)
       }
     }
   )
@@ -251,9 +256,12 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
         description: 'Get complete analytics breakdown across all user links'
       },
       response: {
-        200: SuccessResponse(t.Ref('analytics.breakdown')),
-        400: t.Ref('response.error.400'),
-        401: t.Ref('response.error.401')
+        200: SuccessResponse(t.Ref('analytics.breakdown'), {
+          description: 'Analytics breakdown by category',
+          example: ANALYTICS_BREAKDOWN_EXAMPLE
+        }),
+        400: ErrorRef(400),
+        401: ErrorRef(401)
       }
     }
   )
@@ -313,11 +321,14 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
         description: 'Get summary statistics for a link'
       },
       response: {
-        200: SuccessResponse(t.Ref('analytics.summary')),
-        400: t.Ref('response.error.400'),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        200: SuccessResponse(t.Ref('analytics.summary'), {
+          description: 'Analytics summary for a specific link',
+          example: ANALYTICS_SUMMARY_EXAMPLE
+        }),
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   )
@@ -370,10 +381,13 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
           'Get detailed breakdown by country, device, browser, and referrer'
       },
       response: {
-        200: SuccessResponse(t.Ref('analytics.breakdown')),
-        400: t.Ref('response.error.400'),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403')
+        200: SuccessResponse(t.Ref('analytics.breakdown'), {
+          description: 'Analytics breakdown for a specific link',
+          example: ANALYTICS_BREAKDOWN_EXAMPLE
+        }),
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        403: ErrorRef(403)
       }
     }
   )
@@ -437,9 +451,9 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
             count: t.Number()
           })
         }),
-        400: t.Ref('response.error.400'),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403')
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        403: ErrorRef(403)
       }
     }
   )
@@ -503,9 +517,9 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
             count: t.Number()
           })
         }),
-        400: t.Ref('response.error.400'),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403')
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        403: ErrorRef(403)
       }
     }
   )
@@ -563,9 +577,9 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
           t.Array(t.Ref('analytics.breakdown.country')),
           'Country breakdown'
         ),
-        400: t.Ref('response.error.400'),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403')
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        403: ErrorRef(403)
       }
     }
   )
@@ -622,9 +636,9 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
           t.Array(t.Ref('analytics.breakdown.device')),
           'Device breakdown'
         ),
-        400: t.Ref('response.error.400'),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403')
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        403: ErrorRef(403)
       }
     }
   )
@@ -682,9 +696,9 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
           t.Array(t.Ref('analytics.breakdown.browser')),
           'Browser breakdown'
         ),
-        400: t.Ref('response.error.400'),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403')
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        403: ErrorRef(403)
       }
     }
   )
@@ -730,7 +744,7 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
           }),
           'Health status'
         ),
-        500: t.Ref('response.error.500')
+        500: ErrorRef(500)
       }
     }
   );

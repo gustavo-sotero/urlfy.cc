@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { useCreateLink } from '@/lib/hooks/use-links';
 
 const schema = z.object({
-  url: z.string().url('URL inválida')
+  url: z.url('URL inválida')
 });
 
 type FormData = z.infer<typeof schema>;

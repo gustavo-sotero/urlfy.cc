@@ -14,6 +14,7 @@ import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { user as userTable } from '@/db/schema/auth';
 import {
+  ErrorRef,
   PaginatedResponse,
   SuccessResponse
 } from '@/server/lib/response.schema';
@@ -100,8 +101,8 @@ export const usersController = new Elysia({ prefix: '/users' })
       },
       response: {
         200: PaginatedResponse(t.Ref('admin.user.response')),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403')
+        401: ErrorRef(401),
+        403: ErrorRef(403)
       }
     }
   )
@@ -138,9 +139,9 @@ export const usersController = new Elysia({ prefix: '/users' })
       },
       response: {
         200: SuccessResponse(t.Ref('admin.user.response')),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   )
@@ -205,9 +206,9 @@ export const usersController = new Elysia({ prefix: '/users' })
             bannedReason: t.String()
           })
         ),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   )
@@ -263,9 +264,9 @@ export const usersController = new Elysia({ prefix: '/users' })
             message: t.String()
           })
         ),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   )
@@ -330,9 +331,9 @@ export const usersController = new Elysia({ prefix: '/users' })
             role: t.Union([t.Literal('user'), t.Literal('admin')])
           })
         ),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   )
@@ -393,9 +394,9 @@ export const usersController = new Elysia({ prefix: '/users' })
             linksQuota: t.Number()
           })
         ),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403'),
-        404: t.Ref('response.error.404')
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404)
       }
     }
   )
@@ -456,8 +457,8 @@ export const usersController = new Elysia({ prefix: '/users' })
             adminUsers: t.Number()
           })
         ),
-        401: t.Ref('response.error.401'),
-        403: t.Ref('response.error.403')
+        401: ErrorRef(401),
+        403: ErrorRef(403)
       }
     }
   );

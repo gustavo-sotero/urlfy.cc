@@ -1,9 +1,11 @@
-import { auth } from '@/lib/auth';
-import { publicApiV1 } from '@/server/api/v1';
-import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import type { OpenAPIV3 } from 'openapi-types';
+import { auth } from '@/lib/auth';
+import { publicApiV1 } from '@/server/api/v1';
+// Import plugins
+import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
+import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 // Import response models
 import { ResponseModels } from '@/server/lib/response.schema';
 // Import from feature-based modules
@@ -14,6 +16,7 @@ import {
 } from '@/server/modules/analytics';
 import { ApiKeysModel, apiKeysController } from '@/server/modules/api-keys';
 import { AuthModels, authController } from '@/server/modules/auth';
+import { InternalModel, internalController } from '@/server/modules/internal';
 import { LinksModel, linksController } from '@/server/modules/links';
 import { UsersModel, usersController } from '@/server/modules/users';
 import { adminAuditRoutes } from './admin/audit';
@@ -26,9 +29,6 @@ import { consentRoutes, userDataRoutes } from './users/me';
 
 const publicDocsApp = new Elysia()
   .use(ResponseModels)
-  .use(ApiKeysModel)
-  .use(apiKeysController)
-  .use(publicApiV1)
   .use(
     openapi({
       documentation: {
@@ -53,27 +53,13 @@ const publicDocsApp = new Elysia()
           }
         ],
         tags: [
-          { name: 'Public API V1', description: 'Public API V1 endpoints' },
           {
             name: 'Public API V1 - Links',
             description: 'Public API V1 link endpoints'
-          },
-          { name: 'API Keys', description: 'API key management' }
+          }
         ],
         components: {
           securitySchemes: {
-            bearerAuth: {
-              type: 'http',
-              scheme: 'bearer',
-              bearerFormat: 'JWT',
-              description: 'JWT session token from Better-Auth'
-            },
-            cookieAuth: {
-              type: 'apiKey',
-              in: 'cookie',
-              name: 'urlfy.session',
-              description: 'Session cookie (automatically set by Better-Auth)'
-            },
             apiKeyAuth: {
               type: 'apiKey',
               in: 'header',
@@ -83,7 +69,7 @@ const publicDocsApp = new Elysia()
             }
           }
         },
-        security: [{ apiKeyAuth: [] }, { bearerAuth: [] }, { cookieAuth: [] }]
+        security: [{ apiKeyAuth: [] }]
       },
       path: '/docs',
       exclude: {
@@ -93,14 +79,20 @@ const publicDocsApp = new Elysia()
         url: '/api/docs/json'
       }
     })
-  );
+  )
+  .use(publicApiV1);
 
 // ═══════════════════════════════════════════════════════════════════
 // API PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════
 
 export const api = new Elysia({ prefix: '/api' })
-  // Register all models FIRST for OpenAPI $ref support
+  // Register plugins FIRST (JWT, CORS, Bearer)
+  .use(jwtPlugin)
+  .use(corsPlugin)
+  .use(bearerPlugin)
+
+  // Register all models for OpenAPI $ref support
   .use(ResponseModels)
   .use(LinksModel)
   .use(AuthModels)
@@ -108,6 +100,7 @@ export const api = new Elysia({ prefix: '/api' })
   .use(AnalyticsModel)
   .use(AdminModels)
   .use(ApiKeysModel)
+  .use(InternalModel)
 
   // OpenAPI Documentation - Scalar UI will be configured to use merged spec
   .use(
@@ -211,12 +204,10 @@ export const api = new Elysia({ prefix: '/api' })
     }
   )
 
-  // Better-Auth routes (must be first, as it handles /api/auth/*)
-  .all('/auth/*', ({ request }) => auth.handler(request), {
-    detail: {
-      hide: true // Exclude from Elysia OpenAPI (documented separately via Better-Auth)
-    }
-  })
+  // Better-Auth routes (mount handler directly as per official docs)
+  // Better-Auth has basePath: '/auth', Elysia has prefix: '/api'
+  // Result: /api/auth/session, /api/auth/sign-in, etc.
+  .mount(auth.handler)
 
   // Public API Docs (proxy to isolated instance)
   .all(
@@ -248,6 +239,8 @@ export const api = new Elysia({ prefix: '/api' })
       .use(apiKeysController)
       .use(linksController)
       .use(analyticsController)
+      // Internal routes (middleware communication)
+      .use(internalController)
       // Admin routes
       .use(adminController)
       .group('/admin', (admin) => admin.use(adminAuditRoutes))

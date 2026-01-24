@@ -20,22 +20,25 @@ interface Props {
 
 export function ClicksChart({ data }: Props) {
   // Memoize chart data to prevent unnecessary recalculations
-  const chartData = useMemo(
-    () =>
-      data.map((item) => ({
-        date: new Date(item.date).toLocaleDateString('pt-BR', {
-          month: 'short',
-          day: 'numeric'
-        }),
-        Cliques: item.clicks,
-        'Visitantes Únicos': item.uniqueVisitors
-      })),
-    [data]
-  );
+  const chartData = useMemo(() => {
+    if (!data) return [];
+    // Sort by date ascending before mapping
+    const sorted = [...data].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    return sorted.map((item) => ({
+      date: new Date(item.date).toLocaleDateString('pt-BR', {
+        month: 'short',
+        day: 'numeric'
+      }),
+      Cliques: item.clicks,
+      'Visitantes Únicos': item.uniqueVisitors
+    }));
+  }, [data]);
 
   return (
     <div
-      className="h-75"
+      className="h-[300px] w-full"
       role="img"
       aria-label="Gráfico de cliques ao longo do tempo"
     >
@@ -58,7 +61,7 @@ export function ClicksChart({ data }: Props) {
               borderRadius: '6px'
             }}
           />
-          <Legend />
+          <Legend wrapperStyle={{ paddingTop: '20px' }} />
           <Line
             type="monotone"
             dataKey="Cliques"

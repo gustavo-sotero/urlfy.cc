@@ -39,6 +39,24 @@ export default function PrivacyPage(): JSX.Element {
 
         <section className="mt-8">
           <h2 className="text-2xl font-semibold mt-8 mb-4">1. Introdução</h2>
+          <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg mb-4">
+            <p className="font-semibold text-foreground">
+              📚 Contexto: Projeto Educacional
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              O urlfy.cc é um{' '}
+              <strong>projeto de portfólio e demonstração técnica</strong>, não
+              um produto comercial. Os dados coletados são utilizados
+              exclusivamente para demonstração das funcionalidades de analytics
+              e para aprendizado sobre compliance (LGPD/GDPR).
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              <strong>Importante:</strong> Por se tratar de um ambiente de
+              demonstração, dados podem ser periodicamente apagados ou
+              modificados sem aviso prévio. Não recomendamos o uso deste serviço
+              para links críticos de negócio.
+            </p>
+          </div>
           <p>
             O urlfy.cc ("nós", "nosso" ou "Serviço") respeita sua privacidade e
             está comprometido em proteger seus dados pessoais. Esta Política de
@@ -102,6 +120,12 @@ export default function PrivacyPage(): JSX.Element {
             <li>Detectar e prevenir fraudes e abusos</li>
             <li>Cumprir obrigações legais</li>
           </ul>
+          <p className="mt-4 text-sm text-muted-foreground">
+            <strong>Contexto Educacional:</strong> Os dados coletados também são
+            utilizados para demonstrar competências técnicas em implementação de
+            sistemas de analytics com privacidade (IP hashing, anonimização,
+            LGPD compliance).
+          </p>
         </section>
 
         <section className="mt-8">
@@ -165,6 +189,17 @@ export default function PrivacyPage(): JSX.Element {
               <strong>Backups:</strong> Até 30 dias após exclusão
             </li>
           </ul>
+          <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+            <p className="font-semibold text-foreground text-sm">
+              ⚠️ Aviso: Ambiente de Demonstração
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Como este é um projeto educacional, dados podem ser apagados
+              periodicamente (incluindo antes dos períodos descritos acima) para
+              demonstrações, testes ou manutenção. Recomendamos não armazenar
+              links críticos ou dados importantes neste serviço.
+            </p>
+          </div>
         </section>
 
         <section className="mt-8">

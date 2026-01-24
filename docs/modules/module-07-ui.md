@@ -159,7 +159,7 @@ import { CopyButton } from '@/components/shared/copy-button';
 import { createLink } from '@/lib/api-client';
 
 const schema = z.object({
-  url: z.string().url('URL inválida')
+  url: z.url('URL inválida')
 });
 
 type FormData = z.infer<typeof schema>;

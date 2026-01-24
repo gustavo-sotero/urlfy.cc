@@ -26,6 +26,8 @@ export const RESERVED_SLUGS = [
   'about',
   'pricing',
   'blog',
+  'project',
+  'internal',
   // SEO/Browser
   'favicon.ico',
   'robots.txt',

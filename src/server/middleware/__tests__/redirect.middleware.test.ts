@@ -86,7 +86,7 @@ mock.module('@/server/lib/redis', () => ({
 }));
 
 // NOW import the middleware
-import { checkPasswordCookie, handleRedirect } from '../redirect.middleware';
+import { getPasswordToken, handleRedirect } from '../redirect.middleware';
 
 // Helper to create mock NextRequest
 function createMockRequest(options: {
@@ -583,32 +583,32 @@ describe('redirect.middleware', () => {
     });
   });
 
-  describe('checkPasswordCookie()', () => {
-    it('should return false when no cookie present', async () => {
+  describe('getPasswordToken()', () => {
+    it('should return undefined when no cookie present', () => {
       const request = createMockRequest({
         url: 'http://localhost:3000/abc123'
       });
 
-      const result = await checkPasswordCookie(request, 'abc123');
+      const result = getPasswordToken(request, 'abc123');
 
-      expect(result).toBe(false);
+      expect(result).toBeUndefined();
     });
 
-    it('should return false for invalid JWT', async () => {
+    it('should return token string when cookie exists', () => {
       const request = createMockRequest({
         url: 'http://localhost:3000/abc123',
         cookies: {
-          urlfy_unlock_abc123: 'invalid.jwt.token'
+          urlfy_unlock_abc123: 'valid.jwt.token'
         }
       });
 
-      const result = await checkPasswordCookie(request, 'abc123');
+      const result = getPasswordToken(request, 'abc123');
 
-      expect(result).toBe(false);
+      expect(result).toBe('valid.jwt.token');
     });
 
-    it('should return false for expired JWT', async () => {
-      // Create an expired JWT (you'd need to actually sign it with jose in real test)
+    it('should return token even if expired (verification happens in API)', () => {
+      // JWT verification is now handled by the internal API, not the middleware
       const request = createMockRequest({
         url: 'http://localhost:3000/abc123',
         cookies: {
@@ -616,22 +616,22 @@ describe('redirect.middleware', () => {
         }
       });
 
-      const result = await checkPasswordCookie(request, 'abc123');
+      const result = getPasswordToken(request, 'abc123');
 
-      expect(result).toBe(false);
+      expect(result).toBe('expired.jwt.token');
     });
 
-    it('should return false for mismatched code in JWT', async () => {
+    it('should return undefined for different code cookie', () => {
       const request = createMockRequest({
         url: 'http://localhost:3000/abc123',
         cookies: {
-          urlfy_unlock_abc123: 'token.for.different.code'
+          urlfy_unlock_xyz789: 'token.for.different.code'
         }
       });
 
-      const result = await checkPasswordCookie(request, 'abc123');
+      const result = getPasswordToken(request, 'abc123');
 
-      expect(result).toBe(false);
+      expect(result).toBeUndefined();
     });
   });
 

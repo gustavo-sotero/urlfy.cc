@@ -9,13 +9,13 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { and, eq, inArray } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import { apikey, links, user } from '@/db/schema';
 import { Scopes } from '@/server/config/scopes';
 import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { and, eq, inArray } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import {
   createElysiaTestClient,
   type ElysiaTestClient

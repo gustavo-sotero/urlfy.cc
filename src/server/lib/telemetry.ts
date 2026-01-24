@@ -2,9 +2,9 @@
 /**
  * Full OpenTelemetry instrumentation for Node.js runtime
  *
- * ⚠️ WARNING: DO NOT import this file in proxy.ts or Edge Runtime code!
+ * ⚠️ WARNING: DO NOT import this file in proxy.ts or Middleware code!
  *
- * This module uses Node.js-specific APIs that are not available in Edge Runtime.
+ * This module uses Node.js-specific APIs that are not available in Middleware.
  * For middleware, use telemetry.edge.ts instead.
  *
  * Usage:

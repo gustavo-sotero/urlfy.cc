@@ -1,10 +1,10 @@
-# Edge Runtime Architecture - urlfy.cc
+# Middleware Architecture - urlfy.cc
 
 > 📖 [← Voltar ao Overview](./overview.md)
 
 ## Context
 
-Next.js middleware runs on **Edge Runtime**, which is a lightweight JavaScript runtime that doesn't include Node.js APIs. This provides better performance and global distribution but limits what libraries can be used.
+Next.js middleware runs in a **restricted environment**, which is a limited JavaScript runtime that doesn't include all Node.js APIs. This limits what libraries can be used.
 
 ## Problem
 
@@ -14,10 +14,10 @@ The original design had the redirect middleware directly accessing:
 - OpenTelemetry with Node.js instrumentations
 - BullMQ for analytics queue
 
-None of these work in Edge Runtime, causing errors like:
+None of these work in the Middleware environment, causing errors like:
 
 ```
-The edge runtime does not support Node.js 'os' module.
+The runtime does not support Node.js 'os' module.
 Failed to load external module bun: TypeError: Native module not found: bun
 ```
 
@@ -27,7 +27,7 @@ We split the redirect flow into two parts:
 
 ### 1. Edge Middleware (`src/middleware.ts`)
 
-- Runs in Edge Runtime (fast, globally distributed)
+- Runs in Middleware environment
 - Handles route matching and basic HTTP logic
 - Makes internal API call to resolve links
 - Returns redirect response
@@ -117,7 +117,7 @@ This helps identify bottlenecks.
 
 ## Alternative Considered: Vercel Edge Config
 
-Vercel Edge Config stores key-value data globally and is accessible from Edge Runtime. However:
+Vercel Edge Config stores key-value data globally and is accessible from Middleware. However:
 
 **Not chosen because:**
 
@@ -154,6 +154,6 @@ INTERNAL_API_SECRET=<generated-secret>
 
 ## References
 
-- [Next.js Edge Runtime](https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)
+- [Next.js Middleware Runtime](https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)
 - [Vercel Edge Functions Limitations](https://vercel.com/docs/functions/edge-functions/edge-functions-api#unsupported-apis)
 - [PRD Module 4: Redirect Engine](../../docs/modules/module-04-redirect.md)

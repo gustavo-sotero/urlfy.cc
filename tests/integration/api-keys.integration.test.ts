@@ -4,10 +4,6 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { db } from '@/db';
-import { apikey, user } from '@/db/schema/auth';
-import { Scopes } from '@/server/config/scopes';
-import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
 import {
   afterAll,
   afterEach,
@@ -19,6 +15,10 @@ import {
 } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { db } from '@/db';
+import { apikey, user } from '@/db/schema/auth';
+import { Scopes } from '@/server/config/scopes';
+import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
 import { requireDatabase } from '../helpers/integration-helper';
 
 // Test user ID

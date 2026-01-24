@@ -200,6 +200,42 @@ export type AnalyticsDetailedResponseType = Static<
 >;
 
 // ═══════════════════════════════════════════════════════════════════
+// EXAMPLE CONSTANTS (for OpenAPI docs)
+// ═══════════════════════════════════════════════════════════════════
+
+export const ANALYTICS_SUMMARY_EXAMPLE: AnalyticsSummaryType = {
+  totalClicks: 5000,
+  uniqueVisitors: 3200,
+  avgClicksPerDay: 166,
+  topCountry: 'BR',
+  topBrowser: 'Chrome',
+  topReferrer: 'twitter.com',
+  totalClicksGrowth: 12.5,
+  uniqueVisitorsGrowth: 8.3
+};
+
+export const ANALYTICS_BREAKDOWN_EXAMPLE: AnalyticsBreakdownType = {
+  countries: [{ code: 'BR', name: 'Brazil', clicks: 2000, percentage: 40 }],
+  devices: [{ type: 'mobile', clicks: 3000, percentage: 60 }],
+  browsers: [{ name: 'Chrome', clicks: 2500, percentage: 50 }],
+  referrers: [{ domain: 'twitter.com', clicks: 1000, percentage: 20 }]
+};
+
+export const ANALYTICS_TIMESERIES_EXAMPLE: AnalyticsTimeseriesType = {
+  data: [
+    { date: '2026-01-01', clicks: 150, uniqueVisitors: 120 },
+    { date: '2026-01-02', clicks: 180, uniqueVisitors: 140 }
+  ],
+  period: { from: '2026-01-01', to: '2026-01-31', granularity: 'day' }
+};
+
+export const TIMESERIES_DATAPOINT_EXAMPLE: TimeseriesDataPointType = {
+  date: '2026-01-01',
+  clicks: 150,
+  uniqueVisitors: 120
+};
+
+// ═══════════════════════════════════════════════════════════════════
 // MODEL REGISTRY FOR INJECTION
 // ═══════════════════════════════════════════════════════════════════
 
