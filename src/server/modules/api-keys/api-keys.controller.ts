@@ -8,7 +8,6 @@
  */
 
 import { Elysia, t } from 'elysia';
-import type { User } from '@/lib/auth';
 import {
   ErrorRef,
   ResponseModels,
@@ -23,9 +22,6 @@ import {
 } from './api-keys.schema';
 import { ApiKeysService } from './api-keys.service';
 
-// After requireAuth middleware, user is guaranteed to be non-null
-type AuthenticatedContext = { user: User };
-
 export const apiKeysController = new Elysia({
   prefix: '/keys',
   detail: {
@@ -36,12 +32,12 @@ export const apiKeysController = new Elysia({
   .use(ResponseModels)
   .use(requireAuth) // Injects `user` into context
 
-  // ─── List Keys ──────────────────────────────────────────────────
+  // ─── List Keys ────────────────────────────────────────────────
   .get(
     '/',
-    async (ctx) => {
-      const { user } = ctx as typeof ctx & AuthenticatedContext;
-      const keys = await ApiKeysService.listByUser(user.id);
+    async ({ user }) => {
+      // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
+      const keys = await ApiKeysService.listByUser(user!.id);
 
       // Serialize dates to strings for response
       const serializedKeys = keys.map((key) => ({
@@ -78,9 +74,9 @@ export const apiKeysController = new Elysia({
   // ─── Get Single Key ─────────────────────────────────────────────
   .get(
     '/:id',
-    async (ctx) => {
-      const { params, user, set } = ctx as typeof ctx & AuthenticatedContext;
-      const key = await ApiKeysService.getById(params.id, user.id);
+    async ({ params, user, set }) => {
+      // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
+      const key = await ApiKeysService.getById(params.id, user!.id);
 
       if (!key) {
         set.status = 404;
@@ -127,9 +123,9 @@ export const apiKeysController = new Elysia({
   // ─── Create Key ─────────────────────────────────────────────────
   .post(
     '/',
-    async (ctx) => {
-      const { body, user, set } = ctx as typeof ctx & AuthenticatedContext;
-      const createdKey = await ApiKeysService.create(user.id, {
+    async ({ body, user, set }) => {
+      // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
+      const createdKey = await ApiKeysService.create(user!.id, {
         name: body.name,
         scopes: body.scopes,
         expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
@@ -172,12 +168,10 @@ export const apiKeysController = new Elysia({
   // ─── Revoke Key ─────────────────────────────────────────────────
   .post(
     '/:id/revoke',
-    async (ctx) => {
-      const { params, body, user, set } = ctx as typeof ctx &
-        AuthenticatedContext;
+    async ({ params, body, user, set }) => {
       const success = await ApiKeysService.revoke(
         params.id,
-        user.id,
+        user?.id,
         body?.reason
       );
 
@@ -225,9 +219,9 @@ export const apiKeysController = new Elysia({
   // ─── Rollover Key ───────────────────────────────────────────────
   .post(
     '/:id/rollover',
-    async (ctx) => {
-      const { params, user, set } = ctx as typeof ctx & AuthenticatedContext;
-      const newKey = await ApiKeysService.rollover(params.id, user.id);
+    async ({ params, user, set }) => {
+      // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
+      const newKey = await ApiKeysService.rollover(params.id, user!.id);
 
       if (!newKey) {
         set.status = 404;
@@ -276,9 +270,9 @@ export const apiKeysController = new Elysia({
   // ─── Delete Key (Hard) ──────────────────────────────────────────
   .delete(
     '/:id',
-    async (ctx) => {
-      const { params, user, set } = ctx as typeof ctx & AuthenticatedContext;
-      const success = await ApiKeysService.delete(params.id, user.id);
+    async ({ params, user, set }) => {
+      // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
+      const success = await ApiKeysService.delete(params.id, user!.id);
 
       if (!success) {
         set.status = 404;

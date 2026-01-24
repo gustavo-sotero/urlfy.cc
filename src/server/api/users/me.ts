@@ -6,6 +6,9 @@
  *
  * Module: Authentication & Identity (Module 2)
  * Requirements: RF-35 to RF-38
+ *
+ * Note: All routes use `requireAuth` middleware, which guarantees `user` is non-null.
+ * TypeScript can't infer this, so we use non-null assertions (`user!`) where needed.
  * ═════════════════════════════════════════════════════════════════════
  */
 
@@ -13,16 +16,17 @@ import { desc, eq } from 'drizzle-orm';
 import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema/audit';
-import type { User } from '@/lib/auth';
 import { sendEmail } from '@/server/lib/email';
 import { SuccessResponse } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import { UsersModel } from '@/server/modules/users/users.schema';
+import { requestContext } from '@/server/plugins/request-context';
 import { auditLogService } from '@/server/services/audit.service';
 import { gdprService } from '@/server/services/gdpr.service';
 
 export const userDataRoutes = new Elysia({ prefix: '/me' })
   .use(requireAuth)
+  .use(requestContext)
   .use(UsersModel)
 
   // ═══════════════════════════════════════════════════════════════════
@@ -30,24 +34,20 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/',
-    async (context) => {
-      const { user } = context as typeof context & {
-        user: User;
-      };
-
+    async ({ user }) => {
       return {
         success: true as const,
         data: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          emailVerified: user.emailVerified,
-          image: user.image ?? null,
-          role: user.role,
-          linksQuota: user.linksQuota,
-          linksCount: user.linksCount,
-          createdAt: user.createdAt.toISOString(),
-          updatedAt: user.updatedAt.toISOString()
+          id: user?.id,
+          email: user?.email,
+          name: user?.name,
+          emailVerified: user?.emailVerified,
+          image: user?.image ?? null,
+          role: user?.role,
+          linksQuota: user?.linksQuota,
+          linksCount: user?.linksCount,
+          createdAt: user?.createdAt.toISOString(),
+          updatedAt: user?.updatedAt.toISOString()
         }
       };
     },
@@ -69,11 +69,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/quota',
-    async (context) => {
-      const { user } = context as typeof context & {
-        user: User;
-      };
-
+    async ({ user }) => {
       const used = user.linksCount;
       const limit = user.linksQuota;
       const remaining = Math.max(0, limit - used);
@@ -108,13 +104,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/export',
-    async (context) => {
-      const { user, request, set } = context as typeof context & {
-        user: User;
-        request: Request;
-        set: { status?: number | string };
-      };
-
+    async ({ user, ip, userAgent, set }) => {
       try {
         // Export all user data
         const exportData = await gdprService.exportUserData(user.id);
@@ -128,19 +118,19 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
           metadata: {
             exportedAt: new Date().toISOString()
           },
-          ipAddress: request.headers.get('x-forwarded-for') || undefined,
-          userAgent: request.headers.get('user-agent') || undefined
+          ipAddress: ip,
+          userAgent: userAgent
         });
 
         return {
           success: true,
           data: {
             user: {
-              id: exportData.user.id,
-              email: exportData.user.email,
-              name: exportData.user.name,
-              createdAt: exportData.user.createdAt.toISOString(),
-              updatedAt: exportData.user.updatedAt.toISOString()
+              id: exportData.user?.id,
+              email: exportData.user?.email,
+              name: exportData.user?.name,
+              createdAt: exportData.user?.createdAt.toISOString(),
+              updatedAt: exportData.user?.updatedAt.toISOString()
             },
             links: exportData.links.map((link) => ({
               id: link.id,
@@ -186,13 +176,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .delete(
     '/data',
-    async (context) => {
-      const { user, set } = context as typeof context & {
-        user: User;
-        request: Request;
-        set: { status?: number | string };
-      };
-
+    async ({ user, ip, userAgent, set }) => {
       try {
         // Check if there's already a pending request
         const existingRequest = await gdprService.getPendingDeletionRequest(
@@ -215,7 +199,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
           };
         }
 
-        const request = await gdprService.scheduleDataDeletion(user.id);
+        const deletionRequest = await gdprService.scheduleDataDeletion(user.id);
 
         // Log the deletion request
         await auditLogService.log({
@@ -224,12 +208,11 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
           entityType: 'user',
           entityId: user.id,
           metadata: {
-            requestId: request.requestId,
-            deadlineAt: request.deadline.toISOString()
+            requestId: deletionRequest.requestId,
+            deadlineAt: deletionRequest.deadline.toISOString()
           },
-          ipAddress:
-            context.request.headers.get('x-forwarded-for') || undefined,
-          userAgent: context.request.headers.get('user-agent') || undefined
+          ipAddress: ip,
+          userAgent: userAgent
         });
 
         try {
@@ -238,9 +221,9 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
             subject: 'Solicitação de exclusão de dados - urlfy.cc',
             template: 'data-deletion-request',
             data: {
-              name: user.name,
-              requestId: request.requestId,
-              deadline: request.deadline.toISOString()
+              name: user?.name,
+              requestId: deletionRequest.requestId,
+              deadline: deletionRequest.deadline.toISOString()
             }
           });
         } catch (error) {
@@ -250,8 +233,8 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
         return {
           success: true as const,
           data: {
-            requestId: request.requestId,
-            deadline: request.deadline.toISOString(),
+            requestId: deletionRequest.requestId,
+            deadline: deletionRequest.deadline.toISOString(),
             message:
               'Your data deletion request has been received. Your data will be permanently deleted within 72 hours.'
           }
@@ -288,11 +271,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/deletion-request',
-    async (context) => {
-      const { user } = context as typeof context & {
-        user: User;
-      };
-
+    async ({ user }) => {
       const requests = await db
         .select()
         .from(dataDeletionRequest)
@@ -342,6 +321,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
  */
 export const consentRoutes = new Elysia({ prefix: '/me' })
   .use(requireAuth)
+  .use(requestContext)
   .use(UsersModel)
 
   // ═══════════════════════════════════════════════════════════════════
@@ -349,18 +329,7 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .post(
     '/consent',
-    async (context) => {
-      const { user, body, request, set } = context as typeof context & {
-        user: User;
-        body: {
-          analytics: boolean;
-          marketing: boolean;
-          timestamp?: string;
-        };
-        request: Request;
-        set: { status?: number | string };
-      };
-
+    async ({ user, body, ip, userAgent, set }) => {
       try {
         // Validate body
         if (
@@ -404,8 +373,8 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
             action: 'consent_updated',
             preferences
           },
-          ipAddress: request.headers.get('x-forwarded-for') || undefined,
-          userAgent: request.headers.get('user-agent') || undefined
+          ipAddress: ip,
+          userAgent: userAgent
         });
 
         return {
@@ -451,12 +420,7 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/consent',
-    async (context) => {
-      const { user, set } = context as typeof context & {
-        user: User;
-        set: { status?: number | string };
-      };
-
+    async ({ user, set }) => {
       try {
         const { getRedisClient } = await import('@/server/lib/redis');
         const redis = getRedisClient();

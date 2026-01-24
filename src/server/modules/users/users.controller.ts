@@ -151,22 +151,12 @@ export const usersController = new Elysia({ prefix: '/users' })
   // ═══════════════════════════════════════════════════════════════════
   .patch(
     '/:userId/ban',
-    async (context) => {
-      const {
-        params: { userId },
-        body: { reason },
-        user: adminUser
-      } = context as typeof context & {
-        params: { userId: string };
-        body: { reason: string };
-        user: { id: string };
-      };
-
+    async ({ params, body, user: adminUser }) => {
       try {
         const bannedUser = await UserService.banUser(
-          userId,
-          reason,
-          adminUser.id
+          params.userId,
+          body.reason,
+          adminUser?.id
         );
 
         return {
@@ -218,17 +208,12 @@ export const usersController = new Elysia({ prefix: '/users' })
   // ═══════════════════════════════════════════════════════════════════
   .patch(
     '/:userId/unban',
-    async (context) => {
-      const {
-        params: { userId },
-        user: adminUser
-      } = context as typeof context & {
-        params: { userId: string };
-        user: { id: string };
-      };
-
+    async ({ params, user: adminUser }) => {
       try {
-        const unbannedUser = await UserService.unbanUser(userId, adminUser.id);
+        const unbannedUser = await UserService.unbanUser(
+          params.userId,
+          adminUser?.id
+        );
 
         return {
           success: true as const,
@@ -276,22 +261,12 @@ export const usersController = new Elysia({ prefix: '/users' })
   // ═══════════════════════════════════════════════════════════════════
   .patch(
     '/:userId/role',
-    async (context) => {
-      const {
-        params: { userId },
-        body: { role },
-        user: adminUser
-      } = context as typeof context & {
-        params: { userId: string };
-        body: { role: 'user' | 'admin' };
-        user: { id: string };
-      };
-
+    async ({ params, body, user: adminUser }) => {
       try {
         const updatedUser = await UserService.updateUserRole(
-          userId,
-          role,
-          adminUser.id
+          params.userId,
+          body.role,
+          adminUser?.id
         );
 
         return {

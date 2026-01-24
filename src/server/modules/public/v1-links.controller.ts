@@ -22,73 +22,15 @@ import { requireApiKey } from '@/server/middleware/api-key.guard';
 import {
   LINK_RESPONSE_EXAMPLE,
   LINK_STATS_EXAMPLE,
-  type LinkCreateBodyType,
   LinksModel
 } from '@/server/modules/links';
 import { LinkService } from '@/server/modules/links/links.service';
-import type { ApiKeyContext } from '@/types/api-keys.types';
 
 const logger = createLogger('v1-links-controller');
 
 /**
  * Helper type for context with API key
  */
-type WithApiKey<T> = T & { apiKey: ApiKeyContext['apiKey'] };
-
-// ─── Shared Handlers ─────────────────────────────────────────────
-const createLinkHandler = async (ctx: {
-  body: LinkCreateBodyType;
-  apiKey?: ApiKeyContext['apiKey'];
-}) => {
-  const { body } = ctx;
-  const apiKey = ctx.apiKey as ApiKeyContext['apiKey'];
-
-  try {
-    const link = await LinkService.createLink(
-      {
-        url: body.url,
-        customAlias: body.customAlias,
-        expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
-        maxClicks: body.maxClicks,
-        password: body.password,
-        redirectType: body.redirectType,
-        metaTitle: body.metaTitle,
-        metaDescription: body.metaDescription,
-        metaImage: body.metaImage,
-        utmSource: body.utmSource,
-        utmMedium: body.utmMedium,
-        utmCampaign: body.utmCampaign,
-        tags: body.tags,
-        notes: body.notes
-      },
-      apiKey.userId,
-      'api-key' // IP hash placeholder for API keys
-    );
-
-    return {
-      success: true as const,
-      data: LinkService.formatLinkResponse(link)
-    };
-  } catch (error) {
-    logger.error('Failed to create link via API', {
-      userId: apiKey.userId,
-      error: error instanceof Error ? error.message : String(error)
-    });
-
-    if (error instanceof Error && 'code' in error) {
-      const errorWithCode = error as Error & { code: string };
-      return {
-        success: false as const,
-        error: {
-          code: errorWithCode.code,
-          message: error.message
-        }
-      };
-    }
-
-    throw error;
-  }
-};
 
 // ─── Write Operations (links:write) ───────────────────────────────
 const writeOperations = new Elysia({ name: 'V1Links.Write' })
@@ -97,59 +39,158 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
   .use(requireApiKey({ scopes: [Scopes.LINKS_WRITE] }))
 
   // Create Link
-  .post('/', createLinkHandler, {
-    body: 'links.create',
-    detail: {
-      summary: 'Shorten URL',
-      description: 'Create a new shortened link',
-      security: [{ apiKeyAuth: [] }]
+  .post(
+    '/',
+    async ({ body, apiKey }) => {
+      try {
+        const link = await LinkService.createLink(
+          {
+            url: body.url,
+            customAlias: body.customAlias,
+            expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+            maxClicks: body.maxClicks,
+            password: body.password,
+            redirectType: body.redirectType,
+            metaTitle: body.metaTitle,
+            metaDescription: body.metaDescription,
+            metaImage: body.metaImage,
+            utmSource: body.utmSource,
+            utmMedium: body.utmMedium,
+            utmCampaign: body.utmCampaign,
+            tags: body.tags,
+            notes: body.notes
+          },
+          apiKey?.userId,
+          'api-key' // IP hash placeholder for API keys
+        );
+
+        return {
+          success: true as const,
+          data: LinkService.formatLinkResponse(link)
+        };
+      } catch (error) {
+        logger.error('Failed to create link via API', {
+          userId: apiKey?.userId,
+          error: error instanceof Error ? error.message : String(error)
+        });
+
+        if (error instanceof Error && 'code' in error) {
+          const errorWithCode = error as Error & { code: string };
+          return {
+            success: false as const,
+            error: {
+              code: errorWithCode.code,
+              message: error.message
+            }
+          };
+        }
+
+        throw error;
+      }
     },
-    response: {
-      201: SuccessResponse(t.Ref('links.response'), {
-        description: 'Link created successfully',
-        example: LINK_RESPONSE_EXAMPLE
-      }),
-      400: ErrorRef(400),
-      401: ErrorRef(401),
-      403: ErrorRef(403),
-      409: ErrorRef(409),
-      422: ErrorRef(422),
-      429: ErrorRef(429),
-      500: ErrorRef(500)
+    {
+      body: 'links.create',
+      detail: {
+        summary: 'Shorten URL',
+        description: 'Create a new shortened link',
+        security: [{ apiKeyAuth: [] }]
+      },
+      response: {
+        201: SuccessResponse(t.Ref('links.response'), {
+          description: 'Link created successfully',
+          example: LINK_RESPONSE_EXAMPLE
+        }),
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        409: ErrorRef(409),
+        422: ErrorRef(422),
+        429: ErrorRef(429),
+        500: ErrorRef(500)
+      }
     }
-  })
+  )
 
   // Create Link (Alias)
-  .post('/shorten', createLinkHandler, {
-    body: 'links.create',
-    detail: {
-      summary: 'Shorten URL (Alias)',
-      description: 'Alias for creating a new shortened link',
-      security: [{ apiKeyAuth: [] }]
+  .post(
+    '/shorten',
+    async ({ body, apiKey }) => {
+      try {
+        const link = await LinkService.createLink(
+          {
+            url: body.url,
+            customAlias: body.customAlias,
+            expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+            maxClicks: body.maxClicks,
+            password: body.password,
+            redirectType: body.redirectType,
+            metaTitle: body.metaTitle,
+            metaDescription: body.metaDescription,
+            metaImage: body.metaImage,
+            utmSource: body.utmSource,
+            utmMedium: body.utmMedium,
+            utmCampaign: body.utmCampaign,
+            tags: body.tags,
+            notes: body.notes
+          },
+          apiKey?.userId,
+          'api-key' // IP hash placeholder for API keys
+        );
+
+        return {
+          success: true as const,
+          data: LinkService.formatLinkResponse(link)
+        };
+      } catch (error) {
+        logger.error('Failed to create link via API', {
+          userId: apiKey?.userId,
+          error: error instanceof Error ? error.message : String(error)
+        });
+
+        if (error instanceof Error && 'code' in error) {
+          const errorWithCode = error as Error & { code: string };
+          return {
+            success: false as const,
+            error: {
+              code: errorWithCode.code,
+              message: error.message
+            }
+          };
+        }
+
+        throw error;
+      }
     },
-    response: {
-      201: SuccessResponse(t.Ref('links.response'), {
-        description: 'Link created successfully',
-        example: LINK_RESPONSE_EXAMPLE
-      }),
-      400: ErrorRef(400),
-      401: ErrorRef(401),
-      403: ErrorRef(403),
-      409: ErrorRef(409),
-      422: ErrorRef(422),
-      429: ErrorRef(429),
-      500: ErrorRef(500)
+    {
+      body: 'links.create',
+      detail: {
+        summary: 'Shorten URL (Alias)',
+        description: 'Alias for creating a new shortened link',
+        security: [{ apiKeyAuth: [] }]
+      },
+      response: {
+        201: SuccessResponse(t.Ref('links.response'), {
+          description: 'Link created successfully',
+          example: LINK_RESPONSE_EXAMPLE
+        }),
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        409: ErrorRef(409),
+        422: ErrorRef(422),
+        429: ErrorRef(429),
+        500: ErrorRef(500)
+      }
     }
-  })
+  )
 
   // Delete Link
   .delete(
     '/:id',
-    async (ctx) => {
-      const { params, apiKey, set } = ctx as WithApiKey<typeof ctx>;
-
+    async ({ params, apiKey, set }) => {
       try {
-        await LinkService.softDeleteLink(params.id, apiKey.userId);
+        // biome-ignore lint/style/noNonNullAssertion: apiKey guaranteed non-null by requireApiKey middleware
+        await LinkService.softDeleteLink(params.id, apiKey!.userId);
         return {
           success: true as const,
           data: {
@@ -202,10 +243,9 @@ const readOperations = new Elysia({ name: 'V1Links.Read' })
   // Get Single Link
   .get(
     '/:id',
-    async (ctx) => {
-      const { params, apiKey, set } = ctx as WithApiKey<typeof ctx>;
-
-      const link = await LinkService.getLinkById(params.id, apiKey.userId);
+    async ({ params, apiKey, set }) => {
+      // biome-ignore lint/style/noNonNullAssertion: apiKey guaranteed non-null by requireApiKey middleware
+      const link = await LinkService.getLinkById(params.id, apiKey!.userId);
 
       if (!link) {
         set.status = 404;
@@ -256,10 +296,9 @@ const listOperations = new Elysia({ name: 'V1Links.List' })
   // List Links
   .get(
     '/',
-    async (ctx) => {
-      const { query, apiKey } = ctx as WithApiKey<typeof ctx>;
-
-      const result = await LinkService.listUserLinks(apiKey.userId, {
+    async ({ query, apiKey }) => {
+      // biome-ignore lint/style/noNonNullAssertion: apiKey guaranteed non-null by requireApiKey middleware
+      const result = await LinkService.listUserLinks(apiKey!.userId, {
         page: query.page ? Number.parseInt(query.page, 10) : 1,
         perPage: query.perPage ? Number.parseInt(query.perPage, 10) : 20,
         sortBy: query.sortBy ?? 'createdAt',
@@ -308,11 +347,10 @@ const analyticsOperations = new Elysia({ name: 'V1Links.Analytics' })
   // Get Link Stats
   .get(
     '/:id/stats',
-    async (ctx) => {
-      const { params, apiKey, set } = ctx as WithApiKey<typeof ctx>;
-
+    async ({ params, apiKey, set }) => {
       // First verify the link belongs to the user
-      const link = await LinkService.getLinkById(params.id, apiKey.userId);
+      // biome-ignore lint/style/noNonNullAssertion: apiKey guaranteed non-null by requireApiKey middleware
+      const link = await LinkService.getLinkById(params.id, apiKey!.userId);
 
       if (!link) {
         set.status = 404;

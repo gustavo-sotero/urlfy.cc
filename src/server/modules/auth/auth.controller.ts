@@ -17,7 +17,6 @@ import {
   session as sessionTable,
   twoFactor as twoFactorTable
 } from '@/db/schema/auth';
-import type { Session, User } from '@/lib/auth';
 import { redis } from '@/server/lib/redis';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
@@ -143,13 +142,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/session',
-    async (context) => {
-      const { user, session, isAuthenticated } = context as typeof context & {
-        user: User | null;
-        session: Session | null;
-        isAuthenticated: boolean;
-      };
-
+    async ({ user, session, isAuthenticated }) => {
       if (!isAuthenticated || !user || !session) {
         return {
           success: true,
@@ -164,22 +157,22 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         success: true as const,
         data: {
           user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            emailVerified: user.emailVerified,
-            image: user.image,
-            role: user.role,
-            linksQuota: user.linksQuota,
-            linksCount: user.linksCount,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt
+            id: user?.id,
+            email: user?.email,
+            name: user?.name,
+            emailVerified: user?.emailVerified,
+            image: user?.image,
+            role: user?.role,
+            linksQuota: user?.linksQuota,
+            linksCount: user?.linksCount,
+            createdAt: user?.createdAt,
+            updatedAt: user?.updatedAt
           },
           session: {
-            id: session.id,
-            expiresAt: session.expiresAt,
-            ipAddress: session.ipAddress,
-            userAgent: session.userAgent
+            id: session?.id,
+            expiresAt: session?.expiresAt,
+            ipAddress: session?.ipAddress,
+            userAgent: session?.userAgent
           }
         }
       };
@@ -192,7 +185,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         security: [] // Public endpoint - returns null session if not authenticated
       },
       response: {
-        200: SuccessResponse(t.Ref('auth.session.response'))
+        200: SuccessResponse(t.Ref('auth.session!.response'))
       }
     }
   )
@@ -205,10 +198,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/two-factor/status',
-    async (context) => {
-      const { user } = context as typeof context & {
-        user: { id: string };
-      };
+    async ({ user }) => {
       try {
         const result = await db
           .select({
@@ -216,7 +206,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
             createdAt: twoFactorTable.createdAt
           })
           .from(twoFactorTable)
-          .where(eq(twoFactorTable.userId, user.id))
+          .where(eq(twoFactorTable.userId, user?.id))
           .limit(1);
 
         const enabled = result.length > 0 && result[0].verified;
@@ -259,17 +249,16 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/sessions',
-    async (context) => {
-      const { user, session } = context as typeof context & {
-        user: { id: string };
-        session: { id: string };
-      };
+    async ({ user, session }) => {
       const now = new Date();
       const sessions = await db
         .select()
         .from(sessionTable)
         .where(
-          and(eq(sessionTable.userId, user.id), gt(sessionTable.expiresAt, now))
+          and(
+            eq(sessionTable.userId, user?.id),
+            gt(sessionTable.expiresAt, now)
+          )
         )
         .orderBy(desc(sessionTable.createdAt));
 
@@ -277,7 +266,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         success: true as const,
         data: sessions.map((s) => ({
           id: s.id,
-          isCurrent: s.id === session.id,
+          isCurrent: s.id === session?.id,
           ipAddress: s.ipAddress,
           userAgent: s.userAgent,
           expiresAt: s.expiresAt,
@@ -292,7 +281,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         description: 'Get all active sessions for the current user'
       },
       response: {
-        200: SuccessResponse(t.Array(t.Ref('auth.session.list.response'))),
+        200: SuccessResponse(t.Array(t.Ref('auth.session!.list.response'))),
         401: ErrorRef(401)
       }
     }
@@ -303,19 +292,14 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
   // ─────────────────────────────────────────────────────────────────
   .delete(
     '/sessions/:sessionId',
-    async (context) => {
-      const {
-        params: { sessionId },
-        user
-      } = context as typeof context & {
-        params: { sessionId: string };
-        user: { id: string };
-      };
-
+    async ({ params, user }) => {
       const deleted = await db
         .delete(sessionTable)
         .where(
-          and(eq(sessionTable.id, sessionId), eq(sessionTable.userId, user.id))
+          and(
+            eq(sessionTable.id, params.sessionId),
+            eq(sessionTable.userId, user?.id)
+          )
         )
         .returning();
 
@@ -360,16 +344,14 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
   // ─────────────────────────────────────────────────────────────────
   .delete(
     '/sessions',
-    async (context) => {
-      const { user, session } = context as typeof context & {
-        user: { id: string };
-        session: { id: string };
-      };
-
+    async ({ user, session }) => {
       await db
         .delete(sessionTable)
         .where(
-          and(eq(sessionTable.userId, user.id), ne(sessionTable.id, session.id))
+          and(
+            eq(sessionTable.userId, user?.id),
+            ne(sessionTable.id, session?.id)
+          )
         );
 
       return {
@@ -401,16 +383,14 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/sessions/revoke-others',
-    async (context) => {
-      const { user, session } = context as typeof context & {
-        user: { id: string };
-        session: { id: string };
-      };
-
+    async ({ user, session }) => {
       await db
         .delete(sessionTable)
         .where(
-          and(eq(sessionTable.userId, user.id), ne(sessionTable.id, session.id))
+          and(
+            eq(sessionTable.userId, user?.id),
+            ne(sessionTable.id, session?.id)
+          )
         );
 
       return {
@@ -442,16 +422,11 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
 // ─────────────────────────────────────────────────────────────────
 sessionRoutes.post(
   '/sessions/revoke-all',
-  async (context) => {
-    const { user, session } = context as typeof context & {
-      user: { id: string };
-      session: { id: string };
-    };
-
+  async ({ user, session }) => {
     await db
       .delete(sessionTable)
       .where(
-        and(eq(sessionTable.userId, user.id), ne(sessionTable.id, session.id))
+        and(eq(sessionTable.userId, user?.id), ne(sessionTable.id, session?.id))
       );
 
     return {
@@ -491,11 +466,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/',
-    async (context) => {
-      const { user } = context as typeof context & {
-        user: { id: string };
-      };
-
+    async ({ user }) => {
       const keys = await db
         .select({
           id: apiKeyTable.id,
@@ -511,7 +482,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         .from(apiKeyTable)
         .where(
           and(
-            eq(apiKeyTable.userId, user.id),
+            eq(apiKeyTable.userId, user?.id),
             isNull(apiKeyTable.deletedAt),
             isNull(apiKeyTable.revokedAt)
           )
@@ -552,17 +523,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/',
-    async (context) => {
-      const { user, body } = context as typeof context & {
-        user: { id: string };
-        body: {
-          name: string;
-          permissions?: ApiKeyPermissions;
-          rateLimit?: number;
-          expiresInDays?: number;
-        };
-      };
-
+    async ({ user, body }) => {
       const rateLimitMax = body.rateLimit ?? 1000;
       const rateLimitTimeWindow = 60 * 60 * 1000; // 1 hour
       const expiresAt = body.expiresInDays
@@ -570,7 +531,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         : null;
 
       const { created, plainKey } = await generateApiKey(
-        user.id,
+        user?.id,
         body.name,
         body.permissions || {},
         {
@@ -619,20 +580,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
   // ─────────────────────────────────────────────────────────────────
   .patch(
     '/:keyId',
-    async (context) => {
-      const {
-        user,
-        params: { keyId },
-        body
-      } = context as typeof context & {
-        user: { id: string };
-        params: { keyId: string };
-        body: {
-          name?: string;
-          permissions?: ApiKeyPermissions;
-        };
-      };
-
+    async ({ user, params, body }) => {
       const normalizedPermissions = body.permissions
         ? normalizePermissions(body.permissions)
         : undefined;
@@ -647,8 +595,8 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         })
         .where(
           and(
-            eq(apiKeyTable.id, keyId),
-            eq(apiKeyTable.userId, user.id),
+            eq(apiKeyTable.id, params.keyId),
+            eq(apiKeyTable.userId, user?.id),
             isNull(apiKeyTable.deletedAt),
             isNull(apiKeyTable.revokedAt)
           )
@@ -704,15 +652,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
   // ─────────────────────────────────────────────────────────────────
   .delete(
     '/:keyId',
-    async (context) => {
-      const {
-        user,
-        params: { keyId }
-      } = context as typeof context & {
-        user: { id: string };
-        params: { keyId: string };
-      };
-
+    async ({ user, params }) => {
       const [deleted] = await db
         .update(apiKeyTable)
         .set({
@@ -721,8 +661,8 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         })
         .where(
           and(
-            eq(apiKeyTable.id, keyId),
-            eq(apiKeyTable.userId, user.id),
+            eq(apiKeyTable.id, params.keyId),
+            eq(apiKeyTable.userId, user?.id),
             isNull(apiKeyTable.deletedAt),
             isNull(apiKeyTable.revokedAt)
           )
@@ -740,15 +680,15 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
       }
 
       // Invalidate rate limit cache
-      await redis.del(`rl:apikey:${keyId}`);
+      await redis.del(`rl:apikey:${params.keyId}`);
 
       // Audit log
       try {
         await auditLogService.log({
-          userId: user.id,
+          userId: user?.id,
           action: 'revoke_api_key',
           entityType: 'api_key',
-          entityId: keyId,
+          entityId: params.keyId,
           metadata: { name: deleted.name ?? null }
         });
       } catch (error) {

@@ -42,21 +42,9 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/',
-    async (context) => {
-      const { user, query } = context as typeof context & {
-        user: User;
-        query: {
-          page?: string;
-          limit?: string;
-          action?: string;
-          entityType?: string;
-          sortBy?: string;
-          sortOrder?: string;
-        };
-      };
-
+    async ({ user, query }) => {
       // Check admin permission
-      if (user.role !== 'admin') {
+      if (user?.role !== 'admin') {
         return {
           success: false,
           error: {
@@ -129,7 +117,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
         const logs = filteredLogs.slice(offset, offset + limit);
 
         logger.info('Audit logs retrieved', {
-          userId: user.id,
+          userId: user?.id,
           count: logs.length,
           total,
           filters: { action: query.action, entityType: query.entityType }
@@ -149,7 +137,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
       } catch (error) {
         logger.error('Failed to fetch audit logs', {
           error: error instanceof Error ? error.message : String(error),
-          userId: user.id
+          userId: user?.id
         });
 
         return {
@@ -182,15 +170,9 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/:id',
-    async (context) => {
-      const { user, params, set } = context as typeof context & {
-        user: User;
-        params: { id: string };
-        set: { status?: number | string };
-      };
-
+    async ({ user, params, set }) => {
       // Check admin permission
-      if (user.role !== 'admin') {
+      if (user?.role !== 'admin') {
         set.status = 403;
         return {
           success: false,
@@ -221,7 +203,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
         }
 
         logger.info('Audit log retrieved', {
-          userId: user.id,
+          userId: user?.id,
           logId: params.id
         });
 
@@ -232,7 +214,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
       } catch (error) {
         logger.error('Failed to fetch audit log', {
           error: error instanceof Error ? error.message : String(error),
-          userId: user.id,
+          userId: user?.id,
           logId: params.id
         });
 
@@ -268,16 +250,9 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/entity/:entityType/:entityId',
-    async (context) => {
-      const { user, params, query, set } = context as typeof context & {
-        user: User;
-        params: { entityType: string; entityId: string };
-        query: { limit?: string };
-        set: { status?: number | string };
-      };
-
+    async ({ user, params, query, set }) => {
       // Check admin permission
-      if (user.role !== 'admin') {
+      if (user?.role !== 'admin') {
         set.status = 403;
         return {
           success: false,
@@ -305,7 +280,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
           .limit(limit);
 
         logger.info('Entity audit logs retrieved', {
-          userId: user.id,
+          userId: user?.id,
           entityType: params.entityType,
           entityId: params.entityId,
           count: logs.length
@@ -324,7 +299,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
       } catch (error) {
         logger.error('Failed to fetch entity audit logs', {
           error: error instanceof Error ? error.message : String(error),
-          userId: user.id,
+          userId: user?.id,
           entityType: params.entityType,
           entityId: params.entityId
         });
@@ -371,16 +346,9 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/user/:targetUserId',
-    async (context) => {
-      const { user, params, query, set } = context as typeof context & {
-        user: User;
-        params: { targetUserId: string };
-        query: { limit?: string };
-        set: { status?: number | string };
-      };
-
+    async ({ user, params, query, set }) => {
       // Check admin permission
-      if (user.role !== 'admin') {
+      if (user?.role !== 'admin') {
         set.status = 403;
         return {
           success: false,
@@ -405,7 +373,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
           .limit(limit);
 
         logger.info('User audit logs retrieved', {
-          userId: user.id,
+          userId: user?.id,
           targetUserId: params.targetUserId,
           count: logs.length
         });
@@ -422,7 +390,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
       } catch (error) {
         logger.error('Failed to fetch user audit logs', {
           error: error instanceof Error ? error.message : String(error),
-          userId: user.id,
+          userId: user?.id,
           targetUserId: params.targetUserId
         });
 
@@ -437,7 +405,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
       }
     },
     {
-      params: t.Ref('admin.audit.user.param'),
+      params: t.Ref('admin.audit.user!.param'),
       query: t.Ref('admin.audit.limit.query'),
       detail: {
         tags: ['Admin', 'Audit'],
@@ -466,14 +434,9 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/stats/summary',
-    async (context) => {
-      const { user, set } = context as typeof context & {
-        user: User;
-        set: { status?: number | string };
-      };
-
+    async ({ user, set }) => {
       // Check admin permission
-      if (user.role !== 'admin') {
+      if (user?.role !== 'admin') {
         set.status = 403;
         return {
           success: false,
@@ -506,7 +469,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
           .map(([userId, count]) => ({ userId, count }));
 
         logger.info('Audit logs summary retrieved', {
-          userId: user.id,
+          userId: user?.id,
           totalLogs: allLogs.length
         });
 
@@ -522,7 +485,7 @@ export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
       } catch (error) {
         logger.error('Failed to fetch audit logs summary', {
           error: error instanceof Error ? error.message : String(error),
-          userId: user.id
+          userId: user?.id
         });
 
         set.status = 500;

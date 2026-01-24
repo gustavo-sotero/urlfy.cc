@@ -43,15 +43,9 @@ import { LinkService } from './links.service';
 
 type ElysiaSet = { status?: number | string };
 
-interface AuthenticatedUser {
-  id: string;
-  emailVerified?: boolean;
-}
-
-interface OptionalAuthenticatedUser extends AuthenticatedUser {
-  id: string;
-  emailVerified?: boolean;
-}
+// ═══════════════════════════════════════════════════════════════════
+// ERROR CODES & MESSAGES
+// ═══════════════════════════════════════════════════════════════════
 
 const ERROR_CODES = {
   EMAIL_VERIFICATION_REQUIRED: 'EMAIL_VERIFICATION_REQUIRED',
@@ -359,11 +353,7 @@ const publicRoutes = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/',
-    async (ctx) => {
-      const { body, headers, user, set } = ctx as typeof ctx & {
-        user: OptionalAuthenticatedUser | null;
-        set: ElysiaSet;
-      };
+    async ({ body, headers, user, set }) => {
       try {
         // Check email verification for authenticated users
         if (user && !user.emailVerified) {
@@ -464,14 +454,10 @@ const authenticatedRoutes = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/bulk',
-    async (ctx) => {
-      const { body, user, headers, set } = ctx as typeof ctx & {
-        user: AuthenticatedUser;
-        set: ElysiaSet;
-      };
+    async ({ body, user, headers, set }) => {
       try {
         // Check email verification
-        if (!user.emailVerified) {
+        if (!user?.emailVerified) {
           set.status = 403;
           return {
             success: false,
@@ -519,7 +505,7 @@ const authenticatedRoutes = new Elysia()
           try {
             const link = await LinkService.createLink(
               linkInput,
-              user.id,
+              user?.id,
               ipHash
             );
             results.push({
@@ -582,13 +568,9 @@ const authenticatedRoutes = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/',
-    async (ctx) => {
-      const { query, user, set } = ctx as typeof ctx & {
-        user: { id: string };
-        set: ElysiaSet;
-      };
+    async ({ query, user, set }) => {
       try {
-        const result = await LinkService.listUserLinks(user.id, {
+        const result = await LinkService.listUserLinks(user?.id, {
           page: query.page ? parseInt(query.page, 10) : 1,
           perPage: query.perPage ? parseInt(query.perPage, 10) : 20,
           search: query.search,
@@ -635,13 +617,9 @@ const authenticatedRoutes = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/:id',
-    async (ctx) => {
-      const { params, user, set } = ctx as typeof ctx & {
-        user: { id: string };
-        set: ElysiaSet;
-      };
+    async ({ params, user, set }) => {
       try {
-        const link = await LinkService.getLinkById(params.id, user.id);
+        const link = await LinkService.getLinkById(params.id, user?.id);
         return {
           success: true,
           data: LinkService.formatLinkResponse(link)
@@ -671,13 +649,9 @@ const authenticatedRoutes = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .patch(
     '/:id',
-    async (ctx) => {
-      const { params, body, user, set } = ctx as typeof ctx & {
-        user: { id: string };
-        set: ElysiaSet;
-      };
+    async ({ params, body, user, set }) => {
       try {
-        const link = await LinkService.updateLink(params.id, user.id, body);
+        const link = await LinkService.updateLink(params.id, user?.id, body);
         return {
           success: true,
           data: LinkService.formatLinkResponse(link)
@@ -709,13 +683,9 @@ const authenticatedRoutes = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .delete(
     '/:id',
-    async (ctx) => {
-      const { params, user, set } = ctx as typeof ctx & {
-        user: { id: string };
-        set: ElysiaSet;
-      };
+    async ({ params, user, set }) => {
       try {
-        await LinkService.softDeleteLink(params.id, user.id);
+        await LinkService.softDeleteLink(params.id, user?.id);
         set.status = 204;
         return null;
       } catch (error) {
@@ -743,13 +713,9 @@ const authenticatedRoutes = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/:id/restore',
-    async (ctx) => {
-      const { params, user, set } = ctx as typeof ctx & {
-        user: { id: string };
-        set: ElysiaSet;
-      };
+    async ({ params, user, set }) => {
       try {
-        const link = await LinkService.restoreLink(params.id, user.id);
+        const link = await LinkService.restoreLink(params.id, user?.id);
         return {
           success: true,
           data: LinkService.formatLinkResponse(link)
@@ -779,13 +745,9 @@ const authenticatedRoutes = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/:id/duplicate',
-    async (ctx) => {
-      const { params, user, set } = ctx as typeof ctx & {
-        user: { id: string };
-        set: ElysiaSet;
-      };
+    async ({ params, user, set }) => {
       try {
-        const link = await LinkService.duplicateLink(params.id, user.id);
+        const link = await LinkService.duplicateLink(params.id, user?.id);
         set.status = 201;
         return {
           success: true,
@@ -819,13 +781,10 @@ const authenticatedRoutes = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/:id/toggle',
-    async (ctx) => {
-      const { params, user, set } = ctx as typeof ctx & {
-        user: { id: string };
-        set: ElysiaSet;
-      };
+    async ({ params, user, set }) => {
       try {
-        const link = await LinkService.toggleLinkActive(params.id, user.id);
+        // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
+        const link = await LinkService.toggleLinkActive(params.id, user!.id);
         return {
           success: true,
           data: LinkService.formatLinkResponse(link)
@@ -855,13 +814,10 @@ const authenticatedRoutes = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/:id/stats',
-    async (ctx) => {
-      const { params, user, set } = ctx as typeof ctx & {
-        user: { id: string };
-        set: { status: number };
-      };
+    async ({ params, user, set }) => {
       try {
-        const link = await LinkService.getLinkById(params.id, user.id);
+        // biome-ignore lint/style/noNonNullAssertion: user guaranteed non-null by requireAuth middleware
+        const link = await LinkService.getLinkById(params.id, user!.id);
         return {
           success: true,
           data: {

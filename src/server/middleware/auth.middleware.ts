@@ -62,55 +62,67 @@ export const requireAuth = new Elysia({ name: 'require-auth' })
         userId: sessionData?.user?.id
       });
 
+      if (!sessionData?.user || !sessionData?.session) {
+        logger.debug('Returning 401 - no user or session');
+        throw new Response(
+          JSON.stringify({
+            success: false,
+            error: {
+              code: 'UNAUTHORIZED',
+              message: 'Authentication required'
+            }
+          }),
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const user = sessionData.user as User;
+      const session = sessionData.session as Session;
+
+      // Check if user is deleted or banned
+      if (user.deletedAt || user.bannedAt) {
+        logger.debug('Returning 403 - user deleted or banned', {
+          userId: user.id
+        });
+        throw new Response(
+          JSON.stringify({
+            success: false,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Account is not accessible'
+            }
+          }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      logger.debug('Auth check passed', { userId: user.id });
+
       return {
-        user: sessionData?.user as User | null,
-        session: sessionData?.session as Session | null,
-        isAuthenticated: !!(sessionData?.user && sessionData?.session)
+        user,
+        session,
+        isAuthenticated: true as const
       };
-    } catch (error) {
-      // If session validation throws, treat as unauthenticated
+    } catch (err) {
+      if (typeof err === 'object' && err !== null && 'status' in err) {
+        throw err;
+      }
+
+      // If session validation throws unexpected error, treat as unauthenticated
       logger.debug('Session fetch failed, treating as unauthenticated', {
-        error: error instanceof Error ? error.message : String(error)
+        error: err instanceof Error ? err.message : String(err)
       });
-      return {
-        user: null,
-        session: null,
-        isAuthenticated: false as const
-      };
+      throw new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required'
+          }
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
     }
-  })
-  .onBeforeHandle({ as: 'scoped' }, ({ user, session, status }) => {
-    logger.debug('Auth check', {
-      hasUser: !!user,
-      hasSession: !!session
-    });
-
-    if (!user || !session) {
-      logger.debug('Returning 401 - no user or session');
-      return status(401, {
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required'
-        }
-      });
-    }
-
-    // Check if user is deleted or banned
-    if (user.deletedAt || user.bannedAt) {
-      logger.debug('Returning 403 - user deleted or banned', {
-        userId: user.id
-      });
-      return status(403, {
-        success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: 'Account is not accessible'
-        }
-      });
-    }
-
-    logger.debug('Auth check passed', { userId: user.id });
   })
   .as('scoped');
 
