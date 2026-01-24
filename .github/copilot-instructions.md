@@ -42,7 +42,7 @@
 - Define API routes in `src/server/api` using Elysia.
 - The entry point is `src/app/api/[[...slugs]]/route.ts` which mounts the Elysia app.
 - **Pattern**: Use Elysia for strict type safety and validation (TypeBox/Bun).
-- **Do NOT** create traditional Next.js API Routes (`pages/api` or `route.ts` logic) unless specifically for Edge Middleware interop.
+- **Do NOT** create traditional Next.js API Routes (`pages/api` or `route.ts` logic) unless specifically for Edge Proxy interop.
 
 ### 2. Database Access (Drizzle)
 

@@ -5,7 +5,7 @@
  * It runs in Edge Runtime with limited APIs - all heavy lifting is done via
  * internal API calls to the Node.js runtime.
  *
- * @see docs/architecture/edge-proxy.md
+ * @see docs/architecture/edge-runtime-middleware.md
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/proxy
  */
 
@@ -63,7 +63,7 @@ export const config = {
  * Next.js Proxy function (Next.js 16 requires 'proxy' export name)
  * Intercepts all requests and decides if it's a short code or system route
  */
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Verifica se é rota excluída

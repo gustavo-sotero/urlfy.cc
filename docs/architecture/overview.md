@@ -19,8 +19,8 @@ O urlfy.cc utiliza uma arquitetura híbrida com **Next.js** no frontend e **Elys
 │  │                     APP (Next.js + Elysia)               │   │
 │  │                                                          │   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │   │
-│  │  │  Middleware  │  │   Next.js    │  │   Elysia     │   │   │
-│  │  │  (Redirect)  │  │   (Pages)    │  │   (API)      │   │   │
+│  │     Proxy    │  │   Next.js    │  │   Elysia     │   │   │
+│  │  (proxy.ts)  │  │   (Pages)    │  │   (API)      │   │   │
 │  │  └──────┬───────┘  └──────────────┘  └──────┬───────┘   │   │
 │  │         │                                    │           │   │
 │  │         └────────────────────────────────────┘           │   │
@@ -73,8 +73,8 @@ GET /:code
     │
     ▼
 ┌─────────────────┐
-│   Middleware    │
-│  (middleware.ts)│
+│      Proxy      │
+│    (proxy.ts)   │
 └────────┬────────┘
          │
          ▼

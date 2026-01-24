@@ -8,6 +8,15 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { db } from '@/db';
+import { analyticsEvents } from '@/db/schema';
+import { links } from '@/db/schema/links';
+import { createLogger } from '@/server/lib/telemetry';
+import type {
+  AnalyticsBreakdown,
+  AnalyticsSummary,
+  TimeSeries
+} from '@/types/analytics.types';
 import {
   and,
   countDistinct,
@@ -18,15 +27,6 @@ import {
   lt,
   sql
 } from 'drizzle-orm';
-import { db } from '@/db';
-import { analyticsEvents } from '@/db/schema';
-import { links } from '@/db/schema/links';
-import { createLogger } from '@/server/lib/telemetry';
-import type {
-  AnalyticsBreakdown,
-  AnalyticsSummary,
-  TimeSeries
-} from '@/types/analytics.types';
 
 const logger = createLogger('analytics-service');
 
@@ -113,6 +113,28 @@ function calculateGrowth(current: number, previous: number): number {
  * - Stateless methods
  */
 export const AnalyticsService = {
+  /**
+   * Get total unique visitors for a link (all time)
+   */
+  async getTotalUniqueVisitors(linkId: string): Promise<number> {
+    try {
+      const result = await db
+        .select({
+          count: countDistinct(analyticsEvents.visitorHash)
+        })
+        .from(analyticsEvents)
+        .where(eq(analyticsEvents.linkId, linkId));
+
+      return toNumber(result[0]?.count);
+    } catch (error) {
+      logger.error('[AnalyticsService] Error getting total unique visitors', {
+        error: error instanceof Error ? error.message : String(error),
+        linkId
+      });
+      return 0;
+    }
+  },
+
   /**
    * Get daily stats for a link
    * Uses real-time data from analytics_events for accurate counts
@@ -502,12 +524,24 @@ export const AnalyticsService = {
       ]);
 
       return {
-        countries: countries.map((c) => ({
-          code: c.country,
-          name: c.country, // TODO: Add full country name
-          clicks: c.clicks,
-          percentage: c.percentage
-        })),
+        countries: countries.map((c) => {
+          let name = c.country;
+          try {
+            const regionNames = new Intl.DisplayNames(['en'], {
+              type: 'region'
+            });
+            name = regionNames.of(c.country) || c.country;
+          } catch {
+            // Fallback to code if Intl fails or code is invalid
+          }
+
+          return {
+            code: c.country,
+            name,
+            clicks: c.clicks,
+            percentage: c.percentage
+          };
+        }),
         devices,
         browsers,
         referrers

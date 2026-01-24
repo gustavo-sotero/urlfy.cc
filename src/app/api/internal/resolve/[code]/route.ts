@@ -1,7 +1,7 @@
 // src/app/api/internal/resolve/[code]/route.ts
 /**
  * Internal API for link resolution
- * Called by Edge middleware to resolve links using full Node.js runtime
+ * Called by Edge proxy to resolve links using full Node.js runtime
  */
 
 import { type NextRequest, NextResponse } from 'next/server';

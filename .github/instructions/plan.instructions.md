@@ -68,7 +68,7 @@ Este documento descreve o plano de implementação dividido em módulos lógicos
 
 | Item    | Descrição                                                                                                                                                                              | Requisitos     |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| **4.1** | **Edge Middleware:** Lógica de interceptação de rotas no Next.js middleware (`middleware.ts`).                                                                                         | Arch Overview  |
+| **4.1** | **Edge Proxy:** Lógica de interceptação de rotas no Next.js proxy (`proxy.ts`).                                                                                                        | Arch Overview  |
 | **4.2** | **Caching Strategy:** Implementação do padrão _Cache-Aside_ com Redis (Layer 1) e Fallback para DB (Layer 2). Inclui **cache negativo** (`link:404:{code}`) para códigos inexistentes. | RF-12, Caching |
 | **4.3** | **Stampede Protection:** Proteção contra _Cache Stampede_ usando Distributed Locks (Redis SETNX) e Probabilistic Early Expiration.                                                     | Caching        |
 | **4.4** | **Validação Rápida:** Checagem de `isActive`, `isBanned`, `expiresAt`, `maxClicks` e senha (via cookie JWT) antes do redirect.                                                         | RF-13          |

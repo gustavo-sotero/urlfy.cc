@@ -964,7 +964,7 @@ export async function processDLQ(): Promise<void> {
 ## 11. Analytics Service (API)
 
 ```typescript
-// src/server/services/analytics.service.ts
+// src/server/modules/analytics/analytics.service.ts
 import { db } from '@/db';
 import { linkClicksDaily, analyticsEvents } from '@/db/schema';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';

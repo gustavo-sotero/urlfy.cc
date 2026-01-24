@@ -33,7 +33,7 @@ function verifyInternalRequest(request: Request): boolean {
 
 /**
  * Internal Resolution Controller
- * Handles link resolution for Edge middleware
+ * Handles link resolution for Edge proxy
  */
 export const internalController = new Elysia({ prefix: '/internal' })
   .use(jwtPlugin)
@@ -174,7 +174,7 @@ export const internalController = new Elysia({ prefix: '/internal' })
         tags: ['Internal'],
         summary: 'Resolve link for redirect (Internal)',
         description:
-          'Internal API endpoint called by Edge middleware to resolve short codes. Requires internal API secret.',
+          'Internal API endpoint called by Edge proxy to resolve short codes. Requires internal API secret.',
         security: [{ internalApi: [] }]
       },
       response: {

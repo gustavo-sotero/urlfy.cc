@@ -12,7 +12,7 @@ Este módulo implementa o **caminho crítico de performance** do sistema: o redi
 
 ### Responsabilidades
 
-- Interceptação de rotas via Next.js Middleware
+- Interceptação de rotas via Next.js Proxy
 - Busca otimizada com cache Redis (Cache-Aside Pattern)
 - Proteção contra Cache Stampede
 - Validação de status do link (ativo, banido, expirado)
@@ -29,8 +29,8 @@ GET /:code
     │
     ▼
 ┌──────────────────────────────────────┐
-│     Next.js Middleware               │
-│     (src/middleware.ts)              │
+│     Next.js Proxy                    │
+│     (src/proxy.ts)                   │
 └──────────────────┬───────────────────┘
                    │
     ┌──────────────┴──────────────┐
@@ -73,7 +73,7 @@ GET /:code
 
 ```
 src/
-├── middleware.ts                    # Next.js middleware principal
+├── proxy.ts                         # Next.js proxy principal
 ├── server/
 │   ├── services/
 │   │   ├── redirect.service.ts      # Lógica de redirecionamento
@@ -89,12 +89,12 @@ src/
 
 ---
 
-## 4. Next.js Middleware
+## 4. Next.js Proxy
 
 ### 4.1 Configuração Principal
 
 ```typescript
-// src/middleware.ts
+// src/proxy.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { handleRedirect } from '@/server/middleware/redirect.middleware';
 

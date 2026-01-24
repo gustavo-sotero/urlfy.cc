@@ -24,6 +24,7 @@ import {
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
+import { AnalyticsService } from '@/server/modules/analytics';
 import * as qrService from '@/server/services/qr.service';
 import { validateUrlAsync } from '@/server/services/url-validator';
 
@@ -820,7 +821,9 @@ const authenticatedRoutes = new Elysia()
           success: true,
           data: {
             clicks: link.clicksCount,
-            uniqueVisitors: link.clicksCount, // TODO: Implement unique visitor tracking
+            uniqueVisitors: await AnalyticsService.getTotalUniqueVisitors(
+              link.id
+            ),
             lastClickedAt: link.lastClickedAt?.toISOString() ?? null
           }
         };

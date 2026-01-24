@@ -1,4 +1,4 @@
-# Middleware Architecture - urlfy.cc
+# Edge Proxy Architecture - urlfy.cc
 
 > 📖 [← Voltar ao Overview](./overview.md)
 

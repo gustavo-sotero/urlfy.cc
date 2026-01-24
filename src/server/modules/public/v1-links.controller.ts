@@ -19,6 +19,7 @@ import {
 } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireApiKey } from '@/server/middleware/api-key.guard';
+import { AnalyticsService } from '@/server/modules/analytics';
 import {
   LINK_RESPONSE_EXAMPLE,
   LINK_STATS_EXAMPLE,
@@ -363,7 +364,9 @@ const analyticsOperations = new Elysia({ name: 'V1Links.Analytics' })
         success: true as const,
         data: {
           clicks: link.clicksCount,
-          uniqueVisitors: 0, // TODO: Implement when analytics module is available
+          uniqueVisitors: await AnalyticsService.getTotalUniqueVisitors(
+            link.id
+          ),
           lastClickedAt: link.lastClickedAt?.toISOString() ?? null
         }
       };

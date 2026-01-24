@@ -63,7 +63,7 @@
 
 ### 3.1 Backend: Analytics Aggregation
 
-- **File**: `src/server/services/analytics.service.ts` (or new `src/server/services/admin-analytics.service.ts`)
+- **File**: `src/server/modules/analytics/analytics.service.ts` (or new `src/server/services/admin-analytics.service.ts`)
 - **New Method**: `getGrowthStats(range: '7d' | '30d')`
 - **Logic**:
   - Aggregate `analytics_events` by date (count clicks).
