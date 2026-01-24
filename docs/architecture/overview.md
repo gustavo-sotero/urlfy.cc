@@ -23,16 +23,22 @@ O urlfy.cc utiliza uma arquitetura híbrida com **Next.js** no frontend e **Elys
 │  │  │  (Redirect)  │  │   (Pages)    │  │   (API)      │   │   │
 │  │  └──────┬───────┘  └──────────────┘  └──────┬───────┘   │   │
 │  │         │                                    │           │   │
-│  │         │         ┌──────────────┐          │           │   │
-│  │         └────────►│   BullMQ     │◄─────────┘           │   │
-│  │                   │   (Queues)   │                      │   │
-│  │                   └──────┬───────┘                      │   │
-│  └──────────────────────────┼──────────────────────────────┘   │
+│  │         └────────────────────────────────────┘           │   │
+│  └──────────────────────────┬────────────────────────────────┘   │
 │                             │                                   │
-│  ┌──────────────┐  ┌───────┴──────┐  ┌──────────────────────┐  │
+│  ┌──────────────┐  ┌───────▼──────┐  ┌──────────────────────┐  │
 │  │  PostgreSQL  │  │    Redis     │  │       SigNoz         │  │
 │  │     16       │  │      7       │  │   (Observability)    │  │
-│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
+│  └──────────────┘  │  (Streams)   │  └──────────────────────┘  │
+│                    └───────▲──────┘                             │
+│                            │                                    │
+│  ┌─────────────────────────┼─────────────────────────────────┐  │
+│  │                    WORKERS PROCESS                        │  │
+│  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │  │
+│  │   │ Analytics    │  │ Aggregation  │  │   Cleanup    │   │  │
+│  │   │   Worker     │  │    Worker    │  │   Worker     │   │  │
+│  │   └──────────────┘  └──────────────┘  └──────────────┘   │  │
+│  └─────────────────────────────────────────────────────────┘  │
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │                    GeoIP Update                          │  │
@@ -50,8 +56,8 @@ O urlfy.cc utiliza uma arquitetura híbrida com **Next.js** no frontend e **Elys
 | **Frontend**      | Next.js 16+ (App Router) | SSR, RSC, Middleware nativo                                 |
 | **API**           | ElysiaJS                 | Type-safety E2E, integração com Next.js via catch-all route |
 | **Banco**         | PostgreSQL 16+           | Particionamento nativo, robustez                            |
-| **Cache**         | Redis 7+                 | `Bun.redis` com protocolo RESP3                             |
-| **Queue**         | BullMQ                   | Filas, jobs agendados, Dead Letter Queue                    |
+| **Cache**         | Redis 7+                 | `Bun.RedisClient` nativo com protocolo RESP3                |
+| **Queue**         | Redis Streams (Bun)      | Event-driven com XADD/XREADGROUP nativo via `Bun.redis`     |
 | **ORM**           | Drizzle                  | Type-safe, compatível com Bun SQL                           |
 | **Auth**          | Better-Auth              | Plugins: `twoFactor`, `admin`, `apiKey`, `openAPI`          |
 | **Geo**           | MaxMind GeoLite2         | Lookup offline, sem limites de requests                     |
@@ -108,7 +114,7 @@ GET /:code
                                  │
                     ┌────────────▼────────────┐
                     │ Enfileira Analytics     │
-                    │ (BullMQ - async)        │
+                    │ (Redis Streams - async) │
                     └────────────┬────────────┘
                                  │
                     ┌────────────▼────────────┐
@@ -207,10 +213,10 @@ Implementado para dependências externas (PostgreSQL, Redis):
 - **Reset:** 30 segundos
 - **Biblioteca sugerida:** `opossum` ou `cockatiel`
 
-### Dead Letter Queue (BullMQ)
+### Dead Letter Queue (Redis Streams)
 
 ```
-App → BullMQ Queue → Worker → PostgreSQL
+App → Redis Stream → Worker → PostgreSQL
          │
          └─► Retry: 3 tentativas (1s, 5s, 30s backoff)
                  │
@@ -260,4 +266,3 @@ Formato JSON com campos padronizados:
 - **PostgreSQL:** `pg_dump` via cron ou **pgBackRest** para PITR
 - **Redis:** Dados são cache, não requerem backup (RDB snapshots opcionais)
 - **Volumes Docker:** Named volumes com backup externo (rsync, restic)
-

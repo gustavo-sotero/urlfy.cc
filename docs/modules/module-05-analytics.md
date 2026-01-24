@@ -10,7 +10,7 @@
 
 Este módulo implementa o **sistema de analytics** do urlfy.cc, responsável por:
 
-- Processamento assíncrono de eventos de clique via BullMQ
+- Processamento assíncrono de eventos de clique via **Redis Streams** (Bun Native)
 - Enriquecimento de dados (GeoIP, User-Agent parsing)
 - Anonimização de IPs (LGPD/GDPR compliant)
 - Agregação diária para dashboards
@@ -25,18 +25,18 @@ Este módulo implementa o **sistema de analytics** do urlfy.cc, responsável por
 │ Redirect Engine │
 │  (Módulo 4)     │
 └────────┬────────┘
-         │ enqueue
+         │ enqueue (RedisStream.add)
          ▼
 ┌─────────────────────────────────────────────────────┐
-│                    BullMQ                           │
+│              Redis Streams (Bun Native)             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
 │  │ analytics:  │  │ analytics:  │  │ analytics:  │ │
 │  │   clicks    │  │ aggregation │  │   cleanup   │ │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘ │
-│         │                │                │         │
+│         │ XREADGROUP     │                │         │
 │  ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐ │
-│  │   Worker    │  │   Worker    │  │   Worker    │ │
-│  │   (click)   │  │  (daily)    │  │  (cleanup)  │ │
+│  │    Worker   │  │    Worker   │  │    Worker   │ │
+│  │   (click)   │  │   (daily)   │  │  (cleanup)  │ │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘ │
 └─────────┼───────────────┼───────────────┼──────────┘
           │               │               │
@@ -68,13 +68,12 @@ src/
 │   │   ├── geoip.service.ts          # GeoIP lookup
 │   │   └── useragent.service.ts      # UA parsing
 │   ├── workers/
-│   │   ├── click.worker.ts           # Processa cliques
-│   │   ├── aggregation.worker.ts     # Agregação diária
-│   │   └── cleanup.worker.ts         # Cleanup de dados
-│   ├── jobs/
-│   │   └── scheduler.ts              # Cron jobs
+│   │   ├── analytics-click.worker.ts # Processa cliques
+│   │   ├── aggregation-stream.worker.ts
+│   │   └── cleanup-stream.worker.ts
 │   └── lib/
-│       └── queue.ts                  # Configuração BullMQ
+│       ├── redis-stream.ts           # Wrapper Redis Streams
+│       └── worker-base.ts            # Classe base Worker
 ├── db/
 │   └── schema/
 │       └── analytics.ts              # Schema analytics
@@ -1394,4 +1393,3 @@ describe('Analytics Performance', () => {
 - [ ] Testes unitários de workers
 - [ ] Testes de integração end-to-end
 - [ ] Testes de performance
-

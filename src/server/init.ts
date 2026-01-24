@@ -1,12 +1,11 @@
 // Initialize telemetry and validate environment as early as possible
-// NOTE: Console suppression for BullMQ eviction warnings is in instrumentation.ts
+// NOTE: Worker processes (Redis Streams) are started separately via `bun run src/workers.ts`
+// This keeps the Next.js app process lightweight and allows independent worker scaling.
 
 import { closeDatabase } from '@/db';
 import { validateEnv } from '@/lib/env';
-import { shutdownQueues } from '@/server/lib/queue';
 import { closeRedis } from '@/server/lib/redis';
 import { initTelemetry } from '@/server/lib/telemetry';
-import { initializeWorkers, shutdownWorkers } from '@/server/workers';
 
 // Only initialize in server environment
 if (typeof window === 'undefined') {
@@ -22,12 +21,6 @@ if (typeof window === 'undefined') {
   // Initialize telemetry
   initTelemetry();
 
-  // Initialize workers and schedulers
-  initializeWorkers().catch((error) => {
-    console.error('❌ Failed to initialize workers:', error);
-    process.exit(1);
-  });
-
   // Setup graceful shutdown handlers
   setupGracefulShutdown();
 }
@@ -37,11 +30,8 @@ async function setupGracefulShutdown() {
     console.log(`\n${signal} received. Starting graceful shutdown...`);
 
     try {
-      // Shutdown workers first
-      await shutdownWorkers();
-
       // Close connections
-      await Promise.all([closeDatabase(), closeRedis(), shutdownQueues()]);
+      await Promise.all([closeDatabase(), closeRedis()]);
 
       console.log('✅ Graceful shutdown complete');
       process.exit(0);

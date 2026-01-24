@@ -68,7 +68,7 @@ Este documento descreve o plano de implementação dividido em módulos lógicos
 | **4.3** | **Stampede Protection:** Proteção contra _Cache Stampede_ usando Distributed Locks (Redis SETNX) e Probabilistic Early Expiration.                                                     | Caching        |
 | **4.4** | **Validação Rápida:** Checagem de `isActive`, `isBanned`, `expiresAt`, `maxClicks` e senha (via cookie JWT) antes do redirect.                                                         | RF-13          |
 | **4.5** | **Redirect Depth Control:** Header `X-Redirect-Depth` com limite máximo de 3 para prevenir loops. Retorna `421 Misdirected Request` se excedido.                                       | RF-14          |
-| **4.6** | **Async Handoff:** Disparo de eventos de clique para BullMQ sem bloquear a resposta HTTP.                                                                                              | RF-15          |
+| **4.6** | **Async Handoff:** Disparo de eventos de clique para Redis Streams sem bloquear a resposta HTTP.                                                                                       | RF-15          |
 | **4.7** | **Graceful Degradation:** Fallback direto para PostgreSQL quando Redis está indisponível, com alerta para SigNoz.                                                                      | RNF-08         |
 | **4.8** | **Circuit Breaker:** Implementação com `opossum` ou `cockatiel` para PostgreSQL e Redis (threshold: 50% falhas em 10s, reset: 30s).                                                    | RNF-06         |
 
@@ -78,16 +78,16 @@ Este documento descreve o plano de implementação dividido em módulos lógicos
 
 **Objetivo:** Processamento assíncrono de eventos e agregação de métricas.
 
-| Item    | Descrição                                                                                                                                               | Requisitos   |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| **5.1** | **Queue System:** Setup do BullMQ com configuração de **Dead Letter Queue** (`analytics:dead`) para eventos falhos (retry: 3x com backoff 1s, 5s, 30s). | RNF-07       |
-| **5.2** | **Ingestão de Eventos:** Worker para processar cliques brutos na tabela particionada `analytics_events`.                                                | RF-17        |
-| **5.3** | **Enriquecimento de Dados:** Resolução de GeoIP offline (MaxMind GeoLite2) e User-Agent parser para browser, OS e device type.                          | RF-19, RF-17 |
-| **5.4** | **Privacidade (LGPD):** Hash SHA-256 do IP com salt rotativo semanal (`{year}-W{week}`). IP nunca armazenado em texto.                                  | RF-18        |
-| **5.5** | **Bot Detection:** Flag `is_bot` baseada em User-Agent patterns para filtrar métricas.                                                                  | DB Schema    |
-| **5.6** | **Agregação Diária:** Jobs agendados para consolidar dados na tabela `link_clicks_daily` (cliques e visitantes únicos).                                 | RF-21        |
-| **5.7** | **Data Retention:** Job de cleanup para manter dados brutos por **90 dias**, mantendo apenas agregados após esse período.                               | RF-20        |
-| **5.8** | **Particionamento:** Criação automática de partições mensais para `analytics_events`.                                                                   | DB Schema    |
+| Item    | Descrição                                                                                                                                          | Requisitos   |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| **5.1** | **Queue System:** Setup de Redis Streams com configuração de **Dead Letter Queue** (`analytics:dead`) para eventos falhos (retry: 3x com backoff). | RNF-07       |
+| **5.2** | **Ingestão de Eventos:** Worker para processar cliques brutos na tabela particionada `analytics_events`.                                           | RF-17        |
+| **5.3** | **Enriquecimento de Dados:** Resolução de GeoIP offline (MaxMind GeoLite2) e User-Agent parser para browser, OS e device type.                     | RF-19, RF-17 |
+| **5.4** | **Privacidade (LGPD):** Hash SHA-256 do IP com salt rotativo semanal (`{year}-W{week}`). IP nunca armazenado em texto.                             | RF-18        |
+| **5.5** | **Bot Detection:** Flag `is_bot` baseada em User-Agent patterns para filtrar métricas.                                                             | DB Schema    |
+| **5.6** | **Agregação Diária:** Jobs agendados para consolidar dados na tabela `link_clicks_daily` (cliques e visitantes únicos).                            | RF-21        |
+| **5.7** | **Data Retention:** Job de cleanup para manter dados brutos por **90 dias**, mantendo apenas agregados após esse período.                          | RF-20        |
+| **5.8** | **Particionamento:** Criação automática de partições mensais para `analytics_events`.                                                              | DB Schema    |
 
 ---
 
@@ -95,18 +95,18 @@ Este documento descreve o plano de implementação dividido em módulos lógicos
 
 **Objetivo:** Proteção contra abusos e conformidade legal.
 
-| Item     | Descrição                                                                                                                              | Requisitos       |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| **6.1**  | **Rate Limiting por IP/Token:** Algoritmo _Sliding Window_ no Redis com `rate-limiter-flexible`. Limites conforme tabela de endpoints. | RNF-01, Security |
-| **6.2**  | **Rate Limiting por Link:** Limite de 5.000 cliques/min por link para detectar abuse coordenado em links virais.                       | Security         |
-| **6.3**  | **Security Headers:** CSP, HSTS (preload), X-Frame-Options (DENY), X-Content-Type-Options, Referrer-Policy, Permissions-Policy.        | RNF-02           |
-| **6.4**  | **CORS:** Configuração restrita a domínios permitidos (`urlfy.cc`, `www.urlfy.cc`).                                                    | RNF-03           |
-| **6.5**  | **CSRF Protection:** Cookies com `SameSite=Strict` e proteção automática via Better-Auth.                                              | RNF-04           |
-| **6.6**  | **Input Sanitization:** Sanitização de meta tags OG com DOMPurify e validação de URLs de imagem (whitelist de CDNs ou proxy próprio).  | RNF-05, Security |
-| **6.7**  | **Anti-Abuse:** Detecção de anomalias (>50 falhas login/IP em 5min) e bloqueio automático.                                             | Security         |
-| **6.8**  | **GDPR/LGPD Endpoints:** `GET /api/me/export` para exportação de dados e `DELETE /api/me/data` para exclusão (72h deadline).           | RF-35 a RF-38    |
-| **6.9**  | **Consent Banner:** Banner de consentimento para analytics no frontend.                                                                | RF-35            |
-| **6.10** | **Audit Logs:** Tabela `audit_logs` para registrar ações administrativas (ban, unban, role change).                                    | RF-34            |
+| Item     | Descrição                                                                                                                                                                        | Requisitos       |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **6.1**  | **Rate Limiting por IP/Token:** Algoritmo _Sliding Window_ no Redis com implementação manual (Sorted Sets nativos do Redis via Bun.redis). Limites conforme tabela de endpoints. | RNF-01, Security |
+| **6.2**  | **Rate Limiting por Link:** Limite de 5.000 cliques/min por link para detectar abuse coordenado em links virais.                                                                 | Security         |
+| **6.3**  | **Security Headers:** CSP, HSTS (preload), X-Frame-Options (DENY), X-Content-Type-Options, Referrer-Policy, Permissions-Policy.                                                  | RNF-02           |
+| **6.4**  | **CORS:** Configuração restrita a domínios permitidos (`urlfy.cc`, `www.urlfy.cc`).                                                                                              | RNF-03           |
+| **6.5**  | **CSRF Protection:** Cookies com `SameSite=Strict` e proteção automática via Better-Auth.                                                                                        | RNF-04           |
+| **6.6**  | **Input Sanitization:** Sanitização de meta tags OG com DOMPurify e validação de URLs de imagem (whitelist de CDNs ou proxy próprio).                                            | RNF-05, Security |
+| **6.7**  | **Anti-Abuse:** Detecção de anomalias (>50 falhas login/IP em 5min) e bloqueio automático.                                                                                       | Security         |
+| **6.8**  | **GDPR/LGPD Endpoints:** `GET /api/me/export` para exportação de dados e `DELETE /api/me/data` para exclusão (72h deadline).                                                     | RF-35 a RF-38    |
+| **6.9**  | **Consent Banner:** Banner de consentimento para analytics no frontend.                                                                                                          | RF-35            |
+| **6.10** | **Audit Logs:** Tabela `audit_logs` para registrar ações administrativas (ban, unban, role change).                                                                              | RF-34            |
 
 ---
 
@@ -164,4 +164,3 @@ Módulo 1 (Infra) ──► Módulo 2 (Auth) ──► Módulo 3 (Links)
 - Módulo 4 depende de 1, 2, 3
 - Módulo 5 depende de 1, 4
 - Módulo 7 depende de todos os anteriores
-

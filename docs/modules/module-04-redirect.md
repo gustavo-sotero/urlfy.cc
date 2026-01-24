@@ -61,9 +61,10 @@ GET /:code
        ┌───────────┴───────────┐
        ▼                       ▼
 ┌────────────┐          ┌────────────┐
-│ BullMQ     │          │ Response   │
-│ (async)    │          │ 301/302    │
-└────────────┘          └────────────┘
+│ Redis      │          │ Response   │
+│ Streams    │          │ 301/302    │
+│ (async)    │          └────────────┘
+└────────────┘
 ```
 
 ---
@@ -1446,4 +1447,3 @@ describe('Redirect Integration', () => {
 - [ ] Testes de carga k6
 - [ ] Métricas OpenTelemetry
 - [ ] Alertas SigNoz configurados
-

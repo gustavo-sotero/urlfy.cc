@@ -559,18 +559,22 @@ export const LinkService = {
     reason: 'update' | 'ban' | 'delete'
   ): Promise<void> {
     try {
-      const pipeline = redis.pipeline();
-
-      pipeline.del(`link:${code}`);
-      pipeline.del(`link:meta:${code}`);
+      const commands: Promise<unknown>[] = [
+        redis.del(`link:${code}`),
+        redis.del(`link:meta:${code}`)
+      ];
 
       if (reason === 'delete') {
-        pipeline.set(`link:404:${code}`, '1', 'EX', 300);
+        commands.push(
+          redis.send('SET', [`link:404:${code}`, '1', 'EX', '300'])
+        );
       } else if (reason === 'ban') {
-        pipeline.set(`link:banned:${code}`, '1', 'EX', 86400);
+        commands.push(
+          redis.send('SET', [`link:banned:${code}`, '1', 'EX', '86400'])
+        );
       }
 
-      await pipeline.exec();
+      await Promise.all(commands);
 
       // Invalida QR codes
       await invalidateQRCache(code);

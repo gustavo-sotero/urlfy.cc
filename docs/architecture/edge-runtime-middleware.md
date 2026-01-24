@@ -12,7 +12,7 @@ The original design had the redirect middleware directly accessing:
 
 - Database via Bun SQL (`import { SQL } from "bun"`)
 - OpenTelemetry with Node.js instrumentations
-- BullMQ for analytics queue
+- Redis Streams for analytics queue
 
 None of these work in the Middleware environment, causing errors like:
 
@@ -60,7 +60,7 @@ User Request
 │  - Database access                      │
 │  - Redis cache                          │
 │  - OpenTelemetry tracing                │
-│  - BullMQ analytics queue               │
+│  - Redis Streams analytics queue        │
 │  - Circuit breakers                     │
 └─────────────────────────────────────────┘
                                   │
@@ -157,4 +157,3 @@ INTERNAL_API_SECRET=<generated-secret>
 - [Next.js Middleware Runtime](https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)
 - [Vercel Edge Functions Limitations](https://vercel.com/docs/functions/edge-functions/edge-functions-api#unsupported-apis)
 - [PRD Module 4: Redirect Engine](../../docs/modules/module-04-redirect.md)
-

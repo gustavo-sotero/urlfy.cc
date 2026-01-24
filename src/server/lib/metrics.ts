@@ -66,27 +66,29 @@ export const redisLatencyHistogram = meter.createHistogram('redis.latency', {
 // GAUGES (Observable)
 // ═══════════════════════════════════════════════════════════════════
 
-import { checkQueueHealth } from './queue';
+// Queue health monitoring removed - migrated to Redis Streams
+// import { checkQueueHealth } from './queue';
 
-meter
-  .createObservableGauge('queue.pending', {
-    description: 'Number of pending jobs in queue',
-    unit: '1'
-  })
-  .addCallback(async (observableResult) => {
-    const health = await checkQueueHealth();
-    observableResult.observe(health.pendingJobs, { queue: 'analytics' });
-  });
+// meter
+//   .createObservableGauge('queue.pending', {
+//     description: 'Number of pending jobs in queue',
+//     unit: '1'
+//   })
+//   .addCallback(async (observableResult) => {
+//     const health = await checkQueueHealth();
+//     observableResult.observe(health.pendingJobs, { queue: 'analytics' });
+//   });
 
-meter
-  .createObservableGauge('queue.failed', {
-    description: 'Number of failed jobs in queue',
-    unit: '1'
-  })
-  .addCallback(async (observableResult) => {
-    const health = await checkQueueHealth();
-    observableResult.observe(health.failedJobs, { queue: 'analytics' });
-  });
+// TODO: Reimplement with Redis Streams stats
+// meter
+//   .createObservableGauge('queue.failed', {
+//     description: 'Number of failed jobs in queue',
+//     unit: '1'
+//   })
+//   .addCallback(async (observableResult) => {
+//     // const health = await checkQueueHealth();
+//     // observableResult.observe(health.failedJobs, { queue: 'analytics' });
+//   });
 // ═══════════════════════════════════════════════════════════════════
 // ANALYTICS METRICS (Module 5)
 // ═══════════════════════════════════════════════════════════════════

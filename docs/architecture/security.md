@@ -14,20 +14,29 @@ Este documento descreve as medidas de segurança implementadas no urlfy.cc.
 
 ## Rate Limiting
 
-Implementado com **rate-limiter-flexible** usando algoritmo **Sliding Window** com Redis.
+Implementado com **Redis Sorted Sets** nativos via Bun.redis usando algoritmo **Sliding Window**.
 
-### Configuração
+### Implementação
 
 ```typescript
-import { RateLimiterRedis } from 'rate-limiter-flexible';
-import { redis } from './redis'; // Bun.redis instance
+import { getRedisClient } from './redis';
 
-const rateLimiter = new RateLimiterRedis({
-  storeClient: redis,
-  keyPrefix: 'rl',
-  points: 10,
-  duration: 3600 // sliding window
-});
+// Implementação manual com comandos nativos do Redis
+const redis = getRedisClient();
+const now = Date.now();
+const windowStart = now - duration * 1000;
+
+// Remove entradas antigas da janela deslizante
+await redis.send('ZREMRANGEBYSCORE', [key, '-inf', String(windowStart)]);
+
+// Conta requisições atuais na janela
+const count = (await redis.send('ZCARD', [key])) as number;
+
+// Adiciona nova requisição se dentro do limite
+if (count < limit) {
+  await redis.send('ZADD', [key, String(now), `${now}-${Math.random()}`]);
+  await redis.send('EXPIRE', [key, String(duration)]);
+}
 ```
 
 ### Limites por Endpoint
@@ -376,4 +385,3 @@ Configurados no SigNoz:
 | API Abuse        | > 1000 req/min por API key      | Throttle + alerta     |
 | Suspicious Link  | Link reportado 3+ vezes         | Review queue + alerta |
 | Failed Deletions | LGPD deadline em 12h            | Alerta urgente        |
-

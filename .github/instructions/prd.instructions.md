@@ -190,6 +190,7 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 ## 5. Padrões de Código Elysia
 
 > 📚 **Referência oficial:** [elysiajs.com/essential/best-practice](https://elysiajs.com/essential/best-practice)
+> 📚 **Referência local:** [docs/development/best-practices.md](../../docs/development/best-practices.md)
 
 ### 5.1 Estrutura Feature-Based (MVC)
 

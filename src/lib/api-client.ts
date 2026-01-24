@@ -38,6 +38,28 @@ const client = treaty<App>(BASE_URL, {
 });
 
 /**
+ * Export default client instance for use in components
+ */
+export const apiClient = {
+  get: async (url: string) => {
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    return response.json();
+  },
+  post: async (url: string, data?: unknown) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: data ? JSON.stringify(data) : undefined
+    });
+    return response.json();
+  }
+};
+
+/**
  * Create a client instance with custom headers (e.g., for SSR with cookies)
  * Use this when calling from Next.js server components to forward authentication
  *

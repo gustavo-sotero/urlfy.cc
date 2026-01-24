@@ -138,6 +138,7 @@ export type AuditAction =
   | 'request_data_deletion'
   | 'process_data_deletion'
   | 'admin_access_denied'
-  | 'admin_access_granted';
+  | 'admin_access_granted'
+  | 'system';
 
 export type DeletionStatus = 'pending' | 'processing' | 'completed' | 'failed';

@@ -1,4 +1,6 @@
 // src/server/workers/index.ts
+// NOTE: This file is deprecated - workers are now started via src/workers.ts
+// Kept for backward compatibility with scheduler jobs
 
 import {
   aggregationJob,
@@ -7,30 +9,16 @@ import {
   rpsCalculationJob
 } from '@/server/jobs/scheduler';
 import { createLogger } from '@/server/lib/telemetry';
-import { aggregationWorker } from './aggregation.worker';
-import { cleanupWorker } from './cleanup.worker';
-import { clickWorker } from './click.worker';
-import { deletionWorker } from './deletion.worker';
-import { setupDLQHandlers } from './dlq.handler';
 
 const logger = createLogger('workers-init');
 
 /**
- * Inicializa todos os workers e jobs agendados
+ * Inicializa jobs agendados
+ * Workers are started separately via src/workers.ts
  */
 export async function initializeWorkers(): Promise<void> {
   try {
-    logger.info('[WorkersInit] Starting worker initialization...');
-
-    // Registra handlers de DLQ
-    await setupDLQHandlers(clickWorker);
-    logger.info('[WorkersInit] ✅ DLQ handler setup');
-
-    // Inicia workers
-    logger.info('[WorkersInit] ✅ Click worker ready');
-    logger.info('[WorkersInit] ✅ Aggregation worker ready');
-    logger.info('[WorkersInit] ✅ Cleanup worker ready');
-    logger.info('[WorkersInit] ✅ Deletion worker ready');
+    logger.info('[WorkersInit] Starting scheduler initialization...');
 
     // Inicia jobs agendados
     aggregationJob.start();
@@ -53,11 +41,9 @@ export async function initializeWorkers(): Promise<void> {
       '[WorkersInit] ✅ RPS calculation scheduler started (every minute)'
     );
 
-    logger.info(
-      '[WorkersInit] All workers and schedulers initialized successfully'
-    );
+    logger.info('[WorkersInit] All schedulers initialized successfully');
   } catch (error) {
-    logger.error('[WorkersInit] Failed to initialize workers', {
+    logger.error('[WorkersInit] Failed to initialize schedulers', {
       error: error instanceof Error ? error.message : String(error)
     });
     throw error;
@@ -65,11 +51,11 @@ export async function initializeWorkers(): Promise<void> {
 }
 
 /**
- * Shutdown todos os workers
+ * Shutdown schedulers
  */
 export async function shutdownWorkers(): Promise<void> {
   try {
-    logger.info('[WorkersShutdown] Starting worker shutdown...');
+    logger.info('[WorkersShutdown] Starting scheduler shutdown...');
 
     // Para jobs agendados
     aggregationJob.stop();
@@ -77,15 +63,7 @@ export async function shutdownWorkers(): Promise<void> {
     dataDeletionJob.stop();
     rpsCalculationJob.stop();
 
-    // Close workers
-    await Promise.all([
-      clickWorker.close(),
-      aggregationWorker.close(),
-      cleanupWorker.close(),
-      deletionWorker.close()
-    ]);
-
-    logger.info('[WorkersShutdown] All workers shut down successfully');
+    logger.info('[WorkersShutdown] All schedulers shut down successfully');
   } catch (error) {
     logger.error('[WorkersShutdown] Error during shutdown', {
       error: error instanceof Error ? error.message : String(error)
@@ -93,6 +71,3 @@ export async function shutdownWorkers(): Promise<void> {
     throw error;
   }
 }
-
-// Export workers para acesso direto se necessário
-export { aggregationWorker, cleanupWorker, clickWorker, deletionWorker };

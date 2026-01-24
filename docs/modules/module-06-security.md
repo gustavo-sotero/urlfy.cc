@@ -97,9 +97,8 @@ src/
 ### 4.1 Configuração
 
 ```typescript
-// src/server/middleware/rate-limit.ts
-import { RateLimiterRedis } from 'rate-limiter-flexible';
-import { redis } from '@/server/lib/redis';
+// src/server/lib/rate-limiter.ts
+import { getRedisClient } from './redis';
 import type { Context } from 'elysia';
 
 // Configurações por endpoint
@@ -136,18 +135,33 @@ const RATE_LIMITS = {
   }
 } as const;
 
-// Limiter por IP
-const ipLimiter = new RateLimiterRedis({
-  storeClient: redis,
-  keyPrefix: 'rl:ip',
-  points: 100,
-  duration: 60
-});
+// Implementação manual usando Redis Sorted Sets
+class RateLimiter {
+  private redis = getRedisClient();
 
-// Limiter por Token
-const tokenLimiter = new RateLimiterRedis({
-  storeClient: redis,
-  keyPrefix: 'rl:token',
+  async checkLimit(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
+    const redisKey = `rl:${key}`;
+    const now = Date.now();
+    const windowStart = now - config.duration * 1000;
+
+    // Remove entradas antigas
+    await this.redis.send('ZREMRANGEBYSCORE', [redisKey, '-inf', String(windowStart)]);
+
+    // Conta requisições atuais
+    const count = await this.redis.send('ZCARD', [redisKey]) as number;
+
+    // Verifica se está dentro do limite
+    if (count < config.points) {
+      await this.redis.send('ZADD', [redisKey, String(now), `${now}-${Math.random()}`]);
+      await this.redis.send('EXPIRE', [redisKey, String(config.duration)]);
+      return { allowed: true, remaining: config.points - count - 1 };
+    }
+
+    return { allowed: false, remaining: 0, retryAfter: config.duration };
+  }
+}
+
+const rateLimiter = new RateLimiter();
   points: 100,
   duration: 60
 });
@@ -1275,4 +1289,3 @@ generateSecurityReport();
 - [x] Container scanning com Trivy
 - [x] Script de relatório de conformidade
 - [ ] Validação em securityheaders.com (A+) - Requer deploy em produção
-

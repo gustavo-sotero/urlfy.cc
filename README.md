@@ -9,7 +9,7 @@ A high-performance, self-hosted URL shortener built with Next.js 16, ElysiaJS, B
 - 📊 **Observability**: OpenTelemetry + SigNoz for traces, metrics, and logs
 - 🔒 **LGPD/GDPR Compliant**: IP anonymization and data retention policies
 - 📍 **Geo-location**: Offline GeoIP lookup with MaxMind GeoLite2
-- 🔄 **Event-Driven**: BullMQ for asynchronous processing
+- 🔄 **Event-Driven**: Redis Streams for asynchronous processing
 - 💾 **Automated Backups**: Hourly and daily database backups
 
 ## 📋 Prerequisites
@@ -66,6 +66,13 @@ bun run db:migrate
 bun dev
 ```
 
+This starts:
+
+- **Next.js app** on http://localhost:3000 (with hot reload)
+- **Worker processes** for analytics (with auto-reload)
+
+Both run concurrently with color-coded logs.
+
 Open [http://localhost:3000](http://localhost:3000)
 
 ## 🐳 Docker Commands
@@ -108,6 +115,46 @@ curl http://localhost:3000/api/health/ready
 curl -H "x-api-key: your_admin_key" \
   http://localhost:3000/api/health/detailed
 ```
+
+### Worker Status (Redis Streams)
+
+```bash
+# Check stream lengths and consumer groups
+curl -H "x-api-key: your_admin_key" \
+  http://localhost:3000/api/admin/queues
+```
+
+## 🏗️ Architecture
+
+### Components
+
+- **Next.js 16+**: Server-side rendering and API routes
+- **ElysiaJS**: Type-safe REST API framework
+- **Bun Runtime**: Native Redis, SQL, and performance optimizations
+- **PostgreSQL 16**: Primary database with partitioning
+- **Redis 7**: Caching and event streaming (Streams API)
+- **OpenTelemetry + SigNoz**: Distributed tracing and observability
+
+### Event-Driven Processing
+
+The application uses **Redis Streams** for asynchronous event processing:
+
+```
+User Request → API → Redis XADD → Stream
+                                     ↓
+                                  Worker ← XREADGROUP
+                                     ↓
+                                PostgreSQL
+```
+
+**Workers run in a separate process** (`src/workers.ts`) for:
+
+- Click analytics processing
+- Daily aggregations
+- Cleanup jobs
+- GDPR data deletions
+
+See [REDIS-STREAMS-GUIDE.md](./docs/REDIS-STREAMS-GUIDE.md) for details.
 
 ## 📁 Project Structure
 
@@ -235,4 +282,3 @@ Gustavo Sotero - [Your Contact]
 
 **Status**: Module 1 (Infrastructure) - ✅ Complete  
 **Next**: Module 2 (Authentication) - 🚧 In Progress
-

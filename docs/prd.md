@@ -198,7 +198,7 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 - [ ] Cache Redis com invalidação
 - [ ] Rate limiting (sliding window)
 - [ ] Circuit breaker
-- [ ] BullMQ (filas + DLQ)
+- [x] Redis Streams (filas + DLQ) - Native Bun implementation
 - [ ] SigNoz (observability)
 - [ ] MaxMind (geo-location)
 - [ ] CI/CD + testes de carga
@@ -212,11 +212,11 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 
 ### Fase 4: Analytics & Admin
 
-- [ ] Event sourcing com BullMQ
+- [x] Event sourcing com Redis Streams (Native Bun)
 - [ ] Particionamento de eventos
-- [ ] Agregação diária
+- [x] Agregação diária
 - [ ] Dashboard de gráficos
-- [ ] Painel admin + audit logs
+- [x] Painel admin + audit logs + queue monitoring
 
 ### Fase 5: Compliance & Polish
 
@@ -298,4 +298,3 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 ---
 
 _Este documento define O QUE o sistema deve fazer. Para detalhes de COMO, consulte a documentação de arquitetura._
-

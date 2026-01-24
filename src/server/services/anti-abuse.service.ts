@@ -120,7 +120,7 @@ export class AntiAbuseService {
   async isIPBlocked(ip: string): Promise<boolean> {
     try {
       const key = `blocked:ip:${ip}`;
-      const blocked = await this.redis.exists(key);
+      const blocked = (await this.redis.send('EXISTS', [key])) as number;
       return blocked === 1;
     } catch (error) {
       logger.error('Failed to check IP block status', {
@@ -172,7 +172,7 @@ export class AntiAbuseService {
   async isUserBlocked(userId: string): Promise<boolean> {
     try {
       const key = `blocked:user:${userId}`;
-      const blocked = await this.redis.exists(key);
+      const blocked = (await this.redis.send('EXISTS', [key])) as number;
       return blocked === 1;
     } catch (error) {
       logger.error('Failed to check user block status', {

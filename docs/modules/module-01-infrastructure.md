@@ -22,17 +22,17 @@ Este módulo estabelece a **fundação técnica** do projeto urlfy.cc, incluindo
 
 ## 2. Stack Tecnológica
 
-| Componente         | Tecnologia             | Versão | Justificativa                                     |
-| ------------------ | ---------------------- | ------ | ------------------------------------------------- |
-| **Runtime**        | Bun                    | 1.x+   | APIs nativas (SQL, Redis) para máxima performance |
-| **Framework Web**  | Next.js (App Router)   | 16+    | SSR, RSC, Middleware nativo                       |
-| **API REST**       | ElysiaJS               | latest | Type-safety E2E, excelente performance            |
-| **Banco de Dados** | PostgreSQL             | 16+    | Particionamento nativo, robustez                  |
-| **Cache**          | Redis                  | 7+     | Protocolo RESP3 com Bun.redis                     |
-| **ORM**            | Drizzle                | latest | Type-safe, compatível com Bun SQL                 |
-| **Filas**          | BullMQ                 | latest | Jobs agendados, Dead Letter Queue                 |
-| **Observability**  | SigNoz + OpenTelemetry | latest | Logs, traces e métricas unificados                |
-| **GeoIP**          | MaxMind GeoLite2       | weekly | Lookup offline, sem limites de requests           |
+| Componente         | Tecnologia                 | Versão | Justificativa                                       |
+| ------------------ | -------------------------- | ------ | --------------------------------------------------- |
+| **Runtime**        | Bun                        | 1.x+   | APIs nativas (SQL, Redis) para máxima performance   |
+| **Framework Web**  | Next.js (App Router)       | 16+    | SSR, RSC, Middleware nativo                         |
+| **API REST**       | ElysiaJS                   | latest | Type-safety E2E, excelente performance              |
+| **Banco de Dados** | PostgreSQL                 | 16+    | Particionamento nativo, robustez                    |
+| **Cache**          | Redis                      | 7+     | Protocolo RESP3 com Bun.redis                       |
+| **ORM**            | Drizzle                    | latest | Type-safe, compatível com Bun SQL                   |
+| **Filas**          | Redis Streams (Bun Native) | -      | Jobs agendados, Dead Letter Queue (XADD/XREADGROUP) |
+| **Observability**  | SigNoz + OpenTelemetry     | latest | Logs, traces e métricas unificados                  |
+| **GeoIP**          | MaxMind GeoLite2           | weekly | Lookup offline, sem limites de requests             |
 
 ---
 
@@ -1491,4 +1491,3 @@ PORT=3000
 ---
 
 > **Próximo módulo:** [Módulo 2: Autenticação & Identidade](./module-02-authentication.md)
-

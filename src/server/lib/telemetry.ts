@@ -159,6 +159,8 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
+export type Logger = ReturnType<typeof createLogger>;
+
 export function createLogger(name: string) {
   const logger = loggerProvider.getLogger(name);
 

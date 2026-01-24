@@ -27,7 +27,7 @@ export async function acquireLock(
   while (attempts < maxAttempts) {
     try {
       // SET NX PX: Set if Not eXists + Expiration in milliseconds
-      const result = await redis.set(key, '1', 'PX', ttlMs, 'NX');
+      const result = await redis.set(key, '1', 'PX', String(ttlMs), 'NX');
 
       if (result === 'OK') {
         logger.debug('Lock acquired', { key, ttlMs, attempt: attempts + 1 });
@@ -113,7 +113,7 @@ export async function withLock<T>(
  */
 export async function hasLock(key: string): Promise<boolean> {
   try {
-    const exists = await redis.exists(key);
+    const exists = (await redis.send('EXISTS', [key])) as number;
     return exists === 1;
   } catch (error) {
     logger.error('Error checking lock', {

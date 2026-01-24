@@ -340,14 +340,11 @@ async function enforceApiKeyRateLimit(
   maxRequests: number,
   timeWindowMs: number
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
-  if (redis.status !== 'ready') {
-    return { allowed: true };
-  }
-
+  // Try-catch will handle Redis being unavailable
   const key = `rl:apikey:${apiKeyId}`;
 
   try {
-    const current = await redis.incr(key);
+    const current = (await redis.send('INCR', [key])) as number;
 
     if (current === 1) {
       await redis.pexpire(key, timeWindowMs);

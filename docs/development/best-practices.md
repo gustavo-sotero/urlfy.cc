@@ -405,6 +405,8 @@ When refactoring existing code:
 
 ## 📚 Additional Resources
 
+Use #fetch if necessary.
+
 - [ElysiaJS Official Documentation](https://elysiajs.com)
 - [ElysiaJS Best Practices](https://elysiajs.com/essential/best-practice.html)
 - [TypeBox Documentation](https://github.com/sinclairzx81/typebox)
@@ -524,4 +526,3 @@ export abstract class LinkService {
 
 **Last Updated:** 2026-01-23
 **Maintainer:** Engineering Team
-

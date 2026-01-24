@@ -279,11 +279,11 @@ CREATE INDEX idx_deletion_pending ON data_deletion_requests(status, deadline_at)
 ### Analytics Events
 
 1. **Particionamento mensal** em `created_at`
-2. **Agregação diária** via job BullMQ → `link_clicks_daily`
+2. **Agregação diária** via worker Redis Streams → `link_clicks_daily`
 3. **TTL de dados brutos:** 90 dias
 4. **Cleanup automático:** Job mensal dropa partições antigas
 
-### Jobs BullMQ
+### Workers (Redis Streams)
 
 | Job                  | Frequência         | Descrição                                   |
 | -------------------- | ------------------ | ------------------------------------------- |
@@ -291,4 +291,3 @@ CREATE INDEX idx_deletion_pending ON data_deletion_requests(status, deadline_at)
 | `cleanup-partitions` | 1x/mês             | Dropa partições > 90 dias                   |
 | `hard-delete-links`  | 1x/mês             | Remove links com `deleted_at` > 30 dias     |
 | `process-deletions`  | 1x/hora            | Processa `data_deletion_requests` pendentes |
-

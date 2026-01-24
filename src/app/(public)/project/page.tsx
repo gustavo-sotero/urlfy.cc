@@ -101,12 +101,10 @@ const TRADE_OFFS: readonly TradeOff[] = [
   },
   {
     id: 'event-driven',
-    decision: 'Event-Driven Analytics (BullMQ)',
-    why: 'Não bloquear o redirect com writes de analytics. SLO de <30ms de latência P50.',
-    impact:
-      'Performance excelente, mas complexidade adicional com filas e workers.',
-    alternatives:
-      'Writes síncronos seriam mais simples, mas violaria SLOs de performance.'
+    decision: 'Event-Driven Analytics (Redis Streams)',
+    why: 'Não bloquear o redirect com writes de analytics. Native Bun implementation para zero deps.',
+    impact: 'Performance excelente e type-safe. Sem BullMQ/Redis externo.',
+    alternatives: 'BullMQ adicionaria dependências desnecessárias (ioredis).'
   },
   {
     id: 'monolith',

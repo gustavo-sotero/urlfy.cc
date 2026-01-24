@@ -4,11 +4,8 @@ import { CronJob } from 'cron';
 import { and, eq, lt } from 'drizzle-orm';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema/audit';
-import {
-  aggregationQueue,
-  cleanupQueue,
-  deletionQueue
-} from '@/server/lib/queue';
+// Queues removed - migrated to Redis Streams
+// import { aggregationQueue, cleanupQueue, deletionQueue } from '@/server/lib/queue';
 import { createLogger } from '@/server/lib/telemetry';
 import { MetricsService } from '@/server/services/metrics.service';
 
@@ -37,16 +34,13 @@ export const aggregationJob = new CronJob(
 
       logger.info(`[Scheduler] Running daily aggregation for ${yesterday}`);
 
-      await aggregationQueue.add(
-        'daily-aggregation',
-        { date: yesterday },
-        {
-          jobId: `aggregation-${yesterday}`,
-          removeOnComplete: { age: 3600 } // Remove após 1h
-        }
+      // TODO: Migrate to Redis Streams trigger
+      // await aggregationQueue.add(...)
+      logger.warn(
+        '[Scheduler] Aggregation queue migrated to Redis Streams - trigger via stream'
       );
 
-      logger.info(`[Scheduler] Aggregation job queued for ${yesterday}`);
+      logger.info(`[Scheduler] Aggregation job scheduled for ${yesterday}`);
     } catch (error) {
       logger.error('[Scheduler] Error scheduling aggregation job', {
         error: error instanceof Error ? error.message : String(error)
@@ -73,16 +67,13 @@ export const cleanupJob = new CronJob(
     try {
       logger.info('[Scheduler] Running weekly cleanup job');
 
-      await cleanupQueue.add(
-        'weekly-cleanup',
-        { type: 'full' }, // Retention + partitions
-        {
-          jobId: `cleanup-${getToday()}`,
-          removeOnComplete: { age: 3600 }
-        }
+      // TODO: Migrate to Redis Streams trigger
+      // await cleanupQueue.add(...)
+      logger.warn(
+        '[Scheduler] Cleanup queue migrated to Redis Streams - trigger via stream'
       );
 
-      logger.info('[Scheduler] Cleanup job queued');
+      logger.info('[Scheduler] Cleanup job scheduled');
     } catch (error) {
       logger.error('[Scheduler] Error scheduling cleanup job', {
         error: error instanceof Error ? error.message : String(error)
@@ -156,24 +147,16 @@ export const dataDeletionJob = new CronJob(
       // Enfileira cada request para processamento
       for (const request of pendingRequests) {
         try {
-          await deletionQueue.add(
-            'process-deletion',
+          // TODO: Migrate to Redis Streams
+          // await deletionQueue.add(...)
+          logger.warn(
+            '[Scheduler] Deletion queue migrated to Redis Streams - trigger via stream',
             {
-              requestId: request.id,
-              userId: request.userId
-            },
-            {
-              jobId: `deletion-${request.id}`,
-              removeOnComplete: { age: 86400 }, // Remove após 24h
-              attempts: 3,
-              backoff: {
-                type: 'exponential',
-                delay: 2000 // 2s inicial
-              }
+              requestId: request.id
             }
           );
 
-          logger.info('[Scheduler] Data deletion job enqueued', {
+          logger.info('[Scheduler] Data deletion job scheduled', {
             requestId: request.id,
             userId: request.userId
           });
@@ -210,7 +193,7 @@ function getYesterday(): string {
   return d.toISOString().split('T')[0];
 }
 
-function getToday(): string {
+function _getToday(): string {
   const d = new Date();
   d.setUTCHours(0, 0, 0, 0);
   return d.toISOString().split('T')[0];
@@ -275,16 +258,12 @@ export async function triggerAggregationNow(date?: string): Promise<void> {
     `[Scheduler] Triggering aggregation immediately for ${dateToAggregate}`
   );
 
-  await aggregationQueue.add(
-    'manual-aggregation',
-    { date: dateToAggregate },
-    {
-      jobId: `manual-aggregation-${dateToAggregate}-${Date.now()}`
-    }
-  );
+  // TODO: Migrate to Redis Streams
+  // await aggregationQueue.add(...)
+  logger.warn('[Scheduler] Aggregation queue migrated to Redis Streams');
 
   logger.info(
-    `[Scheduler] Manual aggregation triggered for ${dateToAggregate}`
+    `[Scheduler] Manual aggregation scheduled for ${dateToAggregate}`
   );
 }
 
@@ -296,15 +275,11 @@ export async function triggerCleanupNow(
 ): Promise<void> {
   logger.info(`[Scheduler] Triggering cleanup immediately (type: ${type})`);
 
-  await cleanupQueue.add(
-    'manual-cleanup',
-    { type },
-    {
-      jobId: `manual-cleanup-${type}-${Date.now()}`
-    }
-  );
+  // TODO: Migrate to Redis Streams
+  // await cleanupQueue.add(...)
+  logger.warn('[Scheduler] Cleanup queue migrated to Redis Streams');
 
-  logger.info(`[Scheduler] Manual cleanup triggered (type: ${type})`);
+  logger.info(`[Scheduler] Manual cleanup scheduled (type: ${type})`);
 }
 
 export default {

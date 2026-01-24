@@ -97,37 +97,40 @@ class RateLimiter {
       // Use ZREMRANGEBYSCORE to remove old entries
       // Then ZCARD to count current requests
       // Then ZADD to add new request
-
-      const pipeline = this.redis.pipeline();
+      // Execute sequentially since Bun RedisClient doesn't support pipeline
 
       // Remove entries outside the sliding window
-      pipeline.zremrangebyscore(redisKey, '-inf', windowStart);
+      await this.redis.send('ZREMRANGEBYSCORE', [
+        redisKey,
+        '-inf',
+        String(windowStart)
+      ]);
 
       // Count current requests in window
-      pipeline.zcard(redisKey);
+      const currentCount = (await this.redis.send('ZCARD', [
+        redisKey
+      ])) as number;
 
-      // Add current request
-      pipeline.zadd(redisKey, now, `${now}-${Math.random()}`);
+      // Check if limit exceeded
+      const count = Number(currentCount) || 0;
+      const allowsRequest = count < config.points;
 
-      // Set expiration on the key
-      pipeline.expire(redisKey, config.duration);
+      if (allowsRequest) {
+        // Add current request
+        await this.redis.send('ZADD', [
+          redisKey,
+          String(now),
+          `${now}-${Math.random()}`
+        ]);
 
-      const results = await pipeline.exec();
-
-      if (!results) {
-        logger.error('Pipeline execution failed for rate limit check');
-        // Fail open - allow the request on Redis error
-        return {
-          allowed: true,
-          remaining: config.points,
-          resetTime: now + config.duration * 1000
-        };
+        // Set expiration on the key
+        await this.redis.send('EXPIRE', [redisKey, String(config.duration)]);
       }
 
-      // Extract count from results (index 1 is zcard result)
-      const count = (results[1][1] as number) || 0;
-      const remaining = Math.max(0, config.points - count - 1);
-      const allowsRequest = count < config.points;
+      const remaining = Math.max(
+        0,
+        config.points - count - (allowsRequest ? 1 : 0)
+      );
 
       if (!allowsRequest) {
         logger.warn('Rate limit exceeded', {
@@ -209,7 +212,7 @@ class RateLimiter {
   async isIPBlocked(ip: string): Promise<boolean> {
     try {
       const key = `blocked:${ip}`;
-      const blocked = await this.redis.exists(key);
+      const blocked = (await this.redis.send('EXISTS', [key])) as number;
       return blocked === 1;
     } catch (error) {
       logger.error('Failed to check IP block', {

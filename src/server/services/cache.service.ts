@@ -104,7 +104,7 @@ export class CacheService {
   async isNotFound(code: string): Promise<boolean> {
     try {
       const key = `${CACHE_PREFIX.LINK_404}${code}`;
-      const exists = await redis.exists(key);
+      const exists = (await redis.send('EXISTS', [key])) as number;
       return exists === 1;
     } catch (error) {
       logger.error('Error checking 404 cache', {
@@ -137,7 +137,7 @@ export class CacheService {
   async isBanned(code: string): Promise<boolean> {
     try {
       const key = `${CACHE_PREFIX.LINK_BANNED}${code}`;
-      const exists = await redis.exists(key);
+      const exists = (await redis.send('EXISTS', [key])) as number;
       return exists === 1;
     } catch (error) {
       logger.error('Error checking banned cache', {
@@ -169,23 +169,23 @@ export class CacheService {
    */
   async invalidateLink(code: string): Promise<void> {
     try {
-      const pipeline = redis.pipeline();
-
-      // Remove cache principal
-      pipeline.del(`${CACHE_PREFIX.LINK}${code}`);
-      pipeline.del(`${CACHE_PREFIX.LINK_META}${code}`);
-      pipeline.del(`${CACHE_PREFIX.LINK_404}${code}`);
-      pipeline.del(`${CACHE_PREFIX.LINK_BANNED}${code}`);
+      // Execute commands sequentially (Bun RedisClient doesn't support pipeline)
+      const commands = [
+        redis.del(`${CACHE_PREFIX.LINK}${code}`),
+        redis.del(`${CACHE_PREFIX.LINK_META}${code}`),
+        redis.del(`${CACHE_PREFIX.LINK_404}${code}`),
+        redis.del(`${CACHE_PREFIX.LINK_BANNED}${code}`)
+      ];
 
       // Remove QR codes relacionados (pattern delete)
       const qrPattern = `${CACHE_PREFIX.QR_CODE}${code}:*`;
       const qrKeys = await redis.keys(qrPattern);
 
       if (qrKeys.length > 0) {
-        pipeline.del(...qrKeys);
+        commands.push(redis.del(...qrKeys));
       }
 
-      await pipeline.exec();
+      await Promise.all(commands);
 
       logger.info('Link cache invalidated', {
         code,
@@ -243,12 +243,15 @@ export class CacheService {
     hitRate: number | null;
   }> {
     try {
-      const info = await redis.info('stats');
-      const memory = await redis.info('memory');
+      const [info, memory, dbsize] = await Promise.all([
+        redis.send('INFO', ['stats']) as Promise<string>,
+        redis.send('INFO', ['memory']) as Promise<string>,
+        redis.send('DBSIZE', []) as Promise<number>
+      ]);
 
       // Parse das informações
-      const stats = this.parseRedisInfo(info);
-      const memoryStats = this.parseRedisInfo(memory);
+      const stats = this.parseRedisInfo(String(info));
+      const memoryStats = this.parseRedisInfo(String(memory));
 
       const hits = Number.parseInt(stats.keyspace_hits || '0', 10);
       const misses = Number.parseInt(stats.keyspace_misses || '0', 10);
@@ -256,7 +259,7 @@ export class CacheService {
 
       return {
         memory: memoryStats.used_memory_human || 'unknown',
-        keys: await redis.dbsize(),
+        keys: typeof dbsize === 'number' ? dbsize : 0,
         hitRate: total > 0 ? (hits / total) * 100 : null
       };
     } catch (error) {
@@ -342,7 +345,7 @@ export class CacheService {
    */
   async flushAll(): Promise<void> {
     try {
-      await redis.flushall();
+      await redis.send('FLUSHALL', []);
       logger.warn('Cache flushed - ALL keys removed');
     } catch (error) {
       logger.error('Error flushing cache', {

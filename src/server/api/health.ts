@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { checkDatabaseHealth } from '@/db';
-import { checkQueueHealth } from '../lib/queue';
+// import { checkQueueHealth } from '../lib/queue'; // Migrated to Redis Streams
 import { checkRedisHealth } from '../lib/redis';
 import { ResponseModels } from '../lib/response.schema';
 import { requireAdmin } from '../middleware/auth.middleware';
@@ -122,18 +122,14 @@ const healthDetailed = new Elysia()
     async () => {
       const startTime = performance.now();
 
-      const [dbHealth, redisHealth, queueHealth] = await Promise.all([
+      const [dbHealth, redisHealth] = await Promise.all([
         checkDatabaseHealth(),
-        checkRedisHealth(),
-        checkQueueHealth()
+        checkRedisHealth()
       ]);
 
       const totalLatency = Math.round(performance.now() - startTime);
 
-      const isHealthy =
-        dbHealth.status === 'ok' &&
-        redisHealth.status === 'ok' &&
-        queueHealth.status === 'ok';
+      const isHealthy = dbHealth.status === 'ok' && redisHealth.status === 'ok';
 
       return {
         status: isHealthy ? ('healthy' as const) : ('degraded' as const),
@@ -148,11 +144,6 @@ const healthDetailed = new Elysia()
             status: redisHealth.status,
             latencyMs: redisHealth.latencyMs,
             error: redisHealth.error
-          },
-          queue: {
-            status: queueHealth.status,
-            pendingJobs: queueHealth.pendingJobs,
-            failedJobs: queueHealth.failedJobs
           }
         },
         uptime: process.uptime(),
@@ -194,11 +185,6 @@ const healthDetailed = new Elysia()
                 error: t.Optional(
                   t.String({ examples: ['Connection refused'] })
                 )
-              }),
-              queue: t.Object({
-                status: t.String({ examples: ['ok'] }),
-                pendingJobs: t.Optional(t.Number({ examples: [15] })),
-                failedJobs: t.Optional(t.Number({ examples: [0] }))
               })
             }),
             uptime: t.Number({ examples: [86400] }),

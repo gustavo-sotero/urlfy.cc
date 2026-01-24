@@ -1,43 +1,48 @@
-import Redis from 'ioredis';
+/**
+ * Redis Client - Bun Native Implementation
+ * Uses Bun's native Redis client for maximum performance
+ */
+
+import { RedisClient } from 'bun';
 import { createLogger } from './telemetry';
 
 const logger = createLogger('redis');
 
 // Singleton do cliente Redis
-let redisInstance: Redis | null = null;
+let redisInstance: RedisClient | null = null;
 
-export function getRedisClient(): Redis {
+/**
+ * Get or create the Redis client instance (singleton)
+ */
+export function getRedisClient(): RedisClient {
   if (redisInstance) return redisInstance;
 
   const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
   try {
-    // ioredis para compatibilidade com BullMQ e funcionalidades avançadas
-    redisInstance = new Redis(redisUrl, {
-      connectTimeout: 10000, // 10s
-      maxRetriesPerRequest: 10,
-      enableOfflineQueue: true,
+    // Bun's native Redis client with automatic connection management
+    redisInstance = new RedisClient(redisUrl, {
+      connectionTimeout: 10000, // 10s
       enableAutoPipelining: true,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 100, 3000);
-        return delay;
-      }
+      autoReconnect: true,
+      maxRetries: 10,
+      enableOfflineQueue: true
     });
 
     // Event handlers
-    redisInstance.on('connect', () => {
+    redisInstance.onconnect = () => {
       logger.info('Redis connection established');
-    });
+    };
 
-    redisInstance.on('error', (error) => {
-      logger.error('Redis connection error', {
-        error: error instanceof Error ? error.message : String(error)
-      });
-    });
-
-    redisInstance.on('close', () => {
-      logger.info('Redis connection closed');
-    });
+    redisInstance.onclose = (error?: Error) => {
+      if (error) {
+        logger.error('Redis connection closed with error', {
+          error: error.message
+        });
+      } else {
+        logger.info('Redis connection closed');
+      }
+    };
 
     return redisInstance;
   } catch (error) {
@@ -48,9 +53,15 @@ export function getRedisClient(): Redis {
   }
 }
 
+/**
+ * Export singleton instance
+ * Connection is lazy - only established on first command
+ */
 export const redis = getRedisClient();
 
-// Health check do Redis
+/**
+ * Health check do Redis
+ */
 export async function checkRedisHealth(): Promise<{
   status: 'ok' | 'error';
   latencyMs?: number;
@@ -59,7 +70,7 @@ export async function checkRedisHealth(): Promise<{
   const start = performance.now();
 
   try {
-    await redis.ping();
+    await redis.send('PING', []);
 
     const latencyMs = Math.round(performance.now() - start);
     return { status: 'ok', latencyMs };
@@ -73,21 +84,22 @@ export async function checkRedisHealth(): Promise<{
   }
 }
 
-// Graceful shutdown
+/**
+ * Graceful shutdown
+ */
 export async function closeRedis(): Promise<void> {
   if (redisInstance) {
     logger.info('Closing Redis connection...');
     try {
-      await redisInstance.quit();
+      redisInstance.close();
       redisInstance = null;
       logger.info('Redis connection closed gracefully');
     } catch (error) {
       logger.error('Error during Redis shutdown', {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      // Force disconnect if quit fails
       if (redisInstance) {
-        redisInstance.disconnect();
+        redisInstance.close();
       }
       redisInstance = null;
     }
@@ -144,8 +156,14 @@ export async function acquireLock(
 
   for (let i = 0; i < retries; i++) {
     try {
-      // SETNX with EX (atomic operation)
-      const result = await redis.set(lockKey, lockValue, 'EX', ttl, 'NX');
+      // SET with NX and EX options (atomic SETNX + EXPIRE)
+      const result = await redis.send('SET', [
+        lockKey,
+        lockValue,
+        'EX',
+        String(ttl),
+        'NX'
+      ]);
 
       if (result === 'OK') {
         return true;
@@ -153,7 +171,7 @@ export async function acquireLock(
 
       // Wait before retry
       if (i < retries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        await Bun.sleep(retryDelay);
       }
     } catch (error) {
       logger.error('Lock acquisition error', {

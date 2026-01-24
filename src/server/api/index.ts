@@ -10,6 +10,7 @@ import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 import { ResponseModels } from '@/server/lib/response.schema';
 // Import from feature-based modules
 import { AdminModels, adminController } from '@/server/modules/admin';
+import { adminQueuesController } from '@/server/modules/admin/queues.controller';
 import {
   AnalyticsModel,
   analyticsController
@@ -243,6 +244,7 @@ export const api = new Elysia({ prefix: '/api' })
       .use(internalController)
       // Admin routes
       .use(adminController)
+      .use(adminQueuesController)
       .group('/admin', (admin) => admin.use(adminAuditRoutes))
   )
 

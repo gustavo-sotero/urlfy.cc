@@ -8,7 +8,7 @@
 
 ## Visão Geral
 
-O sistema utiliza **Redis 7+** via `Bun.redis` (driver TCP nativo, protocolo RESP3) como camada de cache principal.
+O sistema utiliza **Redis 7+** via `Bun.redis` (driver TCP nativo, protocolo RESP3) como camada de cache principal e para Redis Streams (event-driven queues).
 
 ## Cache Layers
 
@@ -293,4 +293,3 @@ async function getLinkWithFallback(code: string) {
   }
 }
 ```
-
