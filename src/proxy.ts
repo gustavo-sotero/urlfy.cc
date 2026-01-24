@@ -1,8 +1,17 @@
-// src/proxy.ts
+/**
+ * Next.js Edge Proxy (Next.js 16+)
+ *
+ * This proxy intercepts all requests and handles URL shortener redirects.
+ * It runs in Edge Runtime with limited APIs - all heavy lifting is done via
+ * internal API calls to the Node.js runtime.
+ *
+ * @see docs/architecture/edge-runtime-middleware.md
+ * @see https://nextjs.org/docs/app/api-reference/file-conventions/proxy
+ */
 
+import { handleRedirect } from '@/server/middleware/redirect.middleware';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { handleRedirect } from '@/server/middleware/redirect.middleware';
 
 /**
  * Rotas que NÃO devem ser interceptadas pelo redirect engine
