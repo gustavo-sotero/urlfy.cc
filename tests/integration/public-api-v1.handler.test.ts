@@ -205,17 +205,17 @@ mock.module('@/server/lib/redis', () => ({
   CACHE_TTL: { link: 3600 },
   acquireLock: mock(() => Promise.resolve(true)),
   releaseLock: mock(() => Promise.resolve()),
-  withLock: mock((r, fn) => fn()),
+  withLock: mock((_r, fn) => fn()),
   checkRedisHealth: mock(() => Promise.resolve({ status: 'ok', latencyMs: 1 })),
   closeRedis: mock(() => Promise.resolve())
 }));
 
+import { and, eq, inArray } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import { apikey, links, user } from '@/db/schema';
 import { Scopes } from '@/server/config/scopes';
 import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
-import { and, eq, inArray } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import {
   createElysiaTestClient,
   type ElysiaTestClient

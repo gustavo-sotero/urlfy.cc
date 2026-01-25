@@ -57,7 +57,7 @@ mock.module('@/server/lib/redis', () => ({
   CACHE_TTL: { link: 3600 },
   acquireLock: mock(() => Promise.resolve(true)),
   releaseLock: mock(() => Promise.resolve()),
-  withLock: mock((r, fn) => fn()),
+  withLock: mock((_r, fn) => fn()),
   checkRedisHealth: mock(() => Promise.resolve({ status: 'ok', latencyMs: 1 })),
   closeRedis: mock(() => Promise.resolve())
 }));

@@ -8,6 +8,9 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
+import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import {
   apiKey as apiKeyTable,
@@ -22,9 +25,6 @@ import type {
   ApiKeyPermissions,
   NormalizedApiKeyPermissions
 } from '@/types/auth.types';
-import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
-import { nanoid } from 'nanoid';
 
 import {
   ApiKeyCreateBody,

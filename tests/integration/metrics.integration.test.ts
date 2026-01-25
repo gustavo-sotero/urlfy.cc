@@ -69,7 +69,7 @@ mock.module('@/server/lib/redis', () => ({
 import { MetricsService } from '@/server/services/metrics.service';
 
 describe('Metrics Integration - RPS Tracking', () => {
-  const testKeys = [
+  const _testKeys = [
     'metrics:req:count',
     'metrics:req:last_calc',
     'metrics:rps',

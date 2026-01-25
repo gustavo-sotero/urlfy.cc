@@ -8,6 +8,16 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import {
+  and,
+  arrayContains,
+  desc,
+  eq,
+  isNull,
+  like,
+  or,
+  sql
+} from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import { createLinkError } from '@/server/lib/errors';
@@ -33,16 +43,6 @@ import type {
   PaginatedResponse,
   UpdateLinkInput
 } from '@/types/links.types';
-import {
-  and,
-  arrayContains,
-  desc,
-  eq,
-  isNull,
-  like,
-  or,
-  sql
-} from 'drizzle-orm';
 
 const BASE_URL = process.env.PUBLIC_URL || 'https://urlfy.cc';
 

@@ -8,15 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { db } from '@/db';
-import { analyticsEvents } from '@/db/schema';
-import { links } from '@/db/schema/links';
-import { createLogger } from '@/server/lib/telemetry';
-import type {
-  AnalyticsBreakdown,
-  AnalyticsSummary,
-  TimeSeries
-} from '@/types/analytics.types';
 import {
   and,
   countDistinct,
@@ -27,6 +18,15 @@ import {
   lt,
   sql
 } from 'drizzle-orm';
+import { db } from '@/db';
+import { analyticsEvents } from '@/db/schema';
+import { links } from '@/db/schema/links';
+import { createLogger } from '@/server/lib/telemetry';
+import type {
+  AnalyticsBreakdown,
+  AnalyticsSummary,
+  TimeSeries
+} from '@/types/analytics.types';
 
 const logger = createLogger('analytics-service');
 

@@ -1,7 +1,7 @@
 // src/server/services/__tests__/cache.service.test.ts
 
-import type { CachedLink } from '@/types/redirect.types';
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CachedLink } from '@/types/redirect.types';
 
 // Mock telemetry to avoid initialization
 mock.module('@/server/lib/telemetry', () => ({
@@ -55,7 +55,7 @@ const mockRedis = {
     store.set(key, value);
     return 'OK';
   }),
-  setex: mock(async (key: string, ttl: number, value: string) => {
+  setex: mock(async (key: string, _ttl: number, value: string) => {
     store.set(key, value);
     return 'OK';
   }),
@@ -318,7 +318,7 @@ describe('CacheService', () => {
       store.set(`${CACHE_PREFIX.QR_CODE}abc123:200:png`, 'data');
 
       // Helper to simulate KEYS command for the QR code lookup
-      const keysSpy = mockRedis.keys; // Use the existing spy
+      const _keysSpy = mockRedis.keys; // Use the existing spy
 
       const { success } = await withTimeout(
         cacheService.invalidateLink('abc123')

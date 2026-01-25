@@ -13,6 +13,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links, user as userTable } from '@/db/schema';
 import { auditLog } from '@/db/schema/audit';
@@ -22,8 +24,6 @@ import type {
   AdminUserListQueryType,
   AdminUserUpdateBodyType
 } from '@/server/modules/admin/admin.schema';
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { eq } from 'drizzle-orm';
 import { isDatabaseAvailable } from '../helpers/integration-helper';
 
 const databaseAvailable = await isDatabaseAvailable();

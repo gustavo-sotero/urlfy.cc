@@ -1,8 +1,8 @@
 // src/server/services/shortcode.service.ts
 
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links, reservedSlugs } from '@/db/schema';
-import { eq } from 'drizzle-orm';
 import { generateShortCode } from '../lib/nanoid';
 
 const MAX_RETRIES = 5;

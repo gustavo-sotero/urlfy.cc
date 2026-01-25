@@ -69,7 +69,7 @@ const statefulDbMock = {
   update: mock(() => ({
     set: mock((updates: any) => {
       return {
-        where: mock((...args: any[]) => {
+        where: mock((..._args: any[]) => {
           const executeUpdate = () => {
             // Side-effect: Revoke/Update logic
             if (
@@ -159,17 +159,17 @@ mock.module('@/server/lib/redis', () => ({
   CACHE_TTL: { link: 3600 },
   acquireLock: mock(() => Promise.resolve(true)),
   releaseLock: mock(() => Promise.resolve()),
-  withLock: mock((r, fn) => fn()),
+  withLock: mock((_r, fn) => fn()),
   checkRedisHealth: mock(() => Promise.resolve({ status: 'ok', latencyMs: 1 })),
   closeRedis: mock(() => Promise.resolve())
 }));
 
+import { and, eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import { apikey, user } from '@/db/schema/auth';
 import { Scopes } from '@/server/config/scopes';
 import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
-import { and, eq } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { requireDatabase } from '../helpers/integration-helper';
 
 // Test user ID

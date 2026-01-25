@@ -1,8 +1,8 @@
-import { auth } from '@/lib/auth';
-import { publicApiV1 } from '@/server/api/v1';
 import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import type { OpenAPIV3 } from 'openapi-types';
+import { auth } from '@/lib/auth';
+import { publicApiV1 } from '@/server/api/v1';
 // Import plugins
 import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
 import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';

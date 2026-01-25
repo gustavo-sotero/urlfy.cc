@@ -2,9 +2,9 @@
  * Unit tests for Navbar component
  */
 
-import { Navbar } from '@/components/layout/navbar';
-import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { cleanup, render, screen } from '@testing-library/react';
+import { Navbar } from '@/components/layout/navbar';
 
 // Mock auth client
 mock.module('@/lib/auth.client', () => ({

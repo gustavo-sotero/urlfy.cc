@@ -19,11 +19,11 @@ const mockRedis = {
     mockRedis.store.set(key, val);
     return old || null;
   }),
-  set: mock(async (key: string, val: string, ...args: unknown[]) => {
+  set: mock(async (key: string, val: string, ..._args: unknown[]) => {
     mockRedis.store.set(key, val);
     return 'OK';
   }),
-  ttl: mock(async (key: string) => {
+  ttl: mock(async (_key: string) => {
     return 120; // Mock TTL return
   }),
   del: mock(async (key: string) => {

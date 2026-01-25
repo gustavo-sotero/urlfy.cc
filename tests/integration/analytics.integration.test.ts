@@ -1,13 +1,13 @@
 // tests/integration/analytics.integration.test.ts
 
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { analyticsEvents, linkClicksDaily, links } from '@/db/schema';
 import { hashVisitor } from '@/server/lib/privacy';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { AnalyticsService } from '@/server/modules/analytics';
 import type { ClickEvent } from '@/types/analytics.types';
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { eq } from 'drizzle-orm';
 import { isDatabaseAvailable } from '../helpers/integration-helper';
 
 const databaseAvailable = await isDatabaseAvailable();

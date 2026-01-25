@@ -1,3 +1,6 @@
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { admin, apiKey, openAPI, twoFactor } from 'better-auth/plugins';
 import { db } from '@/db';
 import type { Session as DbSession, User as DbUser } from '@/db/schema/auth';
 import * as schema from '@/db/schema/auth';
@@ -8,9 +11,6 @@ import {
 } from '@/emails/components';
 import { sendEmail } from '@/server/lib/email';
 import { auditLogService } from '@/server/services/audit.service';
-import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { admin, apiKey, openAPI, twoFactor } from 'better-auth/plugins';
 
 const authSecret =
   process.env.BETTER_AUTH_SECRET ||

@@ -15,10 +15,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { db } from '@/db';
-import { twoFactor, user as userTable } from '@/db/schema/auth';
 import { describe, expect, test } from 'bun:test';
 import { eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { twoFactor, user as userTable } from '@/db/schema/auth';
 import { isDatabaseAvailable } from '../helpers/integration-helper';
 
 const databaseAvailable = await isDatabaseAvailable();

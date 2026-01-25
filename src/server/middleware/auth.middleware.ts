@@ -1,3 +1,5 @@
+import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
+import { Elysia } from 'elysia';
 import {
   apiKey as apiKeyTable,
   twoFactor as twoFactorTable,
@@ -9,8 +11,6 @@ import { db } from '@/server/lib/db';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
-import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
-import { Elysia } from 'elysia';
 
 const logger = createLogger('auth-middleware');
 

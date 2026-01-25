@@ -1,8 +1,8 @@
 // src/server/services/url-validator.ts
 
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { bannedUrls } from '@/db/schema';
-import { eq } from 'drizzle-orm';
 
 const BLOCKED_SHORTENERS = new Set([
   'bit.ly',
