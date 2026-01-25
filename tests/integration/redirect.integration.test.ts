@@ -49,6 +49,18 @@ try {
     );
   }
 
+  if (process.env.USE_REAL_REDIS !== 'true') {
+    throw new Error('Redis not enabled for integration tests');
+  }
+
+  const { checkRedisHealth } = await import('@/server/lib/redis');
+  const redisHealth = await checkRedisHealth();
+  if (redisHealth.status !== 'ok') {
+    throw new Error(
+      `Redis connection failed: ${redisHealth.error || 'Unknown error'}`
+    );
+  }
+
   const schemaModule = await import('@/db/schema');
   links = schemaModule.links;
 

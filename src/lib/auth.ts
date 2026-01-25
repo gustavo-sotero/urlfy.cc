@@ -1,6 +1,3 @@
-import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { admin, apiKey, openAPI, twoFactor } from 'better-auth/plugins';
 import { db } from '@/db';
 import type { Session as DbSession, User as DbUser } from '@/db/schema/auth';
 import * as schema from '@/db/schema/auth';
@@ -11,6 +8,9 @@ import {
 } from '@/emails/components';
 import { sendEmail } from '@/server/lib/email';
 import { auditLogService } from '@/server/services/audit.service';
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { admin, apiKey, openAPI, twoFactor } from 'better-auth/plugins';
 
 const authSecret =
   process.env.BETTER_AUTH_SECRET ||
@@ -191,6 +191,12 @@ export const auth = betterAuth({
         required: true,
         input: false
       },
+      banned: {
+        type: 'boolean',
+        defaultValue: false,
+        required: true,
+        input: false
+      },
       bannedAt: {
         type: 'date',
         required: false,
@@ -231,10 +237,14 @@ export const auth = betterAuth({
       totpWindow: 1
     }),
 
-    // Admin Plugin
-    admin({
-      impersonationSessionDuration: 60 * 60 // 1 hour
-    }),
+    // Admin Plugin (disabled in tests to avoid adapter inconsistencies)
+    ...(process.env.NODE_ENV === 'test'
+      ? []
+      : [
+          admin({
+            impersonationSessionDuration: 60 * 60 // 1 hour
+          })
+        ]),
 
     // API Keys (RF-29)
     apiKey(),

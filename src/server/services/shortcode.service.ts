@@ -1,8 +1,8 @@
 // src/server/services/shortcode.service.ts
 
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links, reservedSlugs } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { generateShortCode } from '../lib/nanoid';
 
 const MAX_RETRIES = 5;
@@ -17,19 +17,21 @@ export async function generateUniqueCode(): Promise<string> {
     const code = generateShortCode();
 
     // Verifica se já existe (link ou slug reservado)
-    const exists = await db
+    const [existingLink] = await db
       .select({ code: links.shortCode })
       .from(links)
       .where(eq(links.shortCode, code))
-      .union(
-        db
-          .select({ code: reservedSlugs.slug })
-          .from(reservedSlugs)
-          .where(eq(reservedSlugs.slug, code))
-      )
       .limit(1);
 
-    if (exists.length === 0) return code;
+    if (existingLink) continue;
+
+    const [reserved] = await db
+      .select({ code: reservedSlugs.slug })
+      .from(reservedSlugs)
+      .where(eq(reservedSlugs.slug, code))
+      .limit(1);
+
+    if (!reserved) return code;
   }
 
   throw new Error('SHORTCODE_GENERATION_FAILED');
@@ -48,17 +50,19 @@ export async function validateCustomAlias(alias: string): Promise<boolean> {
   if (!isValidAliasFormat(alias)) return false;
 
   // Verifica se é reservado ou já existe
-  const exists = await db
+  const [existingLink] = await db
     .select({ code: links.shortCode })
     .from(links)
     .where(eq(links.shortCode, alias))
-    .union(
-      db
-        .select({ code: reservedSlugs.slug })
-        .from(reservedSlugs)
-        .where(eq(reservedSlugs.slug, alias))
-    )
     .limit(1);
 
-  return exists.length === 0;
+  if (existingLink) return false;
+
+  const [reserved] = await db
+    .select({ code: reservedSlugs.slug })
+    .from(reservedSlugs)
+    .where(eq(reservedSlugs.slug, alias))
+    .limit(1);
+
+  return !reserved;
 }

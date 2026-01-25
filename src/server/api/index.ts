@@ -1,13 +1,14 @@
+import { auth } from '@/lib/auth';
+import { publicApiV1 } from '@/server/api/v1';
 import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import type { OpenAPIV3 } from 'openapi-types';
-import { auth } from '@/lib/auth';
-import { publicApiV1 } from '@/server/api/v1';
 // Import plugins
 import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
 import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 // Import response models
 import { ResponseModels } from '@/server/lib/response.schema';
+import { securityHeadersMiddleware } from '@/server/middleware/security-headers';
 // Import from feature-based modules
 import { AdminModels, adminController } from '@/server/modules/admin';
 import { adminQueuesController } from '@/server/modules/admin/queues.controller';
@@ -29,6 +30,7 @@ import { consentRoutes, userDataRoutes } from './users/me';
 // ═══════════════════════════════════════════════════════════════════
 
 const publicDocsApp = new Elysia()
+  .use(securityHeadersMiddleware)
   .use(ResponseModels)
   .use(
     openapi({
@@ -92,6 +94,7 @@ export const api = new Elysia({ prefix: '/api' })
   .use(jwtPlugin)
   .use(corsPlugin)
   .use(bearerPlugin)
+  .use(securityHeadersMiddleware)
 
   // Register all models for OpenAPI $ref support
   .use(ResponseModels)
@@ -251,11 +254,26 @@ export const api = new Elysia({ prefix: '/api' })
   // Public API v1
   .use(publicApiV1)
 
+  // Optional API key format validation for all requests
+  .onBeforeHandle(({ request, set }) => {
+    const apiKey = request.headers.get('x-api-key');
+    if (apiKey && !apiKey.startsWith('urlfy_sk_')) {
+      set.status = 401;
+      return {
+        success: false as const,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Invalid API key format'
+        }
+      };
+    }
+  })
+
   // Add request ID to all responses
   .derive(({ request }) => {
     const requestId =
       request.headers.get('x-request-id') ||
-      `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     return { requestId };
   })
 

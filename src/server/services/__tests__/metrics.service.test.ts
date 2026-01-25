@@ -1,8 +1,48 @@
 // src/server/services/__tests__/metrics.service.test.ts
 
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { redis } from '@/server/lib/redis';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { MetricsService } from '../metrics.service';
+
+// Mock Redis client
+const mockRedis = {
+  store: new Map<string, string>(),
+  incr: mock(async (key: string) => {
+    const val = Number.parseInt(mockRedis.store.get(key) || '0', 10);
+    mockRedis.store.set(key, String(val + 1));
+    return val + 1;
+  }),
+  get: mock(async (key: string) => {
+    return mockRedis.store.get(key) || null;
+  }),
+  getset: mock(async (key: string, val: string) => {
+    const old = mockRedis.store.get(key);
+    mockRedis.store.set(key, val);
+    return old || null;
+  }),
+  set: mock(async (key: string, val: string, ...args: unknown[]) => {
+    mockRedis.store.set(key, val);
+    return 'OK';
+  }),
+  ttl: mock(async (key: string) => {
+    return 120; // Mock TTL return
+  }),
+  del: mock(async (key: string) => {
+    mockRedis.store.delete(key);
+    return 1;
+  }),
+  // Reset helper
+  _reset: () => mockRedis.store.clear()
+};
+
+// Mock the redis module
+mock.module('@/server/lib/redis', () => ({
+  redis: mockRedis,
+  getRedisClient: () => mockRedis
+}));
+
+// Create a local reference for the test to use
+// This replaces the import we removed
+const redis = mockRedis;
 
 describe('MetricsService', () => {
   // Helper to clean up Redis keys after each test
@@ -13,17 +53,11 @@ describe('MetricsService', () => {
   };
 
   beforeEach(async () => {
-    // Clean up test keys
-    await redis.del(REDIS_KEYS.REQUEST_COUNT);
-    await redis.del(REDIS_KEYS.LAST_CALC_TIME);
-    await redis.del(REDIS_KEYS.RPS);
+    mockRedis._reset();
   });
 
   afterEach(async () => {
-    // Clean up test keys
-    await redis.del(REDIS_KEYS.REQUEST_COUNT);
-    await redis.del(REDIS_KEYS.LAST_CALC_TIME);
-    await redis.del(REDIS_KEYS.RPS);
+    mockRedis._reset();
   });
 
   describe('trackRequest', () => {

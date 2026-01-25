@@ -15,14 +15,17 @@ import {
   type ElysiaTestClient,
   expectOk
 } from '../helpers/elysia-test-client';
+import { isDatabaseAvailable } from '../helpers/integration-helper';
 
 describe('Health Endpoints (handler-level)', () => {
   let client: ElysiaTestClient;
+  let serverAvailable = false;
 
   beforeAll(async () => {
     // Lazy import to avoid initialization issues when infrastructure isn't running
     const { api } = await import('@/server/api');
     client = createElysiaTestClient(api);
+    serverAvailable = await isDatabaseAvailable();
   });
 
   describe('GET /api/health', () => {
@@ -41,6 +44,11 @@ describe('Health Endpoints (handler-level)', () => {
 
   describe('GET /api/health/ready', () => {
     test('should return readiness status with services', async () => {
+      if (!serverAvailable) {
+        console.log('Skipping readiness test - infrastructure unavailable');
+        return;
+      }
+
       const response = await client.get<{
         status: string;
         services: {

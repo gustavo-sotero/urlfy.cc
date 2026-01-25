@@ -8,9 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
-import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import {
   apiKey as apiKeyTable,
@@ -25,12 +22,15 @@ import type {
   ApiKeyPermissions,
   NormalizedApiKeyPermissions
 } from '@/types/auth.types';
+import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
+import { nanoid } from 'nanoid';
 
 import {
   ApiKeyCreateBody,
   ApiKeyIdParam,
   ApiKeyUpdateBody,
-  AuthModel,
+  AuthModels,
   SessionIdParam
 } from './auth.schema';
 
@@ -135,7 +135,7 @@ function normalizePermissions(
 
 const sessionRoutes = new Elysia({ prefix: '/auth' })
   .use(optionalAuth)
-  .model(AuthModel)
+  .use(AuthModels)
 
   // ─────────────────────────────────────────────────────────────────
   // GET /auth/session - Get current session with full user details
@@ -185,7 +185,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         security: [] // Public endpoint - returns null session if not authenticated
       },
       response: {
-        200: SuccessResponse(t.Ref('auth.session!.response'))
+        200: SuccessResponse(t.Ref('auth.session.response'))
       }
     }
   )
@@ -281,7 +281,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         description: 'Get all active sessions for the current user'
       },
       response: {
-        200: SuccessResponse(t.Array(t.Ref('auth.session!.list.response'))),
+        200: SuccessResponse(t.Array(t.Ref('auth.session.list.response'))),
         401: ErrorRef(401)
       }
     }
@@ -459,7 +459,7 @@ sessionRoutes.post(
 
 const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
   .use(requireAuth)
-  .model(AuthModel)
+  .use(AuthModels)
 
   // ─────────────────────────────────────────────────────────────────
   // GET /auth/api-keys - List API keys

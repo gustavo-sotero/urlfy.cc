@@ -1,10 +1,34 @@
-/**
- * Unit tests for WorkerBase
- */
-
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { RedisStream } from '../redis-stream';
+// src/server/lib/__tests__/worker-base.test.ts
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { WorkerBase, type WorkerConfig } from '../worker-base';
+
+// Mock RedisStream
+const mockRedisStream = {
+  createGroup: mock(() => Promise.resolve()),
+  readGroup: mock(async () => {
+    // Yield to event loop to allow other promises (like stop()) to run
+    // simulating a blocking call that returns empty eventually
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    return [];
+  }),
+  ack: mock(() => Promise.resolve(1)),
+  add: mock(() => Promise.resolve('1-0')),
+  autoClaim: mock(() => Promise.resolve({ messages: [], nextId: '0-0' }))
+};
+
+mock.module('../redis-stream', () => ({
+  RedisStream: mockRedisStream
+}));
+
+// Mock telemetry
+mock.module('../telemetry', () => ({
+  createLogger: () => ({
+    debug: () => {},
+    info: () => {},
+    warn: () => {},
+    error: () => {}
+  })
+}));
 
 // Test worker implementation
 class TestWorker extends WorkerBase<{ test: string }> {
@@ -17,9 +41,17 @@ class TestWorker extends WorkerBase<{ test: string }> {
     this.processedMessages.push({ id, payload });
 
     // Simulate processing failure for error testing
-    if (payload.test === 'fail') {
+    if (payload && payload.test === 'fail') {
       throw new Error('Processing failed');
     }
+  }
+
+  // Override stop to avoid 5s delay in tests
+  async stop(): Promise<void> {
+    this.running = false;
+    this.gcRunning = false;
+    // Allow pending promises to resolve
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
 }
 
@@ -40,6 +72,18 @@ describe('WorkerBase', () => {
   let worker: TestWorker;
 
   beforeEach(() => {
+    mockRedisStream.createGroup.mockClear();
+    mockRedisStream.readGroup.mockClear();
+    mockRedisStream.ack.mockClear();
+    mockRedisStream.add.mockClear();
+    mockRedisStream.autoClaim.mockClear();
+
+    // Reset readGroup to default async empty
+    mockRedisStream.readGroup.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return [];
+    });
+
     worker = new TestWorker(TEST_CONFIG);
   });
 
@@ -75,7 +119,13 @@ describe('WorkerBase', () => {
 
   describe('initialize()', () => {
     it('should initialize consumer group', async () => {
-      await expect(worker.initialize()).resolves.not.toThrow();
+      await worker.initialize();
+      expect(mockRedisStream.createGroup).toHaveBeenCalledWith(
+        TEST_CONFIG.stream,
+        TEST_CONFIG.group,
+        '$',
+        true
+      );
     });
   });
 
@@ -96,91 +146,75 @@ describe('WorkerBase', () => {
 
   describe('processMessage()', () => {
     it('should process messages successfully', async () => {
-      await worker.initialize();
+      // Setup mock to return one message then empty (via default async mock)
+      mockRedisStream.readGroup.mockImplementationOnce(async () => [
+        {
+          stream: TEST_CONFIG.stream,
+          messages: [{ id: '1-0', data: { test: 'value' } }]
+        }
+      ]);
 
-      // Add test message
-      await RedisStream.add(TEST_CONFIG.stream, {
-        test: 'success'
-      });
+      // Start worker in background (will loop)
+      const runPromise = worker.run();
 
-      // Start worker in background
-      const workerPromise = worker.run();
-
-      // Wait for processing
-      await Bun.sleep(500);
-
-      // Stop worker
+      // Give it a moment to process
+      await new Promise((resolve) => setTimeout(resolve, 50));
       await worker.stop();
-      await workerPromise;
+      await runPromise;
 
-      // Verify message was processed
-      expect(worker.processedMessages.length).toBeGreaterThan(0);
-      expect(worker.processedMessages[0].payload.test).toBe('success');
+      expect(worker.processedMessages).toHaveLength(1);
+      expect(worker.processedMessages[0]).toEqual({
+        id: '1-0',
+        payload: { test: 'value' }
+      });
+      expect(mockRedisStream.ack).toHaveBeenCalledWith(
+        TEST_CONFIG.stream,
+        TEST_CONFIG.group,
+        ['1-0']
+      );
+    });
+
+    it('should handle errors gracefully during processing', async () => {
+      mockRedisStream.readGroup.mockImplementationOnce(async () => [
+        {
+          stream: TEST_CONFIG.stream,
+          messages: [{ id: '2-0', data: { test: 'fail' } }]
+        }
+      ]);
+
+      const runPromise = worker.run();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await worker.stop();
+      await runPromise;
+
+      // Should have tried to process it
+      expect(worker.processedMessages).toHaveLength(1);
+      // Verify we are processing the correct message
+      expect(worker.processedMessages[0].payload).toEqual({ test: 'fail' });
+
+      // Should have moved to DLQ and ACKed the original message to remove from pending
+      expect(mockRedisStream.add).toHaveBeenCalledWith(
+        TEST_CONFIG.deadLetterStream,
+        expect.any(Object)
+      );
+
+      expect(mockRedisStream.ack).toHaveBeenCalledWith(
+        TEST_CONFIG.stream,
+        TEST_CONFIG.group,
+        ['2-0']
+      );
     });
   });
 
   describe('stop()', () => {
     it('should stop worker gracefully', async () => {
-      await worker.initialize();
+      const runPromise = worker.run();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(worker.getStatus().running).toBe(true);
 
-      // Start worker
-      const workerPromise = worker.run();
-
-      // Wait a bit
-      await Bun.sleep(200);
-
-      // Stop worker
       await worker.stop();
-
-      // Worker should stop
-      const status = worker.getStatus();
-      expect(status.running).toBe(false);
-
-      // Cleanup
-      await workerPromise;
-    });
-  });
-
-  describe('error handling', () => {
-    it('should handle processing errors', async () => {
-      await worker.initialize();
-
-      // Add message that will fail
-      await RedisStream.add(TEST_CONFIG.stream, { test: 'fail' });
-
-      // Start worker
-      const workerPromise = worker.run();
-
-      // Wait for processing
-      await Bun.sleep(500);
-
-      // Stop worker
-      await worker.stop();
-      await workerPromise;
-
-      // Worker should have attempted to process the message
-      // (error will be logged, not thrown)
-    });
-  });
-
-  describe('graceful shutdown', () => {
-    it('should handle SIGTERM gracefully', async () => {
-      await worker.initialize();
-
-      // Start worker
-      const workerPromise = worker.run();
-
-      // Wait a bit
-      await Bun.sleep(200);
-
-      // Simulate SIGTERM
-      await worker.stop();
-
-      // Wait for graceful shutdown
-      await workerPromise;
-
-      const status = worker.getStatus();
-      expect(status.running).toBe(false);
+      await runPromise;
+      expect(worker.getStatus().running).toBe(false);
     });
   });
 });

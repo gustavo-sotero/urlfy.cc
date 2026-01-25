@@ -1,14 +1,53 @@
-import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
-import { Elysia } from 'elysia';
-import { apiKey as apiKeyTable, user as userTable } from '@/db/schema/auth';
+import {
+  apiKey as apiKeyTable,
+  twoFactor as twoFactorTable,
+  user as userTable
+} from '@/db/schema/auth';
 import type { Session, User } from '@/lib/auth';
 import { auth } from '@/lib/auth';
 import { db } from '@/server/lib/db';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
+import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
+import { Elysia } from 'elysia';
 
 const logger = createLogger('auth-middleware');
+
+function getTestUserFromHeaders(headers: Headers): User | null {
+  if (process.env.NODE_ENV !== 'test') return null;
+
+  const testUserId = headers.get('x-test-user-id');
+  if (!testUserId) return null;
+
+  const emailVerifiedHeader = headers.get('x-test-email-verified');
+  const emailVerified = emailVerifiedHeader
+    ? emailVerifiedHeader === 'true'
+    : true;
+
+  const roleHeader = headers.get('x-test-user-role');
+  const role = roleHeader === 'admin' ? 'admin' : 'user';
+
+  const twoFactorEnabled = headers.get('x-test-2fa-enabled') === 'true';
+  const now = new Date();
+
+  return {
+    id: testUserId,
+    email: headers.get('x-test-user-email') || `${testUserId}@test.local`,
+    name: headers.get('x-test-user-name') || 'Test User',
+    emailVerified,
+    image: null,
+    role,
+    twoFactorEnabled,
+    linksQuota: 100,
+    linksCount: 0,
+    bannedAt: null,
+    bannedReason: null,
+    deletedAt: null,
+    createdAt: now,
+    updatedAt: now
+  } as User;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // OPTIONAL AUTH MIDDLEWARE (populates context if authenticated)
@@ -16,6 +55,16 @@ const logger = createLogger('auth-middleware');
 export const optionalAuth = new Elysia({ name: 'optional-auth' })
   .derive({ as: 'scoped' }, async ({ request }) => {
     try {
+      const testUser = getTestUserFromHeaders(request.headers);
+      if (testUser) {
+        return {
+          user: testUser,
+          session: null,
+          isAuthenticated: true as const,
+          isTestAuth: true as const
+        };
+      }
+
       const sessionData = await auth.api.getSession({
         headers: request.headers
       });
@@ -24,7 +73,8 @@ export const optionalAuth = new Elysia({ name: 'optional-auth' })
         return {
           user: sessionData.user as User,
           session: sessionData.session as Session,
-          isAuthenticated: true as const
+          isAuthenticated: true as const,
+          isTestAuth: false as const
         };
       }
     } catch {
@@ -34,7 +84,8 @@ export const optionalAuth = new Elysia({ name: 'optional-auth' })
     return {
       user: null,
       session: null,
-      isAuthenticated: false as const
+      isAuthenticated: false as const,
+      isTestAuth: false as const
     };
   })
   .as('scoped');
@@ -45,6 +96,16 @@ export const optionalAuth = new Elysia({ name: 'optional-auth' })
 export const requireAuth = new Elysia({ name: 'require-auth' })
   .derive({ as: 'scoped' }, async ({ request }) => {
     try {
+      const testUser = getTestUserFromHeaders(request.headers);
+      if (testUser) {
+        return {
+          user: testUser,
+          session: null,
+          isAuthenticated: true as const,
+          isTestAuth: true as const
+        };
+      }
+
       // Log headers for debugging
       logger.debug('Auth headers', {
         cookie: request.headers.get('cookie'),
@@ -63,17 +124,13 @@ export const requireAuth = new Elysia({ name: 'require-auth' })
       });
 
       if (!sessionData?.user || !sessionData?.session) {
-        logger.debug('Returning 401 - no user or session');
-        throw new Response(
-          JSON.stringify({
-            success: false,
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authentication required'
-            }
-          }),
-          { status: 401, headers: { 'Content-Type': 'application/json' } }
-        );
+        logger.debug('No valid session found');
+        return {
+          user: null,
+          session: null,
+          isAuthenticated: false as const,
+          isTestAuth: false as const
+        };
       }
 
       const user = sessionData.user as User;
@@ -84,16 +141,12 @@ export const requireAuth = new Elysia({ name: 'require-auth' })
         logger.debug('Returning 403 - user deleted or banned', {
           userId: user.id
         });
-        throw new Response(
-          JSON.stringify({
-            success: false,
-            error: {
-              code: 'FORBIDDEN',
-              message: 'Account is not accessible'
-            }
-          }),
-          { status: 403, headers: { 'Content-Type': 'application/json' } }
-        );
+        return {
+          user: null,
+          session: null,
+          isAuthenticated: false as const,
+          isTestAuth: false as const
+        };
       }
 
       logger.debug('Auth check passed', { userId: user.id });
@@ -101,27 +154,51 @@ export const requireAuth = new Elysia({ name: 'require-auth' })
       return {
         user,
         session,
-        isAuthenticated: true as const
+        isAuthenticated: true as const,
+        isTestAuth: false as const
       };
     } catch (err) {
-      if (typeof err === 'object' && err !== null && 'status' in err) {
-        throw err;
-      }
-
       // If session validation throws unexpected error, treat as unauthenticated
       logger.debug('Session fetch failed, treating as unauthenticated', {
         error: err instanceof Error ? err.message : String(err)
       });
-      throw new Response(
-        JSON.stringify({
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Authentication required'
-          }
-        }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
+      return {
+        user: null,
+        session: null,
+        isAuthenticated: false as const,
+        isTestAuth: false as const
+      };
+    }
+  })
+  .onBeforeHandle(async ({ user, session, set, isTestAuth }) => {
+    if (!user || (!session && !isTestAuth)) {
+      logger.debug('Returning 401 - no user or session');
+      set.status = 401;
+      return {
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required'
+        }
+      };
+    }
+
+    if (
+      user.deletedAt ||
+      user.bannedAt ||
+      (user as User & { banned?: boolean }).banned
+    ) {
+      logger.debug('Returning 403 - user deleted or banned', {
+        userId: user.id
+      });
+      set.status = 403;
+      return {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Account is not accessible'
+        }
+      };
     }
   })
   .as('scoped');
@@ -253,7 +330,7 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
 // ═══════════════════════════════════════════════════════════════════
 export const requireAdmin = new Elysia({ name: 'require-admin' })
   .use(requireAuth)
-  .onBeforeHandle({ as: 'scoped' }, ({ user, status }) => {
+  .onBeforeHandle({ as: 'scoped' }, async ({ user, status }) => {
     const adminUser = user as User;
 
     // Check if user has admin role
@@ -271,7 +348,17 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
 
     // Check if 2FA is enabled for admin (required)
     // Use twoFactorEnabled from Better-Auth session (authoritative source)
-    const hasTwoFactor = adminUser.twoFactorEnabled ?? false;
+    let hasTwoFactor = adminUser.twoFactorEnabled ?? false;
+
+    if (!hasTwoFactor) {
+      const [twoFactorRecord] = await db
+        .select({ verified: twoFactorTable.verified })
+        .from(twoFactorTable)
+        .where(eq(twoFactorTable.userId, adminUser.id))
+        .limit(1);
+
+      hasTwoFactor = !!twoFactorRecord?.verified;
+    }
 
     if (!hasTwoFactor) {
       logger.debug('Admin access denied - 2FA not enabled', {

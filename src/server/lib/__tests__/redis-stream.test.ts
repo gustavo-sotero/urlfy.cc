@@ -2,9 +2,74 @@
  * Unit tests for Redis Streams Wrapper
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { redis } from '../redis';
-import { CONSUMER_GROUPS, RedisStream, STREAM_NAMES } from '../redis-stream';
+import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
+
+// Mock telemetry
+const mockLogger = {
+  info: mock(() => {}),
+  error: mock(() => {}),
+  debug: mock(() => {}),
+  warn: mock(() => {})
+};
+
+mock.module('@/server/lib/telemetry', () => ({
+  createLogger: () => mockLogger
+}));
+
+// Mock Redis client
+const mockRedis = {
+  send: mock(async (command: string, args: string[]) => {
+    switch (command) {
+      case 'XADD':
+        return '1678900000000-0';
+      case 'XGROUP':
+        return 'OK';
+      case 'XREADGROUP':
+        // Handle empty case for test
+        if (args.some((a) => a.includes('empty'))) {
+          return [];
+        }
+        // Return format: [[stream, [[id, [key, val, ...]]]]]
+        return [
+          [
+            args[args.indexOf('STREAMS') + 1], // Stream name
+            [['1678900000000-0', ['test', 'data', 'key1', 'value1']]]
+          ]
+        ];
+      case 'XACK':
+        return 1;
+      case 'XLEN':
+        return 10;
+      case 'XINFO':
+        if (args[0] === 'STREAM') {
+          return ['length', 10, 'radix-tree-keys', 1];
+        } else if (args[0] === 'GROUPS') {
+          return [['name', 'test-group', 'consumers', 1, 'pending', 0]];
+        }
+        return [];
+      case 'XAUTOCLAIM':
+        // Format: [cursor, [messages]]
+        return ['0-0', [['1678900000000-0', ['test', 'claimed']]]];
+      case 'DEL':
+        return 1;
+      default:
+        return 'OK';
+    }
+  }),
+  getRedisClient: () => mockRedis
+};
+
+// Mock redis module
+mock.module('@/server/lib/redis', () => ({
+  redis: mockRedis,
+  getRedisClient: () => mockRedis
+}));
+
+// Import RedisStream after mock
+// Note: bun:test mocks apply to static imports too if defined before
+const { CONSUMER_GROUPS, RedisStream, STREAM_NAMES } = await import(
+  '../redis-stream'
+);
 
 // Test stream names
 const TEST_STREAM = 'test:stream';
@@ -15,7 +80,7 @@ describe('RedisStream', () => {
   beforeAll(async () => {
     // Clean up test streams before running tests
     try {
-      await redis.send('DEL', [TEST_STREAM]);
+      await mockRedis.send('DEL', [TEST_STREAM]);
     } catch {
       // Ignore if stream doesn't exist
     }
@@ -24,7 +89,7 @@ describe('RedisStream', () => {
   afterAll(async () => {
     // Clean up after tests
     try {
-      await redis.send('DEL', [TEST_STREAM]);
+      await mockRedis.send('DEL', [TEST_STREAM]);
     } catch {
       // Ignore errors
     }
@@ -57,18 +122,19 @@ describe('RedisStream', () => {
 
   describe('createGroup()', () => {
     it('should create a consumer group', async () => {
-      await expect(
-        RedisStream.createGroup(TEST_STREAM, TEST_GROUP, '$', true)
-      ).resolves.not.toThrow();
+      try {
+        await RedisStream.createGroup(TEST_STREAM, TEST_GROUP, '$', true);
+      } catch (e) {
+        console.log('Error in createGroup:', e);
+        throw e;
+      }
     });
 
     it('should not throw on duplicate group creation', async () => {
       await RedisStream.createGroup(TEST_STREAM, TEST_GROUP, '$', true);
 
       // Second call should not throw
-      await expect(
-        RedisStream.createGroup(TEST_STREAM, TEST_GROUP, '$', true)
-      ).resolves.not.toThrow();
+      await RedisStream.createGroup(TEST_STREAM, TEST_GROUP, '$', true);
     });
   });
 
@@ -98,11 +164,11 @@ describe('RedisStream', () => {
         TEST_GROUP,
         `${TEST_CONSUMER}-empty`,
         [TEST_STREAM],
-        10,
-        null // Non-blocking
+        1,
+        null
       );
-
       expect(Array.isArray(results)).toBe(true);
+      expect(results.length).toBe(0);
     });
   });
 

@@ -9,22 +9,28 @@ import { mock } from 'bun:test';
 export function createDbMock(
   options: { findFirstResult?: unknown; selectResult?: unknown[] } = {}
 ) {
-  const mockLimitFn = mock(() => Promise.resolve(options.selectResult ?? []));
-  const mockWhereFn = mock(() => ({
-    limit: mockLimitFn,
-    union: mock(() => ({
-      limit: mockLimitFn
-    }))
-  }));
-  const mockFromFn = mock(() => ({
-    where: mockWhereFn
-  }));
-  const mockSelectFn = mock(() => ({
-    from: mockFromFn
-  }));
+  const resultPromise = Promise.resolve(options.selectResult ?? []);
+
+  // Chainable mock that returns itself or promise for terminal operations
+  const chainable: any = {
+    where: mock(() => chainable),
+    limit: mock(() => resultPromise),
+    orderBy: mock(() => resultPromise),
+    offset: mock(() => chainable),
+    leftJoin: mock(() => chainable),
+    innerJoin: mock(() => chainable),
+    union: mock(() => ({ limit: mock(() => resultPromise) })),
+    returning: mock(() => resultPromise),
+    // Make valid promise-like object
+    then: (resolve: any, reject: any) => resultPromise.then(resolve, reject),
+    catch: (reject: any) => resultPromise.catch(reject),
+    finally: (cb: any) => resultPromise.finally(cb)
+  };
 
   return {
-    select: mockSelectFn,
+    select: mock(() => ({
+      from: mock(() => chainable)
+    })),
     insert: mock(() => ({
       values: mock(() => ({
         returning: mock(() =>
@@ -32,32 +38,52 @@ export function createDbMock(
             {
               id: 'new-link-id',
               shortCode: 'abc123',
-              originalUrl: 'https://example.com'
+              originalUrl: 'https://example.com',
+              key: 'urlfy_sk_mocked_key',
+              name: 'Test API Key',
+              createdAt: new Date(),
+              expiresAt: null,
+              rateLimit: { enabled: true, max: 1000 },
+              permissions: {}
             }
           ])
-        )
+        ),
+        onConflictDoUpdate: mock(() => ({
+          target: mock(() => ({
+            set: mock(() => ({
+              returning: mock(() => Promise.resolve([]))
+            }))
+          }))
+        }))
       }))
     })),
     update: mock(() => ({
       set: mock(() => ({
-        where: mock(() => ({
-          returning: mock(() => Promise.resolve([]))
-        }))
+        where: mock(() => chainable)
       }))
     })),
     delete: mock(() => ({
-      where: mock(() => Promise.resolve())
+      where: mock(() => chainable)
     })),
     query: {
       links: {
-        findFirst: mock(() => Promise.resolve(options.findFirstResult ?? null))
+        findFirst: mock(() => Promise.resolve(options.findFirstResult ?? null)),
+        findMany: mock(() => Promise.resolve([]))
+      },
+      users: {
+        findFirst: mock(() => Promise.resolve(null))
       }
+      // Add other tables as needed
     },
+    execute: mock(() => Promise.resolve([])),
+    transaction: mock((cb: any) =>
+      cb({
+        ...createDbMock(options),
+        rollback: mock()
+      })
+    ),
     // Add methods for mock reset
-    _mockLimitFn: mockLimitFn,
-    _mockWhereFn: mockWhereFn,
-    _mockFromFn: mockFromFn,
-    _mockSelectFn: mockSelectFn
+    _mockValues: options // Expose values for verification if needed
   };
 }
 

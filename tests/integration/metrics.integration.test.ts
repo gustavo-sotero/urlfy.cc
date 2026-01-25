@@ -13,8 +13,59 @@
  * 3. Admin dashboard reading the metrics
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { redis } from '@/server/lib/redis';
+import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
+
+// Mock telemetry to prevent connection attempts
+mock.module('@/server/lib/telemetry', () => ({
+  createLogger: () => ({
+    debug: () => {},
+    info: () => {},
+    warn: () => {},
+    error: () => {}
+  })
+}));
+
+// In-memory Redis mock
+const store = new Map<string, string>();
+
+const mockRedis = {
+  get: mock(async (key: string) => store.get(key) ?? null),
+  set: mock(async (key: string, value: string) => {
+    store.set(key, value);
+    return 'OK';
+  }),
+  incr: mock(async (key: string) => {
+    const val = Number.parseInt(store.get(key) || '0', 10) + 1;
+    store.set(key, String(val));
+    return val;
+  }),
+  ttl: mock(async () => 60),
+  expire: mock(async () => 1),
+  del: mock(async (key: string) => {
+    store.delete(key);
+    return 1;
+  }),
+  getset: mock(async (key: string, value: string) => {
+    const old = store.get(key) ?? null;
+    store.set(key, value);
+    return old;
+  }),
+  pipeline: () => ({
+    incr: (key: string) => {
+      const val = Number.parseInt(store.get(key) || '0', 10) + 1;
+      store.set(key, String(val));
+      return { exec: () => Promise.resolve() };
+    },
+    exec: () => Promise.resolve([])
+  })
+};
+
+mock.module('@/server/lib/redis', () => ({
+  redis: mockRedis,
+  getRedisClient: () => mockRedis
+}));
+
+// Import after mocking
 import { MetricsService } from '@/server/services/metrics.service';
 
 describe('Metrics Integration - RPS Tracking', () => {
@@ -26,17 +77,11 @@ describe('Metrics Integration - RPS Tracking', () => {
   ];
 
   beforeAll(async () => {
-    // Clean up any test keys
-    for (const key of testKeys) {
-      await redis.del(key).catch(() => {});
-    }
+    store.clear();
   });
 
   afterAll(async () => {
-    // Clean up test keys
-    for (const key of testKeys) {
-      await redis.del(key).catch(() => {});
-    }
+    store.clear();
   });
 
   it('should track requests and calculate RPS', async () => {
@@ -46,7 +91,7 @@ describe('Metrics Integration - RPS Tracking', () => {
     }
 
     // Verify counter was incremented
-    const count = await redis.get('metrics:req:count');
+    const count = await mockRedis.get('metrics:req:count');
     expect(count).toBe('120');
 
     // Step 2: Wait a small delay to ensure time passes
@@ -60,12 +105,12 @@ describe('Metrics Integration - RPS Tracking', () => {
     expect(rps).toBeGreaterThan(0);
 
     // Step 4: Verify RPS is stored in Redis (what AdminService reads)
-    const storedRps = await redis.get('metrics:rps');
+    const storedRps = await mockRedis.get('metrics:rps');
     expect(storedRps).not.toBeNull();
     expect(Number.parseFloat(storedRps ?? '0')).toBeGreaterThan(0);
 
     // Step 5: Verify counter was reset
-    const newCount = await redis.get('metrics:req:count');
+    const newCount = await mockRedis.get('metrics:req:count');
     expect(newCount).toBe('0');
   });
 
@@ -78,7 +123,7 @@ describe('Metrics Integration - RPS Tracking', () => {
     await Promise.all(promises);
 
     // Verify all requests were counted
-    const count = await redis.get('metrics:req:count');
+    const count = await mockRedis.get('metrics:req:count');
     expect(Number.parseInt(count ?? '0', 10)).toBe(50);
   });
 
@@ -110,7 +155,7 @@ describe('Metrics Integration - RPS Tracking', () => {
     await MetricsService.calculateRPS();
 
     // Verify TTL exists (should be 120 seconds)
-    const ttl = await redis.ttl('metrics:rps');
+    const ttl = await mockRedis.ttl('metrics:rps');
     expect(ttl).toBeGreaterThan(0);
     expect(ttl).toBeLessThanOrEqual(120);
   });
@@ -119,11 +164,11 @@ describe('Metrics Integration - RPS Tracking', () => {
 describe('Metrics Integration - Admin Dashboard', () => {
   it('should return 0 when no requests tracked', async () => {
     // Ensure clean state
-    await redis.del('metrics:rps');
-    await redis.del('metrics:req:count');
+    await mockRedis.del('metrics:rps');
+    await mockRedis.del('metrics:req:count');
 
     // Simulate AdminService reading RPS
-    const rpsValue = await redis.get('metrics:rps');
+    const rpsValue = await mockRedis.get('metrics:rps');
     const rps = rpsValue ? Number.parseFloat(rpsValue) : 0;
 
     expect(rps).toBe(0);
@@ -138,7 +183,7 @@ describe('Metrics Integration - Admin Dashboard', () => {
     await MetricsService.calculateRPS();
 
     // Simulate AdminService reading RPS
-    const rpsValue = await redis.get('metrics:rps');
+    const rpsValue = await mockRedis.get('metrics:rps');
     const rps = rpsValue ? Number.parseFloat(rpsValue) : 0;
 
     expect(rps).toBeGreaterThan(0);

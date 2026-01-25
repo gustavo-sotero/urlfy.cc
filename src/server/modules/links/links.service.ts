@@ -8,16 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import {
-  and,
-  arrayContains,
-  desc,
-  eq,
-  isNull,
-  like,
-  or,
-  sql
-} from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import { createLinkError } from '@/server/lib/errors';
@@ -43,6 +33,16 @@ import type {
   PaginatedResponse,
   UpdateLinkInput
 } from '@/types/links.types';
+import {
+  and,
+  arrayContains,
+  desc,
+  eq,
+  isNull,
+  like,
+  or,
+  sql
+} from 'drizzle-orm';
 
 const BASE_URL = process.env.PUBLIC_URL || 'https://urlfy.cc';
 
@@ -98,6 +98,8 @@ export const LinkService = {
     userId?: string,
     ipHash?: string
   ): Promise<Link> {
+    const linkId = crypto.randomUUID();
+
     // 1. Validar URL
     const validation = await validateUrlAsync(input.url);
     if (!validation.valid) {
@@ -152,13 +154,19 @@ export const LinkService = {
     const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
 
     // 6. Criar link
+    const now = new Date();
+
     const [link] = await db
       .insert(links)
       .values({
+        id: linkId,
         userId,
         originalUrl: input.url,
         shortCode,
         redirectType: input.redirectType || 302,
+        clicksCount: 0,
+        isActive: true,
+        isBanned: false,
         maxClicks: input.maxClicks,
         passwordHash,
         expiresAt,
@@ -170,7 +178,9 @@ export const LinkService = {
         utmCampaign: input.utmCampaign,
         tags,
         notes,
-        createdByIpHash: ipHash
+        createdByIpHash: ipHash,
+        createdAt: now,
+        updatedAt: now
       })
       .returning();
 
@@ -520,6 +530,11 @@ export const LinkService = {
    * Formata link para resposta da API
    */
   formatLinkResponse(link: Link): LinkResponse {
+    const createdAt = link.createdAt
+      ? link.createdAt.toISOString()
+      : new Date().toISOString();
+    const updatedAt = link.updatedAt ? link.updatedAt.toISOString() : createdAt;
+
     return {
       id: link.id,
       shortCode: link.shortCode,
@@ -527,23 +542,23 @@ export const LinkService = {
       originalUrl: link.originalUrl,
       redirectType: link.redirectType as 301 | 302,
       clicksCount: link.clicksCount,
-      maxClicks: link.maxClicks,
+      maxClicks: link.maxClicks ?? null,
       isActive: link.isActive,
       isBanned: link.isBanned,
-      bannedReason: link.bannedReason,
+      bannedReason: link.bannedReason ?? null,
       isProtected: !!link.passwordHash,
       expiresAt: link.expiresAt?.toISOString() ?? null,
-      metaTitle: link.metaTitle,
-      metaDescription: link.metaDescription,
-      metaImage: link.metaImage,
-      utmSource: link.utmSource,
-      utmMedium: link.utmMedium,
-      utmCampaign: link.utmCampaign,
-      tags: link.tags,
-      notes: link.notes,
+      metaTitle: link.metaTitle ?? null,
+      metaDescription: link.metaDescription ?? null,
+      metaImage: link.metaImage ?? null,
+      utmSource: link.utmSource ?? null,
+      utmMedium: link.utmMedium ?? null,
+      utmCampaign: link.utmCampaign ?? null,
+      tags: link.tags ?? null,
+      notes: link.notes ?? null,
       lastClickedAt: link.lastClickedAt?.toISOString() ?? null,
-      createdAt: link.createdAt.toISOString(),
-      updatedAt: link.updatedAt.toISOString()
+      createdAt,
+      updatedAt
     };
   },
 

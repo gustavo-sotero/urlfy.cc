@@ -2,15 +2,26 @@
  * Unit tests for Navbar component
  */
 
-import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { cleanup, render, screen } from '@testing-library/react';
 import { Navbar } from '@/components/layout/navbar';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 
 // Mock auth client
 mock.module('@/lib/auth.client', () => ({
   useSession: mock(() => ({
     data: null,
     isPending: false
+  }))
+}));
+
+// Mock session provider
+mock.module('@/lib/session-provider', () => ({
+  useAuthState: mock(() => ({
+    data: null,
+    isPending: false,
+    isAuthenticated: false,
+    refetch: async () => {},
+    error: null
   }))
 }));
 
@@ -30,8 +41,8 @@ describe('Navbar', () => {
     render(<Navbar />);
 
     expect(screen.getAllByText('Recursos').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Preços').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Sobre').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('O Projeto').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('API Docs').length).toBeGreaterThan(0);
   });
 
   it('shows guest auth buttons when not authenticated', () => {

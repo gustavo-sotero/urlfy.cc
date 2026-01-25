@@ -5,7 +5,6 @@ import { createLogger } from '@/server/lib/telemetry';
 import type { CachedLink } from '@/types/redirect.types';
 
 const logger = createLogger('cache-service');
-const redis = getRedisClient();
 
 // TTLs de cache (em segundos)
 export const CACHE_TTL = {
@@ -32,6 +31,10 @@ export const CACHE_PREFIX = {
  * Service para operações de cache relacionadas ao redirect engine
  */
 export class CacheService {
+  private getRedis() {
+    return getRedisClient();
+  }
+
   /**
    * Busca um link no cache com Probabilistic Early Expiration
    * 10% de chance de refresh quando TTL < 10% do original
@@ -45,6 +48,7 @@ export class CacheService {
     enableProbabilisticRefresh = true
   ): Promise<CachedLink | null> {
     try {
+      const redis = this.getRedis();
       const key = `${CACHE_PREFIX.LINK}${code}`;
       const cached = await redis.get(key);
 
@@ -86,6 +90,7 @@ export class CacheService {
    */
   async setLink(code: string, link: CachedLink): Promise<void> {
     try {
+      const redis = this.getRedis();
       const key = `${CACHE_PREFIX.LINK}${code}`;
       await redis.setex(key, CACHE_TTL.LINK, JSON.stringify(link));
       logger.debug('Link cached', { code, ttl: CACHE_TTL.LINK });
@@ -103,6 +108,7 @@ export class CacheService {
    */
   async isNotFound(code: string): Promise<boolean> {
     try {
+      const redis = this.getRedis();
       const key = `${CACHE_PREFIX.LINK_404}${code}`;
       const exists = (await redis.send('EXISTS', [key])) as number;
       return exists === 1;
@@ -120,6 +126,7 @@ export class CacheService {
    */
   async setNotFound(code: string): Promise<void> {
     try {
+      const redis = this.getRedis();
       const key = `${CACHE_PREFIX.LINK_404}${code}`;
       await redis.setex(key, CACHE_TTL.NEGATIVE, '1');
       logger.debug('404 cached', { code, ttl: CACHE_TTL.NEGATIVE });
@@ -136,6 +143,7 @@ export class CacheService {
    */
   async isBanned(code: string): Promise<boolean> {
     try {
+      const redis = this.getRedis();
       const key = `${CACHE_PREFIX.LINK_BANNED}${code}`;
       const exists = (await redis.send('EXISTS', [key])) as number;
       return exists === 1;
@@ -153,6 +161,7 @@ export class CacheService {
    */
   async setBanned(code: string): Promise<void> {
     try {
+      const redis = this.getRedis();
       const key = `${CACHE_PREFIX.LINK_BANNED}${code}`;
       await redis.setex(key, CACHE_TTL.BANNED, '1');
       logger.debug('Banned link cached', { code, ttl: CACHE_TTL.BANNED });
@@ -169,6 +178,7 @@ export class CacheService {
    */
   async invalidateLink(code: string): Promise<void> {
     try {
+      const redis = this.getRedis();
       // Execute commands sequentially (Bun RedisClient doesn't support pipeline)
       const commands = [
         redis.del(`${CACHE_PREFIX.LINK}${code}`),
@@ -179,7 +189,9 @@ export class CacheService {
 
       // Remove QR codes relacionados (pattern delete)
       const qrPattern = `${CACHE_PREFIX.QR_CODE}${code}:*`;
-      const qrKeys = await redis.keys(qrPattern);
+      const qrKeys = redis.keys
+        ? await redis.keys(qrPattern)
+        : ((await redis.send('KEYS', [qrPattern])) as string[]);
 
       if (qrKeys.length > 0) {
         commands.push(redis.del(...qrKeys));
@@ -243,6 +255,7 @@ export class CacheService {
     hitRate: number | null;
   }> {
     try {
+      const redis = this.getRedis();
       const [info, memory, dbsize] = await Promise.all([
         redis.send('INFO', ['stats']) as Promise<string>,
         redis.send('INFO', ['memory']) as Promise<string>,
@@ -298,6 +311,7 @@ export class CacheService {
    */
   async incrementClicksCount(code: string): Promise<number | null> {
     try {
+      const redis = this.getRedis();
       const key = `${CACHE_PREFIX.LINK}${code}`;
       const cached = await redis.get(key);
 
@@ -345,6 +359,7 @@ export class CacheService {
    */
   async flushAll(): Promise<void> {
     try {
+      const redis = this.getRedis();
       await redis.send('FLUSHALL', []);
       logger.warn('Cache flushed - ALL keys removed');
     } catch (error) {
@@ -360,6 +375,7 @@ export class CacheService {
    */
   async flushLinks(): Promise<void> {
     try {
+      const redis = this.getRedis();
       const patterns = [
         `${CACHE_PREFIX.LINK}*`,
         `${CACHE_PREFIX.LINK_META}*`,
@@ -370,7 +386,9 @@ export class CacheService {
       let totalRemoved = 0;
 
       for (const pattern of patterns) {
-        const keys = await redis.keys(pattern);
+        const keys = redis.keys
+          ? await redis.keys(pattern)
+          : ((await redis.send('KEYS', [pattern])) as string[]);
         if (keys.length > 0) {
           await redis.del(...keys);
           totalRemoved += keys.length;

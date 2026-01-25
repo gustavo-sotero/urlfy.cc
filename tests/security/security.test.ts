@@ -28,6 +28,7 @@ const mockRedis = {
     return Promise.resolve('OK');
   }),
   setex: mock((key: string, ttl: number, value: string) => {
+    // console.log(`[MockRedis] setex ${key} ${ttl} ${value}`);
     mockStore.set(key, { value, expiry: Date.now() + ttl * 1000 });
     return Promise.resolve('OK');
   }),
@@ -86,7 +87,32 @@ const mockRedis = {
   }),
   multi: mock(() => mockRedis),
   exec: mock(() => Promise.resolve([])),
-  pttl: mock(() => Promise.resolve(60000))
+  pttl: mock(() => Promise.resolve(60000)),
+  send: mock((command: string, args: (string | number)[]) => {
+    const cmd = command.toUpperCase();
+    const key = args[0] as string;
+    // console.log(`[MockRedis] send ${cmd} key=${key} args=${JSON.stringify(args)}`);
+
+    if (cmd === 'EXISTS') {
+      return mockRedis.exists(key);
+    }
+    if (cmd === 'ZREMRANGEBYSCORE') {
+      // Handle -inf manually if passed as string
+      let min = args[1];
+      if (min === '-inf') min = Number.NEGATIVE_INFINITY;
+      return mockRedis.zremrangebyscore(key, min, args[2]);
+    }
+    if (cmd === 'ZCARD') {
+      return mockRedis.zcard(key);
+    }
+    if (cmd === 'ZADD') {
+      return mockRedis.zadd(key, args[1], args[2]);
+    }
+    if (cmd === 'EXPIRE') {
+      return mockRedis.expire(key, args[1]);
+    }
+    return Promise.resolve(null);
+  })
 };
 
 // Mock telemetry to prevent OpenTelemetry initialization
@@ -111,6 +137,13 @@ mock.module('@/server/lib/redis', () => ({
 const { RATE_LIMIT_CONFIGS, rateLimiter } = await import(
   '@/server/lib/rate-limiter'
 );
+
+// Force the imported rateLimiter to use our mockRedis
+// This fixes issues where rateLimiter module was already loaded with a different redis instance
+if (rateLimiter) {
+  (rateLimiter as any).redis = mockRedis;
+}
+
 const { sanitizeMetaTags, sanitizeTags, sanitizeText } = await import(
   '@/server/lib/sanitize'
 );

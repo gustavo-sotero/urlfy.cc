@@ -18,7 +18,25 @@ beforeAll(async () => {
     const res = await fetch(`${BASE_URL}/api/health`, {
       signal: AbortSignal.timeout(2000)
     });
-    serverAvailable = res.ok;
+    if (!res.ok) {
+      serverAvailable = false;
+      return;
+    }
+
+    const requestId = res.headers.get('x-request-id');
+    const contentType = res.headers.get('content-type') || '';
+    let isUrlfyServer = false;
+
+    if (requestId && contentType.includes('application/json')) {
+      const body = await res.json().catch(() => null);
+      isUrlfyServer = body?.status === 'ok';
+    }
+
+    if (!isUrlfyServer) {
+      console.warn('⚠️  Server is not urlfy.cc. Skipping integration tests.');
+    }
+
+    serverAvailable = isUrlfyServer;
   } catch {
     serverAvailable = false;
     console.warn(
