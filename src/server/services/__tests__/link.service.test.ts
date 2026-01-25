@@ -7,7 +7,7 @@ process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
 process.env.REDIS_URL = 'redis://localhost:6379';
 process.env.JWT_SECRET = 'test-secret-key-for-testing';
 
-import { describe, expect, it, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // Mock the database module
 const mockLimitFn = mock(() => Promise.resolve([]));
@@ -24,9 +24,20 @@ const mockFromFn = mock(() => ({
 const mockSelectFn = mock(() => ({
   from: mockFromFn
 }));
+const mockUpdateReturningFn = mock(() => Promise.resolve([]));
+const mockUpdateWhereFn = mock(() => ({
+  returning: mockUpdateReturningFn
+}));
+const mockUpdateSetFn = mock(() => ({
+  where: mockUpdateWhereFn
+}));
+const mockUpdateFn = mock(() => ({
+  set: mockUpdateSetFn
+}));
 
 const mockDb = {
   select: mockSelectFn,
+  update: mockUpdateFn,
   insert: mock(() => ({
     values: mock(() => ({
       returning: mock(() =>
@@ -49,6 +60,17 @@ const mockDb = {
 
 mock.module('@/db', () => ({
   db: mockDb
+}));
+
+mock.module('@/server/lib/redis', () => ({
+  redis: {
+    del: mock(() => Promise.resolve(0)),
+    send: mock(() => Promise.resolve('OK'))
+  }
+}));
+
+mock.module('@/server/services/qr.service', () => ({
+  invalidateQRCache: mock(() => Promise.resolve())
 }));
 
 mock.module('@/db/schema', () => ({
@@ -164,6 +186,14 @@ function createMockLink(overrides: Partial<Link> = {}): Link {
 }
 
 describe('Link Service', () => {
+  beforeEach(() => {
+    mockLimitFn.mockClear();
+    mockUpdateReturningFn.mockClear();
+    mockUpdateWhereFn.mockClear();
+    mockUpdateSetFn.mockClear();
+    mockUpdateFn.mockClear();
+  });
+
   describe('createLink', () => {
     it('should validate URL format before creation', async () => {
       const input: CreateLinkInput = {
@@ -386,32 +416,111 @@ describe('Link Service', () => {
   });
 
   describe('updateLink', () => {
-    // These tests require database connection, marked for integration tests
-    it.skip('should sanitize meta tags on update', async () => {
-      // Integration test - requires DB
+    it('should sanitize meta tags on update', async () => {
+      const existingLink = createMockLink({
+        id: 'link-id',
+        userId: 'user-id',
+        shortCode: 'abc123'
+      });
+
+      mockLimitFn.mockResolvedValueOnce([existingLink]);
+
+      const updatedLink = createMockLink({
+        ...existingLink,
+        metaTitle: 'Title',
+        metaDescription: 'Desc',
+        metaImage: null
+      });
+
+      mockUpdateReturningFn.mockResolvedValueOnce([updatedLink]);
+
+      await LinkService.updateLink('link-id', 'user-id', {
+        metaTitle: '<b>Title</b>',
+        metaDescription: '<i>Desc</i>',
+        metaImage: 'https://evil.com/image.png'
+      });
+
+      const updatePayload = mockUpdateSetFn.mock.calls[0]?.[0] as Record<
+        string,
+        unknown
+      >;
+
+      expect(updatePayload.metaTitle).toBe('Title');
+      expect(updatePayload.metaDescription).toBe('Desc');
+      expect(updatePayload.metaImage).toBeNull();
     });
 
-    it.skip('should allow null to remove password', async () => {
-      // Integration test - requires DB
+    it('should allow null to remove password', async () => {
+      const existingLink = createMockLink({
+        id: 'link-id',
+        userId: 'user-id',
+        shortCode: 'abc123',
+        passwordHash: 'existing-hash'
+      });
+
+      mockLimitFn.mockResolvedValueOnce([existingLink]);
+      mockUpdateReturningFn.mockResolvedValueOnce([
+        createMockLink({ ...existingLink, passwordHash: null })
+      ]);
+
+      await LinkService.updateLink('link-id', 'user-id', {
+        password: null
+      });
+
+      const updatePayload = mockUpdateSetFn.mock.calls[0]?.[0] as Record<
+        string,
+        unknown
+      >;
+
+      expect(updatePayload.passwordHash).toBeNull();
     });
   });
 
   describe('verifyLinkPassword', () => {
-    // These tests require database connection, marked for integration tests
-    it.skip('should return true for correct password', async () => {
-      // Integration test - requires DB
+    it('should return true for correct password', async () => {
+      const password = 'secret123';
+      const passwordHash = await Bun.password.hash(password);
+      const link = createMockLink({ passwordHash });
+
+      mockLimitFn.mockResolvedValueOnce([link]);
+
+      const result = await LinkService.verifyLinkPassword('abc123', password);
+
+      expect(result).toBe(true);
     });
 
-    it.skip('should return false for incorrect password', async () => {
-      // Integration test - requires DB
+    it('should return false for incorrect password', async () => {
+      const password = 'secret123';
+      const passwordHash = await Bun.password.hash(password);
+      const link = createMockLink({ passwordHash });
+
+      mockLimitFn.mockResolvedValueOnce([link]);
+
+      const result = await LinkService.verifyLinkPassword('abc123', 'wrong');
+
+      expect(result).toBe(false);
     });
 
-    it.skip('should return true for links without password', async () => {
-      // Integration test - requires DB
+    it('should return true for links without password', async () => {
+      const link = createMockLink({ passwordHash: null });
+
+      mockLimitFn.mockResolvedValueOnce([link]);
+
+      const result = await LinkService.verifyLinkPassword('abc123', 'any');
+
+      expect(result).toBe(true);
     });
 
-    it.skip('should throw LINK_NOT_FOUND for non-existent code', async () => {
-      // Integration test - requires DB
+    it('should throw LINK_NOT_FOUND for non-existent code', async () => {
+      mockLimitFn.mockResolvedValueOnce([]);
+
+      try {
+        await LinkService.verifyLinkPassword('missing', 'any');
+        expect(true).toBe(false);
+      } catch (error) {
+        expect(error).toBeInstanceOf(LinkError);
+        expect((error as LinkError).code).toBe('LINK_NOT_FOUND');
+      }
     });
   });
 });
