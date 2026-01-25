@@ -7,13 +7,13 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import {
   ErrorRef,
   ResponseModels,
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
 import {
   API_KEY_CREATED_EXAMPLE,
   API_KEY_LIST_EXAMPLE,
@@ -21,6 +21,14 @@ import {
   ApiKeysModel
 } from './api-keys.schema';
 import { ApiKeysService } from './api-keys.service';
+
+const unauthorizedResponse = {
+  success: false as const,
+  error: {
+    code: 'UNAUTHORIZED',
+    message: 'Authentication required'
+  }
+};
 
 export const apiKeysController = new Elysia({
   prefix: '/keys',
@@ -35,8 +43,13 @@ export const apiKeysController = new Elysia({
   // ─── List Keys ────────────────────────────────────────────────
   .get(
     '/',
-    async ({ user }) => {
-      const keys = await ApiKeysService.listByUser(user?.id);
+    async ({ user, set }) => {
+      if (!user) {
+        set.status = 401;
+        return unauthorizedResponse;
+      }
+
+      const keys = await ApiKeysService.listByUser(user.id);
 
       // Serialize dates to strings for response
       const serializedKeys = keys.map((key) => ({
@@ -74,7 +87,12 @@ export const apiKeysController = new Elysia({
   .get(
     '/:id',
     async ({ params, user, set }) => {
-      const key = await ApiKeysService.getById(params.id, user?.id);
+      if (!user) {
+        set.status = 401;
+        return unauthorizedResponse;
+      }
+
+      const key = await ApiKeysService.getById(params.id, user.id);
 
       if (!key) {
         set.status = 404;
@@ -122,7 +140,12 @@ export const apiKeysController = new Elysia({
   .post(
     '/',
     async ({ body, user, set }) => {
-      const createdKey = await ApiKeysService.create(user?.id, {
+      if (!user) {
+        set.status = 401;
+        return unauthorizedResponse;
+      }
+
+      const createdKey = await ApiKeysService.create(user.id, {
         name: body.name,
         scopes: body.scopes,
         expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
@@ -166,9 +189,14 @@ export const apiKeysController = new Elysia({
   .post(
     '/:id/revoke',
     async ({ params, body, user, set }) => {
+      if (!user) {
+        set.status = 401;
+        return unauthorizedResponse;
+      }
+
       const success = await ApiKeysService.revoke(
         params.id,
-        user?.id,
+        user.id,
         body?.reason
       );
 
@@ -217,7 +245,12 @@ export const apiKeysController = new Elysia({
   .post(
     '/:id/rollover',
     async ({ params, user, set }) => {
-      const newKey = await ApiKeysService.rollover(params.id, user?.id);
+      if (!user) {
+        set.status = 401;
+        return unauthorizedResponse;
+      }
+
+      const newKey = await ApiKeysService.rollover(params.id, user.id);
 
       if (!newKey) {
         set.status = 404;
@@ -267,7 +300,12 @@ export const apiKeysController = new Elysia({
   .delete(
     '/:id',
     async ({ params, user, set }) => {
-      const success = await ApiKeysService.delete(params.id, user?.id);
+      if (!user) {
+        set.status = 401;
+        return unauthorizedResponse;
+      }
+
+      const success = await ApiKeysService.delete(params.id, user.id);
 
       if (!success) {
         set.status = 404;

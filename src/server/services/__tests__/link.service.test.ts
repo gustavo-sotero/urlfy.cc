@@ -10,7 +10,7 @@ process.env.JWT_SECRET = 'test-secret-key-for-testing';
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // Mock the database module
-const mockLimitFn = mock(() => Promise.resolve([]));
+const mockLimitFn = mock<() => Promise<Link[]>>(() => Promise.resolve([]));
 const createWhereResult = () => ({
   limit: mockLimitFn,
   union: mock(() => ({
@@ -24,11 +24,13 @@ const mockFromFn = mock(() => ({
 const mockSelectFn = mock(() => ({
   from: mockFromFn
 }));
-const mockUpdateReturningFn = mock(() => Promise.resolve([]));
+const mockUpdateReturningFn = mock<() => Promise<Link[]>>(() =>
+  Promise.resolve([])
+);
 const mockUpdateWhereFn = mock(() => ({
   returning: mockUpdateReturningFn
 }));
-const mockUpdateSetFn = mock(() => ({
+const mockUpdateSetFn = mock((_updates: Record<string, unknown>) => ({
   where: mockUpdateWhereFn
 }));
 const mockUpdateFn = mock(() => ({
@@ -440,10 +442,11 @@ describe('Link Service', () => {
         metaImage: 'https://evil.com/image.png'
       });
 
-      const updatePayload = mockUpdateSetFn.mock.calls[0]?.[0] as Record<
-        string,
-        unknown
-      >;
+      const [firstCall] = mockUpdateSetFn.mock.calls;
+      if (!firstCall) {
+        throw new Error('Expected update to be called');
+      }
+      const updatePayload = firstCall[0] as Record<string, unknown>;
 
       expect(updatePayload.metaTitle).toBe('Title');
       expect(updatePayload.metaDescription).toBe('Desc');
@@ -467,10 +470,11 @@ describe('Link Service', () => {
         password: null
       });
 
-      const updatePayload = mockUpdateSetFn.mock.calls[0]?.[0] as Record<
-        string,
-        unknown
-      >;
+      const [firstCall] = mockUpdateSetFn.mock.calls;
+      if (!firstCall) {
+        throw new Error('Expected update to be called');
+      }
+      const updatePayload = firstCall[0] as Record<string, unknown>;
 
       expect(updatePayload.passwordHash).toBeNull();
     });

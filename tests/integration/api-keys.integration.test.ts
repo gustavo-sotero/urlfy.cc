@@ -16,13 +16,13 @@ import {
 } from 'bun:test';
 
 // In-Memory Storage for Tests
-let apiKeysStore: any[] = [];
+let apiKeysStore: Array<Partial<ApiKey>> = [];
 
 // Stateful Mock DB
 const statefulDbMock = {
   select: mock(() => ({
     from: mock(() => ({
-      where: mock((...args: any[]) => {
+      where: mock((...args: unknown[]) => {
         // Use Bun.inspect to safely serialize cyclic structures
         const argsStr = Bun.inspect(args);
         let result = [...apiKeysStore];
@@ -42,16 +42,15 @@ const statefulDbMock = {
 
         return {
           orderBy: mock(() => Promise.resolve([...result])),
-          limit: mock(() => Promise.resolve(result.slice(0, 1))),
-          then: (resolve: any) => resolve([...result])
+          limit: mock(() => Promise.resolve(result.slice(0, 1)))
         };
       })
     }))
   })),
   insert: mock(() => ({
-    values: mock((values: any) => ({
+    values: mock((values: Record<string, unknown>) => ({
       returning: mock(() => {
-        const newRecord = {
+        const newRecord: Partial<ApiKey> = {
           ...values,
           createdAt: values.createdAt || new Date(),
           updatedAt: new Date(),
@@ -67,9 +66,9 @@ const statefulDbMock = {
     }))
   })),
   update: mock(() => ({
-    set: mock((updates: any) => {
+    set: mock((updates: Record<string, unknown>) => {
       return {
-        where: mock((..._args: any[]) => {
+        where: mock((..._args: unknown[]) => {
           const executeUpdate = () => {
             // Side-effect: Revoke/Update logic
             if (
@@ -87,8 +86,7 @@ const statefulDbMock = {
           };
 
           return {
-            returning: mock(() => executeUpdate()),
-            then: (resolve: any) => executeUpdate().then(resolve)
+            returning: mock(() => executeUpdate())
           };
         })
       };
@@ -102,12 +100,13 @@ const statefulDbMock = {
         return Promise.resolve(removed ? [removed] : []);
       };
       return {
-        returning: mock(() => executeDelete()),
-        then: (resolve: any) => executeDelete().then(resolve)
+        returning: mock(() => executeDelete())
       };
     })
   })),
-  transaction: mock((cb: any) => cb(statefulDbMock))
+  transaction: mock((cb: (db: typeof statefulDbMock) => unknown) =>
+    cb(statefulDbMock)
+  )
 };
 
 // Mock Database
@@ -164,12 +163,13 @@ mock.module('@/server/lib/redis', () => ({
   closeRedis: mock(() => Promise.resolve())
 }));
 
-import { and, eq } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { db } from '@/db';
+import type { ApiKey } from '@/db/schema/auth';
 import { apikey, user } from '@/db/schema/auth';
 import { Scopes } from '@/server/config/scopes';
 import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
+import { and, eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { requireDatabase } from '../helpers/integration-helper';
 
 // Test user ID

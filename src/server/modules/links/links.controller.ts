@@ -8,8 +8,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { createHash } from 'node:crypto';
 import { Elysia, t } from 'elysia';
+import { createHash } from 'node:crypto';
 
 import { jwtPlugin } from '@/server/config/plugins';
 import { handleLinkError } from '@/server/lib/errors';
@@ -62,6 +62,14 @@ const ERROR_MESSAGES = {
   NO_LINKS_PROVIDED: 'Nenhum link fornecido',
   LINK_NOT_FOUND: 'Link não encontrado'
 } as const;
+
+const unauthorizedResponse = {
+  success: false as const,
+  error: {
+    code: 'UNAUTHORIZED',
+    message: 'Authentication required'
+  }
+};
 
 const handleControllerError = (
   error: unknown,
@@ -571,7 +579,12 @@ const authenticatedRoutes = new Elysia()
     '/',
     async ({ query, user, set }) => {
       try {
-        const result = await LinkService.listUserLinks(user?.id, {
+        if (!user) {
+          set.status = 401;
+          return unauthorizedResponse;
+        }
+
+        const result = await LinkService.listUserLinks(user.id, {
           page: query.page ? parseInt(query.page, 10) : 1,
           perPage: query.perPage ? parseInt(query.perPage, 10) : 20,
           search: query.search,
@@ -620,7 +633,12 @@ const authenticatedRoutes = new Elysia()
     '/:id',
     async ({ params, user, set }) => {
       try {
-        const link = await LinkService.getLinkById(params.id, user?.id);
+        if (!user) {
+          set.status = 401;
+          return unauthorizedResponse;
+        }
+
+        const link = await LinkService.getLinkById(params.id, user.id);
         return {
           success: true,
           data: LinkService.formatLinkResponse(link)
@@ -652,7 +670,12 @@ const authenticatedRoutes = new Elysia()
     '/:id',
     async ({ params, body, user, set }) => {
       try {
-        const link = await LinkService.updateLink(params.id, user?.id, body);
+        if (!user) {
+          set.status = 401;
+          return unauthorizedResponse;
+        }
+
+        const link = await LinkService.updateLink(params.id, user.id, body);
         return {
           success: true,
           data: LinkService.formatLinkResponse(link)
@@ -686,7 +709,12 @@ const authenticatedRoutes = new Elysia()
     '/:id',
     async ({ params, user, set }) => {
       try {
-        await LinkService.softDeleteLink(params.id, user?.id);
+        if (!user) {
+          set.status = 401;
+          return unauthorizedResponse;
+        }
+
+        await LinkService.softDeleteLink(params.id, user.id);
         set.status = 204;
         return null;
       } catch (error) {
@@ -716,7 +744,12 @@ const authenticatedRoutes = new Elysia()
     '/:id/restore',
     async ({ params, user, set }) => {
       try {
-        const link = await LinkService.restoreLink(params.id, user?.id);
+        if (!user) {
+          set.status = 401;
+          return unauthorizedResponse;
+        }
+
+        const link = await LinkService.restoreLink(params.id, user.id);
         return {
           success: true,
           data: LinkService.formatLinkResponse(link)
@@ -748,7 +781,12 @@ const authenticatedRoutes = new Elysia()
     '/:id/duplicate',
     async ({ params, user, set }) => {
       try {
-        const link = await LinkService.duplicateLink(params.id, user?.id);
+        if (!user) {
+          set.status = 401;
+          return unauthorizedResponse;
+        }
+
+        const link = await LinkService.duplicateLink(params.id, user.id);
         set.status = 201;
         return {
           success: true,
@@ -784,7 +822,12 @@ const authenticatedRoutes = new Elysia()
     '/:id/toggle',
     async ({ params, user, set }) => {
       try {
-        const link = await LinkService.toggleLinkActive(params.id, user?.id);
+        if (!user) {
+          set.status = 401;
+          return unauthorizedResponse;
+        }
+
+        const link = await LinkService.toggleLinkActive(params.id, user.id);
         return {
           success: true,
           data: LinkService.formatLinkResponse(link)
@@ -816,7 +859,12 @@ const authenticatedRoutes = new Elysia()
     '/:id/stats',
     async ({ params, user, set }) => {
       try {
-        const link = await LinkService.getLinkById(params.id, user?.id);
+        if (!user) {
+          set.status = 401;
+          return unauthorizedResponse;
+        }
+
+        const link = await LinkService.getLinkById(params.id, user.id);
         return {
           success: true,
           data: {

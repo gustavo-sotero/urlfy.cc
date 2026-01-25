@@ -11,21 +11,27 @@ export function createDbMock(
 ) {
   const resultPromise = Promise.resolve(options.selectResult ?? []);
 
-  // Chainable mock that returns itself or promise for terminal operations
-  const chainable: any = {
-    where: mock(() => chainable),
-    limit: mock(() => resultPromise),
-    orderBy: mock(() => resultPromise),
-    offset: mock(() => chainable),
-    leftJoin: mock(() => chainable),
-    innerJoin: mock(() => chainable),
-    union: mock(() => ({ limit: mock(() => resultPromise) })),
-    returning: mock(() => resultPromise),
-    // Make valid promise-like object
-    then: (resolve: any, reject: any) => resultPromise.then(resolve, reject),
-    catch: (reject: any) => resultPromise.catch(reject),
-    finally: (cb: any) => resultPromise.finally(cb)
+  type Chainable<T> = Promise<T[]> & {
+    where: ReturnType<typeof mock>;
+    limit: ReturnType<typeof mock>;
+    orderBy: ReturnType<typeof mock>;
+    offset: ReturnType<typeof mock>;
+    leftJoin: ReturnType<typeof mock>;
+    innerJoin: ReturnType<typeof mock>;
+    union: ReturnType<typeof mock>;
+    returning: ReturnType<typeof mock>;
   };
+
+  // Chainable mock that returns itself or promise for terminal operations
+  const chainable = Object.assign(resultPromise, {}) as Chainable<unknown>;
+  chainable.where = mock(() => chainable);
+  chainable.limit = mock(() => resultPromise);
+  chainable.orderBy = mock(() => resultPromise);
+  chainable.offset = mock(() => chainable);
+  chainable.leftJoin = mock(() => chainable);
+  chainable.innerJoin = mock(() => chainable);
+  chainable.union = mock(() => ({ limit: mock(() => resultPromise) }));
+  chainable.returning = mock(() => resultPromise);
 
   return {
     select: mock(() => ({
@@ -76,7 +82,7 @@ export function createDbMock(
       // Add other tables as needed
     },
     execute: mock(() => Promise.resolve([])),
-    transaction: mock((cb: any) =>
+    transaction: mock((cb: (db: ReturnType<typeof createDbMock>) => unknown) =>
       cb({
         ...createDbMock(options),
         rollback: mock()

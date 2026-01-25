@@ -141,7 +141,8 @@ const { RATE_LIMIT_CONFIGS, rateLimiter } = await import(
 // Force the imported rateLimiter to use our mockRedis
 // This fixes issues where rateLimiter module was already loaded with a different redis instance
 if (rateLimiter) {
-  (rateLimiter as any).redis = mockRedis;
+  const rateLimiterWithRedis = rateLimiter as { redis?: typeof mockRedis };
+  rateLimiterWithRedis.redis = mockRedis;
 }
 
 const { sanitizeMetaTags, sanitizeTags, sanitizeText } = await import(

@@ -1,11 +1,12 @@
 // src/server/lib/__tests__/worker-base.test.ts
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { StreamReadResult } from '../redis-stream';
 import { WorkerBase, type WorkerConfig } from '../worker-base';
 
 // Mock RedisStream
 const mockRedisStream = {
   createGroup: mock(() => Promise.resolve()),
-  readGroup: mock(async () => {
+  readGroup: mock(async (): Promise<StreamReadResult<{ test: string }>[]> => {
     // Yield to event loop to allow other promises (like stop()) to run
     // simulating a blocking call that returns empty eventually
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -79,10 +80,12 @@ describe('WorkerBase', () => {
     mockRedisStream.autoClaim.mockClear();
 
     // Reset readGroup to default async empty
-    mockRedisStream.readGroup.mockImplementation(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      return [];
-    });
+    mockRedisStream.readGroup.mockImplementation(
+      async (): Promise<StreamReadResult<{ test: string }>[]> => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return [];
+      }
+    );
 
     worker = new TestWorker(TEST_CONFIG);
   });
