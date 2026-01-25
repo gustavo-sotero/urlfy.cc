@@ -1,8 +1,8 @@
 // src/app/api/internal/analytics/route.ts
 
+import { NextResponse } from 'next/server';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import type { ClickEvent } from '@/types/analytics.types';
-import { NextResponse } from 'next/server';
 
 /**
  * Internal API endpoint para enfileirar eventos de analytics

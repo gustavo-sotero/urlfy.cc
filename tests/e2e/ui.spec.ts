@@ -106,7 +106,7 @@ if (runE2E) {
       });
       await page.goto(`/links/${linkId}/edit`);
       const aliasInput = page.getByLabel(/alias personalizado/i);
-      await aliasInput.fill('edited-alias-' + Date.now());
+      await aliasInput.fill(`edited-alias-${Date.now()}`);
       await page.getByRole('button', { name: /salvar/i }).click();
       await expect(page.getByText(/atualizado com sucesso/i)).toBeVisible();
     });
@@ -136,7 +136,7 @@ if (runE2E) {
     test('should create a link with custom settings', async ({ page }) => {
       const linkId = await createTestLink(page, {
         url: 'https://example.com/custom',
-        customAlias: 'custom-' + Date.now(),
+        customAlias: `custom-${Date.now()}`,
         expiresAt: 'tomorrow'
       });
       await expect(page).toHaveURL(`/links/${linkId}`);
@@ -175,7 +175,7 @@ if (runE2E) {
       page
     }) => {
       await login(page, 'test@example.com', 'password123');
-      const code = 'protected-link-' + Date.now();
+      const code = `protected-link-${Date.now()}`;
       await createTestLink(page, {
         url: 'https://example.com/protected',
         password: 'secret-pass',
@@ -193,7 +193,7 @@ if (runE2E) {
 
     test('should show error for incorrect password', async ({ page }) => {
       await login(page, 'test@example.com', 'password123');
-      const code = 'protected-link-2-' + Date.now();
+      const code = `protected-link-2-${Date.now()}`;
       await createTestLink(page, {
         url: 'https://example.com/protected-2',
         password: 'secret-pass',
@@ -213,7 +213,7 @@ if (runE2E) {
     test('should display link preview information', async ({ page }) => {
       // Create public link
       await login(page, 'test@example.com', 'password123');
-      const code = 'preview-link-' + Date.now();
+      const code = `preview-link-${Date.now()}`;
       await createTestLink(page, {
         url: 'https://example.com/preview',
         customAlias: code

@@ -3,6 +3,8 @@ import { SignJWT } from 'jose';
 
 // Set Env vars for testing
 process.env.INTERNAL_API_SECRET = 'test-internal-secret-min-32-chars-long';
+const internalApiSecret =
+  process.env.INTERNAL_API_SECRET ?? 'test-internal-secret-min-32-chars-long';
 // process.env.JWT_SECRET = 'test-jwt-secret-min-32-chars-long'; // Do not override, use environment secret to match plugins.ts loaded logic
 
 // Mock simple logger
@@ -17,7 +19,7 @@ mock.module('@/server/lib/telemetry', () => ({
 
 // Mock redirect service
 const mockResolve = mock(
-  (code: string, depth: number, bypassPassword: boolean) => {
+  (_code: string, _depth: number, _bypassPassword: boolean) => {
     return Promise.resolve({
       success: true,
       url: 'https://example.com',
@@ -36,7 +38,6 @@ mock.module('@/server/services/redirect.service', () => ({
 
 // Import controller AFTER mocking
 import { internalController } from '@/server/modules/internal/internal.controller';
-import { redirectService } from '@/server/services/redirect.service';
 
 // Use the same secret resolution logic as plugins.ts
 const TEST_SECRET =
@@ -57,7 +58,7 @@ describe('Internal API Contract', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-internal-api': process.env.INTERNAL_API_SECRET!,
+          'x-internal-api': internalApiSecret,
           'x-password-token': token
         },
         body: JSON.stringify({ depth: 0, ip: '127.0.0.1' })
@@ -70,8 +71,8 @@ describe('Internal API Contract', () => {
     expect(response.status).toBe(200);
 
     // Verify mock call
-    const calls = (redirectService.resolve as any).mock.calls;
-    const call = calls.find((c: any[]) => c[0] === code);
+    const calls = mockResolve.mock.calls as Array<[string, number, boolean]>;
+    const call = calls.find((args) => args[0] === code);
     expect(call).toBeDefined();
     expect(call[2]).toBe(true); // bypassPassword should be true
   });
@@ -84,7 +85,7 @@ describe('Internal API Contract', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-internal-api': process.env.INTERNAL_API_SECRET!
+          'x-internal-api': internalApiSecret
         },
         body: JSON.stringify({ depth: 0, ip: '127.0.0.1' })
       })
@@ -96,8 +97,8 @@ describe('Internal API Contract', () => {
     expect(response.status).toBe(200);
 
     // Verify mock call
-    const calls = (redirectService.resolve as any).mock.calls;
-    const call = calls.find((c: any[]) => c[0] === code);
+    const calls = mockResolve.mock.calls as Array<[string, number, boolean]>;
+    const call = calls.find((args) => args[0] === code);
     expect(call).toBeDefined();
     expect(call[2]).toBe(false); // bypassPassword should be false
   });
@@ -111,7 +112,7 @@ describe('Internal API Contract', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-internal-api': process.env.INTERNAL_API_SECRET!,
+          'x-internal-api': internalApiSecret,
           'x-password-token': token
         },
         body: JSON.stringify({ depth: 0, ip: '127.0.0.1' })
@@ -121,8 +122,8 @@ describe('Internal API Contract', () => {
     expect(response.status).toBe(200);
 
     // Verify mock call
-    const calls = (redirectService.resolve as any).mock.calls;
-    const call = calls.find((c: any[]) => c[0] === code);
+    const calls = mockResolve.mock.calls as Array<[string, number, boolean]>;
+    const call = calls.find((args) => args[0] === code);
     expect(call).toBeDefined();
     expect(call[2]).toBe(false); // bypassPassword should be false
   });

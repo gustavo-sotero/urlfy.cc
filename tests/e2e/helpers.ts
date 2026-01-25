@@ -90,13 +90,17 @@ export async function createTestLink(
   if (options.expiresAt) {
     // Open date picker
     const dateButton = page.getByRole('button', {
-      name: /selecione uma data/i
+      name: /selecione uma data|selecionar data/i
     });
     if (await dateButton.isVisible()) {
       await dateButton.click();
-      // Select a future date (e.g., next available day matching the input or just a fixed one for testing)
-      // For simplicity in this generic helper, we pick the first available enabled day in the calendar
-      await page.getByRole('gridcell', { disabled: false }).last().click();
+
+      const targetDate =
+        options.expiresAt === 'tomorrow'
+          ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+          : new Date(options.expiresAt);
+
+      await selectDateInCalendar(page, targetDate);
       // Close popover if needed (usually auto-closes)
     }
   }
@@ -179,15 +183,69 @@ export async function selectDateInCalendar(
   page: Page,
   date: Date
 ): Promise<void> {
-  // Open calendar picker
-  await page.getByRole('button', { name: /selecionar data/i }).click();
+  const calendar = page.locator('[data-slot="calendar"]');
+  await calendar.waitFor({ state: 'visible' });
 
-  // Navigate to month/year if needed
-  // TODO: Implement month/year navigation
+  // Try to navigate to the target month/year using data-month if available
+  const monthContainer = calendar.locator('[data-month]').first();
+  const monthAttr = await monthContainer.getAttribute('data-month');
 
-  // Select day
+  if (monthAttr) {
+    const targetMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    let currentMonth = new Date(monthAttr);
+
+    const nextButton = calendar.getByRole('button', {
+      name: /next|próximo|próxima/i
+    });
+    const prevButton = calendar.getByRole('button', {
+      name: /previous|anterior/i
+    });
+
+    let guard = 0;
+    while (
+      (currentMonth.getFullYear() !== targetMonth.getFullYear() ||
+        currentMonth.getMonth() !== targetMonth.getMonth()) &&
+      guard < 24
+    ) {
+      const shouldAdvance =
+        currentMonth < targetMonth && (await nextButton.isVisible());
+
+      if (shouldAdvance) {
+        await nextButton.click();
+      } else if (await prevButton.isVisible()) {
+        await prevButton.click();
+      } else {
+        break;
+      }
+
+      const updatedMonthAttr = await monthContainer.getAttribute('data-month');
+      currentMonth = updatedMonthAttr
+        ? new Date(updatedMonthAttr)
+        : currentMonth;
+      guard += 1;
+    }
+  }
+
+  const localeDateStrings = [
+    date.toLocaleDateString('en-US'),
+    date.toLocaleDateString('pt-BR')
+  ];
+
+  for (const dateString of localeDateStrings) {
+    const dayButton = calendar.locator(`button[data-day="${dateString}"]`);
+    if (await dayButton.count()) {
+      await dayButton.first().click();
+      return;
+    }
+  }
+
+  // Fallback: select by day number within current month container
   const day = date.getDate();
-  await page.getByRole('button', { name: String(day) }).click();
+  const fallbackContainer = calendar.locator('[data-month]').first();
+  const fallbackButton = fallbackContainer.getByRole('button', {
+    name: new RegExp(`^${day}$`)
+  });
+  await fallbackButton.first().click();
 }
 
 // ═══════════════════════════════════════════════════════════════════
