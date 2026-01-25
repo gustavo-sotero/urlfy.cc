@@ -21,7 +21,6 @@ import {
   useRef,
   useState
 } from 'react';
-import { authClient } from './auth.client';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -73,6 +72,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     setError(null);
 
     try {
+      const { authClient } = await import('./auth.client');
       const result = await authClient.getSession();
 
       if (result.data) {

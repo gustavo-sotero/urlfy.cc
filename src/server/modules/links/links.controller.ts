@@ -8,8 +8,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { createHash } from 'node:crypto';
+import { Elysia, t } from 'elysia';
 
 import { jwtPlugin } from '@/server/config/plugins';
 import { handleLinkError } from '@/server/lib/errors';

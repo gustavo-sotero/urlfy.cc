@@ -69,24 +69,29 @@ const statefulDbMock = {
     set: mock((updates: Record<string, unknown>) => {
       return {
         where: mock((..._args: unknown[]) => {
+          const argsStr = Bun.inspect(_args);
+          const targetKey = apiKeysStore.find(
+            (key) => key.id && argsStr.includes(String(key.id))
+          );
+          const target = targetKey ?? apiKeysStore[0];
           const executeUpdate = () => {
             // Side-effect: Revoke/Update logic
-            if (
-              updates.revokedAt &&
-              apiKeysStore.length > 0 &&
-              apiKeysStore[0].revokedAt
-            ) {
+            if (updates.revokedAt && target && target.revokedAt) {
               return Promise.resolve([]);
             }
-            if (apiKeysStore.length > 0) {
-              Object.assign(apiKeysStore[0], updates);
-              return Promise.resolve([apiKeysStore[0]]);
+            if (target) {
+              Object.assign(target, updates);
+              return Promise.resolve([target]);
             }
             return Promise.resolve([]);
           };
 
+          // Apply updates immediately (even without .returning())
+          const execution = executeUpdate();
+          void execution;
+
           return {
-            returning: mock(() => executeUpdate())
+            returning: mock(() => execution)
           };
         })
       };
@@ -163,13 +168,13 @@ mock.module('@/server/lib/redis', () => ({
   closeRedis: mock(() => Promise.resolve())
 }));
 
+import { and, eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import type { ApiKey } from '@/db/schema/auth';
 import { apikey, user } from '@/db/schema/auth';
 import { Scopes } from '@/server/config/scopes';
 import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
-import { and, eq } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { requireDatabase } from '../helpers/integration-helper';
 
 // Test user ID

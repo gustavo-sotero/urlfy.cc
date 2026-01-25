@@ -7,13 +7,13 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import {
   ErrorRef,
   ResponseModels,
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import { Elysia, t } from 'elysia';
 import {
   API_KEY_CREATED_EXAMPLE,
   API_KEY_LIST_EXAMPLE,

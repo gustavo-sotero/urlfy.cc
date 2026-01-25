@@ -6,6 +6,8 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import type { Elysia } from 'elysia';
 import { db } from '@/db';
 import { apikey } from '@/db/schema/auth';
 import {
@@ -17,8 +19,6 @@ import {
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { ApiKeyContext, ApiKeyError } from '@/types/api-keys.types';
-import { and, eq, isNull, sql } from 'drizzle-orm';
-import type { Elysia } from 'elysia';
 
 const logger = createLogger('api-key-guard');
 
@@ -126,25 +126,17 @@ export function requireApiKey(options: RequireApiKeyOptions) {
       }
 
       // 2. Query database for key
-      let keyRecord: typeof apikey.$inferSelect | undefined;
-
-      if (process.env.NODE_ENV === 'test') {
-        const allKeys = await db.select().from(apikey);
-        keyRecord = allKeys.find((key) => key.key === apiKeyHeader);
-      } else {
-        const [found] = await db
-          .select()
-          .from(apikey)
-          .where(
-            and(
-              eq(apikey.key, apiKeyHeader),
-              isNull(apikey.deletedAt),
-              eq(apikey.enabled, true)
-            )
+      const [keyRecord] = await db
+        .select()
+        .from(apikey)
+        .where(
+          and(
+            eq(apikey.key, apiKeyHeader),
+            isNull(apikey.deletedAt),
+            eq(apikey.enabled, true)
           )
-          .limit(1);
-        keyRecord = found;
-      }
+        )
+        .limit(1);
 
       if (!keyRecord || keyRecord.key !== apiKeyHeader) {
         logger.warn('Invalid API key attempt', {

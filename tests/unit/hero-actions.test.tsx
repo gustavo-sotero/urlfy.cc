@@ -2,9 +2,9 @@
  * Unit tests for HeroActions component.
  */
 
-import { HeroActions } from '@/components/home/hero-actions';
-import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { cleanup, render, screen } from '@testing-library/react';
+import { HeroActions } from '@/components/home/hero-actions';
 
 // Create a mock function we can control
 const mockUseAuthState = mock();
