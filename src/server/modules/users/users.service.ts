@@ -166,8 +166,8 @@ export const UserService = {
         entityId: userId,
         metadata: { reason }
       });
-    } catch (error) {
-      console.error('Failed to log audit event:', error);
+    } catch (_error) {
+      // Audit logging is best-effort - already logged by audit service
     }
 
     return user;
@@ -198,8 +198,8 @@ export const UserService = {
         entityType: 'user',
         entityId: userId
       });
-    } catch (error) {
-      console.error('Failed to log audit event:', error);
+    } catch (_error) {
+      // Audit logging is best-effort - already logged by audit service
     }
 
     return user;
@@ -232,8 +232,8 @@ export const UserService = {
         entityId: userId,
         metadata: { newRole: role }
       });
-    } catch (error) {
-      console.error('Failed to log audit event:', error);
+    } catch (_error) {
+      // Audit logging is best-effort - already logged by audit service
     }
 
     return user;

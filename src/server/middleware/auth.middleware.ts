@@ -310,7 +310,10 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
     const permissions = parsePermissions(apiKeyResult.permissions);
 
     // Update last used timestamp asynchronously
-    updateApiKeyUsage(apiKeyResult.id).catch(console.error);
+    // Update API key usage in background - intentionally fire-and-forget
+    updateApiKeyUsage(apiKeyResult.id).catch(() => {
+      // Silently ignore - usage tracking is best-effort
+    });
 
     return {
       user: user as User,

@@ -150,7 +150,8 @@ export class RedirectService {
             success: true,
             url: finalUrl,
             redirectType: link.redirectType,
-            linkId: link.id
+            linkId: link.id,
+            cacheHit
           };
         } catch (error) {
           const latency = performance.now() - startTime;

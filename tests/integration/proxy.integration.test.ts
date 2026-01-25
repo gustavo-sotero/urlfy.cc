@@ -4,12 +4,12 @@
  * Replaces middleware.integration.test.ts
  */
 
-import { db } from '@/db';
-import { links } from '@/db/schema';
-import { proxy } from '@/proxy';
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
 import { NextRequest } from 'next/server';
+import { db } from '@/db';
+import { links } from '@/db/schema';
+import { proxy } from '@/proxy';
 
 describe('Edge Proxy', () => {
   let testLinkId: string;
@@ -166,7 +166,7 @@ describe('Edge Proxy', () => {
       // Let's verify expectations of previous test vs proxy implementation.
 
       const request = new NextRequest('http://localhost:3000/API');
-      const response = await proxy(request);
+      const _response = await proxy(request);
 
       // If it passes through, it means it's excluded or invalid short code.
       // "API" is valid short code regex.

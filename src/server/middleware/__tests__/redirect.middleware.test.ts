@@ -3,6 +3,10 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { NextRequest } from 'next/server';
 
+// Set environment variables for tests
+process.env.INTERNAL_API_SECRET = 'test-internal-secret';
+process.env.JWT_SECRET = 'test-jwt-secret-with-at-least-32-chars-for-security';
+
 // Mock modules BEFORE any imports that use them
 const mockAnalyticsQueue = {
   add: mock(() => Promise.resolve({ id: 'job-id', name: 'click' }))

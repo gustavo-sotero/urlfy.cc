@@ -16,11 +16,6 @@ export const ResolveRequestBody = t.Object(
       maximum: 3,
       description: 'Current redirect depth to prevent loops'
     }),
-    passwordToken: t.Optional(
-      t.String({
-        description: 'JWT token from password unlock cookie (if present)'
-      })
-    ),
     ip: t.String({
       description: 'Client IP address for rate limiting'
     }),
@@ -32,7 +27,8 @@ export const ResolveRequestBody = t.Object(
   },
   {
     $id: 'InternalResolveRequest',
-    description: 'Request payload for internal link resolution'
+    description:
+      'Request payload for internal link resolution. Password token is passed via x-password-token header.'
   }
 );
 

@@ -593,8 +593,9 @@ export const LinkService = {
 
       // Invalida QR codes
       await invalidateQRCache(code);
-    } catch (error) {
-      console.warn('Failed to invalidate link cache:', error);
+    } catch (_error) {
+      // Cache invalidation is non-critical - log but don't throw
+      // Actual error is already logged by cache service
     }
   }
 };

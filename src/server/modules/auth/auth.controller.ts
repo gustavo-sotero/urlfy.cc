@@ -740,8 +740,8 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
           entityId: params.keyId,
           metadata: { name: deleted.name ?? null }
         });
-      } catch (error) {
-        console.warn('Failed to log API key revocation', error);
+      } catch (_error) {
+        // API key revocation logging is best-effort
       }
 
       return {

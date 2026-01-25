@@ -3,6 +3,9 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { bannedUrls } from '@/db/schema';
+import { createLogger } from '@/server/lib/telemetry';
+
+const logger = createLogger('url-validator');
 
 const BLOCKED_SHORTENERS = new Set([
   'bit.ly',
@@ -75,7 +78,9 @@ async function loadBannedDomainsFromDb(): Promise<void> {
     bannedDomainsLastLoad = now;
   } catch (error) {
     // Log but don't fail - continue with in-memory cache
-    console.warn('Failed to load banned domains from database:', error);
+    logger.error('Failed to load banned domains from database', {
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 

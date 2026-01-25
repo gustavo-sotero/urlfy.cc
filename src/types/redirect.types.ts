@@ -28,6 +28,7 @@ export interface RedirectResult {
   redirectType?: 301 | 302;
   error?: RedirectError;
   linkId?: string;
+  cacheHit?: boolean; // Indicates if result came from cache (true) or DB (false)
 }
 
 /**

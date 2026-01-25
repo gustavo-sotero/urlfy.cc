@@ -1,8 +1,8 @@
 // src/app/api/internal/analytics/route.ts
 
-import { NextResponse } from 'next/server';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import type { ClickEvent } from '@/types/analytics.types';
+import { NextResponse } from 'next/server';
 
 /**
  * Internal API endpoint para enfileirar eventos de analytics
@@ -15,9 +15,10 @@ export const runtime = 'nodejs'; // Force Node.js runtime (not Edge)
 
 export async function POST(request: Request) {
   try {
-    // Verifica token interno (usando BETTER_AUTH_SECRET como chave compartilhada)
+    // Verifica token interno usando INTERNAL_ANALYTICS_SECRET (preferido) ou INTERNAL_API_SECRET
     const internalToken = request.headers.get('x-internal-token');
-    const expectedToken = process.env.BETTER_AUTH_SECRET;
+    const expectedToken =
+      process.env.INTERNAL_ANALYTICS_SECRET || process.env.INTERNAL_API_SECRET;
 
     if (!internalToken || !expectedToken || internalToken !== expectedToken) {
       return NextResponse.json(

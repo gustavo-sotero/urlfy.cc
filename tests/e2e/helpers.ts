@@ -87,8 +87,23 @@ export async function createTestLink(
     await page.getByLabel(/descrição/i).fill(options.metaDescription);
   }
 
-  // TODO: Handle date picker for expiresAt
-  // TODO: Handle number input for maxClicks
+  if (options.expiresAt) {
+    // Open date picker
+    const dateButton = page.getByRole('button', {
+      name: /selecione uma data/i
+    });
+    if (await dateButton.isVisible()) {
+      await dateButton.click();
+      // Select a future date (e.g., next available day matching the input or just a fixed one for testing)
+      // For simplicity in this generic helper, we pick the first available enabled day in the calendar
+      await page.getByRole('gridcell', { disabled: false }).last().click();
+      // Close popover if needed (usually auto-closes)
+    }
+  }
+
+  if (options.maxClicks) {
+    await page.getByLabel(/limite de cliques/i).fill(String(options.maxClicks));
+  }
 
   // Submit form
   await page.getByRole('button', { name: /criar link/i }).click();

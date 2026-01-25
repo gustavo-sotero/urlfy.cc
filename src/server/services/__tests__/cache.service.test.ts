@@ -59,7 +59,7 @@ const mockRedis = {
     store.set(key, value);
     return 'OK';
   }),
-  // Handling 'send' for commands like EXISTS, INFO, DBSIZE
+  // Handling 'send' for commands like EXISTS, INFO, DBSIZE, SCAN
   send: mock(async (command: string, args: string[]) => {
     const cmd = command.toUpperCase();
     if (cmd === 'EXISTS') {
@@ -83,6 +83,20 @@ const mockRedis = {
     if (cmd === 'FLUSHALL') {
       store.clear();
       return 'OK';
+    }
+    if (cmd === 'SCAN') {
+      // SCAN cursor MATCH pattern COUNT count
+      // Return format: [nextCursor, [keys]]
+      const _cursor = args[0];
+      const matchIndex = args.indexOf('MATCH');
+      const pattern = matchIndex !== -1 ? args[matchIndex + 1] : '*';
+
+      // For testing, return all matching keys in one batch
+      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+      const keys = Array.from(store.keys()).filter((k) => regex.test(k));
+
+      // Return cursor '0' (done) and all keys
+      return ['0', keys];
     }
     return null;
   }),
@@ -358,7 +372,11 @@ describe('CacheService', () => {
       const { success } = await withTimeout(cacheService.flushLinks());
       if (!success) return;
 
-      expect(mockRedis.keys).toHaveBeenCalled();
+      // Verify SCAN was called instead of keys (refactored implementation)
+      expect(mockRedis.send).toHaveBeenCalledWith(
+        expect.stringMatching(/SCAN/i),
+        expect.any(Array)
+      );
       expect(mockRedis.del).toHaveBeenCalled();
       expect(store.size).toBe(0);
     });

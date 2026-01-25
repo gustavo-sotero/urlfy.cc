@@ -45,7 +45,10 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32).optional(),
 
   // Internal API security
-  INTERNAL_API_SECRET: z.string().min(16).default('dev-secret'),
+  INTERNAL_API_SECRET: z.string().min(16),
+
+  // Internal Analytics API security (separate from BETTER_AUTH_SECRET)
+  INTERNAL_ANALYTICS_SECRET: z.string().min(16).optional(),
 
   // OAuth - Google
   GOOGLE_CLIENT_ID: z.string().optional(),
@@ -72,6 +75,37 @@ export function validateEnv(): Env {
 
   try {
     env = envSchema.parse(process.env);
+
+    // Additional production checks
+    if (env.NODE_ENV === 'production') {
+      // Require INTERNAL_API_SECRET and prevent weak defaults
+      if (!env.INTERNAL_API_SECRET) {
+        throw new Error('INTERNAL_API_SECRET is required in production');
+      }
+      if (
+        env.INTERNAL_API_SECRET === 'dev-secret' ||
+        env.INTERNAL_API_SECRET.length < 32
+      ) {
+        throw new Error(
+          'INTERNAL_API_SECRET must be at least 32 characters in production'
+        );
+      }
+
+      // Require JWT_SECRET for password-protected links
+      if (!env.JWT_SECRET) {
+        throw new Error(
+          'JWT_SECRET is required in production for password-protected links'
+        );
+      }
+
+      // Require separate analytics secret in production
+      if (!env.INTERNAL_ANALYTICS_SECRET) {
+        throw new Error(
+          'INTERNAL_ANALYTICS_SECRET is required in production (should differ from BETTER_AUTH_SECRET)'
+        );
+      }
+    }
+
     return env;
   } catch (error) {
     if (error instanceof z.ZodError) {

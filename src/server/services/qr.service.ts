@@ -1,6 +1,10 @@
 // src/server/services/qr.service.ts
+
 import QRCode from 'qrcode';
+import { createLogger } from '@/server/lib/telemetry';
 import { redis } from '../lib/redis';
+
+const logger = createLogger('qr-service');
 
 type QRFormat = 'png' | 'svg';
 type QRSize = 100 | 200 | 300 | 500 | 1000;
@@ -33,7 +37,9 @@ export async function generateQRCode(
     }
   } catch (error) {
     // Se Redis falhar, continua sem cache
-    console.warn('Redis unavailable for QR cache:', error);
+    logger.warn('Redis unavailable for QR cache', {
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 
   // Gera QR Code
@@ -52,7 +58,10 @@ export async function generateQRCode(
     try {
       await redis.set(cacheKey, result, 'EX', CACHE_TTL);
     } catch (error) {
-      console.warn('Failed to cache QR SVG:', error);
+      logger.warn('Failed to cache QR SVG', {
+        code,
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   } else {
     result = await QRCode.toBuffer(shortUrl, { ...options, type: 'png' });
@@ -60,7 +69,10 @@ export async function generateQRCode(
     try {
       await redis.set(cacheKey, result.toString('base64'), 'EX', CACHE_TTL);
     } catch (error) {
-      console.warn('Failed to cache QR PNG:', error);
+      logger.warn('Failed to cache QR PNG', {
+        code,
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
@@ -75,12 +87,36 @@ export async function generateQRCode(
  */
 export async function invalidateQRCache(code: string): Promise<void> {
   try {
-    const keys = await redis.keys(`qr:${code}:*`);
+    // Use SCAN instead of KEYS to avoid blocking Redis
+    const keys: string[] = [];
+    let cursor = '0';
+    const pattern = `qr:${code}:*`;
+
+    do {
+      const result = (await redis.send('SCAN', [
+        cursor,
+        'MATCH',
+        pattern,
+        'COUNT',
+        '100'
+      ])) as [string, string[]];
+
+      cursor = result[0];
+      const batchKeys = result[1];
+
+      if (batchKeys.length > 0) {
+        keys.push(...batchKeys);
+      }
+    } while (cursor !== '0');
+
     if (keys.length > 0) {
       await redis.del(...keys);
     }
   } catch (error) {
-    console.warn('Failed to invalidate QR cache:', error);
+    logger.warn('Failed to invalidate QR cache', {
+      code,
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 

@@ -27,7 +27,13 @@ import {
  */
 function verifyInternalRequest(request: Request): boolean {
   const secret = request.headers.get('x-internal-api');
-  const expectedSecret = process.env.INTERNAL_API_SECRET || 'dev-secret';
+  const expectedSecret = process.env.INTERNAL_API_SECRET;
+
+  // Defensive: Should never happen due to env validation at startup
+  if (!expectedSecret) {
+    throw new Error('INTERNAL_API_SECRET not configured');
+  }
+
   return secret === expectedSecret;
 }
 
@@ -60,7 +66,11 @@ export const internalController = new Elysia({ prefix: '/internal' })
       });
 
       const { code } = params;
-      const { depth, passwordToken, ip } = body;
+      const { depth, ip } = body;
+
+      // 2.1. Extract password token from header
+      const passwordToken =
+        request.headers.get('x-password-token') ?? undefined;
 
       // 3. Rate limiting checks
       const redirectConfig = RATE_LIMIT_CONFIGS.GET_REDIRECT;
@@ -160,6 +170,8 @@ export const internalController = new Elysia({ prefix: '/internal' })
 
       // 6. Return success with redirect info
       // Type assertion: redirectService.resolve guarantees these are defined on success
+      set.headers['X-Internal-Cache-Status'] = result.cacheHit ? 'HIT' : 'MISS';
+
       return {
         success: true,
         url: result.url as string,

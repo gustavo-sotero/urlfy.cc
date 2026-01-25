@@ -18,6 +18,7 @@ interface ResolveResult {
   linkId?: string;
   error?: string;
   retryAfter?: number;
+  response?: Response; // Include response for header extraction
 }
 
 /**
@@ -34,15 +35,20 @@ async function resolveLink(
     const baseUrl = request.nextUrl.origin;
     const apiUrl = new URL(`/api/internal/resolve/${shortCode}`, baseUrl);
 
+    const internalSecret = process.env.INTERNAL_API_SECRET;
+    if (!internalSecret) {
+      throw new Error('INTERNAL_API_SECRET not configured');
+    }
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-internal-api': process.env.INTERNAL_API_SECRET || 'dev-secret'
+        'x-internal-api': internalSecret,
+        ...(passwordToken ? { 'x-password-token': passwordToken } : {})
       },
       body: JSON.stringify({
         depth,
-        passwordToken,
         ip:
           request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
           request.headers.get('x-real-ip') ||
@@ -66,7 +72,8 @@ async function resolveLink(
       };
     }
 
-    return await response.json();
+    const result = await response.json();
+    return { ...result, response }; // Include response for header access
   } catch (error) {
     logger.error('Failed to resolve link via API', {
       shortCode,
@@ -135,15 +142,16 @@ export async function handleRedirect(
 
     // Log de latência
     const latency = performance.now() - startTime;
-    // Cache hits typically < 10ms for Redis, but can vary based on network
-    // More accurate would be to pass cache status from service
-    const estimatedCacheHit = latency < 15;
+    // Read actual cache status from internal API response
+    const cacheStatus =
+      result.response?.headers.get('X-Internal-Cache-Status') || 'UNKNOWN';
+    const cacheHit = cacheStatus === 'HIT';
 
     logger.info('Redirect completed', {
       shortCode,
       redirectType: result.redirectType,
       latencyMs: latency.toFixed(2),
-      estimatedCacheHit,
+      cacheHit,
       requestId
     });
 
@@ -154,7 +162,7 @@ export async function handleRedirect(
       headers: {
         'X-Request-Id': requestId,
         'X-Redirect-Depth': String(currentDepth + 1),
-        'X-Cache-Status': estimatedCacheHit ? 'HIT' : 'MISS',
+        'X-Cache-Status': cacheHit ? 'HIT' : 'MISS',
         'Cache-Control': 'no-store, no-cache, must-revalidate',
         'X-Content-Type-Options': 'nosniff'
       }
@@ -333,7 +341,7 @@ async function enqueueClickEvent(
 
     // Chama API interna de forma assíncrona (não aguarda resposta)
     const baseUrl = request.nextUrl.origin;
-    const internalToken = process.env.BETTER_AUTH_SECRET;
+    const internalToken = process.env.INTERNAL_API_SECRET;
 
     // Fire and forget - não aguardamos resposta para não bloquear redirect
     fetch(`${baseUrl}/api/internal/analytics`, {

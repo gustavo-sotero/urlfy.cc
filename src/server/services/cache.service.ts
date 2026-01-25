@@ -28,6 +28,39 @@ export const CACHE_PREFIX = {
 } as const;
 
 /**
+ * Utility function to scan Redis keys using cursor-based iteration
+ * Avoids blocking KEYS command at scale
+ * @param pattern - Pattern to match (e.g., 'qr:abc123:*')
+ * @param count - Number of keys to scan per iteration (default: 100)
+ * @returns Array of matching keys
+ */
+async function scanKeys(pattern: string, count = 100): Promise<string[]> {
+  const redis = getRedisClient();
+  const keys: string[] = [];
+  let cursor = '0';
+
+  do {
+    // SCAN returns [nextCursor, keys]
+    const result = (await redis.send('SCAN', [
+      cursor,
+      'MATCH',
+      pattern,
+      'COUNT',
+      String(count)
+    ])) as [string, string[]];
+
+    cursor = result[0];
+    const batchKeys = result[1];
+
+    if (batchKeys.length > 0) {
+      keys.push(...batchKeys);
+    }
+  } while (cursor !== '0');
+
+  return keys;
+}
+
+/**
  * Service para operações de cache relacionadas ao redirect engine
  */
 export class CacheService {
@@ -189,9 +222,7 @@ export class CacheService {
 
       // Remove QR codes relacionados (pattern delete)
       const qrPattern = `${CACHE_PREFIX.QR_CODE}${code}:*`;
-      const qrKeys = redis.keys
-        ? await redis.keys(qrPattern)
-        : ((await redis.send('KEYS', [qrPattern])) as string[]);
+      const qrKeys = await scanKeys(qrPattern);
 
       if (qrKeys.length > 0) {
         commands.push(redis.del(...qrKeys));
@@ -386,9 +417,7 @@ export class CacheService {
       let totalRemoved = 0;
 
       for (const pattern of patterns) {
-        const keys = redis.keys
-          ? await redis.keys(pattern)
-          : ((await redis.send('KEYS', [pattern])) as string[]);
+        const keys = await scanKeys(pattern);
         if (keys.length > 0) {
           await redis.del(...keys);
           totalRemoved += keys.length;
