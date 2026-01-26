@@ -49,7 +49,7 @@ async function generateApiKey(
   }
 ) {
   const key = `urlfy_sk_${nanoid(32)}`;
-  const keyPrefix = key.slice(0, 12);
+  const prefix = key.slice(0, 15); // e.g., "urlfy_sk_abc123"
 
   const encoder = new TextEncoder();
   const data = encoder.encode(key);
@@ -67,9 +67,8 @@ async function generateApiKey(
       id: nanoid(),
       userId,
       name,
-      key: keyHash,
       keyHash,
-      keyPrefix,
+      prefix,
       permissions: JSON.stringify(normalizedPermissions),
       rateLimit: true,
       rateLimitEnabled: true,
@@ -505,7 +504,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         .select({
           id: apiKeyTable.id,
           name: apiKeyTable.name,
-          keyPrefix: apiKeyTable.keyPrefix,
+          prefix: apiKeyTable.prefix,
           permissions: apiKeyTable.permissions,
           rateLimitMax: apiKeyTable.rateLimitMax,
           lastUsedAt: apiKeyTable.lastUsedAt,
@@ -528,7 +527,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         data: keys.map((key) => ({
           id: key.id,
           name: key.name,
-          keyPrefix: key.keyPrefix,
+          keyPrefix: key.prefix,
           permissions: parsePermissions(key.permissions),
           rateLimit: key.rateLimitMax ?? 1000,
           lastUsedAt: key.lastUsedAt?.toISOString() ?? null,
@@ -585,7 +584,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         data: {
           id: created.id,
           name: created.name,
-          keyPrefix: created.keyPrefix,
+          keyPrefix: created.prefix,
           key: plainKey,
           permissions: parsePermissions(created.permissions),
           rateLimit: created.rateLimitMax ?? rateLimitMax,

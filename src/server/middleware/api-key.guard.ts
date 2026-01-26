@@ -125,20 +125,29 @@ export function requireApiKey(options: RequireApiKeyOptions) {
         throw errorResponse('MISSING_KEY');
       }
 
-      // 2. Query database for key
+      // 2. Compute SHA-256 hash of incoming key
+      const encoder = new TextEncoder();
+      const data = encoder.encode(apiKeyHeader);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const computedHash = hashArray
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      // 3. Query database for key by hash (constant-time lookup)
       const [keyRecord] = await db
         .select()
         .from(apikey)
         .where(
           and(
-            eq(apikey.key, apiKeyHeader),
+            eq(apikey.keyHash, computedHash),
             isNull(apikey.deletedAt),
             eq(apikey.enabled, true)
           )
         )
         .limit(1);
 
-      if (!keyRecord || keyRecord.key !== apiKeyHeader) {
+      if (!keyRecord) {
         logger.warn('Invalid API key attempt', {
           prefix: apiKeyHeader.slice(0, 15)
         });

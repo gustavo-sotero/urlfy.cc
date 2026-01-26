@@ -231,9 +231,8 @@ describe('Auth Middleware', () => {
       userId: testUser.id,
       name: 'Test API Key',
       // Never store plaintext keys; store hash only.
-      key: keyHash,
       keyHash,
-      keyPrefix: testApiKey.slice(0, 12),
+      prefix: testApiKey.slice(0, 15),
       permissions: JSON.stringify({
         links: { create: true, read: true, update: true, delete: true },
         analytics: { read: true }
@@ -437,9 +436,8 @@ describe('Auth Middleware', () => {
         id: expiredKeyId,
         userId: testUser.id,
         name: 'Expired API Key',
-        key: keyHash,
         keyHash,
-        keyPrefix: expiredKey.slice(0, 12),
+        prefix: expiredKey.slice(0, 15),
         permissions: JSON.stringify({
           links: { create: true, read: true, update: true, delete: true },
           analytics: { read: true }
@@ -482,9 +480,8 @@ describe('Auth Middleware', () => {
         id: revokedKeyId,
         userId: testUser.id,
         name: 'Revoked API Key',
-        key: keyHash,
         keyHash,
-        keyPrefix: revokedKey.slice(0, 12),
+        prefix: revokedKey.slice(0, 15),
         permissions: JSON.stringify({
           links: { create: true, read: true, update: true, delete: true },
           analytics: { read: true }
@@ -527,9 +524,8 @@ describe('Auth Middleware', () => {
         id: deletedKeyId,
         userId: testUser.id,
         name: 'Deleted API Key',
-        key: keyHash,
         keyHash,
-        keyPrefix: deletedKey.slice(0, 12),
+        prefix: deletedKey.slice(0, 15),
         permissions: JSON.stringify({
           links: { create: true, read: true, update: true, delete: true },
           analytics: { read: true }

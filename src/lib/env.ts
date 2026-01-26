@@ -63,7 +63,10 @@ const envSchema = z.object({
   RESEND_FROM: z.string().optional(),
 
   // Trusted origins (comma-separated)
-  TRUSTED_ORIGINS: z.string().optional()
+  TRUSTED_ORIGINS: z.string().optional(),
+
+  // Proxy Configuration
+  TRUST_PROXY: z.string().optional()
 });
 
 type Env = z.infer<typeof envSchema>;

@@ -15,6 +15,9 @@
 
 import type { OpenAPIV3 } from 'openapi-types';
 import { auth } from '@/lib/auth';
+import { createLogger } from './telemetry';
+
+const logger = createLogger('openapi-merger');
 
 // ═══════════════════════════════════════════════════════════════════
 // CACHE CONFIGURATION
@@ -40,7 +43,9 @@ async function getBetterAuthSpec(): Promise<OpenAPIV3.Document> {
     const schema = await auth.api.generateOpenAPISchema();
     return schema as OpenAPIV3.Document;
   } catch (error) {
-    console.warn('Failed to fetch Better-Auth OpenAPI spec:', error);
+    logger.warn('Failed to fetch Better-Auth OpenAPI spec', {
+      error: error instanceof Error ? error.message : String(error)
+    });
     // Return minimal spec if Better-Auth spec generation fails
     return {
       openapi: '3.0.0',

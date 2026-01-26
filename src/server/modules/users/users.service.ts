@@ -286,7 +286,7 @@ export const UserService = {
       .select({
         id: apiKeyTable.id,
         name: apiKeyTable.name,
-        keyPrefix: apiKeyTable.keyPrefix,
+        keyPrefix: apiKeyTable.prefix,
         permissions: apiKeyTable.permissions,
         createdAt: apiKeyTable.createdAt,
         lastUsedAt: apiKeyTable.lastUsedAt

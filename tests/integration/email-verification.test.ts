@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { user as userTable } from '@/db/schema/auth';
 import { links } from '@/db/schema/links';
-import { api } from '@/server/api';
+import { api } from '@/server';
 import { createElysiaTestClient } from '../helpers/elysia-test-client';
 import { isDatabaseAvailable } from '../helpers/integration-helper';
 

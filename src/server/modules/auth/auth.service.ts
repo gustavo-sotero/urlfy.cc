@@ -263,7 +263,7 @@ export const AuthService = {
   ): Promise<{ keyId: string; plainKey: string }> {
     // Generate the key
     const key = `urlfy_sk_${nanoid(32)}`;
-    const keyPrefix = key.slice(0, 12);
+    const prefix = key.slice(0, 15); // e.g., "urlfy_sk_abc123"
     const keyHash = await AuthService.hashApiKey(key);
 
     // Normalize permissions
@@ -276,10 +276,8 @@ export const AuthService = {
         id: nanoid(),
         userId,
         name,
-        // Never store plaintext keys; store hash only.
-        key: keyHash,
         keyHash,
-        keyPrefix,
+        prefix,
         permissions: JSON.stringify(normalizedPermissions),
         rateLimit: true,
         rateLimitMax: 1000,

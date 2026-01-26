@@ -3,6 +3,7 @@
  * Applies rate limiting based on IP, token, and endpoint
  */
 
+import { maskValue } from '@/server/lib/log-sanitizer';
 import {
   RATE_LIMIT_CONFIGS,
   type RateLimitConfig,
@@ -16,21 +17,39 @@ const logger = createLogger('rate-limit-middleware');
  * Extract client IP from request
  * Respects X-Forwarded-For header in trusted environments
  */
-function getClientIP(request: Request): string {
-  // In production with reverse proxy, check X-Forwarded-For
-  // But be careful: only trust if reverse proxy is configured
+function getClientIP(request: Request, clientIp?: string | null): string {
+  // If explicitly provided (e.g. from Next.js request.ip), prefer it
+  if (clientIp) return clientIp;
+
+  // Check if we should trust X-Forwarded-For
+  const trustProxy = process.env.TRUST_PROXY === 'true';
   const forwarded = request.headers.get('X-Forwarded-For');
 
-  // Only trust X-Forwarded-For if explicitly enabled (security check)
-  if (process.env.TRUST_PROXY === 'true' && forwarded) {
-    // Take the first IP (client IP, not proxy chain)
-    return forwarded.split(',')[0]?.trim() || '127.0.0.1';
+  // If proxy is trusted and header exists, use first IP in chain
+  if (trustProxy && forwarded) {
+    const clientIP = forwarded.split(',')[0]?.trim();
+    if (clientIP) {
+      return clientIP;
+    }
   }
 
-  // Fallback: use connection IP (not reliable in all environments)
-  // This is a limitation of HTTP - proper solution requires reverse proxy
-  return '127.0.0.1';
+  // Log warning once if X-Forwarded-For is present but not trusted
+  if (!trustProxy && forwarded && !getClientIP.warningLogged) {
+    logger.warn(
+      'X-Forwarded-For header detected but TRUST_PROXY is not enabled. ' +
+        'Set TRUST_PROXY=true if behind a reverse proxy.'
+    );
+    getClientIP.warningLogged = true;
+  }
+
+  // Fallback: Try to get real IP (Bun/Elysia specific)
+  // Note: In many setups behind proxies, this will be the proxy IP
+  // For production with reverse proxy, TRUST_PROXY must be set
+  return '0.0.0.0'; // Safe default for rate limiting
 }
+
+// Static property to track if warning was logged
+getClientIP.warningLogged = false;
 
 /**
  * Extract authentication token/API key or check for session cookie
@@ -39,14 +58,15 @@ function getAuthToken(request: Request): string | null {
   // Bearer token
   const auth = request.headers.get('Authorization');
   if (auth?.startsWith('Bearer ')) {
-    logger.debug('Found Bearer token');
-    return auth.slice(7);
+    const token = auth.slice(7);
+    logger.debug('Found Bearer token', { masked: maskValue(token) });
+    return token;
   }
 
   // API Key
   const apiKey = request.headers.get('X-API-Key');
   if (apiKey) {
-    logger.debug('Found API Key');
+    logger.debug('Found API Key', { masked: maskValue(apiKey, 6) });
     return apiKey;
   }
 
@@ -65,10 +85,11 @@ function getAuthToken(request: Request): string | null {
     // Pattern: urlfy.session_token=<token>
     const sessionMatch = cookieHeader.match(/urlfy\.session_token=([^;]+)/);
     if (sessionMatch?.[1]) {
+      const token = sessionMatch[1];
       logger.debug('Found session cookie', {
-        tokenPreview: `${sessionMatch[1].substring(0, 20)}...`
+        masked: maskValue(token)
       });
-      return sessionMatch[1];
+      return token;
     }
 
     logger.debug('No urlfy.session_token cookie found in header');
@@ -118,13 +139,16 @@ export interface RateLimitOutcome {
   headers?: Headers;
 }
 
-export async function rateLimit(request: Request): Promise<RateLimitOutcome> {
+export async function rateLimit(
+  request: Request,
+  clientIp?: string
+): Promise<RateLimitOutcome> {
   const method = request.method;
   const url = new URL(request.url);
   const path = url.pathname;
 
   // Get client identifier
-  const ip = getClientIP(request);
+  const ip = getClientIP(request, clientIp);
   const token = getAuthToken(request);
   const isAuthenticated = !!token;
 
@@ -204,7 +228,7 @@ export async function rateLimit(request: Request): Promise<RateLimitOutcome> {
   if (!result.allowed) {
     logger.warn('Rate limit exceeded', {
       ip,
-      token: token ? token.slice(0, 8) : null,
+      token: token ? maskValue(token) : null,
       path,
       limit: config.points
     });

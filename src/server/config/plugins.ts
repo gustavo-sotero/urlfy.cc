@@ -12,13 +12,20 @@ import { Elysia } from 'elysia';
  * JWT Plugin Configuration
  * Used for password-protected link unlock tokens
  */
+
+// Enforce JWT_SECRET requirement
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    'FATAL: JWT_SECRET environment variable is not defined. ' +
+      'This is required for secure token generation. ' +
+      'Generate a secure secret with: openssl rand -base64 32'
+  );
+}
+
 export const jwtPlugin = new Elysia({ name: 'jwt' }).use(
   jwt({
     name: 'jwt',
-    secret:
-      process.env.JWT_SECRET ||
-      process.env.BETTER_AUTH_SECRET ||
-      'urlfy-secret-key'
+    secret: process.env.JWT_SECRET
   })
 );
 

@@ -5,7 +5,7 @@
  */
 
 import { treaty } from '@elysiajs/eden';
-import type { App } from '@/server/api';
+import type { App } from '@/server';
 import type {
   AnalyticsBreakdown,
   AnalyticsSummary,

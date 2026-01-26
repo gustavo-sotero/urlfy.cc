@@ -1,11 +1,13 @@
 // Initialize telemetry before API
-import { api } from '@/server/api';
+
+import { api } from '@/server';
 import { antiAbuseMiddleware } from '@/server/middleware/anti-abuse';
 import { addCORSHeaders, corsMiddleware } from '@/server/middleware/cors';
 import { rateLimit } from '@/server/middleware/rate-limit';
 import { MetricsService } from '@/server/services/metrics.service';
+import type { NextRequest } from 'next/server';
 
-async function handle(request: Request): Promise<Response> {
+async function handle(request: NextRequest): Promise<Response> {
   // Track request for RPS metrics (fire-and-forget, non-blocking)
   MetricsService.trackRequest().catch(() => {
     // Silently ignore tracking errors - metrics should never break requests
@@ -19,7 +21,10 @@ async function handle(request: Request): Promise<Response> {
     return addCORSHeaders(antiAbuseResponse, request);
   }
 
-  const rateLimitOutcome = await rateLimit(request);
+  const rateLimitOutcome = await rateLimit(
+    request,
+    (request as NextRequest & { ip?: string }).ip
+  );
   if (rateLimitOutcome.response) {
     return addCORSHeaders(rateLimitOutcome.response, request);
   }

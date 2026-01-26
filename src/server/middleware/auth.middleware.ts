@@ -8,6 +8,7 @@ import {
 import type { Session, User } from '@/lib/auth';
 import { auth } from '@/lib/auth';
 import { db } from '@/server/lib/db';
+import { sanitizeHeaders } from '@/server/lib/log-sanitizer';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
@@ -106,10 +107,10 @@ export const requireAuth = new Elysia({ name: 'require-auth' })
         };
       }
 
-      // Log headers for debugging
+      // Log sanitized headers for debugging (never log credentials)
+      const sanitized = sanitizeHeaders(request.headers);
       logger.debug('Auth headers', {
-        cookie: request.headers.get('cookie'),
-        authorization: request.headers.get('authorization'),
+        ...sanitized,
         hasHeaders: !!request.headers
       });
 

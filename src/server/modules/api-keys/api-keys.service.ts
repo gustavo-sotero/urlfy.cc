@@ -17,13 +17,28 @@ import type {
 
 // ─── Key Generation ───────────────────────────────────────────────
 
-function generateApiKey(): { key: string; prefix: string; hash: string } {
-  const prefix = 'urlfy_sk'; // sk = secret key
+/**
+ * Generate a new API key with SHA-256 hash for secure storage
+ * @returns Object with plaintext key (shown once), prefix (for identification), and hash (for storage)
+ */
+async function generateApiKey(): Promise<{
+  key: string;
+  prefix: string;
+  hash: string;
+}> {
+  const prefixBase = 'urlfy_sk'; // sk = secret key
   const secret = nanoid(32); // 32 char random string
-  const key = `${prefix}_${secret}`;
+  const key = `${prefixBase}_${secret}`;
 
-  // Hash for secure storage lookup (optional, depends on your security model)
-  const hash = Bun.hash(key).toString(16);
+  // Extract first 8 chars of the full key for prefix (e.g., "urlfy_sk")
+  const prefix = key.substring(0, 15); // e.g., "urlfy_sk_abc123"
+
+  // Compute SHA-256 hash using Web Crypto API (available in Bun)
+  const encoder = new TextEncoder();
+  const data = encoder.encode(key);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 
   return { key, prefix, hash };
 }
@@ -48,7 +63,7 @@ function toPublic(key: typeof apikey.$inferSelect): ApiKeyPublic {
   return {
     id: key.id,
     name: key.name,
-    prefix: key.prefix ?? key.keyPrefix ?? null,
+    prefix: key.prefix,
     scopes: parseScopes(key.permissions),
     createdAt: key.createdAt,
     lastUsedAt: key.lastUsedAt ?? null,
@@ -106,7 +121,7 @@ export const ApiKeysService = {
     userId: string,
     input: CreateApiKeyInput
   ): Promise<ApiKeyCreated> {
-    const { key, prefix, hash } = generateApiKey();
+    const { key, prefix, hash } = await generateApiKey();
     const id = nanoid();
 
     const [created] = await db
@@ -114,10 +129,8 @@ export const ApiKeysService = {
       .values({
         id,
         userId,
-        key,
-        keyHash: hash,
+        keyHash: hash, // Store hash only, never plaintext
         prefix,
-        keyPrefix: prefix,
         name: input.name,
         permissions: serializeScopes(input.scopes),
         expiresAt: input.expiresAt ?? null,

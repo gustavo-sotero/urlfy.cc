@@ -5,8 +5,7 @@ import {
   integer,
   pgTable,
   text,
-  timestamp,
-  uniqueIndex
+  timestamp
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
@@ -115,11 +114,8 @@ export const apikey = pgTable(
   {
     id: text('id').primaryKey(),
     name: text('name'),
-    start: text('start'),
-    prefix: text('prefix'),
-    keyPrefix: text('key_prefix'),
-    key: text('key').notNull(),
-    keyHash: text('key_hash'),
+    prefix: text('prefix').notNull(), // First 8 chars for identification
+    keyHash: text('key_hash').notNull().unique(), // SHA-256 hash
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
@@ -148,9 +144,9 @@ export const apikey = pgTable(
     metadata: text('metadata')
   },
   (table) => [
-    index('apikey_key_idx').on(table.key),
+    index('apikey_keyHash_idx').on(table.keyHash),
     index('apikey_userId_idx').on(table.userId),
-    uniqueIndex('apikey_keyHash_idx').on(table.keyHash)
+    index('apikey_prefix_idx').on(table.prefix)
   ]
 );
 

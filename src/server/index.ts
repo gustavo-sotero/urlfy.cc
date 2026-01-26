@@ -1,15 +1,28 @@
+/**
+ * ═════════════════════════════════════════════════════════════════════
+ * MAIN API ROUTER - urlfy.cc
+ * ═════════════════════════════════════════════════════════════════════
+ * Consolidated router for all API endpoints
+ * Replaces legacy src/server/api structure
+ * ═════════════════════════════════════════════════════════════════════
+ */
+
 import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import type { OpenAPIV3 } from 'openapi-types';
 import { auth } from '@/lib/auth';
+// Legacy routes (to be migrated)
+import { adminAuditRoutes } from '@/server/api/admin/audit';
+import { healthRoutes } from '@/server/api/health';
+import { consentRoutes, userDataRoutes } from '@/server/api/users/me';
 import { publicApiV1 } from '@/server/api/v1';
-// Import plugins
+// Plugins
 import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
 import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
-// Import response models
 import { ResponseModels } from '@/server/lib/response.schema';
+import { createLogger } from '@/server/lib/telemetry';
 import { securityHeadersMiddleware } from '@/server/middleware/security-headers';
-// Import from feature-based modules
+// Feature-based modules
 import { AdminModels, adminController } from '@/server/modules/admin';
 import { adminQueuesController } from '@/server/modules/admin/queues.controller';
 import {
@@ -21,9 +34,8 @@ import { AuthModels, authController } from '@/server/modules/auth';
 import { InternalModel, internalController } from '@/server/modules/internal';
 import { LinksModel, linksController } from '@/server/modules/links';
 import { UsersModel, usersController } from '@/server/modules/users';
-import { adminAuditRoutes } from './admin/audit';
-import { healthRoutes } from './health';
-import { consentRoutes, userDataRoutes } from './users/me';
+
+const logger = createLogger('api-router');
 
 // ═══════════════════════════════════════════════════════════════════
 // PUBLIC API DOCS (ISOLATED INSTANCE)
@@ -86,17 +98,17 @@ const publicDocsApp = new Elysia()
   .use(publicApiV1);
 
 // ═══════════════════════════════════════════════════════════════════
-// API PRINCIPAL
+// MAIN API INSTANCE
 // ═══════════════════════════════════════════════════════════════════
 
 export const api = new Elysia({ prefix: '/api' })
-  // Register plugins FIRST (JWT, CORS, Bearer)
+  // Core plugins (JWT, CORS, Bearer, Security Headers)
   .use(jwtPlugin)
   .use(corsPlugin)
   .use(bearerPlugin)
   .use(securityHeadersMiddleware)
 
-  // Register all models for OpenAPI $ref support
+  // Register models for OpenAPI $ref support and type inference
   .use(ResponseModels)
   .use(LinksModel)
   .use(AuthModels)
@@ -106,7 +118,7 @@ export const api = new Elysia({ prefix: '/api' })
   .use(ApiKeysModel)
   .use(InternalModel)
 
-  // OpenAPI Documentation - Scalar UI will be configured to use merged spec
+  // OpenAPI Documentation (Complete API)
   .use(
     openapi({
       documentation: {
@@ -174,28 +186,24 @@ export const api = new Elysia({ prefix: '/api' })
       exclude: {
         paths: ['/auth/*', '/internal/docs/*', '/docs/*']
       },
-      // Configure Scalar UI to use merged spec (includes Better-Auth endpoints)
       scalar: {
         url: '/api/internal/docs/merged.json'
       }
     })
   )
 
-  // Merged OpenAPI spec endpoint
+  // Merged OpenAPI spec endpoint (includes Better-Auth)
   .get(
     '/internal/docs/merged.json',
     async () => {
-      // Get Elysia spec from the openapi plugin
       const getElysiaSpec = async (): Promise<OpenAPIV3.Document> => {
-        // Access the swagger JSON endpoint internally
         const elysiaSpecResponse = await api.handle(
           new Request('http://localhost/api/internal/docs/json')
         );
         return (await elysiaSpecResponse.json()) as OpenAPIV3.Document;
       };
 
-      const mergedSpec = await getMergedOpenAPISpec(getElysiaSpec);
-      return mergedSpec;
+      return await getMergedOpenAPISpec(getElysiaSpec);
     },
     {
       detail: {
@@ -203,12 +211,12 @@ export const api = new Elysia({ prefix: '/api' })
         description:
           'Returns the complete OpenAPI spec including Elysia and Better-Auth endpoints',
         tags: ['Documentation'],
-        security: [] // Public endpoint
+        security: []
       }
     }
   )
 
-  // Better-Auth routes (mount handler directly as per official docs)
+  // Better-Auth routes (mount handler directly)
   // Better-Auth has basePath: '/auth', Elysia has prefix: '/api'
   // Result: /api/auth/session, /api/auth/sign-in, etc.
   .mount(auth.handler)
@@ -230,9 +238,7 @@ export const api = new Elysia({ prefix: '/api' })
     }
   )
 
-  // Health check
-
-  // API v1 routes
+  // API Routes
   .group('', (app) =>
     app
       .use(healthRoutes)
@@ -243,9 +249,7 @@ export const api = new Elysia({ prefix: '/api' })
       .use(apiKeysController)
       .use(linksController)
       .use(analyticsController)
-      // Internal routes (middleware communication)
       .use(internalController)
-      // Admin routes
       .use(adminController)
       .use(adminQueuesController)
       .group('/admin', (admin) => admin.use(adminAuditRoutes))
@@ -254,7 +258,7 @@ export const api = new Elysia({ prefix: '/api' })
   // Public API v1
   .use(publicApiV1)
 
-  // Optional API key format validation for all requests
+  // API key format validation
   .onBeforeHandle(({ request, set }) => {
     const apiKey = request.headers.get('x-api-key');
     if (apiKey && !apiKey.startsWith('urlfy_sk_')) {
@@ -269,7 +273,7 @@ export const api = new Elysia({ prefix: '/api' })
     }
   })
 
-  // Add request ID to all responses
+  // Add request ID to all requests
   .derive(({ request }) => {
     const requestId =
       request.headers.get('x-request-id') ||
@@ -282,8 +286,8 @@ export const api = new Elysia({ prefix: '/api' })
     set.headers['x-request-id'] = requestId;
   })
 
+  // Global error handler
   .onError(({ code, error, set, requestId }) => {
-    // Add request ID to error response headers
     set.headers['x-request-id'] = requestId;
 
     if (code === 'NOT_FOUND') {
@@ -312,7 +316,11 @@ export const api = new Elysia({ prefix: '/api' })
     }
 
     // Log error with request ID for correlation
-    console.error('API Error:', { requestId, error });
+    logger.error('API Error', {
+      requestId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
 
     set.status = 500;
     return {

@@ -2,6 +2,10 @@ import { render } from '@react-email/render';
 import type { ReactElement } from 'react';
 import { Resend } from 'resend';
 
+import { createLogger } from './telemetry';
+
+const logger = createLogger('email');
+
 export interface SendEmailOptions {
   to: string;
   subject: string;
@@ -38,13 +42,13 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('RESEND_FROM is required');
     }
-    console.warn('RESEND_FROM is not set. Email skipped.');
+    logger.warn('RESEND_FROM is not set. Email skipped.');
     return;
   }
 
   const resend = getResendClient();
   if (!resend) {
-    console.warn('Resend is not configured. Email skipped.');
+    logger.warn('Resend is not configured. Email skipped.');
     return;
   }
 
