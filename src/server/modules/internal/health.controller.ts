@@ -1,9 +1,18 @@
+/**
+ * ═════════════════════════════════════════════════════════════════════
+ * HEALTH CONTROLLER - Health check endpoints
+ * ═════════════════════════════════════════════════════════════════════
+ * Module: Internal
+ * Pattern: Elysia Controller
+ * Migrated from: src/server/api/health.ts
+ * ═════════════════════════════════════════════════════════════════════
+ */
+
 import { Elysia, t } from 'elysia';
 import { checkDatabaseHealth } from '@/db';
-// import { checkQueueHealth } from '../lib/queue'; // Migrated to Redis Streams
-import { checkRedisHealth } from '../lib/redis';
-import { ResponseModels } from '../lib/response.schema';
-import { requireAdmin } from '../middleware/auth.middleware';
+import { checkRedisHealth } from '@/server/lib/redis';
+import { ResponseModels } from '@/server/lib/response.schema';
+import { requireAdmin } from '@/server/middleware/auth.middleware';
 
 // ═══════════════════════════════════════════════════════════════════
 // HEALTH CHECK SIMPLES (público)
@@ -203,8 +212,7 @@ const healthDetailed = new Elysia()
                 timestamp: '2026-01-06T12:00:00Z',
                 services: {
                   database: { status: 'ok', latencyMs: 2 },
-                  redis: { status: 'ok', latencyMs: 1 },
-                  queue: { status: 'ok', pendingJobs: 15, failedJobs: 0 }
+                  redis: { status: 'ok', latencyMs: 1 }
                 },
                 uptime: 86400,
                 memory: { used: 128, total: 256, rss: 180 },
@@ -223,4 +231,6 @@ const healthDetailed = new Elysia()
 // EXPORT
 // ═══════════════════════════════════════════════════════════════════
 
-export const healthRoutes = new Elysia().use(healthSimple).use(healthDetailed);
+export const healthController = new Elysia()
+  .use(healthSimple)
+  .use(healthDetailed);

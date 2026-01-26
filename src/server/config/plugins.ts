@@ -13,19 +13,25 @@ import { Elysia } from 'elysia';
  * Used for password-protected link unlock tokens
  */
 
-// Enforce JWT_SECRET requirement
-if (!process.env.JWT_SECRET) {
-  throw new Error(
-    'FATAL: JWT_SECRET environment variable is not defined. ' +
-      'This is required for secure token generation. ' +
-      'Generate a secure secret with: openssl rand -base64 32'
-  );
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+
+  // Enforce the requirement at all times
+  if (!secret) {
+    throw new Error(
+      'FATAL: JWT_SECRET environment variable is not defined. ' +
+        'This is required for secure token generation. ' +
+        'Generate a secure secret with: openssl rand -base64 32'
+    );
+  }
+
+  return secret;
 }
 
 export const jwtPlugin = new Elysia({ name: 'jwt' }).use(
   jwt({
     name: 'jwt',
-    secret: process.env.JWT_SECRET
+    secret: getJwtSecret()
   })
 );
 

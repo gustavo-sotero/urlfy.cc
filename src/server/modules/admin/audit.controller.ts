@@ -1,11 +1,10 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * ADMIN AUDIT LOG ROUTES
+ * ADMIN AUDIT CONTROLLER - Audit log management
  * ═════════════════════════════════════════════════════════════════════
- * Admin endpoints for viewing and managing audit logs
- *
- * Module: Security & Compliance (Module 6)
+ * Module: Admin
  * Requirement: RF-34 - Audit logs for admin actions
+ * Migrated from: src/server/api/admin/audit.ts
  * ═════════════════════════════════════════════════════════════════════
  */
 
@@ -13,26 +12,20 @@ import { desc, eq } from 'drizzle-orm';
 import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { auditLog } from '@/db/schema/audit';
-import type { User } from '@/lib/auth';
 import {
   PaginatedResponse,
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import { AdminModels, AuditLogQuery } from '@/server/modules/admin';
+import {
+  AdminModels,
+  AuditLogQuery
+} from '@/server/modules/admin/admin.schema';
 
-const logger = createLogger('admin-audit');
+const logger = createLogger('admin-audit-controller');
 
-/**
- * Middleware to check admin role (for future use)
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function _requireAdmin(context: { user?: User }): Promise<boolean> {
-  return context.user?.role === 'admin';
-}
-
-export const adminAuditRoutes = new Elysia({ prefix: '/audit' })
+export const auditController = new Elysia({ prefix: '/audit' })
   .use(requireAuth)
   // Inject shared models for type inference and OpenAPI docs
   .use(AdminModels)

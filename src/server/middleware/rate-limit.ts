@@ -3,7 +3,7 @@
  * Applies rate limiting based on IP, token, and endpoint
  */
 
-import { maskValue } from '@/server/lib/log-sanitizer';
+import { maskValue, sanitizeHeaders } from '@/server/lib/log-sanitizer';
 import {
   RATE_LIMIT_CONFIGS,
   type RateLimitConfig,
@@ -20,6 +20,10 @@ const logger = createLogger('rate-limit-middleware');
 function getClientIP(request: Request, clientIp?: string | null): string {
   // If explicitly provided (e.g. from Next.js request.ip), prefer it
   if (clientIp) return clientIp;
+
+  // Try to read IP from the request object (NextRequest-compatible)
+  const requestIp = (request as Request & { ip?: string }).ip;
+  if (requestIp) return requestIp;
 
   // Check if we should trust X-Forwarded-For
   const trustProxy = process.env.TRUST_PROXY === 'true';
@@ -42,10 +46,13 @@ function getClientIP(request: Request, clientIp?: string | null): string {
     getClientIP.warningLogged = true;
   }
 
-  // Fallback: Try to get real IP (Bun/Elysia specific)
-  // Note: In many setups behind proxies, this will be the proxy IP
-  // For production with reverse proxy, TRUST_PROXY must be set
-  return '0.0.0.0'; // Safe default for rate limiting
+  // Fallback: Try to get real IP from common proxy headers without trusting XFF
+  const realIp =
+    request.headers.get('X-Real-IP') || request.headers.get('CF-Connecting-IP');
+  if (realIp) return realIp;
+
+  // Final fallback (safe default for rate limiting)
+  return '0.0.0.0';
 }
 
 // Static property to track if warning was logged
@@ -75,9 +82,10 @@ function getAuthToken(request: Request): string | null {
   // With cookiePrefix "urlfy", the cookie name is: urlfy.session_token
   const cookieHeader = request.headers.get('Cookie');
 
+  const sanitized = sanitizeHeaders({ Cookie: cookieHeader ?? '' });
   logger.debug('Checking cookies for auth', {
     hasCookie: !!cookieHeader,
-    cookiePreview: cookieHeader?.substring(0, 100)
+    cookie: sanitized.Cookie
   });
 
   if (cookieHeader) {

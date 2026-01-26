@@ -4,9 +4,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-// Controller (Elysia routes)
+// Controllers (Elysia routes)
 export { adminController } from './admin.controller';
-
 // Schema (TypeBox models)
 export {
   AdminBanLinkBody,
@@ -26,6 +25,6 @@ export {
   AuditLogResponse,
   type AuditLogResponseType
 } from './admin.schema';
-
 // Service (Business logic)
 export { AdminService } from './admin.service';
+export { auditController } from './audit.controller';

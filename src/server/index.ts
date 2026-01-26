@@ -3,7 +3,7 @@
  * MAIN API ROUTER - urlfy.cc
  * ═════════════════════════════════════════════════════════════════════
  * Consolidated router for all API endpoints
- * Replaces legacy src/server/api structure
+ * All routes implemented in src/server/modules
  * ═════════════════════════════════════════════════════════════════════
  */
 
@@ -11,11 +11,6 @@ import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import type { OpenAPIV3 } from 'openapi-types';
 import { auth } from '@/lib/auth';
-// Legacy routes (to be migrated)
-import { adminAuditRoutes } from '@/server/api/admin/audit';
-import { healthRoutes } from '@/server/api/health';
-import { consentRoutes, userDataRoutes } from '@/server/api/users/me';
-import { publicApiV1 } from '@/server/api/v1';
 // Plugins
 import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
 import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
@@ -23,7 +18,11 @@ import { ResponseModels } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { securityHeadersMiddleware } from '@/server/middleware/security-headers';
 // Feature-based modules
-import { AdminModels, adminController } from '@/server/modules/admin';
+import {
+  AdminModels,
+  adminController,
+  auditController
+} from '@/server/modules/admin';
 import { adminQueuesController } from '@/server/modules/admin/queues.controller';
 import {
   AnalyticsModel,
@@ -31,9 +30,19 @@ import {
 } from '@/server/modules/analytics';
 import { ApiKeysModel, apiKeysController } from '@/server/modules/api-keys';
 import { AuthModels, authController } from '@/server/modules/auth';
-import { InternalModel, internalController } from '@/server/modules/internal';
+import {
+  healthController,
+  InternalModel,
+  internalController
+} from '@/server/modules/internal';
 import { LinksModel, linksController } from '@/server/modules/links';
-import { UsersModel, usersController } from '@/server/modules/users';
+import { publicApiV1 } from '@/server/modules/public';
+import {
+  consentController,
+  meController,
+  UsersModel,
+  usersController
+} from '@/server/modules/users';
 
 const logger = createLogger('api-router');
 
@@ -241,10 +250,10 @@ export const api = new Elysia({ prefix: '/api' })
   // API Routes
   .group('', (app) =>
     app
-      .use(healthRoutes)
+      .use(healthController)
       .use(authController)
-      .use(userDataRoutes)
-      .use(consentRoutes)
+      .use(meController)
+      .use(consentController)
       .use(usersController)
       .use(apiKeysController)
       .use(linksController)
@@ -252,7 +261,7 @@ export const api = new Elysia({ prefix: '/api' })
       .use(internalController)
       .use(adminController)
       .use(adminQueuesController)
-      .group('/admin', (admin) => admin.use(adminAuditRoutes))
+      .group('/admin', (admin) => admin.use(auditController))
   )
 
   // Public API v1

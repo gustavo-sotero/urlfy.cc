@@ -1,11 +1,10 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * USER DATA & COMPLIANCE ROUTES
+ * USER DATA CONTROLLER - LGPD/GDPR compliance endpoints
  * ═════════════════════════════════════════════════════════════════════
- * LGPD/GDPR compliance endpoints for data export and deletion requests
- *
- * Module: Authentication & Identity (Module 2)
+ * Module: Users
  * Requirements: RF-35 to RF-38
+ * Migrated from: src/server/api/users/me.ts
  *
  * Note: All routes use `requireAuth` middleware, which guarantees `user` is non-null.
  * We still guard at runtime to satisfy linting rules and return 401 if missing.
@@ -17,6 +16,7 @@ import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema/audit';
 import { sendEmail } from '@/server/lib/email';
+import { getRedisClient } from '@/server/lib/redis';
 import { SuccessResponse } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
@@ -25,7 +25,7 @@ import { requestContext } from '@/server/plugins/request-context';
 import { auditLogService } from '@/server/services/audit.service';
 import { gdprService } from '@/server/services/gdpr.service';
 
-const logger = createLogger('user-data-routes');
+const logger = createLogger('user-data-controller');
 
 const unauthorizedResponse = {
   success: false as const,
@@ -35,7 +35,7 @@ const unauthorizedResponse = {
   }
 };
 
-export const userDataRoutes = new Elysia({ prefix: '/me' })
+export const meController = new Elysia({ prefix: '/me' })
   .use(requireAuth)
   .use(requestContext)
   .use(UsersModel)
@@ -358,7 +358,7 @@ export const userDataRoutes = new Elysia({ prefix: '/me' })
  * Consent preferences storage endpoint
  * Allows authenticated users to sync their consent preferences to the server
  */
-export const consentRoutes = new Elysia({ prefix: '/me' })
+export const consentController = new Elysia({ prefix: '/me' })
   .use(requireAuth)
   .use(requestContext)
   .use(UsersModel)
@@ -397,7 +397,6 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
         };
 
         // Store in Redis with user-specific key for quick access
-        const { getRedisClient } = await import('@/server/lib/redis');
         const redis = getRedisClient();
 
         await redis.set(
@@ -471,7 +470,6 @@ export const consentRoutes = new Elysia({ prefix: '/me' })
       }
 
       try {
-        const { getRedisClient } = await import('@/server/lib/redis');
         const redis = getRedisClient();
 
         const stored = await redis.get(`consent:${user.id}`);

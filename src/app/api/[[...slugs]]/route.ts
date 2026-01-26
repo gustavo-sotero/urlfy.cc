@@ -1,11 +1,11 @@
 // Initialize telemetry before API
 
+import type { NextRequest } from 'next/server';
 import { api } from '@/server';
 import { antiAbuseMiddleware } from '@/server/middleware/anti-abuse';
 import { addCORSHeaders, corsMiddleware } from '@/server/middleware/cors';
 import { rateLimit } from '@/server/middleware/rate-limit';
 import { MetricsService } from '@/server/services/metrics.service';
-import type { NextRequest } from 'next/server';
 
 async function handle(request: NextRequest): Promise<Response> {
   // Track request for RPS metrics (fire-and-forget, non-blocking)

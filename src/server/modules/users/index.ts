@@ -4,7 +4,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-// Controller (Elysia routes)
+export { consentController, meController } from './me.controller';
+// Controllers (Elysia routes)
 export { usersController } from './users.controller';
 // Schema (TypeBox models)
 export {
