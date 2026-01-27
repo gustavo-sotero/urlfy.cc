@@ -7,8 +7,11 @@ import { validateEnv } from '@/lib/env';
 import { closeRedis } from '@/server/lib/redis';
 import { initTelemetry } from '@/server/lib/telemetry';
 
-// Only initialize in server environment
-if (typeof window === 'undefined') {
+// Only initialize in server environment and skip during build phase
+if (
+  typeof window === 'undefined' &&
+  process.env.NEXT_PHASE !== 'phase-production-build'
+) {
   // Validate environment first
   try {
     validateEnv();

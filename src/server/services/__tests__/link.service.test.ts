@@ -154,19 +154,219 @@ mock.module('@/server/services/url-validator', () => ({
   }
 }));
 
+// Import the real LinkService for testing pure functions
+import { LinkService } from '@/server/modules/links/links.service';
 import type { Link } from '@/types/links.types';
 
-// ⚠️ KNOWN ISSUE: Bun's mock.module has limitations with transitive imports
-// LinkService imports '@/db', and despite mocking '@/db', the real module
-// may load first in a full test suite execution. Skipping for now.
-// TODO: Refactor to dependency injection pattern for better testability
-describe.skip('Link Service (SKIPPED - Mock limitations)', () => {
-  it('should skip due to Bun mock limitations', () => {
-    expect(true).toBe(true);
+// ═══════════════════════════════════════════════════════════════════
+// PURE FUNCTION TESTS - No database mocking needed
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Factory function to create mock Link objects for testing
+ */
+function createMockLink(overrides: Partial<Link> = {}): Link {
+  return {
+    id: `test-id-${Math.random().toString(36).slice(2)}`,
+    shortCode: 'abc123',
+    originalUrl: 'https://example.com',
+    redirectType: 302,
+    clicksCount: 0,
+    maxClicks: null,
+    isActive: true,
+    passwordHash: null,
+    isBanned: false,
+    expiresAt: null,
+    metaTitle: null,
+    metaDescription: null,
+    metaImage: null,
+    utmSource: null,
+    utmMedium: null,
+    utmCampaign: null,
+    tags: null,
+    notes: null,
+    lastClickedAt: null,
+    createdAt: new Date('2026-01-01'),
+    updatedAt: new Date('2026-01-01'),
+    userId: null,
+    bannedAt: null,
+    bannedReason: null,
+    qrGeneratedAt: null,
+    createdByIpHash: null,
+    deletedAt: null,
+    ...overrides
+  };
+}
+
+describe('LinkService - Pure Functions', () => {
+  describe('formatLinkResponse', () => {
+    it('should include shortUrl with BASE_URL', () => {
+      const mockLink = createMockLink({
+        shortCode: 'abc123',
+        clicksCount: 10
+      });
+
+      const response = LinkService.formatLinkResponse(mockLink);
+
+      expect(response.shortUrl).toContain(mockLink.shortCode);
+      expect(response.isProtected).toBe(false);
+      expect(response.clicksCount).toBe(10);
+    });
+
+    it('should mark as protected if has passwordHash', () => {
+      const mockLink = createMockLink({
+        passwordHash: '$argon2id$v=19$m=19456,t=2,p=1$...'
+      });
+
+      const response = LinkService.formatLinkResponse(mockLink);
+
+      expect(response.isProtected).toBe(true);
+    });
+
+    it('should correctly format redirect type', () => {
+      const mockLink301 = createMockLink({ redirectType: 301 });
+      const mockLink302 = createMockLink({ redirectType: 302 });
+
+      expect(LinkService.formatLinkResponse(mockLink301).redirectType).toBe(
+        301
+      );
+      expect(LinkService.formatLinkResponse(mockLink302).redirectType).toBe(
+        302
+      );
+    });
+
+    it('should format dates as ISO strings', () => {
+      const testDate = new Date('2026-01-15T12:00:00Z');
+      const mockLink = createMockLink({
+        createdAt: testDate,
+        updatedAt: testDate,
+        expiresAt: testDate,
+        lastClickedAt: testDate
+      });
+
+      const response = LinkService.formatLinkResponse(mockLink);
+
+      expect(response.createdAt).toBe(testDate.toISOString());
+      expect(response.updatedAt).toBe(testDate.toISOString());
+      expect(response.expiresAt).toBe(testDate.toISOString());
+      expect(response.lastClickedAt).toBe(testDate.toISOString());
+    });
+
+    it('should return null for null dates', () => {
+      const mockLink = createMockLink({
+        expiresAt: null,
+        lastClickedAt: null
+      });
+
+      const response = LinkService.formatLinkResponse(mockLink);
+
+      expect(response.expiresAt).toBeNull();
+      expect(response.lastClickedAt).toBeNull();
+    });
+
+    it('should include tags and notes', () => {
+      const mockLink = createMockLink({
+        tags: ['marketing', 'social'],
+        notes: 'Important campaign link'
+      });
+
+      const response = LinkService.formatLinkResponse(mockLink);
+
+      expect(response.tags).toEqual(['marketing', 'social']);
+      expect(response.notes).toBe('Important campaign link');
+    });
+
+    it('should include UTM parameters', () => {
+      const mockLink = createMockLink({
+        utmSource: 'twitter',
+        utmMedium: 'social',
+        utmCampaign: 'launch2026'
+      });
+
+      const response = LinkService.formatLinkResponse(mockLink);
+
+      expect(response.utmSource).toBe('twitter');
+      expect(response.utmMedium).toBe('social');
+      expect(response.utmCampaign).toBe('launch2026');
+    });
+
+    it('should include meta tags', () => {
+      const mockLink = createMockLink({
+        metaTitle: 'Custom Title',
+        metaDescription: 'Custom description for SEO',
+        metaImage: 'https://cdn.example.com/image.png'
+      });
+
+      const response = LinkService.formatLinkResponse(mockLink);
+
+      expect(response.metaTitle).toBe('Custom Title');
+      expect(response.metaDescription).toBe('Custom description for SEO');
+      expect(response.metaImage).toBe('https://cdn.example.com/image.png');
+    });
+
+    it('should include ban information', () => {
+      const mockLink = createMockLink({
+        isBanned: true,
+        bannedReason: 'Spam content'
+      });
+
+      const response = LinkService.formatLinkResponse(mockLink);
+
+      expect(response.isBanned).toBe(true);
+      expect(response.bannedReason).toBe('Spam content');
+    });
+
+    it('should handle maxClicks correctly', () => {
+      const linkWithMaxClicks = createMockLink({ maxClicks: 100 });
+      const linkWithoutMaxClicks = createMockLink({ maxClicks: null });
+
+      expect(LinkService.formatLinkResponse(linkWithMaxClicks).maxClicks).toBe(
+        100
+      );
+      expect(
+        LinkService.formatLinkResponse(linkWithoutMaxClicks).maxClicks
+      ).toBeNull();
+    });
+
+    it('should handle all null optional fields', () => {
+      const mockLink = createMockLink({
+        maxClicks: null,
+        expiresAt: null,
+        metaTitle: null,
+        metaDescription: null,
+        metaImage: null,
+        utmSource: null,
+        utmMedium: null,
+        utmCampaign: null,
+        tags: null,
+        notes: null,
+        lastClickedAt: null,
+        bannedReason: null
+      });
+
+      const response = LinkService.formatLinkResponse(mockLink);
+
+      expect(response.maxClicks).toBeNull();
+      expect(response.expiresAt).toBeNull();
+      expect(response.metaTitle).toBeNull();
+      expect(response.metaDescription).toBeNull();
+      expect(response.metaImage).toBeNull();
+      expect(response.utmSource).toBeNull();
+      expect(response.utmMedium).toBeNull();
+      expect(response.utmCampaign).toBeNull();
+      expect(response.tags).toBeNull();
+      expect(response.notes).toBeNull();
+      expect(response.lastClickedAt).toBeNull();
+      expect(response.bannedReason).toBeNull();
+    });
   });
 });
 
-// Original tests commented out - will be fixed with DI pattern
+// ═══════════════════════════════════════════════════════════════════
+// DATABASE-DEPENDENT TESTS - Commented out due to Bun mock limitations
+// ═══════════════════════════════════════════════════════════════════
+// These tests require database mocking which doesn't work reliably in Bun.
+// TODO: Move these to integration tests with a real test database.
 /*
 
 // Mock link factory for tests

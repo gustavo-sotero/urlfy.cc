@@ -16,8 +16,9 @@ import { Elysia } from 'elysia';
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
 
-  // Enforce the requirement at all times
-  if (!secret) {
+  // Allow builds to proceed without JWT_SECRET
+  // It will be validated at runtime when the server actually starts
+  if (!secret && process.env.NEXT_PHASE !== 'phase-production-build') {
     throw new Error(
       'FATAL: JWT_SECRET environment variable is not defined. ' +
         'This is required for secure token generation. ' +
@@ -25,7 +26,8 @@ function getJwtSecret(): string {
     );
   }
 
-  return secret;
+  // Provide a placeholder during build (never used at runtime)
+  return secret || 'build-time-placeholder-not-for-runtime-use';
 }
 
 export const jwtPlugin = new Elysia({ name: 'jwt' }).use(
