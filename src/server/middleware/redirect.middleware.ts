@@ -6,6 +6,7 @@
 
 import type { NextRequest, NextResponse } from 'next/server';
 import { NextResponse as Response } from 'next/server';
+import { getAllowedOrigins } from '@/server/config/cors';
 import { getClientIp } from '@/server/lib/ip';
 import { createLogger } from '@/server/lib/telemetry.edge';
 import type { ClickEvent } from '@/types/analytics.types';
@@ -20,6 +21,33 @@ interface ResolveResult {
   error?: string;
   retryAfter?: number;
   response?: Response; // Include response for header extraction
+}
+
+function isHostAllowed(host: string | null): boolean {
+  if (!host) return false;
+
+  const normalizedHost = host.trim().toLowerCase();
+  const allowedOrigins = getAllowedOrigins();
+  const allowedHosts = new Set(
+    allowedOrigins
+      .map((origin) => {
+        try {
+          return new URL(origin).host.toLowerCase();
+        } catch {
+          return null;
+        }
+      })
+      .filter((value): value is string => Boolean(value))
+  );
+
+  const hostWithoutPort = normalizedHost.split(':')[0] || normalizedHost;
+  const allowedHostnames = new Set(
+    Array.from(allowedHosts).map((allowed) => allowed.split(':')[0] || allowed)
+  );
+
+  return (
+    allowedHosts.has(normalizedHost) || allowedHostnames.has(hostWithoutPort)
+  );
 }
 
 /**
@@ -101,6 +129,25 @@ export async function handleRedirect(
   const startTime = performance.now();
 
   try {
+    if (process.env.NODE_ENV === 'production') {
+      const host = request.headers.get('host');
+      if (!isHostAllowed(host)) {
+        logger.warn('Blocked request with invalid Host header', {
+          host,
+          shortCode,
+          requestId
+        });
+
+        return new Response(null, {
+          status: 400,
+          headers: {
+            'X-Request-Id': requestId,
+            'X-Error-Code': 'INVALID_HOST'
+          }
+        });
+      }
+    }
+
     // Extrai profundidade atual de redirects
     const currentDepth = Number.parseInt(
       request.headers.get('X-Redirect-Depth') ?? '0',
