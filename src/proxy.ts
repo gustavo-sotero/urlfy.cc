@@ -34,6 +34,7 @@ const EXCLUDED_PATHS = [
   '/privacy', // Privacy policy
   '/cookies', // Cookie policy
   '/project', // Project routes
+  '/help', // Help page
   '/internal', // Internal routes
   '/_next', // Next.js internals
   '/favicon.ico', // Favicon

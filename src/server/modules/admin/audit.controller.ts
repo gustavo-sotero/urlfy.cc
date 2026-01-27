@@ -8,8 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { desc, eq } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { auditLog } from '@/db/schema/audit';
 import {
@@ -22,6 +20,8 @@ import {
   AdminModels,
   AuditLogQuery
 } from '@/server/modules/admin/admin.schema';
+import { auditLogService } from '@/server/services/audit.service';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin-audit-controller');
 
@@ -55,20 +55,16 @@ export const auditController = new Elysia({ prefix: '/audit' })
         );
         const offset = (page - 1) * limit;
 
-        // Build query - get all logs with filters
-        const allLogs = await db
-          .select()
-          .from(auditLog)
-          .orderBy(desc(auditLog.createdAt));
+        // Use service for consistent data fetching
+        const { logs: allLogs, total: totalCount } =
+          await auditLogService.getRecent({
+            action: query.action as any,
+            limit: 10000, // Get more for filtering
+            offset: 0
+          });
 
-        // Apply filters in memory
+        // Apply additional filters in memory
         let filteredLogs = allLogs;
-
-        if (query.action) {
-          filteredLogs = filteredLogs.filter(
-            (log) => log.action === query.action
-          );
-        }
 
         if (query.entityType) {
           filteredLogs = filteredLogs.filter(
@@ -177,12 +173,7 @@ export const auditController = new Elysia({ prefix: '/audit' })
       }
 
       try {
-        const log = await db
-          .select()
-          .from(auditLog)
-          .where(eq(auditLog.id, params.id))
-          .limit(1)
-          .then((results) => results[0] || null);
+        const log = await auditLogService.getById(params.id);
 
         if (!log) {
           set.status = 404;
@@ -262,15 +253,11 @@ export const auditController = new Elysia({ prefix: '/audit' })
           Math.max(1, parseInt(query.limit || '50', 10))
         );
 
-        const logs = await db
-          .select()
-          .from(auditLog)
-          .where(
-            eq(auditLog.entityType, params.entityType) &&
-              eq(auditLog.entityId, params.entityId)
-          )
-          .orderBy(desc(auditLog.createdAt))
-          .limit(limit);
+        const { logs } = await auditLogService.getByEntity(
+          params.entityType,
+          params.entityId,
+          { limit }
+        );
 
         logger.info('Entity audit logs retrieved', {
           userId: user?.id,
@@ -358,12 +345,9 @@ export const auditController = new Elysia({ prefix: '/audit' })
           Math.max(1, parseInt(query.limit || '50', 10))
         );
 
-        const logs = await db
-          .select()
-          .from(auditLog)
-          .where(eq(auditLog.userId, params.targetUserId))
-          .orderBy(desc(auditLog.createdAt))
-          .limit(limit);
+        const { logs } = await auditLogService.getByUser(params.targetUserId, {
+          limit
+        });
 
         logger.info('User audit logs retrieved', {
           userId: user?.id,

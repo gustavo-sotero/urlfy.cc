@@ -1,16 +1,18 @@
 // src/components/admin/layout/admin-sidebar.tsx
 'use client';
 
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import {
+  Activity,
   ExternalLink,
   LayoutDashboard,
   Link as LinkIcon,
+  ScrollText,
   Users
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
 
 interface AdminSidebarProps {
   className?: string;
@@ -41,6 +43,18 @@ const navItems: NavItem[] = [
     href: '/admin/users',
     icon: Users,
     description: 'User administration'
+  },
+  {
+    title: 'Queues',
+    href: '/admin/queues',
+    icon: Activity,
+    description: 'Background jobs and workers'
+  },
+  {
+    title: 'Audit Log',
+    href: '/admin/audit',
+    icon: ScrollText,
+    description: 'Administrative actions history'
   }
 ];
 

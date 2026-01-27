@@ -9,16 +9,39 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import {
   type AuditAction,
   type AuditLog as AuditLogType,
   auditLog
 } from '@/db/schema/audit';
 import { db } from '@/server/lib/db';
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+
+/**
+ * Serialized audit log type for API responses
+ */
+export type SerializedAuditLog = Omit<AuditLogType, 'createdAt'> & {
+  createdAt: string;
+};
 
 export class AuditLogService {
+  /**
+   * Serialize a single audit log for API response
+   */
+  private serialize(log: AuditLogType): SerializedAuditLog {
+    return {
+      ...log,
+      createdAt: log.createdAt.toISOString()
+    };
+  }
+
+  /**
+   * Serialize multiple audit logs for API response
+   */
+  private serializeMany(logs: AuditLogType[]): SerializedAuditLog[] {
+    return logs.map((log) => this.serialize(log));
+  }
   /**
    * Log an administrative or security event
    */
@@ -57,7 +80,7 @@ export class AuditLogService {
       limit?: number;
       offset?: number;
     }
-  ): Promise<{ logs: AuditLogType[]; total: number }> {
+  ): Promise<{ logs: SerializedAuditLog[]; total: number }> {
     const limit = options?.limit || 50;
     const offset = options?.offset || 0;
 
@@ -75,7 +98,7 @@ export class AuditLogService {
       .where(eq(auditLog.userId, userId));
 
     return {
-      logs,
+      logs: this.serializeMany(logs),
       total: count
     };
   }
@@ -90,7 +113,7 @@ export class AuditLogService {
       limit?: number;
       offset?: number;
     }
-  ): Promise<{ logs: AuditLogType[]; total: number }> {
+  ): Promise<{ logs: SerializedAuditLog[]; total: number }> {
     const limit = options?.limit || 50;
     const offset = options?.offset || 0;
 
@@ -118,7 +141,7 @@ export class AuditLogService {
       );
 
     return {
-      logs,
+      logs: this.serializeMany(logs),
       total: count
     };
   }
@@ -130,7 +153,7 @@ export class AuditLogService {
     limit?: number;
     offset?: number;
     action?: AuditAction;
-  }): Promise<{ logs: AuditLogType[]; total: number }> {
+  }): Promise<{ logs: SerializedAuditLog[]; total: number }> {
     const limit = options?.limit || 100;
     const offset = options?.offset || 0;
 
@@ -151,9 +174,23 @@ export class AuditLogService {
       .where(options?.action ? eq(auditLog.action, options.action) : undefined);
 
     return {
-      logs,
+      logs: this.serializeMany(logs),
       total: count
     };
+  }
+
+  /**
+   * Get a single audit log by ID (serialized)
+   */
+  async getById(id: string): Promise<SerializedAuditLog | null> {
+    const log = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.id, id))
+      .limit(1)
+      .then((results) => results[0] || null);
+
+    return log ? this.serialize(log) : null;
   }
 }
 
