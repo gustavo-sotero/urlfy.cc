@@ -9,9 +9,9 @@
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/proxy
  */
 
+import { handleRedirect } from '@/server/middleware/redirect.middleware';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { handleRedirect } from '@/server/middleware/redirect.middleware';
 
 /**
  * Rotas que NÃO devem ser interceptadas pelo redirect engine
