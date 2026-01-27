@@ -28,3 +28,4 @@ export {
 // Service (Business logic)
 export { AdminService } from './admin.service';
 export { auditController } from './audit.controller';
+export { adminMessagesController } from './messages.controller';

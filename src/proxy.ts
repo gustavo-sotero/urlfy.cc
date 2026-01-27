@@ -9,9 +9,9 @@
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/proxy
  */
 
+import { handleRedirect } from '@/server/middleware/redirect.middleware';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { handleRedirect } from '@/server/middleware/redirect.middleware';
 
 /**
  * Rotas que NÃO devem ser interceptadas pelo redirect engine
@@ -28,6 +28,7 @@ const EXCLUDED_PATHS = [
   '/settings', // Settings
   '/unlock', // Password unlock page
   '/preview', // Link preview page
+  '/contact', // Contact page
   '/404', // Not found page
   '/500', // Error page
   '/terms', // Terms of service

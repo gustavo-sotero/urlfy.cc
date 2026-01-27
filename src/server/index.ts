@@ -21,6 +21,7 @@ import { securityHeadersMiddleware } from '@/server/middleware/security-headers'
 import {
   AdminModels,
   adminController,
+  adminMessagesController,
   auditController
 } from '@/server/modules/admin';
 import { adminQueuesController } from '@/server/modules/admin/queues.controller';
@@ -30,6 +31,7 @@ import {
 } from '@/server/modules/analytics';
 import { ApiKeysModel, apiKeysController } from '@/server/modules/api-keys';
 import { AuthModels, authController } from '@/server/modules/auth';
+import { contactController } from '@/server/modules/contact';
 import {
   healthController,
   InternalModel,
@@ -163,6 +165,7 @@ export const api = new Elysia({ prefix: '/api' })
           },
           { name: 'Users', description: 'User profile and data' },
           { name: 'Links', description: 'Link management and shortening' },
+          { name: 'Contact', description: 'Contact form submissions' },
           { name: 'Admin', description: 'Admin-only endpoints' },
           { name: 'Stats', description: 'Statistics and analytics' }
         ],
@@ -256,10 +259,12 @@ export const api = new Elysia({ prefix: '/api' })
       .use(consentController)
       .use(usersController)
       .use(apiKeysController)
+      .use(contactController)
       .use(linksController)
       .use(analyticsController)
       .use(internalController)
       .use(adminController)
+      .use(adminMessagesController)
       .use(adminQueuesController)
       .group('/admin', (admin) => admin.use(auditController))
   )

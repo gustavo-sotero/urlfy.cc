@@ -80,6 +80,14 @@ export function Footer() {
                   Ajuda
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/contact"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Contato
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -123,7 +131,8 @@ export function Footer() {
 
         <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
           <p>
-            © {currentYear} urlfy.cc - Projeto Educacional por{' '}
+            © {currentYear} urlfy.cc - Projeto pessoal de pesquisa e
+            desenvolvimento por{' '}
             <a
               href="https://gustavo-sotero.dev"
               target="_blank"

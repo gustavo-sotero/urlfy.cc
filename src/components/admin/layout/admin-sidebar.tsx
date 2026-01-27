@@ -6,6 +6,7 @@ import {
   ExternalLink,
   LayoutDashboard,
   Link as LinkIcon,
+  Mail,
   ScrollText,
   Users
 } from 'lucide-react';
@@ -43,6 +44,12 @@ const navItems: NavItem[] = [
     href: '/admin/users',
     icon: Users,
     description: 'User administration'
+  },
+  {
+    title: 'Messages',
+    href: '/admin/messages',
+    icon: Mail,
+    description: 'Contact form submissions'
   },
   {
     title: 'Queues',

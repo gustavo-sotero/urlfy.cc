@@ -63,6 +63,10 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM: z.string().optional(),
 
+  // Telegram (Contact notifications)
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_CHAT_ID: z.string().optional(),
+
   // Trusted origins (comma-separated)
   TRUSTED_ORIGINS: z.string().optional(),
 

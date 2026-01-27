@@ -51,8 +51,10 @@ export function Navbar() {
           href="/"
           className="flex items-center gap-2 text-xl font-bold transition-colors hover:text-primary"
         >
-          <span className="text-primary">urlfy</span>
-          <span className="text-muted-foreground">.cc</span>
+          <span className="text-primary">
+            urlfy
+            <span className="text-muted-foreground">.cc</span>
+          </span>
         </Link>
 
         {/* Desktop Navigation */}

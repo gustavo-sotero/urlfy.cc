@@ -8,7 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import type { AuditAction } from '@/db/schema/audit';
 import {
   PaginatedResponse,
@@ -21,6 +20,7 @@ import {
   AuditLogQuery
 } from '@/server/modules/admin/admin.schema';
 import { auditLogService } from '@/server/services/audit.service';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin-audit-controller');
 
@@ -426,8 +426,7 @@ export const auditController = new Elysia({ prefix: '/audit' })
         const summary = await auditLogService.getSummary();
 
         logger.info('Audit logs summary retrieved', {
-          userId: user?.id,
-          totalLogs: allLogs.length
+          userId: user?.id
         });
 
         return {

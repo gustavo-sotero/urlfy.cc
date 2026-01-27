@@ -24,6 +24,9 @@ export * from './auth';
 // Common Schemas
 export * from './common';
 
+// Contact Module
+export * from './contact';
+
 // Links Module
 export * from './links';
 
