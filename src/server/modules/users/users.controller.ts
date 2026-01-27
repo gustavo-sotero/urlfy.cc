@@ -9,10 +9,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { Elysia, t } from 'elysia';
-import { db } from '@/db';
-import { user as userTable } from '@/db/schema/auth';
 import {
   ErrorRef,
   PaginatedResponse,
@@ -44,51 +41,21 @@ export const usersController = new Elysia({ prefix: '/users' })
       const perPage = Math.min(Number(query.perPage) || 20, 100);
       const search = query.search || '';
 
-      // Build where clause
-      const whereClause =
-        search.length > 0
-          ? or(
-              ilike(userTable.email, `%${search}%`),
-              ilike(userTable.name, `%${search}%`)
-            )
-          : undefined;
-
-      // Count total
-      const [{ count }] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(userTable)
-        .where(whereClause);
-
-      // Get users
-      const users = await db
-        .select({
-          id: userTable.id,
-          email: userTable.email,
-          name: userTable.name,
-          role: userTable.role,
-          emailVerified: userTable.emailVerified,
-          linksCount: userTable.linksCount,
-          linksQuota: userTable.linksQuota,
-          bannedAt: userTable.bannedAt,
-          bannedReason: userTable.bannedReason,
-          deletedAt: userTable.deletedAt,
-          createdAt: userTable.createdAt
-        })
-        .from(userTable)
-        .where(whereClause)
-        .orderBy(desc(userTable.createdAt))
-        .limit(perPage)
-        .offset((page - 1) * perPage);
+      const { users, total } = await UserService.listUsers({
+        page,
+        perPage,
+        search
+      });
 
       return {
         success: true as const,
         data: users,
         meta: {
-          total: Number(count),
+          total,
           page,
           perPage,
-          lastPage: Math.ceil(Number(count) / perPage),
-          hasMore: page * perPage < Number(count)
+          lastPage: Math.ceil(total / perPage),
+          hasMore: page * perPage < total
         }
       };
     },
@@ -320,11 +287,7 @@ export const usersController = new Elysia({ prefix: '/users' })
     '/:userId/quota',
     async ({ params: { userId }, body: { linksQuota } }) => {
       try {
-        const [updated] = await db
-          .update(userTable)
-          .set({ linksQuota })
-          .where(eq(userTable.id, userId))
-          .returning();
+        const updated = await UserService.updateUserQuota(userId, linksQuota);
 
         if (!updated) {
           return {
@@ -382,39 +345,11 @@ export const usersController = new Elysia({ prefix: '/users' })
   .get(
     '/stats/global',
     async () => {
-      // Total users
-      const [{ totalUsers }] = await db
-        .select({ totalUsers: sql<number>`count(*)` })
-        .from(userTable);
-
-      // Active users (not banned, not deleted)
-      const [{ activeUsers }] = await db
-        .select({ activeUsers: sql<number>`count(*)` })
-        .from(userTable)
-        .where(
-          sql`${userTable.bannedAt} IS NULL AND ${userTable.deletedAt} IS NULL`
-        );
-
-      // Banned users
-      const [{ bannedUsers }] = await db
-        .select({ bannedUsers: sql<number>`count(*)` })
-        .from(userTable)
-        .where(sql`${userTable.bannedAt} IS NOT NULL`);
-
-      // Admin users
-      const [{ adminUsers }] = await db
-        .select({ adminUsers: sql<number>`count(*)` })
-        .from(userTable)
-        .where(eq(userTable.role, 'admin'));
+      const stats = await UserService.getGlobalStats();
 
       return {
         success: true as const,
-        data: {
-          totalUsers: Number(totalUsers),
-          activeUsers: Number(activeUsers),
-          bannedUsers: Number(bannedUsers),
-          adminUsers: Number(adminUsers)
-        }
+        data: stats
       };
     },
     {

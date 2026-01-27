@@ -8,8 +8,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { db } from '@/db';
-import { auditLog } from '@/db/schema/audit';
+import { Elysia, t } from 'elysia';
+import type { AuditAction } from '@/db/schema/audit';
 import {
   PaginatedResponse,
   SuccessResponse
@@ -21,7 +21,6 @@ import {
   AuditLogQuery
 } from '@/server/modules/admin/admin.schema';
 import { auditLogService } from '@/server/services/audit.service';
-import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin-audit-controller');
 
@@ -56,12 +55,11 @@ export const auditController = new Elysia({ prefix: '/audit' })
         const offset = (page - 1) * limit;
 
         // Use service for consistent data fetching
-        const { logs: allLogs, total: totalCount } =
-          await auditLogService.getRecent({
-            action: query.action as any,
-            limit: 10000, // Get more for filtering
-            offset: 0
-          });
+        const { logs: allLogs } = await auditLogService.getRecent({
+          action: query.action ? (query.action as AuditAction) : undefined,
+          limit: 10000, // Get more for filtering
+          offset: 0
+        });
 
         // Apply additional filters in memory
         let filteredLogs = allLogs;
@@ -425,25 +423,7 @@ export const auditController = new Elysia({ prefix: '/audit' })
       }
 
       try {
-        const allLogs = await db.select().from(auditLog);
-
-        // Count by action
-        const actionCounts: Record<string, number> = {};
-        const entityTypeCounts: Record<string, number> = {};
-        const userCounts: Record<string, number> = {};
-
-        for (const log of allLogs) {
-          actionCounts[log.action] = (actionCounts[log.action] || 0) + 1;
-          entityTypeCounts[log.entityType] =
-            (entityTypeCounts[log.entityType] || 0) + 1;
-          userCounts[log.userId] = (userCounts[log.userId] || 0) + 1;
-        }
-
-        // Get top 10 active users
-        const topUsers = Object.entries(userCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 10)
-          .map(([userId, count]) => ({ userId, count }));
+        const summary = await auditLogService.getSummary();
 
         logger.info('Audit logs summary retrieved', {
           userId: user?.id,
@@ -452,12 +432,7 @@ export const auditController = new Elysia({ prefix: '/audit' })
 
         return {
           success: true,
-          data: {
-            totalLogs: allLogs.length,
-            actionCounts,
-            entityTypeCounts,
-            topUsers
-          }
+          data: summary
         };
       } catch (error) {
         logger.error('Failed to fetch audit logs summary', {

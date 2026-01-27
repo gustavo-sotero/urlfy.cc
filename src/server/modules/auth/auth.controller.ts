@@ -8,24 +8,12 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
 import { Elysia, t } from 'elysia';
-import { nanoid } from 'nanoid';
-import { db } from '@/db';
-import {
-  apiKey as apiKeyTable,
-  session as sessionTable,
-  twoFactor as twoFactorTable
-} from '@/db/schema/auth';
 import { redis } from '@/server/lib/redis';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
 import { auditLogService } from '@/server/services/audit.service';
-import type {
-  ApiKeyPermissions,
-  NormalizedApiKeyPermissions
-} from '@/types/auth.types';
-
+import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
 import {
   ApiKeyCreateBody,
   ApiKeyIdParam,
@@ -33,99 +21,16 @@ import {
   AuthModels,
   SessionIdParam
 } from './auth.schema';
+import { AuthService } from './auth.service';
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
 
-async function generateApiKey(
-  userId: string,
-  name: string,
-  permissions: ApiKeyPermissions,
-  options: {
-    rateLimitMax: number;
-    rateLimitTimeWindow: number;
-    expiresAt: Date | null;
-  }
-) {
-  const key = `urlfy_sk_${nanoid(32)}`;
-  const prefix = key.slice(0, 15); // e.g., "urlfy_sk_abc123"
-
-  const encoder = new TextEncoder();
-  const data = encoder.encode(key);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const keyHash = hashArray
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-
-  const normalizedPermissions = normalizePermissions(permissions);
-
-  const [created] = await db
-    .insert(apiKeyTable)
-    .values({
-      id: nanoid(),
-      userId,
-      name,
-      keyHash,
-      prefix,
-      permissions: JSON.stringify(normalizedPermissions),
-      rateLimit: true,
-      rateLimitEnabled: true,
-      rateLimitTimeWindow: options.rateLimitTimeWindow,
-      rateLimitMax: options.rateLimitMax,
-      lastUsedAt: null,
-      usageCount: 0,
-      expiresAt: options.expiresAt,
-      revokedAt: null,
-      deletedAt: null
-    })
-    .returning();
-
-  return { created, plainKey: key };
-}
-
 function parsePermissions(
   permissions: string | null
 ): NormalizedApiKeyPermissions {
-  if (!permissions) {
-    return normalizePermissions({});
-  }
-
-  try {
-    const parsed = JSON.parse(permissions) as ApiKeyPermissions;
-    return normalizePermissions(parsed);
-  } catch {
-    return normalizePermissions({});
-  }
-}
-
-function normalizePermissions(
-  permissions: ApiKeyPermissions
-): NormalizedApiKeyPermissions {
-  const defaults: NormalizedApiKeyPermissions = {
-    links: {
-      create: true,
-      read: true,
-      update: true,
-      delete: false
-    },
-    analytics: {
-      read: true
-    }
-  };
-
-  return {
-    links: {
-      create: permissions.links?.create ?? defaults.links.create,
-      read: permissions.links?.read ?? defaults.links.read,
-      update: permissions.links?.update ?? defaults.links.update,
-      delete: permissions.links?.delete ?? defaults.links.delete
-    },
-    analytics: {
-      read: permissions.analytics?.read ?? defaults.analytics.read
-    }
-  };
+  return AuthService.parsePermissions(permissions);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -212,24 +117,11 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
       }
 
       try {
-        const result = await db
-          .select({
-            verified: twoFactorTable.verified,
-            createdAt: twoFactorTable.createdAt
-          })
-          .from(twoFactorTable)
-          .where(eq(twoFactorTable.userId, user.id))
-          .limit(1);
-
-        const enabled = result.length > 0 && result[0].verified;
+        const status = await AuthService.getTwoFactorStatus(user.id);
 
         return {
           success: true as const,
-          data: {
-            enabled,
-            verified: enabled,
-            setupAt: result[0]?.createdAt ?? null
-          }
+          data: status
         };
       } catch {
         return {
@@ -267,14 +159,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         return unauthorizedResponse;
       }
 
-      const now = new Date();
-      const sessions = await db
-        .select()
-        .from(sessionTable)
-        .where(
-          and(eq(sessionTable.userId, user.id), gt(sessionTable.expiresAt, now))
-        )
-        .orderBy(desc(sessionTable.createdAt));
+      const sessions = await AuthService.listActiveSessions(user.id);
 
       return {
         success: true as const,
@@ -312,17 +197,12 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         return unauthorizedResponse;
       }
 
-      const deleted = await db
-        .delete(sessionTable)
-        .where(
-          and(
-            eq(sessionTable.id, params.sessionId),
-            eq(sessionTable.userId, user.id)
-          )
-        )
-        .returning();
+      const revoked = await AuthService.revokeSession(
+        params.sessionId,
+        user.id
+      );
 
-      if (deleted.length === 0) {
+      if (!revoked) {
         return {
           success: false as const,
           error: {
@@ -369,11 +249,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         return unauthorizedResponse;
       }
 
-      await db
-        .delete(sessionTable)
-        .where(
-          and(eq(sessionTable.userId, user.id), ne(sessionTable.id, session.id))
-        );
+      await AuthService.revokeOtherSessions(user.id, session.id);
 
       return {
         success: true,
@@ -410,11 +286,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         return unauthorizedResponse;
       }
 
-      await db
-        .delete(sessionTable)
-        .where(
-          and(eq(sessionTable.userId, user.id), ne(sessionTable.id, session.id))
-        );
+      await AuthService.revokeOtherSessions(user.id, session.id);
 
       return {
         success: true as const,
@@ -451,11 +323,7 @@ sessionRoutes.post(
       return unauthorizedResponse;
     }
 
-    await db
-      .delete(sessionTable)
-      .where(
-        and(eq(sessionTable.userId, user.id), ne(sessionTable.id, session.id))
-      );
+    await AuthService.revokeOtherSessions(user.id, session.id);
 
     return {
       success: true as const,
@@ -500,27 +368,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         return unauthorizedResponse;
       }
 
-      const keys = await db
-        .select({
-          id: apiKeyTable.id,
-          name: apiKeyTable.name,
-          prefix: apiKeyTable.prefix,
-          permissions: apiKeyTable.permissions,
-          rateLimitMax: apiKeyTable.rateLimitMax,
-          lastUsedAt: apiKeyTable.lastUsedAt,
-          usageCount: apiKeyTable.usageCount,
-          expiresAt: apiKeyTable.expiresAt,
-          createdAt: apiKeyTable.createdAt
-        })
-        .from(apiKeyTable)
-        .where(
-          and(
-            eq(apiKeyTable.userId, user.id),
-            isNull(apiKeyTable.deletedAt),
-            isNull(apiKeyTable.revokedAt)
-          )
-        )
-        .orderBy(desc(apiKeyTable.createdAt));
+      const keys = await AuthService.listApiKeys(user.id);
 
       return {
         success: true as const,
@@ -568,7 +416,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         ? new Date(Date.now() + body.expiresInDays * 24 * 60 * 60 * 1000)
         : null;
 
-      const { created, plainKey } = await generateApiKey(
+      const { created, plainKey } = await AuthService.createApiKeyWithOptions(
         user.id,
         body.name,
         body.permissions || {},
@@ -624,27 +472,10 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         return unauthorizedResponse;
       }
 
-      const normalizedPermissions = body.permissions
-        ? normalizePermissions(body.permissions)
-        : undefined;
-
-      const [updated] = await db
-        .update(apiKeyTable)
-        .set({
-          name: body.name,
-          permissions: normalizedPermissions
-            ? JSON.stringify(normalizedPermissions)
-            : undefined
-        })
-        .where(
-          and(
-            eq(apiKeyTable.id, params.keyId),
-            eq(apiKeyTable.userId, user.id),
-            isNull(apiKeyTable.deletedAt),
-            isNull(apiKeyTable.revokedAt)
-          )
-        )
-        .returning();
+      const updated = await AuthService.updateApiKey(user.id, params.keyId, {
+        name: body.name,
+        permissions: body.permissions
+      });
 
       if (!updated) {
         return {
@@ -701,21 +532,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
         return unauthorizedResponse;
       }
 
-      const [deleted] = await db
-        .update(apiKeyTable)
-        .set({
-          revokedAt: new Date(),
-          deletedAt: new Date()
-        })
-        .where(
-          and(
-            eq(apiKeyTable.id, params.keyId),
-            eq(apiKeyTable.userId, user.id),
-            isNull(apiKeyTable.deletedAt),
-            isNull(apiKeyTable.revokedAt)
-          )
-        )
-        .returning();
+      const deleted = await AuthService.deleteApiKey(user.id, params.keyId);
 
       if (!deleted) {
         return {

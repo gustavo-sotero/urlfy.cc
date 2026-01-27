@@ -9,14 +9,14 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import {
   type AuditAction,
   type AuditLog as AuditLogType,
   auditLog
 } from '@/db/schema/audit';
 import { db } from '@/server/lib/db';
-import { and, desc, eq, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 
 /**
  * Serialized audit log type for API responses
@@ -191,6 +191,41 @@ export class AuditLogService {
       .then((results) => results[0] || null);
 
     return log ? this.serialize(log) : null;
+  }
+
+  /**
+   * Get audit log summary statistics
+   */
+  async getSummary(): Promise<{
+    totalLogs: number;
+    actionCounts: Record<string, number>;
+    entityTypeCounts: Record<string, number>;
+    topUsers: Array<{ userId: string; count: number }>;
+  }> {
+    const allLogs = await db.select().from(auditLog);
+
+    const actionCounts: Record<string, number> = {};
+    const entityTypeCounts: Record<string, number> = {};
+    const userCounts: Record<string, number> = {};
+
+    for (const log of allLogs) {
+      actionCounts[log.action] = (actionCounts[log.action] || 0) + 1;
+      entityTypeCounts[log.entityType] =
+        (entityTypeCounts[log.entityType] || 0) + 1;
+      userCounts[log.userId] = (userCounts[log.userId] || 0) + 1;
+    }
+
+    const topUsers = Object.entries(userCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([userId, count]) => ({ userId, count }));
+
+    return {
+      totalLogs: allLogs.length,
+      actionCounts,
+      entityTypeCounts,
+      topUsers
+    };
   }
 }
 

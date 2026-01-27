@@ -8,7 +8,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import {
   apiKey as apiKeyTable,
@@ -112,6 +112,48 @@ export const AuthService = {
    */
   async getSession(headers: Headers) {
     return await auth.api.getSession({ headers });
+  },
+
+  /**
+   * Get 2FA status for a user
+   */
+  async getTwoFactorStatus(userId: string): Promise<{
+    enabled: boolean;
+    verified: boolean;
+    setupAt: Date | null;
+  }> {
+    const result = await db
+      .select({
+        verified: twoFactorTable.verified,
+        createdAt: twoFactorTable.createdAt
+      })
+      .from(twoFactorTable)
+      .where(eq(twoFactorTable.userId, userId))
+      .limit(1);
+
+    const enabled = result.length > 0 && result[0].verified;
+
+    return {
+      enabled,
+      verified: enabled,
+      setupAt: result[0]?.createdAt ?? null
+    };
+  },
+
+  /**
+   * List active sessions for a user
+   */
+  async listActiveSessions(
+    userId: string
+  ): Promise<(typeof sessionTable.$inferSelect)[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(sessionTable)
+      .where(
+        and(eq(sessionTable.userId, userId), gt(sessionTable.expiresAt, now))
+      )
+      .orderBy(desc(sessionTable.createdAt));
   },
 
   /**
@@ -290,6 +332,137 @@ export const AuthService = {
       keyId: created.id,
       plainKey: key
     };
+  },
+
+  /**
+   * List API keys for a user (active only)
+   */
+  async listApiKeys(userId: string) {
+    return await db
+      .select({
+        id: apiKeyTable.id,
+        name: apiKeyTable.name,
+        prefix: apiKeyTable.prefix,
+        permissions: apiKeyTable.permissions,
+        rateLimitMax: apiKeyTable.rateLimitMax,
+        lastUsedAt: apiKeyTable.lastUsedAt,
+        usageCount: apiKeyTable.usageCount,
+        expiresAt: apiKeyTable.expiresAt,
+        createdAt: apiKeyTable.createdAt
+      })
+      .from(apiKeyTable)
+      .where(
+        and(
+          eq(apiKeyTable.userId, userId),
+          isNull(apiKeyTable.deletedAt),
+          isNull(apiKeyTable.revokedAt)
+        )
+      )
+      .orderBy(desc(apiKeyTable.createdAt));
+  },
+
+  /**
+   * Create API key with custom options
+   */
+  async createApiKeyWithOptions(
+    userId: string,
+    name: string,
+    permissions: ApiKeyPermissions,
+    options: {
+      rateLimitMax: number;
+      rateLimitTimeWindow: number;
+      expiresAt: Date | null;
+    }
+  ): Promise<{ created: typeof apiKeyTable.$inferSelect; plainKey: string }> {
+    const key = `urlfy_sk_${nanoid(32)}`;
+    const prefix = key.slice(0, 15);
+    const keyHash = await AuthService.hashApiKey(key);
+    const normalizedPermissions = AuthService.normalizePermissions(permissions);
+
+    const [created] = await db
+      .insert(apiKeyTable)
+      .values({
+        id: nanoid(),
+        userId,
+        name,
+        keyHash,
+        prefix,
+        permissions: JSON.stringify(normalizedPermissions),
+        rateLimit: true,
+        rateLimitEnabled: true,
+        rateLimitTimeWindow: options.rateLimitTimeWindow,
+        rateLimitMax: options.rateLimitMax,
+        lastUsedAt: null,
+        usageCount: 0,
+        expiresAt: options.expiresAt,
+        revokedAt: null,
+        deletedAt: null
+      })
+      .returning();
+
+    return { created, plainKey: key };
+  },
+
+  /**
+   * Update API key metadata (name/permissions)
+   */
+  async updateApiKey(
+    userId: string,
+    keyId: string,
+    data: {
+      name?: string;
+      permissions?: ApiKeyPermissions;
+    }
+  ): Promise<typeof apiKeyTable.$inferSelect | null> {
+    const normalizedPermissions = data.permissions
+      ? AuthService.normalizePermissions(data.permissions)
+      : undefined;
+
+    const [updated] = await db
+      .update(apiKeyTable)
+      .set({
+        name: data.name,
+        permissions: normalizedPermissions
+          ? JSON.stringify(normalizedPermissions)
+          : undefined
+      })
+      .where(
+        and(
+          eq(apiKeyTable.id, keyId),
+          eq(apiKeyTable.userId, userId),
+          isNull(apiKeyTable.deletedAt),
+          isNull(apiKeyTable.revokedAt)
+        )
+      )
+      .returning();
+
+    return updated ?? null;
+  },
+
+  /**
+   * Soft delete (revoke) an API key
+   */
+  async deleteApiKey(
+    userId: string,
+    keyId: string
+  ): Promise<typeof apiKeyTable.$inferSelect | null> {
+    const [deleted] = await db
+      .update(apiKeyTable)
+      .set({
+        revokedAt: new Date(),
+        deletedAt: new Date()
+      })
+      .where(
+        and(
+          eq(apiKeyTable.id, keyId),
+          eq(apiKeyTable.userId, userId),
+          isNull(apiKeyTable.deletedAt),
+          isNull(apiKeyTable.revokedAt)
+        )
+      )
+      .returning();
+
+    return deleted ?? null;
   },
 
   /**

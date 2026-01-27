@@ -8,7 +8,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import {
   account as accountTable,
   apiKey as apiKeyTable,
@@ -29,6 +29,57 @@ import { auditLogService } from '@/server/services/audit.service';
  * - Stateless methods
  */
 export const UserService = {
+  /**
+   * List users with pagination and search (admin)
+   */
+  async listUsers(options: {
+    page: number;
+    perPage: number;
+    search?: string;
+  }): Promise<{ users: User[]; total: number }> {
+    const page = options.page;
+    const perPage = options.perPage;
+    const search = options.search ?? '';
+
+    const whereClause =
+      search.length > 0
+        ? or(
+            ilike(userTable.email, `%${search}%`),
+            ilike(userTable.name, `%${search}%`)
+          )
+        : undefined;
+
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userTable)
+      .where(whereClause);
+
+    const users = await db
+      .select({
+        id: userTable.id,
+        email: userTable.email,
+        name: userTable.name,
+        role: userTable.role,
+        emailVerified: userTable.emailVerified,
+        linksCount: userTable.linksCount,
+        linksQuota: userTable.linksQuota,
+        bannedAt: userTable.bannedAt,
+        bannedReason: userTable.bannedReason,
+        deletedAt: userTable.deletedAt,
+        createdAt: userTable.createdAt
+      })
+      .from(userTable)
+      .where(whereClause)
+      .orderBy(desc(userTable.createdAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage);
+
+    return {
+      users: users as User[],
+      total: Number(count)
+    };
+  },
+
   // ═══════════════════════════════════════════════════════════════════
   // USER CRUD OPERATIONS
   // ═══════════════════════════════════════════════════════════════════
@@ -85,6 +136,22 @@ export const UserService = {
     }
 
     return user;
+  },
+
+  /**
+   * Update user quota (admin)
+   */
+  async updateUserQuota(
+    userId: string,
+    linksQuota: number
+  ): Promise<Pick<User, 'id' | 'linksQuota'> | null> {
+    const [updated] = await db
+      .update(userTable)
+      .set({ linksQuota })
+      .where(eq(userTable.id, userId))
+      .returning({ id: userTable.id, linksQuota: userTable.linksQuota });
+
+    return updated ?? null;
   },
 
   /**
@@ -237,6 +304,44 @@ export const UserService = {
     }
 
     return user;
+  },
+
+  /**
+   * Global user stats (admin)
+   */
+  async getGlobalStats(): Promise<{
+    totalUsers: number;
+    activeUsers: number;
+    bannedUsers: number;
+    adminUsers: number;
+  }> {
+    const [{ totalUsers }] = await db
+      .select({ totalUsers: sql<number>`count(*)` })
+      .from(userTable);
+
+    const [{ activeUsers }] = await db
+      .select({ activeUsers: sql<number>`count(*)` })
+      .from(userTable)
+      .where(
+        sql`${userTable.bannedAt} IS NULL AND ${userTable.deletedAt} IS NULL`
+      );
+
+    const [{ bannedUsers }] = await db
+      .select({ bannedUsers: sql<number>`count(*)` })
+      .from(userTable)
+      .where(sql`${userTable.bannedAt} IS NOT NULL`);
+
+    const [{ adminUsers }] = await db
+      .select({ adminUsers: sql<number>`count(*)` })
+      .from(userTable)
+      .where(eq(userTable.role, 'admin'));
+
+    return {
+      totalUsers: Number(totalUsers),
+      activeUsers: Number(activeUsers),
+      bannedUsers: Number(bannedUsers),
+      adminUsers: Number(adminUsers)
+    };
   },
 
   // ═══════════════════════════════════════════════════════════════════
