@@ -3,23 +3,11 @@
  * Integrates anti-abuse detection into request processing
  */
 
+import { getClientIp } from '@/server/lib/ip';
 import { createLogger } from '@/server/lib/telemetry';
 import { antiAbuseService } from '@/server/services/anti-abuse.service';
 
 const logger = createLogger('anti-abuse-middleware');
-
-/**
- * Get client IP from request
- */
-function getClientIP(request: Request): string {
-  const forwarded = request.headers.get('X-Forwarded-For');
-
-  if (process.env.TRUST_PROXY === 'true' && forwarded) {
-    return forwarded.split(',')[0]?.trim() || '127.0.0.1';
-  }
-
-  return '127.0.0.1';
-}
 
 /**
  * Anti-abuse middleware handler
@@ -27,7 +15,7 @@ function getClientIP(request: Request): string {
 export async function antiAbuseMiddleware(
   request: Request
 ): Promise<Response | null> {
-  const ip = getClientIP(request);
+  const ip = getClientIp(request);
   const path = new URL(request.url).pathname;
 
   // Skip health checks

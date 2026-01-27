@@ -6,6 +6,7 @@ import type { NextRequest } from 'next/server';
 // Set environment variables for tests
 process.env.INTERNAL_API_SECRET = 'test-internal-secret';
 process.env.JWT_SECRET = 'test-jwt-secret-with-at-least-32-chars-for-security';
+process.env.TRUST_PROXY = 'true'; // Enable x-forwarded-for parsing in tests
 
 // Mock modules BEFORE any imports that use them
 const mockAnalyticsQueue = {

@@ -1,65 +1,17 @@
 /**
  * CORS Middleware
  * Configures Cross-Origin Resource Sharing with strict defaults
+ * Uses centralized configuration from @/server/config/cors
  */
 
+import {
+  ALLOWED_METHODS,
+  getCorsHeaders,
+  isOriginAllowed
+} from '@/server/config/cors';
 import { createLogger } from '@/server/lib/telemetry';
 
 const logger = createLogger('cors');
-
-// Allowed origins configuration
-const ALLOWED_ORIGINS = {
-  production: ['https://urlfy.cc', 'https://www.urlfy.cc'],
-  development: [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:5173' // Vite dev server
-  ],
-  test: ['http://localhost:3000', 'http://127.0.0.1']
-};
-
-const allowedOrigins =
-  ALLOWED_ORIGINS[process.env.NODE_ENV as keyof typeof ALLOWED_ORIGINS] ||
-  ALLOWED_ORIGINS.development;
-
-// Allowed methods
-const ALLOWED_METHODS = ['GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS'];
-
-// Allowed headers
-const ALLOWED_HEADERS = [
-  'Content-Type',
-  'Authorization',
-  'X-API-Key',
-  'Idempotency-Key',
-  'X-Request-Id',
-  'X-Requested-With'
-];
-
-// Exposed headers (client can read these)
-const EXPOSED_HEADERS = [
-  'X-RateLimit-Limit',
-  'X-RateLimit-Remaining',
-  'X-RateLimit-Reset',
-  'X-Request-Id',
-  'Retry-After'
-];
-
-/**
- * Check if origin is allowed
- */
-function isOriginAllowed(origin: string | null): boolean {
-  if (!origin) return false;
-
-  try {
-    const url = new URL(origin);
-    return allowedOrigins.some((allowed) => {
-      if (allowed === '*') return true;
-      return url.origin === new URL(allowed).origin;
-    });
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Handle CORS preflight (OPTIONS) requests
@@ -77,7 +29,7 @@ export function handleCORSPreflight(request: Request): Response | null {
   }
 
   const requestMethod = request.headers.get('Access-Control-Request-Method');
-  const requestHeaders = request.headers.get('Access-Control-Request-Headers');
+  const _requestHeaders = request.headers.get('Access-Control-Request-Headers');
 
   if (requestMethod && !ALLOWED_METHODS.includes(requestMethod)) {
     logger.warn('CORS preflight rejected for method', {
@@ -87,17 +39,14 @@ export function handleCORSPreflight(request: Request): Response | null {
     return new Response(null, { status: 403 });
   }
 
+  logger.debug('CORS preflight accepted', { origin, requestMethod });
+
+  // Get CORS headers from centralized config
+  const corsHeaders = getCorsHeaders(origin);
+
   return new Response(null, {
     status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': origin || '*',
-      'Access-Control-Allow-Methods': ALLOWED_METHODS.join(', '),
-      'Access-Control-Allow-Headers':
-        requestHeaders || ALLOWED_HEADERS.join(', '),
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Max-Age': '86400', // 24 hours
-      Vary: 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers'
-    }
+    headers: corsHeaders
   });
 }
 
@@ -110,28 +59,17 @@ export function addCORSHeaders(response: Response, request: Request): Response {
   // Create new response with same body and status
   const newResponse = new Response(response.body, response);
 
-  // Add CORS headers
-  if (isOriginAllowed(origin) && origin) {
-    newResponse.headers.set('Access-Control-Allow-Origin', origin);
+  // Add CORS headers from centralized config
+  const corsHeaders = getCorsHeaders(origin);
+
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    newResponse.headers.set(key, value);
   }
 
-  newResponse.headers.set(
-    'Access-Control-Allow-Methods',
-    ALLOWED_METHODS.join(', ')
-  );
-  newResponse.headers.set(
-    'Access-Control-Allow-Headers',
-    ALLOWED_HEADERS.join(', ')
-  );
-  newResponse.headers.set(
-    'Access-Control-Expose-Headers',
-    EXPOSED_HEADERS.join(', ')
-  );
-  newResponse.headers.set('Access-Control-Allow-Credentials', 'true');
-  newResponse.headers.set(
-    'Vary',
-    'Origin, Access-Control-Request-Method, Access-Control-Request-Headers'
-  );
+  // Add Vary header for cache control
+  const existingVary = newResponse.headers.get('Vary');
+  const varyValues = existingVary ? `${existingVary}, Origin` : 'Origin';
+  newResponse.headers.set('Vary', varyValues);
 
   return newResponse;
 }

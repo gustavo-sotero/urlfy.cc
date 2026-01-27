@@ -46,6 +46,7 @@ const envSchema = z.object({
 
   // Internal API security
   INTERNAL_API_SECRET: z.string().min(16),
+  INTERNAL_API_URL: z.string().default('http://127.0.0.1:3000'),
 
   // Internal Analytics API security (separate from BETTER_AUTH_SECRET)
   INTERNAL_ANALYTICS_SECRET: z.string().min(16).optional(),

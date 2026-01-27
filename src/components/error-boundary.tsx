@@ -29,12 +29,30 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
 
     // Send to error tracking service
-    if (typeof window !== 'undefined' && window.reportError) {
-      window.reportError(error);
-    }
+    if (typeof window !== 'undefined') {
+      // Report to window.reportError if available
+      if (window.reportError) {
+        window.reportError(error);
+      }
 
-    // TODO: Integrate with Sentry or similar service
-    // Sentry.captureException(error, { contexts: { react: errorInfo } });
+      // Send to internal monitoring endpoint (fire-and-forget)
+      fetch('/api/monitor/log', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          error: error.message,
+          componentStack: errorInfo.componentStack,
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString()
+        })
+      }).catch((fetchError) => {
+        // Silently fail - we don't want logging errors to break the app
+        console.error('Failed to send error report:', fetchError);
+      });
+    }
   }
 
   handleRetry = () => {

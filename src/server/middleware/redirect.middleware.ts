@@ -6,6 +6,7 @@
 
 import type { NextRequest, NextResponse } from 'next/server';
 import { NextResponse as Response } from 'next/server';
+import { getClientIp } from '@/server/lib/ip';
 import { createLogger } from '@/server/lib/telemetry.edge';
 import type { ClickEvent } from '@/types/analytics.types';
 
@@ -31,9 +32,14 @@ async function resolveLink(
   passwordToken: string | undefined
 ): Promise<ResolveResult> {
   try {
-    // Construct internal API URL
-    const baseUrl = request.nextUrl.origin;
-    const apiUrl = new URL(`/api/internal/resolve/${shortCode}`, baseUrl);
+    // Use trusted internal API base URL to prevent host header injection
+    // Never trust request.nextUrl.origin as it can be spoofed via Host header
+    const internalApiBase =
+      process.env.INTERNAL_API_URL || 'http://127.0.0.1:3000';
+    const apiUrl = new URL(
+      `/api/internal/resolve/${shortCode}`,
+      internalApiBase
+    );
 
     const internalSecret = process.env.INTERNAL_API_SECRET;
     if (!internalSecret) {
@@ -49,10 +55,7 @@ async function resolveLink(
       },
       body: JSON.stringify({
         depth,
-        ip:
-          request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-          request.headers.get('x-real-ip') ||
-          'unknown',
+        ip: getClientIp(request),
         userAgent: request.headers.get('user-agent') || 'unknown'
       })
     });
@@ -193,11 +196,12 @@ export async function handleRedirect(
 function handleError(
   error: string,
   code: string,
-  request: NextRequest,
+  _request: NextRequest,
   requestId: string,
   retryAfter?: number
 ): NextResponse {
-  const baseUrl = request.nextUrl.origin;
+  // Use trusted public app URL for user-facing redirects
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://urlfy.cc';
 
   logger.debug('Redirect error', { code, error, requestId });
 
@@ -340,11 +344,13 @@ async function enqueueClickEvent(
     };
 
     // Chama API interna de forma assíncrona (não aguarda resposta)
-    const baseUrl = request.nextUrl.origin;
+    // Use trusted internal API base URL to prevent host header injection
+    const internalApiBase =
+      process.env.INTERNAL_API_URL || 'http://127.0.0.1:3000';
     const internalToken = process.env.INTERNAL_API_SECRET;
 
     // Fire and forget - não aguardamos resposta para não bloquear redirect
-    fetch(`${baseUrl}/api/internal/analytics`, {
+    fetch(`${internalApiBase}/api/internal/analytics`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -372,32 +378,6 @@ async function enqueueClickEvent(
     });
     throw error;
   }
-}
-
-/**
- * Extrai IP do cliente considerando proxies
- */
-function getClientIp(request: NextRequest): string {
-  // Verifica headers de proxy (ordem de precedência)
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    // Pega o primeiro IP da lista (cliente original)
-    return forwardedFor.split(',')[0].trim();
-  }
-
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp) {
-    return realIp.trim();
-  }
-
-  const cfConnectingIp = request.headers.get('cf-connecting-ip');
-  if (cfConnectingIp) {
-    return cfConnectingIp.trim();
-  }
-
-  // Fallback para unknown se nenhum header disponível
-  // NextRequest não expõe IP diretamente
-  return 'unknown';
 }
 
 /**

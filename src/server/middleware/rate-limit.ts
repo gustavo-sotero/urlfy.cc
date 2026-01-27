@@ -3,6 +3,7 @@
  * Applies rate limiting based on IP, token, and endpoint
  */
 
+import { getClientIp } from '@/server/lib/ip';
 import { maskValue, sanitizeHeaders } from '@/server/lib/log-sanitizer';
 import {
   RATE_LIMIT_CONFIGS,
@@ -12,51 +13,6 @@ import {
 import { createLogger } from '@/server/lib/telemetry';
 
 const logger = createLogger('rate-limit-middleware');
-
-/**
- * Extract client IP from request
- * Respects X-Forwarded-For header in trusted environments
- */
-function getClientIP(request: Request, clientIp?: string | null): string {
-  // If explicitly provided (e.g. from Next.js request.ip), prefer it
-  if (clientIp) return clientIp;
-
-  // Try to read IP from the request object (NextRequest-compatible)
-  const requestIp = (request as Request & { ip?: string }).ip;
-  if (requestIp) return requestIp;
-
-  // Check if we should trust X-Forwarded-For
-  const trustProxy = process.env.TRUST_PROXY === 'true';
-  const forwarded = request.headers.get('X-Forwarded-For');
-
-  // If proxy is trusted and header exists, use first IP in chain
-  if (trustProxy && forwarded) {
-    const clientIP = forwarded.split(',')[0]?.trim();
-    if (clientIP) {
-      return clientIP;
-    }
-  }
-
-  // Log warning once if X-Forwarded-For is present but not trusted
-  if (!trustProxy && forwarded && !getClientIP.warningLogged) {
-    logger.warn(
-      'X-Forwarded-For header detected but TRUST_PROXY is not enabled. ' +
-        'Set TRUST_PROXY=true if behind a reverse proxy.'
-    );
-    getClientIP.warningLogged = true;
-  }
-
-  // Fallback: Try to get real IP from common proxy headers without trusting XFF
-  const realIp =
-    request.headers.get('X-Real-IP') || request.headers.get('CF-Connecting-IP');
-  if (realIp) return realIp;
-
-  // Final fallback (safe default for rate limiting)
-  return '0.0.0.0';
-}
-
-// Static property to track if warning was logged
-getClientIP.warningLogged = false;
 
 /**
  * Extract authentication token/API key or check for session cookie
@@ -155,8 +111,8 @@ export async function rateLimit(
   const url = new URL(request.url);
   const path = url.pathname;
 
-  // Get client identifier
-  const ip = getClientIP(request, clientIp);
+  // Get client identifier - prefer explicit clientIp if provided, otherwise extract from headers
+  const ip = clientIp || getClientIp(request);
   const token = getAuthToken(request);
   const isAuthenticated = !!token;
 

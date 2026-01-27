@@ -66,29 +66,77 @@ export const redisLatencyHistogram = meter.createHistogram('redis.latency', {
 // GAUGES (Observable)
 // ═══════════════════════════════════════════════════════════════════
 
-// Queue health monitoring removed - migrated to Redis Streams
-// import { checkQueueHealth } from './queue';
+import { CONSUMER_GROUPS, STREAM_NAMES } from './queue';
+// Queue health monitoring - Redis Streams implementation
+import { RedisStream } from './redis-stream';
 
-// meter
-//   .createObservableGauge('queue.pending', {
-//     description: 'Number of pending jobs in queue',
-//     unit: '1'
-//   })
-//   .addCallback(async (observableResult) => {
-//     const health = await checkQueueHealth();
-//     observableResult.observe(health.pendingJobs, { queue: 'analytics' });
-//   });
+meter
+  .createObservableGauge('queue.pending', {
+    description: 'Number of pending messages in queue stream',
+    unit: '1'
+  })
+  .addCallback(async (observableResult) => {
+    try {
+      // Get pending counts for each stream
+      const analyticsCount = await RedisStream.getPendingCount(
+        STREAM_NAMES.ANALYTICS,
+        CONSUMER_GROUPS.ANALYTICS
+      );
+      const aggregationCount = await RedisStream.getPendingCount(
+        STREAM_NAMES.AGGREGATION,
+        CONSUMER_GROUPS.AGGREGATION
+      );
+      const cleanupCount = await RedisStream.getPendingCount(
+        STREAM_NAMES.CLEANUP,
+        CONSUMER_GROUPS.CLEANUP
+      );
+      const deletionCount = await RedisStream.getPendingCount(
+        STREAM_NAMES.DELETION,
+        CONSUMER_GROUPS.DELETION
+      );
 
-// TODO: Reimplement with Redis Streams stats
-// meter
-//   .createObservableGauge('queue.failed', {
-//     description: 'Number of failed jobs in queue',
-//     unit: '1'
-//   })
-//   .addCallback(async (observableResult) => {
-//     // const health = await checkQueueHealth();
-//     // observableResult.observe(health.failedJobs, { queue: 'analytics' });
-//   });
+      observableResult.observe(analyticsCount, { queue: 'analytics' });
+      observableResult.observe(aggregationCount, { queue: 'aggregation' });
+      observableResult.observe(cleanupCount, { queue: 'cleanup' });
+      observableResult.observe(deletionCount, { queue: 'deletion' });
+    } catch (error) {
+      // Silently fail - don't break metrics collection
+      console.error(
+        'Failed to collect queue metrics:',
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  });
+
+meter
+  .createObservableGauge('queue.length', {
+    description: 'Total number of messages in queue stream',
+    unit: '1'
+  })
+  .addCallback(async (observableResult) => {
+    try {
+      // Get stream lengths (total messages including processed)
+      const analyticsLength = await RedisStream.getLength(
+        STREAM_NAMES.ANALYTICS
+      );
+      const aggregationLength = await RedisStream.getLength(
+        STREAM_NAMES.AGGREGATION
+      );
+      const cleanupLength = await RedisStream.getLength(STREAM_NAMES.CLEANUP);
+      const deletionLength = await RedisStream.getLength(STREAM_NAMES.DELETION);
+
+      observableResult.observe(analyticsLength, { queue: 'analytics' });
+      observableResult.observe(aggregationLength, { queue: 'aggregation' });
+      observableResult.observe(cleanupLength, { queue: 'cleanup' });
+      observableResult.observe(deletionLength, { queue: 'deletion' });
+    } catch (error) {
+      // Silently fail - don't break metrics collection
+      console.error(
+        'Failed to collect stream length metrics:',
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  });
 // ═══════════════════════════════════════════════════════════════════
 // ANALYTICS METRICS (Module 5)
 // ═══════════════════════════════════════════════════════════════════
