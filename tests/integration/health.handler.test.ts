@@ -23,7 +23,7 @@ describe('Health Endpoints (handler-level)', () => {
 
   beforeAll(async () => {
     // Lazy import to avoid initialization issues when infrastructure isn't running
-    const { api } = await import('@/server/api');
+    const { api } = await import('@/server');
     client = createElysiaTestClient(api);
     serverAvailable = await isDatabaseAvailable();
   });

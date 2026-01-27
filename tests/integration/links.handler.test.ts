@@ -9,7 +9,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { beforeAll, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test';
 import { createDbMock } from '../mocks/db.mock';
 
 // Mock Database to avoid needing Docker infrastructure
@@ -74,8 +74,12 @@ describe('Links Endpoints (handler-level)', () => {
 
   beforeAll(async () => {
     // Lazy import to avoid initialization issues when infrastructure isn't running
-    const { api } = await import('@/server/api');
+    const { api } = await import('@/server');
     client = createElysiaTestClient(api);
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   describe('POST /api/links/validate', () => {
