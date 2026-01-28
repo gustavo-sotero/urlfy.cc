@@ -4,6 +4,7 @@ import { Auth } from './auth';
 import { Common } from './common';
 import { Contact } from './contact';
 import { Dashboard } from './dashboard';
+import { Emails } from './emails';
 import { Errors } from './errors';
 import { Features } from './features';
 import { Footer } from './footer';
@@ -33,5 +34,6 @@ export const ptMessages = {
   Errors,
   Footer,
   Auth,
-  ProjectPage
+  ProjectPage,
+  Emails
 } as const;

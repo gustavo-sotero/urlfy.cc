@@ -6,6 +6,9 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { Mail } from 'lucide-react';
+import type { Metadata } from 'next';
+import type { JSX } from 'react';
 import { RevealSection } from '@/components/shared/reveal-section';
 import {
   Accordion,
@@ -16,9 +19,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
-import { Mail } from 'lucide-react';
-import type { Metadata } from 'next';
-import type { JSX } from 'react';
 
 export const metadata: Metadata = {
   title: 'Ajuda e Suporte - urlfy.cc',

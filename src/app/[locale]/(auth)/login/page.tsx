@@ -1,6 +1,22 @@
-// src/app/(auth)/login/page.tsx
+/**
+ * ═════════════════════════════════════════════════════════════════════
+ * LOGIN PAGE (Internationalized)
+ * ═════════════════════════════════════════════════════════════════════
+ * User login with email/password or OAuth providers.
+ * Supports 2FA verification.
+ * Fully internationalized with next-intl.
+ * ═════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Github, Loader2, Mail } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { Suspense, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { TwoFactorVerification } from '@/components/auth/two-factor-verification';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
 import { Button } from '@/components/ui/button';
@@ -14,23 +30,22 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Link } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 import { authClient } from '@/lib/auth.client';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Github, Loader2, Mail } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-
-const schema = z.object({
-  email: z.email('Email inválido'),
-  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres')
-});
-
-type FormData = z.infer<typeof schema>;
 
 function LoginForm() {
+  const t = useTranslations('Auth.login');
+  const tErrors = useTranslations('Auth.errors');
+  const tOAuth = useTranslations('Auth.oauth');
+
+  // Define schema with translated messages
+  const schema = z.object({
+    email: z.string().email(tErrors('invalidEmail')),
+    password: z.string().min(6, tErrors('passwordMin', { min: 6 }))
+  });
+
+  type FormData = z.infer<typeof schema>;
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isTwoFactorStep, setIsTwoFactorStep] = useState(false);
@@ -67,14 +82,14 @@ function LoginForm() {
       }
 
       if (result.error) {
-        setError(result.error.message || 'Erro ao fazer login');
+        setError(result.error.message || tErrors('loginFailed'));
         return;
       }
 
       // Success - redirect
       router.push(callbackUrl);
     } catch {
-      setError('Erro ao fazer login. Tente novamente.');
+      setError(tErrors('tryAgain'));
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +107,7 @@ function LoginForm() {
       });
 
       if (result.error) {
-        setError(result.error.message || 'Código inválido');
+        setError(result.error.message || tErrors('twoFactorFailed'));
         return;
       }
 
@@ -100,7 +115,7 @@ function LoginForm() {
       router.push(callbackUrl);
     } catch (err) {
       console.error('2FA verification error:', err);
-      setError('Código inválido. Tente novamente.');
+      setError(tErrors('invalidCode'));
     } finally {
       setIsLoading(false);
     }
@@ -120,7 +135,7 @@ function LoginForm() {
         callbackURL: callbackUrl
       });
     } catch {
-      setError('Erro ao fazer login. Tente novamente.');
+      setError(tErrors('tryAgain'));
       setIsLoading(false);
     }
   };
@@ -131,10 +146,8 @@ function LoginForm() {
         /* Regular Login Form */
         <>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Fazer login</CardTitle>
-            <CardDescription>
-              Entre na sua conta para gerenciar seus links
-            </CardDescription>
+            <CardTitle className="text-2xl">{t('title')}</CardTitle>
+            <CardDescription>{t('subtitle')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* OAuth Buttons */}
@@ -166,7 +179,7 @@ function LoginForm() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                Google
+                {tOAuth('google')}
               </Button>
               <Button
                 variant="outline"
@@ -174,7 +187,7 @@ function LoginForm() {
                 disabled={isLoading}
               >
                 <Github className="mr-2 h-4 w-4" />
-                GitHub
+                {tOAuth('github')}
               </Button>
             </div>
 
@@ -184,7 +197,7 @@ function LoginForm() {
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-card px-2 text-muted-foreground">
-                  Ou continue com
+                  {tOAuth('continueWith')}
                 </span>
               </div>
             </div>
@@ -193,14 +206,14 @@ function LoginForm() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <AccessibleFormField
                 id="email"
-                label="Email"
+                label={t('email')}
                 required
                 error={form.formState.errors.email?.message}
               >
                 <Input
                   id="email"
                   type="email"
-                  placeholder="seu@email.com"
+                  placeholder={t('placeholders.email')}
                   {...form.register('email')}
                   disabled={isLoading}
                   aria-invalid={!!form.formState.errors.email}
@@ -209,14 +222,14 @@ function LoginForm() {
 
               <AccessibleFormField
                 id="password"
-                label="Senha"
+                label={t('password')}
                 required
                 error={form.formState.errors.password?.message}
               >
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={t('placeholders.password')}
                   {...form.register('password')}
                   disabled={isLoading}
                   aria-invalid={!!form.formState.errors.password}
@@ -228,7 +241,7 @@ function LoginForm() {
                   href="/forgot-password"
                   className="text-sm text-primary hover:underline"
                 >
-                  Esqueceu a senha?
+                  {t('forgotPassword')}
                 </Link>
               </div>
 
@@ -245,12 +258,12 @@ function LoginForm() {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Entrando...
+                    {t('signingIn')}
                   </>
                 ) : (
                   <>
                     <Mail className="mr-2 h-4 w-4" />
-                    Entrar com Email
+                    {t('signInWithEmail')}
                   </>
                 )}
               </Button>
@@ -258,9 +271,9 @@ function LoginForm() {
           </CardContent>
           <CardFooter className="justify-center">
             <p className="text-sm text-muted-foreground">
-              Não tem conta?{' '}
+              {t('noAccount')}{' '}
               <Link href="/signup" className="text-primary hover:underline">
-                Criar conta grátis
+                {t('createFreeAccount')}
               </Link>
             </p>
           </CardFooter>

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-01-28T12:57:14.843Z",
+  "generatedAt": "2026-01-28T15:17:30.410Z",
   "baseUrl": "http://localhost:3000",
   "environment": "development",
   "checks": [
@@ -7,13 +7,13 @@
       "category": "Headers",
       "check": "Content-Security-Policy",
       "status": "pass",
-      "details": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com; connect-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+      "details": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com; connect-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     },
     {
       "category": "Headers",
       "check": "Strict-Transport-Security",
-      "status": "pass",
-      "details": "max-age=31536000; includeSubDomains; preload"
+      "status": "fail",
+      "details": "Missing HSTS header"
     },
     {
       "category": "Headers",
@@ -114,8 +114,8 @@
   ],
   "summary": {
     "total": 18,
-    "passed": 16,
-    "failed": 2,
+    "passed": 15,
+    "failed": 3,
     "warnings": 0,
     "skipped": 0
   }

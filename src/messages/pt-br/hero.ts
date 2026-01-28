@@ -10,5 +10,9 @@ export const Hero = {
   projectDisclaimer:
     'Projeto Pessoal de Pesquisa & Desenvolvimento & Portfólio',
   projectDescription:
-    'Este projeto é uma demonstração técnica de práticas modernas de desenvolvimento web, não um produto comercial. Construído com Next.js 16, Bun, ElysiaJS e TypeScript.'
+    'Este projeto é uma demonstração técnica de práticas modernas de desenvolvimento web, não um produto comercial. Construído com Next.js 16, Bun, ElysiaJS e TypeScript.',
+  loading: 'Carregando...',
+  goToDashboard: 'Ir para Dashboard',
+  getStarted: 'Começar gratuitamente',
+  signIn: 'Fazer login'
 } as const;

@@ -70,11 +70,11 @@ const publicDocsApp = new Elysia()
         },
         servers: [
           {
-            url: 'http://localhost:3000',
+            url: 'http://localhost:3000/api',
             description: 'Development server'
           },
           {
-            url: 'https://urlfy.cc',
+            url: 'https://urlfy.cc/api',
             description: 'Production server'
           }
         ],
@@ -102,7 +102,21 @@ const publicDocsApp = new Elysia()
         paths: ['/docs*']
       },
       scalar: {
-        url: '/api/docs/json'
+        url: '/api/docs/json',
+        defaultHttpClient: {
+          targetKey: 'javascript',
+          clientKey: 'fetch'
+        },
+        servers: [
+          {
+            url: 'http://localhost:3000/api',
+            description: 'Development server'
+          },
+          {
+            url: 'https://urlfy.cc/api',
+            description: 'Production server'
+          }
+        ]
       }
     })
   )
@@ -145,11 +159,11 @@ export const api = new Elysia({ prefix: '/api' })
         },
         servers: [
           {
-            url: 'http://localhost:3000',
+            url: 'http://localhost:3000/api',
             description: 'Development server'
           },
           {
-            url: 'https://urlfy.cc',
+            url: 'https://urlfy.cc/api',
             description: 'Production server'
           }
         ],
@@ -199,7 +213,21 @@ export const api = new Elysia({ prefix: '/api' })
         paths: ['/auth/*', '/internal/docs/*', '/docs/*']
       },
       scalar: {
-        url: '/api/internal/docs/merged.json'
+        url: '/api/internal/docs/merged.json',
+        defaultHttpClient: {
+          targetKey: 'javascript',
+          clientKey: 'fetch'
+        },
+        servers: [
+          {
+            url: 'http://localhost:3000/api',
+            description: 'Development server'
+          },
+          {
+            url: 'https://urlfy.cc/api',
+            description: 'Production server'
+          }
+        ]
       }
     })
   )

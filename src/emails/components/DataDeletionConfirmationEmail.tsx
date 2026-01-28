@@ -1,3 +1,4 @@
+import type { EmailMessages } from '../types';
 import { EmailLayout } from './EmailLayout';
 
 interface DataDeletionConfirmationEmailProps {
@@ -5,23 +6,27 @@ interface DataDeletionConfirmationEmailProps {
   requestDate: Date;
   deadlineDate: Date;
   exportUrl?: string;
+  messages: EmailMessages['dataDeletionConfirmation'];
+  locale?: string;
 }
 
 export function DataDeletionConfirmationEmail({
   firstName,
   requestDate,
   deadlineDate,
-  exportUrl
+  exportUrl,
+  messages: t,
+  locale = 'en'
 }: DataDeletionConfirmationEmailProps) {
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('pt-BR', {
+    return new Intl.DateTimeFormat(locale, {
       dateStyle: 'long',
       timeStyle: 'short'
     }).format(date);
   };
 
   return (
-    <EmailLayout previewText="Solicitação de exclusão de dados recebida">
+    <EmailLayout previewText={t.previewText} locale={locale}>
       <div>
         <h2
           style={{
@@ -32,7 +37,7 @@ export function DataDeletionConfirmationEmail({
             lineHeight: '1.3'
           }}
         >
-          Solicitação de Exclusão de Dados
+          {t.title}
         </h2>
 
         <p
@@ -43,7 +48,7 @@ export function DataDeletionConfirmationEmail({
             lineHeight: '1.6'
           }}
         >
-          Olá, {firstName},
+          {t.greeting.replace('{firstName}', firstName)}
         </p>
 
         <p
@@ -54,9 +59,7 @@ export function DataDeletionConfirmationEmail({
             lineHeight: '1.6'
           }}
         >
-          Recebemos sua solicitação para exclusão completa dos seus dados
-          pessoais da plataforma urlfy.cc, conforme previsto na LGPD (Lei Geral
-          de Proteção de Dados).
+          {t.message}
         </p>
 
         <div

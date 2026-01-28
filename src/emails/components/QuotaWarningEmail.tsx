@@ -1,3 +1,4 @@
+import type { EmailMessages } from '../types';
 import { EmailLayout } from './EmailLayout';
 
 interface QuotaWarningEmailProps {
@@ -6,6 +7,8 @@ interface QuotaWarningEmailProps {
   quotaLimit: number;
   percentUsed: number;
   upgradeUrl: string;
+  messages: EmailMessages['quotaWarning'];
+  locale?: string;
 }
 
 export function QuotaWarningEmail({
@@ -13,12 +16,12 @@ export function QuotaWarningEmail({
   currentUsage,
   quotaLimit,
   percentUsed,
-  upgradeUrl
+  upgradeUrl,
+  messages: t,
+  locale = 'en'
 }: QuotaWarningEmailProps) {
   return (
-    <EmailLayout
-      previewText={`⚠️ Você está usando ${percentUsed}% da sua quota de links`}
-    >
+    <EmailLayout previewText={t.previewText} locale={locale}>
       <div>
         <h2
           style={{
@@ -29,7 +32,7 @@ export function QuotaWarningEmail({
             lineHeight: '1.3'
           }}
         >
-          ⚠️ Quota Quase Atingida
+          {t.title}
         </h2>
 
         <p
@@ -40,7 +43,7 @@ export function QuotaWarningEmail({
             lineHeight: '1.6'
           }}
         >
-          Olá, {firstName}!
+          {t.greeting.replace('{firstName}', firstName)}
         </p>
 
         <p
@@ -51,7 +54,7 @@ export function QuotaWarningEmail({
             lineHeight: '1.6'
           }}
         >
-          Você está se aproximando do limite de links do seu plano atual.
+          {t.message}
         </p>
 
         {/* Progress Bar */}

@@ -1,10 +1,10 @@
 // src/app/(public)/preview/[code]/page.tsx
 
+import { BarChart2, Calendar, ExternalLink, Lock } from 'lucide-react';
+import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
-import { BarChart2, Calendar, ExternalLink, Lock } from 'lucide-react';
-import { notFound } from 'next/navigation';
 
 interface Props {
   params: Promise<{ code: string }>;

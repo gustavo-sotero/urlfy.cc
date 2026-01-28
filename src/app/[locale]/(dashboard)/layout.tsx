@@ -1,34 +1,44 @@
 // src/app/(dashboard)/layout.tsx
 
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { getLocale } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { VerificationWarning } from '@/components/dashboard/verification-warning';
 import { Header } from '@/components/layout/header';
 import { Sidebar } from '@/components/layout/sidebar';
+import { redirect } from '@/i18n/routing';
 import { auth } from '@/lib/auth';
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  params: Promise<{ locale: string }>;
 }
 
 export default async function DashboardLayout({
-  children
+  children,
+  params
 }: DashboardLayoutProps) {
+  await params; // Consume params to avoid Next.js warnings
+  const locale = await getLocale();
   const headersList = await headers();
   const session = await auth.api.getSession({ headers: headersList });
 
   if (!session?.user) {
-    redirect('/login');
+    redirect({ href: '/login', locale });
   }
 
+  // session is guaranteed non-null after redirect guard
   const user = {
-    name: session.user.name,
-    email: session.user.email,
-    image: session.user.image
+    // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+    name: session!.user.name,
+    // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+    email: session!.user.email,
+    // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+    image: session!.user.image
   } as const;
 
-  const isEmailVerified: boolean = session.user.emailVerified ?? false;
+  // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+  const isEmailVerified: boolean = session!.user.emailVerified ?? false;
 
   return (
     <div className="flex h-screen">

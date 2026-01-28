@@ -167,7 +167,7 @@ export const publicLinksController = new Elysia()
         });
 
         // Retorna URL para redirect
-        const shortUrl = `${process.env.PUBLIC_URL || 'https://urlfy.cc'}/${
+        const shortUrl = `${process.env.PUBLIC_APP_URL || 'https://urlfy.cc'}/${
           params.code
         }`;
         return {
@@ -206,7 +206,8 @@ export const publicLinksController = new Elysia()
         ),
         401: ErrorRef(401),
         404: ErrorRef(404),
-        429: ErrorRef(429)
+        429: ErrorRef(429),
+        500: ErrorRef(500)
       }
     }
   )
@@ -235,7 +236,7 @@ export const publicLinksController = new Elysia()
         );
         const format = qrService.validateQRFormat(query.format || 'png');
 
-        const shortUrl = `${process.env.PUBLIC_URL || 'https://urlfy.cc'}/${
+        const shortUrl = `${process.env.PUBLIC_APP_URL || 'https://urlfy.cc'}/${
           params.code
         }`;
         const qrCode = await qrService.generateQRCode(
@@ -269,7 +270,8 @@ export const publicLinksController = new Elysia()
         }),
         404: ErrorRef(404),
         422: ErrorRef(422),
-        429: ErrorRef(429)
+        429: ErrorRef(429),
+        500: ErrorRef(500)
       }
     }
   )
@@ -320,7 +322,8 @@ export const publicLinksController = new Elysia()
       response: {
         200: SuccessResponse(t.Ref('links.preview.response')),
         404: ErrorRef(404),
-        429: ErrorRef(429)
+        429: ErrorRef(429),
+        500: ErrorRef(500)
       }
     }
   );

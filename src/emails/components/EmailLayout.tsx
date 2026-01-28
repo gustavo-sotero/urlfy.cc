@@ -4,11 +4,17 @@ import type * as React from 'react';
 interface EmailLayoutProps {
   children: React.ReactNode;
   previewText?: string;
+  locale?: string;
 }
 
-export function EmailLayout({ children, previewText }: EmailLayoutProps) {
+export function EmailLayout({
+  children,
+  previewText,
+  locale = 'en'
+}: EmailLayoutProps) {
+  const langCode = locale === 'pt-br' ? 'pt-BR' : 'en';
   return (
-    <html lang="pt-BR">
+    <html lang={langCode}>
       <Head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />

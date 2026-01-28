@@ -1026,7 +1026,7 @@ export const linksController = new Elysia({ prefix: '/links' })
 ```typescript
 // src/server/services/link.service.ts
 
-const BASE_URL = process.env.PUBLIC_URL || 'https://urlfy.cc';
+const BASE_URL = process.env.PUBLIC_APP_URL || 'https://urlfy.cc';
 
 export function formatLinkResponse(link: Link): LinkResponse {
   return {
@@ -1405,4 +1405,3 @@ describe('Custom Alias Validator', () => {
 - [Caching Strategy](../architecture/caching-strategy.md)
 - [API Endpoints](../api/endpoints.md)
 - [Elysia Best Practices](https://elysiajs.com/essential/best-practice)
-

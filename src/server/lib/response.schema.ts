@@ -40,6 +40,7 @@ export const ErrorCodes = t.Union(
     t.Literal('REDIRECT_LOOP'),
     t.Literal('URL_MALICIOUS'),
     t.Literal('INVALID_URL'),
+    t.Literal('SHORTENER_BLOCKED'),
     t.Literal('RATE_LIMITED'),
     t.Literal('LINK_BANNED'),
     t.Literal('QUOTA_EXCEEDED'),
@@ -522,10 +523,15 @@ export const CommonErrors = {
         code: t.Union([
           t.Literal('URL_MALICIOUS'),
           t.Literal('VALIDATION_ERROR'),
-          t.Literal('INVALID_URL')
+          t.Literal('INVALID_URL'),
+          t.Literal('SHORTENER_BLOCKED')
         ]),
         message: t.String({
-          examples: ['URL detected as malicious', 'Invalid URL format']
+          examples: [
+            'URL detected as malicious',
+            'Invalid URL format',
+            'URLs from other shorteners are not allowed'
+          ]
         })
       }),
       requestId: t.Optional(t.String())

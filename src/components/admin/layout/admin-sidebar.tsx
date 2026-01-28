@@ -1,9 +1,6 @@
 // src/components/admin/layout/admin-sidebar.tsx
 'use client';
 
-import { Separator } from '@/components/ui/separator';
-import { Link } from '@/i18n/routing';
-import { cn } from '@/lib/utils';
 import {
   Activity,
   ExternalLink,
@@ -13,7 +10,10 @@ import {
   ScrollText,
   Users
 } from 'lucide-react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 interface AdminSidebarProps {
   className?: string;

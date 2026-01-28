@@ -1,18 +1,23 @@
+import type { EmailMessages } from '../types';
 import { EmailLayout } from './EmailLayout';
 
 interface EmailVerificationEmailProps {
   firstName: string;
   verificationUrl: string;
   expiresInMinutes?: number;
+  messages: EmailMessages['emailVerification'];
+  locale?: string;
 }
 
 export function EmailVerificationEmail({
   firstName,
   verificationUrl,
-  expiresInMinutes = 30
+  expiresInMinutes = 30,
+  messages: t,
+  locale = 'en'
 }: EmailVerificationEmailProps) {
   return (
-    <EmailLayout previewText="Confirme seu email para começar a usar o urlfy.cc">
+    <EmailLayout previewText={t.previewText} locale={locale}>
       <div>
         <h2
           style={{
@@ -23,7 +28,7 @@ export function EmailVerificationEmail({
             lineHeight: '1.3'
           }}
         >
-          Confirme seu Email
+          {t.title}
         </h2>
 
         <p
@@ -34,7 +39,7 @@ export function EmailVerificationEmail({
             lineHeight: '1.6'
           }}
         >
-          Olá, {firstName}! 👋
+          {t.greeting.replace('{firstName}', firstName)}
         </p>
 
         <p
@@ -45,9 +50,14 @@ export function EmailVerificationEmail({
             lineHeight: '1.6'
           }}
         >
-          Estamos quase lá! Para começar a usar o{' '}
-          <strong style={{ color: '#6366f1' }}>urlfy.cc</strong> e aproveitar
-          todos os recursos, você precisa confirmar seu endereço de email.
+          {t.message.split('urlfy.cc').map((part, i, arr) => (
+            <span key={i}>
+              {part}
+              {i < arr.length - 1 && (
+                <strong style={{ color: '#6366f1' }}>urlfy.cc</strong>
+              )}
+            </span>
+          ))}
         </p>
 
         <div
@@ -70,7 +80,7 @@ export function EmailVerificationEmail({
               letterSpacing: '0.5px'
             }}
           >
-            🔐 Segurança
+            {t.securityNotice}
           </p>
           <p
             style={{
@@ -80,8 +90,7 @@ export function EmailVerificationEmail({
               lineHeight: '1.5'
             }}
           >
-            Este link expira em <strong>{expiresInMinutes} minutos</strong> e só
-            pode ser usado uma vez.
+            {t.expiresIn.replace('{minutes}', String(expiresInMinutes))}
           </p>
         </div>
 
@@ -101,7 +110,7 @@ export function EmailVerificationEmail({
               transition: 'transform 0.2s'
             }}
           >
-            ✓ Confirmar Meu Email
+            {t.ctaButton}
           </a>
         </div>
 
@@ -123,7 +132,7 @@ export function EmailVerificationEmail({
               letterSpacing: '0.5px'
             }}
           >
-            Ou copie e cole este link:
+            {t.cantClick}
           </p>
           <p
             style={{
@@ -142,81 +151,6 @@ export function EmailVerificationEmail({
           </p>
         </div>
 
-        <h3
-          style={{
-            margin: '32px 0 16px 0',
-            fontSize: '18px',
-            fontWeight: '600',
-            color: '#1e293b'
-          }}
-        >
-          Após confirmar, você poderá:
-        </h3>
-
-        <table
-          role="presentation"
-          style={{ width: '100%', marginBottom: '24px' }}
-        >
-          <tbody>
-            {[
-              {
-                emoji: '🚀',
-                title: 'Criar links ilimitados',
-                description: 'Encurte quantos links precisar'
-              },
-              {
-                emoji: '📊',
-                title: 'Acessar analytics',
-                description: 'Métricas detalhadas em tempo real'
-              },
-              {
-                emoji: '🎨',
-                title: 'Personalizar links',
-                description: 'Aliases customizados e QR codes'
-              },
-              {
-                emoji: '🔑',
-                title: 'Gerar API keys',
-                description: 'Integre com suas aplicações'
-              }
-            ].map((item, index) => (
-              <tr key={index}>
-                <td
-                  style={{
-                    width: '40px',
-                    verticalAlign: 'top',
-                    paddingBottom: '12px'
-                  }}
-                >
-                  <span style={{ fontSize: '24px' }}>{item.emoji}</span>
-                </td>
-                <td style={{ verticalAlign: 'top', paddingBottom: '12px' }}>
-                  <p
-                    style={{
-                      margin: '0 0 4px 0',
-                      fontSize: '15px',
-                      fontWeight: '600',
-                      color: '#334155'
-                    }}
-                  >
-                    {item.title}
-                  </p>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '14px',
-                      color: '#64748b',
-                      lineHeight: '1.5'
-                    }}
-                  >
-                    {item.description}
-                  </p>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
         <div
           style={{
             marginTop: '32px',
@@ -234,34 +168,9 @@ export function EmailVerificationEmail({
               lineHeight: '1.5'
             }}
           >
-            <strong>🤔 Não solicitou este email?</strong> Você pode ignorá-lo
-            com segurança. Sua conta não será criada sem a confirmação.
+            {t.footer}
           </p>
         </div>
-
-        <p
-          style={{
-            marginTop: '32px',
-            marginBottom: 0,
-            fontSize: '14px',
-            color: '#64748b',
-            lineHeight: '1.6',
-            textAlign: 'center'
-          }}
-        >
-          Precisa de ajuda? Responda este email ou visite nossa{' '}
-          <a
-            href="https://urlfy.cc/help"
-            style={{
-              color: '#6366f1',
-              textDecoration: 'none',
-              fontWeight: '500'
-            }}
-          >
-            central de ajuda
-          </a>
-          .
-        </p>
       </div>
     </EmailLayout>
   );

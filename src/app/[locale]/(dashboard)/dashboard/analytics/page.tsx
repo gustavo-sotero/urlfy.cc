@@ -1,6 +1,9 @@
 // src/app/(dashboard)/analytics/page.tsx
 'use client';
 
+import { BarChart2, MousePointer, TrendingUp, Users } from 'lucide-react';
+import { useFormatter, useTranslations } from 'next-intl';
+import { useMemo, useState } from 'react';
 import {
   ChartSkeleton,
   StatsGridSkeleton
@@ -24,9 +27,6 @@ import {
   useDailyStats
 } from '@/lib/hooks/use-analytics';
 import { useLinks } from '@/lib/hooks/use-links';
-import { BarChart2, MousePointer, TrendingUp, Users } from 'lucide-react';
-import { useFormatter, useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
 
 export default function AnalyticsPage() {
   const t = useTranslations('Analytics');

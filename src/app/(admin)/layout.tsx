@@ -30,16 +30,20 @@ export default async function AdminLayout({
   // ═══════════════════════════════════════════════════════════════════
   // GUARD 2: Role Authorization Check
   // ═══════════════════════════════════════════════════════════════════
-  if (session.user.role !== 'admin') {
+  // session is guaranteed non-null after redirect guard
+  // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+  if (session!.user.role !== 'admin') {
     // Log unauthorized access attempt
     void auditLogService.log({
-      userId: session.user.id,
+      // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+      userId: session!.user.id,
       action: 'admin_access_denied',
       entityType: 'admin_panel',
       entityId: 'role_check_failed',
       metadata: {
         reason: 'insufficient_role',
-        userRole: session.user.role,
+        // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+        userRole: session!.user.role,
         requiredRole: 'admin'
       },
       ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,
@@ -54,19 +58,23 @@ export default async function AdminLayout({
   // ═══════════════════════════════════════════════════════════════════
   // Better-Auth provides 'twoFactorEnabled' directly on the user object
   // This is the authoritative source maintained by the twoFactor plugin
-  const has2FAEnabled = session.user.twoFactorEnabled || false;
+  // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+  const has2FAEnabled = session!.user.twoFactorEnabled || false;
 
   if (!has2FAEnabled) {
     // Log 2FA enforcement failure
     void auditLogService.log({
-      userId: session.user.id,
+      // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+      userId: session!.user.id,
       action: 'admin_access_denied',
       entityType: 'admin_panel',
       entityId: '2fa_check_failed',
       metadata: {
         reason: '2fa_not_enabled',
-        userRole: session.user.role,
-        twoFactorEnabled: session.user.twoFactorEnabled,
+        // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+        userRole: session!.user.role,
+        // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+        twoFactorEnabled: session!.user.twoFactorEnabled,
         timestamp: new Date().toISOString()
       },
       ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,
@@ -80,13 +88,16 @@ export default async function AdminLayout({
   // SUCCESS: Log successful admin access
   // ═══════════════════════════════════════════════════════════════════
   void auditLogService.log({
-    userId: session.user.id,
+    // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+    userId: session!.user.id,
     action: 'admin_access_granted',
     entityType: 'admin_panel',
     entityId: 'access_granted',
     metadata: {
-      email: session.user.email,
-      role: session.user.role,
+      // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+      email: session!.user.email,
+      // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
+      role: session!.user.role,
       has2FA: true
     },
     ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,

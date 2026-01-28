@@ -1,6 +1,13 @@
 // src/app/(dashboard)/links/[id]/edit/page.tsx
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
 import { QueryError } from '@/components/query-error';
 import { Button } from '@/components/ui/button';
@@ -19,13 +26,6 @@ import { Link } from '@/i18n/routing';
 import { useLink, useUpdateLink } from '@/lib/hooks/use-links';
 import { removeEmptyFields } from '@/lib/utils';
 import type { UpdateLinkInput } from '@/types/links.types';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 
 // ═══════════════════════════════════════════════════════════════════
 // VALIDATION SCHEMA

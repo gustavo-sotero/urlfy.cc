@@ -1,13 +1,24 @@
+import type { EmailMessages } from '../types';
 import { EmailLayout } from './EmailLayout';
 
 interface WelcomeEmailProps {
   firstName: string;
   email: string;
+  messages: EmailMessages['welcome'];
+  locale?: string;
 }
 
-export function WelcomeEmail({ firstName, email }: WelcomeEmailProps) {
+export function WelcomeEmail({
+  firstName,
+  email,
+  messages: t,
+  locale = 'en'
+}: WelcomeEmailProps) {
   return (
-    <EmailLayout previewText={`Bem-vindo ao urlfy.cc, ${firstName}! 🎉`}>
+    <EmailLayout
+      previewText={t.previewText.replace('{firstName}', firstName)}
+      locale={locale}
+    >
       <div>
         <h2
           style={{
@@ -18,7 +29,7 @@ export function WelcomeEmail({ firstName, email }: WelcomeEmailProps) {
             lineHeight: '1.3'
           }}
         >
-          Olá, {firstName}! 👋
+          {t.greeting.replace('{firstName}', firstName)}
         </h2>
 
         <p
@@ -29,8 +40,14 @@ export function WelcomeEmail({ firstName, email }: WelcomeEmailProps) {
             lineHeight: '1.6'
           }}
         >
-          Bem-vindo ao <strong style={{ color: '#6366f1' }}>urlfy.cc</strong>!
-          Estamos muito felizes em tê-lo conosco.
+          {t.welcomeMessage.split('urlfy.cc').map((part, i, arr) => (
+            <span key={i}>
+              {part}
+              {i < arr.length - 1 && (
+                <strong style={{ color: '#6366f1' }}>urlfy.cc</strong>
+              )}
+            </span>
+          ))}
         </p>
 
         <div
@@ -52,7 +69,7 @@ export function WelcomeEmail({ firstName, email }: WelcomeEmailProps) {
               letterSpacing: '0.5px'
             }}
           >
-            Sua conta foi criada com sucesso
+            {t.accountCreated}
           </p>
           <p
             style={{
@@ -74,7 +91,7 @@ export function WelcomeEmail({ firstName, email }: WelcomeEmailProps) {
             color: '#1e293b'
           }}
         >
-          O que você pode fazer agora:
+          {t.whatYouCanDo}
         </h3>
 
         <table
@@ -85,21 +102,18 @@ export function WelcomeEmail({ firstName, email }: WelcomeEmailProps) {
             {[
               {
                 emoji: '🔗',
-                title: 'Encurtar URLs',
-                description:
-                  'Crie links curtos e personalizados para compartilhar'
-              },
-              {
-                emoji: '📊',
-                title: 'Analisar Métricas',
-                description:
-                  'Acompanhe cliques, localizações e dispositivos em tempo real'
+                title: t.createLinks,
+                description: t.createLinksDesc
               },
               {
                 emoji: '🎨',
-                title: 'Customizar Links',
-                description:
-                  'Adicione meta tags, QR codes e defina datas de expiração'
+                title: t.customizeUrls,
+                description: t.customizeUrlsDesc
+              },
+              {
+                emoji: '📊',
+                title: t.trackAnalytics,
+                description: t.trackAnalyticsDesc
               }
             ].map((item, index) => (
               <tr key={index}>
@@ -154,7 +168,7 @@ export function WelcomeEmail({ firstName, email }: WelcomeEmailProps) {
               boxShadow: '0 4px 6px rgba(99, 102, 241, 0.25)'
             }}
           >
-            Acessar Dashboard
+            {t.getStarted}
           </a>
         </div>
 
@@ -167,12 +181,12 @@ export function WelcomeEmail({ firstName, email }: WelcomeEmailProps) {
             lineHeight: '1.6'
           }}
         >
-          Precisa de ajuda? Responda este email ou acesse nossa{' '}
+          {t.needHelp}{' '}
           <a
-            href="https://urlfy.cc/docs"
+            href="https://urlfy.cc/support"
             style={{ color: '#6366f1', textDecoration: 'none' }}
           >
-            documentação
+            {t.contactSupport}
           </a>
           .
         </p>

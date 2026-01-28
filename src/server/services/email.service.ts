@@ -1,77 +1,149 @@
-import {
-  DataDeletionConfirmationEmail,
-  EmailVerificationEmail,
-  LinkBannedEmail,
-  PasswordResetEmail,
-  QuotaWarningEmail,
-  WelcomeEmail
-} from '@/emails/components';
+import { renderEmail } from '@/emails/render';
+import type {
+  AppLocale,
+  DataDeletionConfirmationPayload,
+  EmailVerificationPayload,
+  LinkBannedPayload,
+  PasswordResetPayload,
+  QuotaWarningPayload,
+  WelcomeEmailPayload
+} from '@/emails/types';
 import { sendEmail } from '@/server/lib/email';
+import {
+  getLocaleByEmail,
+  getUserLocale,
+  resolveLocale
+} from '@/server/lib/locale';
 
 /**
- * Serviço de envio de emails transacionais usando templates React
+ * Email service with i18n support
+ * Always uses the user's preferred locale with global fallback
  */
 export const emailService = {
   /**
-   * Envia email de boas-vindas para novos usuários
+   * Send welcome email to new users
+   * Fetches user's locale from database by email address
    */
   async sendWelcomeEmail(params: {
     to: string;
     firstName: string;
     email: string;
+    userId?: string;
+    locale?: string;
   }) {
+    // Priority: explicit locale > user's saved locale > default
+    let locale: AppLocale;
+    if (params.locale) {
+      locale = resolveLocale(params.locale);
+    } else if (params.userId) {
+      locale = await getUserLocale(params.userId);
+    } else {
+      locale = await getLocaleByEmail(params.email);
+    }
+
+    const payload: WelcomeEmailPayload = {
+      firstName: params.firstName,
+      email: params.email
+    };
+
+    const { subject, html } = await renderEmail({
+      locale,
+      template: 'welcome',
+      payload
+    });
+
     return sendEmail({
       to: params.to,
-      subject: `Bem-vindo ao urlfy.cc, ${params.firstName}! 🎉`,
-      react: WelcomeEmail({
-        firstName: params.firstName,
-        email: params.email
-      })
+      subject,
+      html
     });
   },
 
   /**
-   * Envia email de verificação de endereço de email
+   * Send email verification
+   * Fetches user's locale from database by email address
    */
   async sendEmailVerification(params: {
     to: string;
     firstName: string;
     verificationUrl: string;
     expiresInMinutes?: number;
+    userId?: string;
+    locale?: string;
   }) {
+    // Priority: explicit locale > user's saved locale > default
+    let locale: AppLocale;
+    if (params.locale) {
+      locale = resolveLocale(params.locale);
+    } else if (params.userId) {
+      locale = await getUserLocale(params.userId);
+    } else {
+      locale = await getLocaleByEmail(params.to);
+    }
+
+    const payload: EmailVerificationPayload = {
+      firstName: params.firstName,
+      verificationUrl: params.verificationUrl,
+      expiresInMinutes: params.expiresInMinutes
+    };
+
+    const { subject, html } = await renderEmail({
+      locale,
+      template: 'emailVerification',
+      payload
+    });
+
     return sendEmail({
       to: params.to,
-      subject: 'Confirme seu email - urlfy.cc',
-      react: EmailVerificationEmail({
-        firstName: params.firstName,
-        verificationUrl: params.verificationUrl,
-        expiresInMinutes: params.expiresInMinutes
-      })
+      subject,
+      html
     });
   },
 
   /**
-   * Envia email de redefinição de senha
+   * Send password reset email
+   * Fetches user's locale from database by email address
    */
   async sendPasswordResetEmail(params: {
     to: string;
     firstName: string;
     resetUrl: string;
     expiresInMinutes?: number;
+    userId?: string;
+    locale?: string;
   }) {
+    // Priority: explicit locale > user's saved locale > default
+    let locale: AppLocale;
+    if (params.locale) {
+      locale = resolveLocale(params.locale);
+    } else if (params.userId) {
+      locale = await getUserLocale(params.userId);
+    } else {
+      locale = await getLocaleByEmail(params.to);
+    }
+
+    const payload: PasswordResetPayload = {
+      firstName: params.firstName,
+      resetUrl: params.resetUrl,
+      expiresInMinutes: params.expiresInMinutes
+    };
+
+    const { subject, html } = await renderEmail({
+      locale,
+      template: 'passwordReset',
+      payload
+    });
+
     return sendEmail({
       to: params.to,
-      subject: 'Redefinir sua senha - urlfy.cc',
-      react: PasswordResetEmail({
-        firstName: params.firstName,
-        resetUrl: params.resetUrl,
-        expiresInMinutes: params.expiresInMinutes
-      })
+      subject,
+      html
     });
   },
 
   /**
-   * Envia confirmação de solicitação de exclusão de dados (LGPD)
+   * Send data deletion confirmation (LGPD/GDPR)
+   * Fetches user's locale from database
    */
   async sendDataDeletionConfirmation(params: {
     to: string;
@@ -79,21 +151,42 @@ export const emailService = {
     requestDate: Date;
     deadlineDate: Date;
     exportUrl?: string;
+    userId?: string;
+    locale?: string;
   }) {
+    // Priority: explicit locale > user's saved locale > default
+    let locale: AppLocale;
+    if (params.locale) {
+      locale = resolveLocale(params.locale);
+    } else if (params.userId) {
+      locale = await getUserLocale(params.userId);
+    } else {
+      locale = await getLocaleByEmail(params.to);
+    }
+
+    const payload: DataDeletionConfirmationPayload = {
+      firstName: params.firstName,
+      requestDate: params.requestDate,
+      deadlineDate: params.deadlineDate,
+      exportUrl: params.exportUrl
+    };
+
+    const { subject, html } = await renderEmail({
+      locale,
+      template: 'dataDeletionConfirmation',
+      payload
+    });
+
     return sendEmail({
       to: params.to,
-      subject: 'Solicitação de Exclusão de Dados Recebida',
-      react: DataDeletionConfirmationEmail({
-        firstName: params.firstName,
-        requestDate: params.requestDate,
-        deadlineDate: params.deadlineDate,
-        exportUrl: params.exportUrl
-      })
+      subject,
+      html
     });
   },
 
   /**
-   * Notifica usuário sobre link banido
+   * Notify user about banned link
+   * Fetches user's locale from database
    */
   async sendLinkBannedNotification(params: {
     to: string;
@@ -103,23 +196,44 @@ export const emailService = {
     bannedReason: string;
     bannedAt: Date;
     appealUrl: string;
+    userId?: string;
+    locale?: string;
   }) {
+    // Priority: explicit locale > user's saved locale > default
+    let locale: AppLocale;
+    if (params.locale) {
+      locale = resolveLocale(params.locale);
+    } else if (params.userId) {
+      locale = await getUserLocale(params.userId);
+    } else {
+      locale = await getLocaleByEmail(params.to);
+    }
+
+    const payload: LinkBannedPayload = {
+      firstName: params.firstName,
+      linkUrl: params.linkUrl,
+      shortCode: params.shortCode,
+      bannedReason: params.bannedReason,
+      bannedAt: params.bannedAt,
+      appealUrl: params.appealUrl
+    };
+
+    const { subject, html } = await renderEmail({
+      locale,
+      template: 'linkBanned',
+      payload
+    });
+
     return sendEmail({
       to: params.to,
-      subject: '⚠️ Link Bloqueado - Ação Necessária',
-      react: LinkBannedEmail({
-        firstName: params.firstName,
-        linkUrl: params.linkUrl,
-        shortCode: params.shortCode,
-        bannedReason: params.bannedReason,
-        bannedAt: params.bannedAt,
-        appealUrl: params.appealUrl
-      })
+      subject,
+      html
     });
   },
 
   /**
-   * Alerta sobre quota próxima do limite
+   * Alert about quota near limit
+   * Fetches user's locale from database
    */
   async sendQuotaWarning(params: {
     to: string;
@@ -128,17 +242,37 @@ export const emailService = {
     quotaLimit: number;
     percentUsed: number;
     upgradeUrl: string;
+    userId?: string;
+    locale?: string;
   }) {
+    // Priority: explicit locale > user's saved locale > default
+    let locale: AppLocale;
+    if (params.locale) {
+      locale = resolveLocale(params.locale);
+    } else if (params.userId) {
+      locale = await getUserLocale(params.userId);
+    } else {
+      locale = await getLocaleByEmail(params.to);
+    }
+
+    const payload: QuotaWarningPayload = {
+      firstName: params.firstName,
+      currentUsage: params.currentUsage,
+      quotaLimit: params.quotaLimit,
+      percentUsed: params.percentUsed,
+      upgradeUrl: params.upgradeUrl
+    };
+
+    const { subject, html } = await renderEmail({
+      locale,
+      template: 'quotaWarning',
+      payload
+    });
+
     return sendEmail({
       to: params.to,
-      subject: `⚠️ Você está usando ${params.percentUsed.toFixed(0)}% da sua quota`,
-      react: QuotaWarningEmail({
-        firstName: params.firstName,
-        currentUsage: params.currentUsage,
-        quotaLimit: params.quotaLimit,
-        percentUsed: params.percentUsed,
-        upgradeUrl: params.upgradeUrl
-      })
+      subject,
+      html
     });
   }
 };

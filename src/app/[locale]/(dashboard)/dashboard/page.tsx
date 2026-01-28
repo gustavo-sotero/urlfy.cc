@@ -1,14 +1,6 @@
 // src/app/(dashboard)/dashboard/page.tsx
 'use client';
 
-import { QueryError } from '@/components/query-error';
-import { LinkCard } from '@/components/shared/link-card';
-import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Link } from '@/i18n/routing';
-import { useDeleteLink, useLinks, useUserQuota } from '@/lib/hooks/use-links';
 import {
   ArrowRight,
   Link as LinkIcon,
@@ -17,6 +9,14 @@ import {
 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import { QueryError } from '@/components/query-error';
+import { LinkCard } from '@/components/shared/link-card';
+import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Link } from '@/i18n/routing';
+import { useDeleteLink, useLinks, useUserQuota } from '@/lib/hooks/use-links';
 
 export default function DashboardPage() {
   const t = useTranslations('Dashboard');

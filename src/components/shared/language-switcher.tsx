@@ -14,6 +14,8 @@
 
 'use client';
 
+import { Languages } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -24,8 +26,6 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { routing, usePathname, useRouter } from '@/i18n/routing';
-import { Languages } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
 
 type Locale = (typeof routing.locales)[number];
 

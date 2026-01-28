@@ -9,5 +9,9 @@ export const Hero = {
   shortenButton: 'Shorten',
   projectDisclaimer: 'Personal Research & Development Project & Portfolio',
   projectDescription:
-    'This project is a technical demonstration of modern web development practices, not a commercial product. Built with Next.js 16, Bun, ElysiaJS, and TypeScript.'
+    'This project is a technical demonstration of modern web development practices, not a commercial product. Built with Next.js 16, Bun, ElysiaJS, and TypeScript.',
+  loading: 'Loading...',
+  goToDashboard: 'Go to Dashboard',
+  getStarted: 'Get Started for Free',
+  signIn: 'Sign In'
 } as const;

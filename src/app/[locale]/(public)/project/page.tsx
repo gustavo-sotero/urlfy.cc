@@ -7,6 +7,19 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import {
+  BarChart3,
+  Code2,
+  Database,
+  Github,
+  Layers,
+  Rocket,
+  Shield,
+  Zap
+} from 'lucide-react';
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+import type { JSX } from 'react';
 import { RevealSection } from '@/components/shared/reveal-section';
 import {
   Accordion,
@@ -24,19 +37,6 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
-import {
-  BarChart3,
-  Code2,
-  Database,
-  Github,
-  Layers,
-  Rocket,
-  Shield,
-  Zap
-} from 'lucide-react';
-import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
-import type { JSX } from 'react';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('ProjectPage');

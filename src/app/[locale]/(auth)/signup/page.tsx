@@ -1,6 +1,20 @@
-// src/app/(auth)/signup/page.tsx
+/**
+ * ═════════════════════════════════════════════════════════════════════
+ * SIGNUP PAGE (Internationalized)
+ * ═════════════════════════════════════════════════════════════════════
+ * User registration with email/password or OAuth providers.
+ * Fully internationalized with next-intl.
+ * ═════════════════════════════════════════════════════════════════════
+ */
+
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Github, Loader2, UserPlus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,33 +29,32 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Link } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 import { authClient } from '@/lib/auth.client';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Github, Loader2, UserPlus } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-
-const schema = z
-  .object({
-    name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
-    email: z.email('Email inválido'),
-    password: z.string().min(8, 'Senha deve ter no mínimo 8 caracteres'),
-    confirmPassword: z.string(),
-    acceptTerms: z.boolean().refine((val) => val === true, {
-      message: 'Você deve aceitar os termos de uso'
-    })
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'As senhas não coincidem',
-    path: ['confirmPassword']
-  });
-
-type FormData = z.infer<typeof schema>;
 
 export default function SignupPage() {
+  const t = useTranslations('Auth.signup');
+  const tErrors = useTranslations('Auth.errors');
+  const tOAuth = useTranslations('Auth.oauth');
+
+  // Define schema with translated messages
+  const schema = z
+    .object({
+      name: z.string().min(2, tErrors('nameMin', { min: 2 })),
+      email: z.string().email(tErrors('invalidEmail')),
+      password: z.string().min(8, tErrors('passwordMin', { min: 8 })),
+      confirmPassword: z.string(),
+      acceptTerms: z.boolean().refine((val) => val === true, {
+        message: tErrors('mustAcceptTerms')
+      })
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: tErrors('passwordsNoMatch'),
+      path: ['confirmPassword']
+    });
+
+  type FormData = z.infer<typeof schema>;
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -69,14 +82,14 @@ export default function SignupPage() {
       });
 
       if (result.error) {
-        setError(result.error.message || 'Erro ao criar conta');
+        setError(result.error.message || tErrors('signupFailed'));
         return;
       }
 
       // Redirect to dashboard or email verification page
       router.push('/dashboard?welcome=true');
     } catch {
-      setError('Erro ao criar conta. Tente novamente.');
+      setError(tErrors('tryAgain'));
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +103,7 @@ export default function SignupPage() {
         callbackURL: '/dashboard?welcome=true'
       });
     } catch {
-      setError('Erro ao criar conta. Tente novamente.');
+      setError(tErrors('tryAgain'));
       setIsLoading(false);
     }
   };
@@ -98,10 +111,8 @@ export default function SignupPage() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Criar conta</CardTitle>
-        <CardDescription>
-          Crie sua conta grátis e comece a encurtar links
-        </CardDescription>
+        <CardTitle className="text-2xl">{t('title')}</CardTitle>
+        <CardDescription>{t('subtitle')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* OAuth Buttons */}
@@ -133,7 +144,7 @@ export default function SignupPage() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            Google
+            {tOAuth('google')}
           </Button>
           <Button
             variant="outline"
@@ -141,7 +152,7 @@ export default function SignupPage() {
             disabled={isLoading}
           >
             <Github className="mr-2 h-4 w-4" />
-            GitHub
+            {tOAuth('github')}
           </Button>
         </div>
 
@@ -151,7 +162,7 @@ export default function SignupPage() {
           </div>
           <div className="relative flex justify-center text-xs uppercase">
             <span className="bg-card px-2 text-muted-foreground">
-              Ou crie com email
+              {tOAuth('createWith')}
             </span>
           </div>
         </div>
@@ -160,14 +171,14 @@ export default function SignupPage() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <AccessibleFormField
             id="name"
-            label="Nome"
+            label={t('name')}
             required
             error={form.formState.errors.name?.message}
           >
             <Input
               id="name"
               type="text"
-              placeholder="Seu nome"
+              placeholder={t('placeholders.name')}
               {...form.register('name')}
               disabled={isLoading}
               aria-invalid={!!form.formState.errors.name}
@@ -176,14 +187,14 @@ export default function SignupPage() {
 
           <AccessibleFormField
             id="email"
-            label="Email"
+            label={t('email')}
             required
             error={form.formState.errors.email?.message}
           >
             <Input
               id="email"
               type="email"
-              placeholder="seu@email.com"
+              placeholder={t('placeholders.email')}
               {...form.register('email')}
               disabled={isLoading}
               aria-invalid={!!form.formState.errors.email}
@@ -192,15 +203,15 @@ export default function SignupPage() {
 
           <AccessibleFormField
             id="password"
-            label="Senha"
+            label={t('password')}
             required
             error={form.formState.errors.password?.message}
-            hint="Mínimo de 8 caracteres"
+            hint={t('passwordHint')}
           >
             <Input
               id="password"
               type="password"
-              placeholder="••••••••"
+              placeholder={t('placeholders.password')}
               {...form.register('password')}
               disabled={isLoading}
               aria-invalid={!!form.formState.errors.password}
@@ -209,14 +220,14 @@ export default function SignupPage() {
 
           <AccessibleFormField
             id="confirmPassword"
-            label="Confirmar Senha"
+            label={t('confirmPassword')}
             required
             error={form.formState.errors.confirmPassword?.message}
           >
             <Input
               id="confirmPassword"
               type="password"
-              placeholder="••••••••"
+              placeholder={t('placeholders.password')}
               {...form.register('confirmPassword')}
               disabled={isLoading}
               aria-invalid={!!form.formState.errors.confirmPassword}
@@ -232,16 +243,18 @@ export default function SignupPage() {
               }
               disabled={isLoading}
             />
-            <div className="space-y-1 leading-none">
+            <div className="leading-none">
               <Label htmlFor="acceptTerms" className="text-sm font-normal">
-                Li e aceito os{' '}
-                <Link href="/terms" className="text-primary hover:underline">
-                  termos de uso
-                </Link>{' '}
-                e a{' '}
-                <Link href="/privacy" className="text-primary hover:underline">
-                  política de privacidade
-                </Link>
+                <span>
+                  {t('acceptTerms')}{' '}
+                  <Link href="/terms" className="text-primary underline">
+                    {t('termsLink')}
+                  </Link>{' '}
+                  {t('and')}{' '}
+                  <Link href="/privacy" className="text-primary underline">
+                    {t('privacyLink')}
+                  </Link>
+                </span>
               </Label>
               {form.formState.errors.acceptTerms && (
                 <p className="text-sm text-destructive">
@@ -264,12 +277,12 @@ export default function SignupPage() {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Criando conta...
+                {t('creatingAccount')}
               </>
             ) : (
               <>
                 <UserPlus className="mr-2 h-4 w-4" />
-                Criar conta
+                {t('signupButton')}
               </>
             )}
           </Button>
@@ -277,9 +290,9 @@ export default function SignupPage() {
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
-          Já tem conta?{' '}
+          {t('hasAccount')}{' '}
           <Link href="/login" className="text-primary hover:underline">
-            Fazer login
+            {t('signIn')}
           </Link>
         </p>
       </CardFooter>

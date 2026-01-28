@@ -1,3 +1,4 @@
+import type { EmailMessages } from '../types';
 import { EmailLayout } from './EmailLayout';
 
 interface LinkBannedEmailProps {
@@ -7,6 +8,8 @@ interface LinkBannedEmailProps {
   bannedReason: string;
   bannedAt: Date;
   appealUrl: string;
+  messages: EmailMessages['linkBanned'];
+  locale?: string;
 }
 
 export function LinkBannedEmail({
@@ -15,17 +18,19 @@ export function LinkBannedEmail({
   shortCode,
   bannedReason,
   bannedAt,
-  appealUrl
+  appealUrl,
+  messages: t,
+  locale = 'en'
 }: LinkBannedEmailProps) {
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('pt-BR', {
+    return new Intl.DateTimeFormat(locale, {
       dateStyle: 'long',
       timeStyle: 'short'
     }).format(date);
   };
 
   return (
-    <EmailLayout previewText="Link bloqueado por violação dos termos de uso">
+    <EmailLayout previewText={t.previewText} locale={locale}>
       <div>
         <h2
           style={{
@@ -36,7 +41,7 @@ export function LinkBannedEmail({
             lineHeight: '1.3'
           }}
         >
-          Link Bloqueado
+          {t.title}
         </h2>
 
         <p
@@ -47,7 +52,7 @@ export function LinkBannedEmail({
             lineHeight: '1.6'
           }}
         >
-          Olá, {firstName},
+          {t.greeting.replace('{firstName}', firstName)}
         </p>
 
         <p
@@ -58,8 +63,7 @@ export function LinkBannedEmail({
             lineHeight: '1.6'
           }}
         >
-          Informamos que um dos seus links foi bloqueado por violação dos nossos
-          Termos de Uso.
+          {t.message}
         </p>
 
         <div

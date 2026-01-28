@@ -1,6 +1,8 @@
 // src/app/(dashboard)/links/[id]/page.tsx
 'use client';
 
+import { ArrowLeft, Edit, ExternalLink, Trash } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
 import { AnalyticsDashboardSkeleton } from '@/components/charts/analytics-skeleton';
 import { ClicksChart } from '@/components/charts/clicks-chart';
 import { CountriesChart } from '@/components/charts/countries-chart';
@@ -22,8 +24,6 @@ import {
 import { Link } from '@/i18n/routing';
 import { useLinkAnalytics } from '@/lib/hooks/use-analytics';
 import { useDeleteLink, useLink } from '@/lib/hooks/use-links';
-import { ArrowLeft, Edit, ExternalLink, Trash } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
 
 export default function LinkDetailPage() {
   const params = useParams();

@@ -15,7 +15,7 @@
 
 - [ ] Import and register plugins globally or via a shared config plugin.
 - [ ] **JWT**: Configure `@elysiajs/jwt` with `name: 'jwt'` (or specific name for auth) and `secret: process.env.JWT_SECRET`.
-- [ ] **CORS**: Configure `@elysiajs/cors` with restrictive `origin` (based on `process.env.PUBLIC_URL` and `localhost`), `methods`, and `allowedHeaders`.
+- [ ] **CORS**: Configure `@elysiajs/cors` with restrictive `origin` (based on `process.env.PUBLIC_APP_URL` and `localhost`), `methods`, and `allowedHeaders`.
 - [ ] **Bearer**: Register `@elysiajs/bearer` to automatically handle `BS` (Standard Bearer) token extraction for API routes.
 - [ ] **Swagger**: Ensure `@elysiajs/openapi` (or `@elysiajs/swagger` depending on installed pkg) is correctly configured to merge with metadata.
 

@@ -165,7 +165,8 @@ export const createLinkController = new Elysia()
         403: ErrorRef(403),
         409: ErrorRef(409),
         422: ErrorRef(422),
-        429: ErrorRef(429)
+        429: ErrorRef(429),
+        500: ErrorRef(500)
       }
     }
   );
@@ -287,7 +288,8 @@ export const protectedLinksController = new Elysia()
           'Bulk creation result'
         ),
         400: ErrorRef(400),
-        403: ErrorRef(403)
+        403: ErrorRef(403),
+        500: ErrorRef(500)
       }
     }
   )
@@ -341,7 +343,8 @@ export const protectedLinksController = new Elysia()
       },
       response: {
         200: PaginatedResponse(t.Ref('links.response')),
-        401: ErrorRef(401)
+        401: ErrorRef(401),
+        500: ErrorRef(500)
       }
     }
   )
@@ -378,7 +381,8 @@ export const protectedLinksController = new Elysia()
         200: SuccessResponse(t.Ref('links.response')),
         401: ErrorRef(401),
         403: ErrorRef(403),
-        404: ErrorRef(404)
+        404: ErrorRef(404),
+        500: ErrorRef(500)
       }
     }
   )
@@ -417,7 +421,8 @@ export const protectedLinksController = new Elysia()
         401: ErrorRef(401),
         403: ErrorRef(403),
         404: ErrorRef(404),
-        422: ErrorRef(422)
+        422: ErrorRef(422),
+        500: ErrorRef(500)
       }
     }
   )
@@ -452,7 +457,8 @@ export const protectedLinksController = new Elysia()
         204: t.Void({ description: 'Link deleted successfully' }),
         401: ErrorRef(401),
         403: ErrorRef(403),
-        404: ErrorRef(404)
+        404: ErrorRef(404),
+        500: ErrorRef(500)
       }
     }
   )
@@ -489,7 +495,8 @@ export const protectedLinksController = new Elysia()
         200: SuccessResponse(t.Ref('links.response')),
         401: ErrorRef(401),
         403: ErrorRef(403),
-        404: ErrorRef(404)
+        404: ErrorRef(404),
+        500: ErrorRef(500)
       }
     }
   )
@@ -530,7 +537,8 @@ export const protectedLinksController = new Elysia()
         ),
         401: ErrorRef(401),
         403: ErrorRef(403),
-        404: ErrorRef(404)
+        404: ErrorRef(404),
+        500: ErrorRef(500)
       }
     }
   )
@@ -567,7 +575,8 @@ export const protectedLinksController = new Elysia()
         200: SuccessResponse(t.Ref('links.response')),
         401: ErrorRef(401),
         403: ErrorRef(403),
-        404: ErrorRef(404)
+        404: ErrorRef(404),
+        500: ErrorRef(500)
       }
     }
   );

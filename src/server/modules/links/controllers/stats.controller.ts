@@ -82,7 +82,8 @@ export const statsLinksController = new Elysia()
         200: SuccessResponse(t.Ref('links.stats.response')),
         401: ErrorRef(401),
         403: ErrorRef(403),
-        404: ErrorRef(404)
+        404: ErrorRef(404),
+        500: ErrorRef(500)
       }
     }
   );

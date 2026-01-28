@@ -1,6 +1,10 @@
 // src/app/(dashboard)/links/page.tsx
 'use client';
 
+import { Plus, Search } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { QueryError } from '@/components/query-error';
 import { LinkCard } from '@/components/shared/link-card';
 import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
@@ -8,10 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link } from '@/i18n/routing';
 import { useDeleteLink, useLinks } from '@/lib/hooks/use-links';
-import { Plus, Search } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { useState } from 'react';
-import { toast } from 'sonner';
 
 export default function LinksPage() {
   const t = useTranslations('Dashboard');

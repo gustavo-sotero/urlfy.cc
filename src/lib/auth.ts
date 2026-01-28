@@ -4,13 +4,8 @@ import { admin, apiKey, openAPI, twoFactor } from 'better-auth/plugins';
 import { db } from '@/db';
 import type { Session as DbSession, User as DbUser } from '@/db/schema/auth';
 import * as schema from '@/db/schema/auth';
-import {
-  EmailVerificationEmail,
-  PasswordResetEmail,
-  WelcomeEmail
-} from '@/emails/components';
-import { sendEmail } from '@/server/lib/email';
 import { auditLogService } from '@/server/services/audit.service';
+import { emailService } from '@/server/services/email.service';
 
 const authSecret =
   process.env.BETTER_AUTH_SECRET ||
@@ -83,16 +78,17 @@ export const auth = betterAuth({
       user: { email: string; name?: string };
       url: string;
     }) => {
-      void sendEmail({
-        to: user.email,
-        subject: 'Reset de senha - urlfy.cc',
-        react: PasswordResetEmail({
-          firstName: user.name?.split(' ')[0] || 'Usuário',
-          resetUrl: url
+      void emailService
+        .sendPasswordResetEmail({
+          to: user.email,
+          firstName: user.name?.split(' ')[0] || 'User',
+          resetUrl: url,
+          expiresInMinutes: 15
+          // locale will be resolved from user if available
         })
-      }).catch((error) => {
-        console.warn('Failed to send reset password email', error);
-      });
+        .catch((error) => {
+          console.warn('Failed to send reset password email', error);
+        });
     }
   },
 
@@ -107,16 +103,16 @@ export const auth = betterAuth({
       user: { email: string; name?: string };
       url: string;
     }) => {
-      void sendEmail({
-        to: user.email,
-        subject: 'Verifique seu email - urlfy.cc',
-        react: EmailVerificationEmail({
-          firstName: user.name?.split(' ')[0] || 'Usuário',
+      void emailService
+        .sendEmailVerification({
+          to: user.email,
+          firstName: user.name?.split(' ')[0] || 'User',
           verificationUrl: url
+          // locale will be resolved from user if available
         })
-      }).catch((error) => {
-        console.warn('Failed to send verification email', error);
-      });
+        .catch((error) => {
+          console.warn('Failed to send verification email', error);
+        });
     }
   },
 
@@ -314,13 +310,11 @@ export const auth = betterAuth({
       }
 
       try {
-        await sendEmail({
+        await emailService.sendWelcomeEmail({
           to: user.email,
-          subject: 'Bem-vindo ao urlfy.cc!',
-          react: WelcomeEmail({
-            firstName: user.name?.split(' ')[0] || 'Usuário',
-            email: user.email
-          })
+          firstName: user.name?.split(' ')[0] || 'User',
+          email: user.email,
+          userId: user.id // Pass userId to fetch user's preferred locale
         });
       } catch (error) {
         console.warn('Failed to send welcome email', error);

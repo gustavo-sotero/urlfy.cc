@@ -30,10 +30,12 @@ export const SECURITY_HEADERS = {
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    'upgrade-insecure-requests'
+    ...(isProduction ? ['upgrade-insecure-requests'] : [])
   ].join('; '),
 
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  ...(isProduction && {
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload'
+  }),
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',

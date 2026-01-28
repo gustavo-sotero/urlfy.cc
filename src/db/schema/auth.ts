@@ -28,7 +28,8 @@ export const user = pgTable('user', {
   linksCount: integer('links_count').default(0).notNull(),
   bannedAt: timestamp('banned_at'),
   bannedReason: text('banned_reason'),
-  deletedAt: timestamp('deleted_at')
+  deletedAt: timestamp('deleted_at'),
+  locale: text('locale').default('en')
 });
 
 export const session = pgTable(

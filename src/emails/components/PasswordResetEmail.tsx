@@ -1,18 +1,23 @@
+import type { EmailMessages } from '../types';
 import { EmailLayout } from './EmailLayout';
 
 interface PasswordResetEmailProps {
   firstName: string;
   resetUrl: string;
   expiresInMinutes?: number;
+  messages: EmailMessages['passwordReset'];
+  locale?: string;
 }
 
 export function PasswordResetEmail({
   firstName,
   resetUrl,
-  expiresInMinutes = 15
+  expiresInMinutes = 15,
+  messages: t,
+  locale = 'en'
 }: PasswordResetEmailProps) {
   return (
-    <EmailLayout previewText="Recuperação de senha - urlfy.cc">
+    <EmailLayout previewText={t.previewText} locale={locale}>
       <div>
         <h2
           style={{
@@ -23,7 +28,7 @@ export function PasswordResetEmail({
             lineHeight: '1.3'
           }}
         >
-          Redefinir Senha
+          {t.title}
         </h2>
 
         <p
@@ -34,7 +39,7 @@ export function PasswordResetEmail({
             lineHeight: '1.6'
           }}
         >
-          Olá, {firstName}!
+          {t.greeting.replace('{firstName}', firstName)}
         </p>
 
         <p
@@ -45,8 +50,7 @@ export function PasswordResetEmail({
             lineHeight: '1.6'
           }}
         >
-          Recebemos uma solicitação para redefinir a senha da sua conta no
-          urlfy.cc. Se você não fez essa solicitação, ignore este email.
+          {t.message}
         </p>
 
         <div
@@ -66,8 +70,7 @@ export function PasswordResetEmail({
               lineHeight: '1.5'
             }}
           >
-            ⏱️ Este link expira em <strong>{expiresInMinutes} minutos</strong>{' '}
-            por segurança.
+            {t.expiresNotice.replace('{minutes}', String(expiresInMinutes))}
           </p>
         </div>
 
@@ -86,7 +89,7 @@ export function PasswordResetEmail({
               boxShadow: '0 4px 6px rgba(99, 102, 241, 0.25)'
             }}
           >
-            Redefinir Minha Senha
+            {t.ctaButton}
           </a>
         </div>
 
@@ -108,7 +111,7 @@ export function PasswordResetEmail({
               letterSpacing: '0.5px'
             }}
           >
-            Ou copie e cole este link:
+            {t.copyLink}
           </p>
           <p
             style={{
@@ -144,8 +147,7 @@ export function PasswordResetEmail({
               lineHeight: '1.5'
             }}
           >
-            <strong>🔒 Dica de segurança:</strong> Nunca compartilhe este link
-            com ninguém. Nossa equipe nunca solicitará sua senha por email.
+            {t.didntRequest}
           </p>
         </div>
       </div>

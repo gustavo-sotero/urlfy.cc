@@ -44,7 +44,7 @@ import type {
   UpdateLinkInput
 } from '@/types/links.types';
 
-const BASE_URL = process.env.PUBLIC_URL || 'https://urlfy.cc';
+const BASE_URL = process.env.PUBLIC_APP_URL || 'https://urlfy.cc';
 
 // ═══════════════════════════════════════════════════════════════════
 // LINK SERVICE - Abstract class with static methods

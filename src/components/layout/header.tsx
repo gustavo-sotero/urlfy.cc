@@ -1,6 +1,10 @@
 // src/components/layout/header.tsx
 'use client';
 
+import { LogOut, Moon, Sun, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useTheme } from 'next-themes';
 import { LanguageSwitcher } from '@/components/shared/language-switcher';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -14,10 +18,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Link } from '@/i18n/routing';
 import { signOut } from '@/lib/auth.client';
-import { LogOut, Moon, Sun, User } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { useTheme } from 'next-themes';
-import { useRouter } from 'next/navigation';
 
 interface Props {
   user: {
