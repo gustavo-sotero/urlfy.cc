@@ -1,13 +1,6 @@
 // src/app/(auth)/login/page.tsx
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Github, Loader2, Mail } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 import { TwoFactorVerification } from '@/components/auth/two-factor-verification';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
 import { Button } from '@/components/ui/button';
@@ -21,7 +14,14 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { Link } from '@/i18n/routing';
 import { authClient } from '@/lib/auth.client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Github, Loader2, Mail } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 const schema = z.object({
   email: z.email('Email inválido'),

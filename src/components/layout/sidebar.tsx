@@ -1,6 +1,8 @@
 // src/components/layout/sidebar.tsx
 'use client';
 
+import { Link } from '@/i18n/routing';
+import { cn } from '@/lib/utils';
 import {
   BarChart3,
   Home,
@@ -8,9 +10,7 @@ import {
   Settings,
   Shield
 } from 'lucide-react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },

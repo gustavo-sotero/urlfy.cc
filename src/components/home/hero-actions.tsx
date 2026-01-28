@@ -13,10 +13,9 @@
 
 'use client';
 
-import Link from 'next/link';
-
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { Link } from '@/i18n/routing';
 import { useAuthState } from '@/lib/session-provider';
 
 export function HeroActions() {

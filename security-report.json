@@ -1,43 +1,43 @@
 {
-  "generatedAt": "2026-01-20T16:39:16.260Z",
+  "generatedAt": "2026-01-28T12:57:14.843Z",
   "baseUrl": "http://localhost:3000",
   "environment": "development",
   "checks": [
     {
       "category": "Headers",
       "check": "Content-Security-Policy",
-      "status": "fail",
-      "details": "Missing CSP header"
+      "status": "pass",
+      "details": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com; connect-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     },
     {
       "category": "Headers",
       "check": "Strict-Transport-Security",
-      "status": "fail",
-      "details": "Missing HSTS header"
+      "status": "pass",
+      "details": "max-age=31536000; includeSubDomains; preload"
     },
     {
       "category": "Headers",
       "check": "X-Frame-Options",
-      "status": "fail",
-      "details": "Missing X-Frame-Options header"
+      "status": "pass",
+      "details": "DENY"
     },
     {
       "category": "Headers",
       "check": "X-Content-Type-Options",
-      "status": "fail",
-      "details": "Missing X-Content-Type-Options header"
+      "status": "pass",
+      "details": "nosniff"
     },
     {
       "category": "Headers",
       "check": "Referrer-Policy",
-      "status": "warning",
-      "details": "Missing Referrer-Policy header"
+      "status": "pass",
+      "details": "strict-origin-when-cross-origin"
     },
     {
       "category": "Headers",
       "check": "Permissions-Policy",
-      "status": "warning",
-      "details": "Missing Permissions-Policy header"
+      "status": "pass",
+      "details": "camera=(), microphone=(), geolocation=(), payment=()"
     },
     {
       "category": "Headers",
@@ -54,8 +54,8 @@
     {
       "category": "Rate Limiting",
       "check": "Rate limit headers present",
-      "status": "warning",
-      "details": "Rate limit headers not found"
+      "status": "pass",
+      "details": "Limit: 600, Remaining: 597"
     },
     {
       "category": "CORS",
@@ -66,57 +66,57 @@
     {
       "category": "CORS",
       "check": "Preflight requests handled",
-      "status": "warning",
-      "details": "Preflight status: 200"
+      "status": "pass",
+      "details": "Preflight status: 204"
     },
     {
       "category": "Authentication",
       "check": "Protected: /api/me",
-      "status": "fail",
-      "details": "Status: 200 (expected 401)"
+      "status": "pass",
+      "details": "Status: 401 (expected 401)"
     },
     {
       "category": "Authentication",
       "check": "Protected: /api/me/export",
-      "status": "fail",
-      "details": "Status: 200 (expected 401)"
+      "status": "pass",
+      "details": "Status: 401 (expected 401)"
     },
     {
       "category": "Authentication",
       "check": "Protected: /api/admin/audit",
-      "status": "fail",
-      "details": "Status: 200 (expected 401)"
+      "status": "pass",
+      "details": "Status: 401 (expected 401)"
     },
     {
       "category": "Authentication",
       "check": "Reject invalid tokens",
-      "status": "fail",
-      "details": "Status: 200 (expected 401)"
+      "status": "pass",
+      "details": "Status: 401 (expected 401)"
     },
     {
       "category": "Input Validation",
       "check": "Block JavaScript URL",
-      "status": "fail",
-      "details": "Status: 200 (expected 400)"
+      "status": "pass",
+      "details": "Status: 400 (expected 400)"
     },
     {
       "category": "Input Validation",
       "check": "Block Internal URL",
       "status": "fail",
-      "details": "Status: 200 (expected 400)"
+      "details": "Status: 201 (expected 400)"
     },
     {
       "category": "Input Validation",
       "check": "Block Shortener URL",
       "status": "fail",
-      "details": "Status: 200 (expected 400)"
+      "details": "Status: 422 (expected 400)"
     }
   ],
   "summary": {
     "total": 18,
-    "passed": 3,
-    "failed": 11,
-    "warnings": 4,
+    "passed": 16,
+    "failed": 2,
+    "warnings": 0,
     "skipped": 0
   }
 }

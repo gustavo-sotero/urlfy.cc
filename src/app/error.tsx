@@ -9,10 +9,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { AlertTriangle } from 'lucide-react';
-import Link from 'next/link';
-import { type JSX, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Link } from '@/i18n/routing';
+import { AlertTriangle } from 'lucide-react';
+import { type JSX, useEffect } from 'react';
 
 interface ErrorPageProps {
   error: Error & { digest?: string };

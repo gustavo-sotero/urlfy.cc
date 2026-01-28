@@ -21,8 +21,8 @@ describe('Error Pages Existence', () => {
     expect(file.size).toBeGreaterThan(0);
   });
 
-  it('should have help page in public routes', () => {
-    const helpPath = 'src/app/(public)/help/page.tsx';
+  it('should have help page in localized routes', () => {
+    const helpPath = 'src/app/[locale]/(public)/help/page.tsx';
     const file = Bun.file(helpPath);
     expect(file.size).toBeGreaterThan(0);
   });
@@ -50,7 +50,9 @@ describe('Error Page Structure', () => {
   });
 
   it('help page should have FAQ accordion structure', async () => {
-    const content = await Bun.file('src/app/(public)/help/page.tsx').text();
+    const content = await Bun.file(
+      'src/app/[locale]/(public)/help/page.tsx'
+    ).text();
 
     expect(content).toContain('Accordion');
     expect(content).toContain('AccordionItem');

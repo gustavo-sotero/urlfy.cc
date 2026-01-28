@@ -8,6 +8,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import type { AuditAction } from '@/db/schema/audit';
 import {
   PaginatedResponse,
@@ -20,7 +21,6 @@ import {
   AuditLogQuery
 } from '@/server/modules/admin/admin.schema';
 import { auditLogService } from '@/server/services/audit.service';
-import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin-audit-controller');
 

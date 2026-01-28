@@ -1,10 +1,15 @@
 // src/components/layout/footer.tsx
+'use client';
 
 import { Github, Rocket } from 'lucide-react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/routing';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const t = useTranslations('Common');
+  const tNav = useTranslations('Navigation');
+  const tFooter = useTranslations('Footer');
 
   return (
     <footer className="border-t bg-muted/30">
@@ -16,21 +21,20 @@ export function Footer() {
               urlfy.cc
             </Link>
             <p className="text-sm text-muted-foreground">
-              Projeto de portfólio: Encurtador de URLs com arquitetura moderna e
-              alta performance.
+              {tFooter('description')}
             </p>
           </div>
 
           {/* Product */}
           <div className="space-y-4">
-            <h4 className="font-semibold">Produto</h4>
+            <h4 className="font-semibold">{tFooter('product')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link
                   href="/dashboard"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Dashboard
+                  {t('dashboard')}
                 </Link>
               </li>
               <li>
@@ -38,7 +42,7 @@ export function Footer() {
                   href="/#features"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Recursos
+                  {tNav('features')}
                 </Link>
               </li>
               <li>
@@ -46,7 +50,7 @@ export function Footer() {
                   href="/api/docs"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  API Docs
+                  {tNav('docs')}
                 </Link>
               </li>
             </ul>
@@ -54,14 +58,14 @@ export function Footer() {
 
           {/* Legal */}
           <div className="space-y-4">
-            <h4 className="font-semibold">Legal</h4>
+            <h4 className="font-semibold">{tFooter('legal')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link
                   href="/privacy"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Privacidade
+                  {t('privacy')}
                 </Link>
               </li>
               <li>
@@ -69,7 +73,7 @@ export function Footer() {
                   href="/terms"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Termos de Uso
+                  {t('terms')}
                 </Link>
               </li>
               <li>
@@ -77,7 +81,7 @@ export function Footer() {
                   href="/help"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Ajuda
+                  {t('help')}
                 </Link>
               </li>
               <li>
@@ -85,7 +89,7 @@ export function Footer() {
                   href="/contact"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Contato
+                  {t('contact')}
                 </Link>
               </li>
             </ul>
@@ -93,14 +97,14 @@ export function Footer() {
 
           {/* Developer/Project */}
           <div className="space-y-4">
-            <h4 className="font-semibold">Projeto</h4>
+            <h4 className="font-semibold">{tFooter('project')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link
                   href="/project"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Sobre o Projeto
+                  {tFooter('aboutProject')}
                 </Link>
               </li>
               <li>
@@ -111,7 +115,7 @@ export function Footer() {
                   className="text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
                 >
                   <Github className="h-3 w-3" />
-                  Repositório
+                  {tFooter('repository')}
                 </a>
               </li>
               <li>
@@ -122,7 +126,7 @@ export function Footer() {
                   className="text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
                 >
                   <Rocket className="h-3 w-3" />
-                  Portfólio
+                  {tFooter('portfolio')}
                 </a>
               </li>
             </ul>
@@ -131,8 +135,7 @@ export function Footer() {
 
         <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
           <p>
-            © {currentYear} urlfy.cc - Projeto pessoal de pesquisa e
-            desenvolvimento por{' '}
+            © {currentYear} urlfy.cc -{' '}
             <a
               href="https://gustavo-sotero.dev"
               target="_blank"

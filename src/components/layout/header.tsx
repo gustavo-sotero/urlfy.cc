@@ -1,10 +1,7 @@
 // src/components/layout/header.tsx
 'use client';
 
-import { LogOut, Moon, Sun, User } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
+import { LanguageSwitcher } from '@/components/shared/language-switcher';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +12,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { Link } from '@/i18n/routing';
 import { signOut } from '@/lib/auth.client';
+import { LogOut, Moon, Sun, User } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useTheme } from 'next-themes';
+import { useRouter } from 'next/navigation';
 
 interface Props {
   user: {
@@ -28,6 +30,7 @@ interface Props {
 export function Header({ user }: Props) {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
+  const t = useTranslations('Common');
 
   const initials =
     user.name
@@ -44,10 +47,13 @@ export function Header({ user }: Props) {
   return (
     <header className="flex h-16 items-center justify-between border-b px-6">
       <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">{t('dashboard')}</h1>
       </div>
 
       <div className="flex items-center gap-4">
+        {/* Language Switcher */}
+        <LanguageSwitcher />
+
         {/* Theme Toggle */}
         <Button
           variant="ghost"
@@ -83,13 +89,13 @@ export function Header({ user }: Props) {
             <DropdownMenuItem asChild>
               <Link href="/dashboard/settings">
                 <User className="mr-2 h-4 w-4" />
-                Configurações
+                {t('settings')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
-              Sair
+              {t('logout')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

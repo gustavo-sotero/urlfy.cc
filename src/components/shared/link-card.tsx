@@ -1,6 +1,17 @@
 // src/components/shared/link-card.tsx
 'use client';
 
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { Link } from '@/i18n/routing';
+import type { LinkResponse } from '@/types/links.types';
 import {
   BarChart2,
   Calendar,
@@ -11,17 +22,6 @@ import {
   MousePointer,
   Trash
 } from 'lucide-react';
-import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import type { LinkResponse } from '@/types/links.types';
 import { CopyButton } from './copy-button';
 
 interface Props {

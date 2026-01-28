@@ -1,13 +1,6 @@
 // src/app/(auth)/signup/page.tsx
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Github, Loader2, UserPlus } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,7 +15,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Link } from '@/i18n/routing';
 import { authClient } from '@/lib/auth.client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Github, Loader2, UserPlus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 const schema = z
   .object({

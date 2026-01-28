@@ -28,6 +28,9 @@ export const RESERVED_SLUGS = [
   'blog',
   'project',
   'internal',
+  // Locales (i18n) - prevent conflicts with URL routing
+  'en',
+  'pt-br',
   // SEO/Browser
   'favicon.ico',
   'robots.txt',

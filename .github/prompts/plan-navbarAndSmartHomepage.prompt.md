@@ -77,7 +77,7 @@ export function Navbar() {
 'use client';
 import { useSession } from '@/lib/auth.client';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 
 export function HeroActions() {
   // ... implementation

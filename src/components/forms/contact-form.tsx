@@ -1,5 +1,11 @@
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, Mail, Send } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -13,12 +19,6 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Mail, Send } from 'lucide-react';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod';
 
 // ═══════════════════════════════════════════════════════════════════
 // SCHEMA
@@ -208,7 +208,7 @@ export function ContactForm() {
               <FormControl>
                 <Textarea
                   placeholder="Conte-nos mais..."
-                  className="min-h-[150px]"
+                  className="min-h-37.5"
                   {...field}
                   disabled={isSubmitting}
                 />

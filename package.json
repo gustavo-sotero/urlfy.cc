@@ -98,6 +98,7 @@
     "lucide-react": "^0.563.0",
     "nanoid": "^5.1.6",
     "next": "^16.1.5",
+    "next-intl": "^4.7.0",
     "next-themes": "^0.4.6",
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
@@ -142,6 +143,8 @@
     "unrs-resolver"
   ],
   "trustedDependencies": [
+    "@parcel/watcher",
+    "@swc/core",
     "esbuild",
     "msgpackr-extract",
     "protobufjs",

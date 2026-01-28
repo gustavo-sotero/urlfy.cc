@@ -77,6 +77,10 @@ function getReasonForSlug(slug: string): string {
   ];
   if (legalRoutes.includes(slug)) return 'legal';
 
+  // i18n locales
+  const locales = ['en', 'pt-br'];
+  if (locales.includes(slug)) return 'i18n';
+
   return 'reserved';
 }
 

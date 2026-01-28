@@ -31,7 +31,7 @@ This file is critical for handling unknown routes gracefully. It replaces the de
 - **Code Structure:**
 
 ```tsx
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
 import { FileQuestion } from 'lucide-react';
 

@@ -14,9 +14,9 @@
 'use client';
 
 import { Menu, X } from 'lucide-react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-
+import { LanguageSwitcher } from '@/components/shared/language-switcher';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -24,24 +24,21 @@ import {
   SheetContent,
   SheetTrigger
 } from '@/components/ui/sheet';
+import { Link } from '@/i18n/routing';
 import { useAuthState } from '@/lib/session-provider';
-
-// Navigation links configuration
-type NavLink = {
-  href: string;
-  label: string;
-  external?: boolean;
-};
-
-const NAV_LINKS: readonly NavLink[] = [
-  { href: '/#features', label: 'Recursos' },
-  { href: '/project', label: 'O Projeto' },
-  { href: '/api/docs', label: 'API Docs', external: true }
-];
 
 export function Navbar() {
   const { isAuthenticated, isPending } = useAuthState();
   const [isOpen, setIsOpen] = useState(false);
+  const t = useTranslations('Navigation');
+  const tCommon = useTranslations('Common');
+
+  // Navigation links configuration
+  const NAV_LINKS = [
+    { href: '/#features', label: t('features') },
+    { href: '/project', label: t('project') },
+    { href: '/api/docs', label: t('docs'), external: true }
+  ] as const;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
@@ -86,6 +83,9 @@ export function Navbar() {
 
           {/* Auth Section */}
           <div className="flex items-center gap-2">
+            {/* Language Switcher */}
+            <LanguageSwitcher />
+
             {isPending ? (
               // Loading state
               <div className="flex items-center gap-2">
@@ -95,16 +95,16 @@ export function Navbar() {
             ) : isAuthenticated ? (
               // Authenticated user
               <Button asChild variant="default">
-                <Link href="/dashboard">Dashboard</Link>
+                <Link href="/dashboard">{tCommon('dashboard')}</Link>
               </Button>
             ) : (
               // Guest user
               <>
                 <Button asChild variant="ghost">
-                  <Link href="/login">Login</Link>
+                  <Link href="/login">{tCommon('login')}</Link>
                 </Button>
-                <Button asChild>
-                  <Link href="/signup">Criar conta</Link>
+                <Button asChild variant="default">
+                  <Link href="/signup">{tCommon('signup')}</Link>
                 </Button>
               </>
             )}
@@ -176,7 +176,7 @@ export function Navbar() {
                   // Authenticated user
                   <Button asChild size="lg" className="w-full">
                     <Link href="/dashboard" onClick={() => setIsOpen(false)}>
-                      Ir para Dashboard
+                      {tCommon('dashboard')}
                     </Link>
                   </Button>
                 ) : (
@@ -189,12 +189,12 @@ export function Navbar() {
                       className="w-full"
                     >
                       <Link href="/login" onClick={() => setIsOpen(false)}>
-                        Login
+                        {tCommon('login')}
                       </Link>
                     </Button>
                     <Button asChild size="lg" className="w-full">
                       <Link href="/signup" onClick={() => setIsOpen(false)}>
-                        Criar conta
+                        {tCommon('signup')}
                       </Link>
                     </Button>
                   </>

@@ -256,7 +256,7 @@ import { Suspense } from 'react';
 import { LinksList } from '@/components/links/links-list';
 import { LinksFilter } from '@/components/links/links-filter';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { Plus } from 'lucide-react';
 
 export default function LinksPage() {
@@ -306,7 +306,7 @@ import {
   Edit,
   Trash
 } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import type { LinkResponse } from '@/types/links.types';
 
 interface Props {
@@ -1668,4 +1668,3 @@ test.describe('Links Management', () => {
 - [ ] Testes E2E básicos (Playwright)
 - [ ] Testes de navegação por teclado
 - [ ] Testes de screen reader announcements
-
