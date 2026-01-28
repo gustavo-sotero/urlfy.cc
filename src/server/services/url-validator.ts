@@ -62,6 +62,8 @@ let bannedDomainsLoaded = false;
 let bannedDomainsLastLoad = 0;
 const CACHE_TTL_MS = 60_000; // Reload every minute
 
+const DNS_LOOKUP_TIMEOUT_MS = 2000;
+
 export type ValidationResult =
   | { valid: true }
   | { valid: false; error: ValidationError };
@@ -215,16 +217,28 @@ export async function validateUrlSafe(url: string): Promise<ValidationResult> {
     return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
   }
 
-  // Resolve DNS and check IP
+  // Resolve DNS and check IPs
   try {
-    const { address } = await lookup(hostname);
+    const addresses = await resolveHostname(hostname, DNS_LOOKUP_TIMEOUT_MS);
 
-    if (isPrivateIP(address)) {
-      logger.warn('Blocked private IP address', { hostname, address });
+    if (addresses.length === 0) {
+      logger.warn('DNS resolution returned no addresses', { hostname });
+      return { valid: false, error: 'URL_RESOLUTION_FAILED' };
+    }
+
+    const privateAddress = addresses.find((address) => isPrivateIP(address));
+    if (privateAddress) {
+      logger.warn('Blocked private IP address', {
+        hostname,
+        address: privateAddress
+      });
       return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
     }
 
-    logger.debug('URL passed SSRF validation', { hostname, address });
+    logger.debug('URL passed SSRF validation', {
+      hostname,
+      addresses
+    });
   } catch (error) {
     // DNS resolution failed - block to be safe
     logger.warn('DNS resolution failed', {
@@ -235,6 +249,28 @@ export async function validateUrlSafe(url: string): Promise<ValidationResult> {
   }
 
   return { valid: true };
+}
+
+async function resolveHostname(
+  hostname: string,
+  timeoutMs: number
+): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('DNS_LOOKUP_TIMEOUT'));
+    }, timeoutMs);
+
+    lookup(hostname, { all: true })
+      .then((results) => results.map((entry) => entry.address))
+      .then((addresses) => {
+        clearTimeout(timeoutId);
+        resolve(addresses);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
 }
 
 /**

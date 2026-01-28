@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-01-28T20:10:46.465Z",
+  "generatedAt": "2026-01-28T20:54:18.817Z",
   "baseUrl": "http://localhost:3000",
   "environment": "development",
   "checks": [
@@ -55,7 +55,7 @@
       "category": "Rate Limiting",
       "check": "Rate limit headers present",
       "status": "pass",
-      "details": "Limit: 600, Remaining: 597"
+      "details": "Limit: 600, Remaining: 595"
     },
     {
       "category": "CORS",
