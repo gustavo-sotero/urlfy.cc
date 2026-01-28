@@ -1,8 +1,8 @@
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { user } from '@/db/schema/auth';
 import { emailService } from '@/server/services/email.service';
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { eq } from 'drizzle-orm';
 
 describe('Email Service i18n Integration', () => {
   const testUsers = [

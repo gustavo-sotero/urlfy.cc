@@ -1,11 +1,11 @@
 // src/app/(admin)/layout.tsx
 
-import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
 import { AdminHeader } from '@/components/admin/layout/admin-header';
 import { AdminSidebar } from '@/components/admin/layout/admin-sidebar';
 import { auth } from '@/lib/auth';
 import { auditLogService } from '@/server/services/audit.service';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 export default async function AdminLayout({
   children
@@ -27,23 +27,26 @@ export default async function AdminLayout({
     redirect('/login?callbackUrl=/admin');
   }
 
+  // Extract user data after authentication guard
+  const { user } = session;
+  const userId = user.id;
+  const userRole = user.role;
+  const userEmail = user.email;
+  const twoFactorEnabled = user.twoFactorEnabled;
+
   // ═══════════════════════════════════════════════════════════════════
   // GUARD 2: Role Authorization Check
   // ═══════════════════════════════════════════════════════════════════
-  // session is guaranteed non-null after redirect guard
-  // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-  if (session!.user.role !== 'admin') {
+  if (userRole !== 'admin') {
     // Log unauthorized access attempt
     void auditLogService.log({
-      // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-      userId: session!.user.id,
+      userId,
       action: 'admin_access_denied',
       entityType: 'admin_panel',
       entityId: 'role_check_failed',
       metadata: {
         reason: 'insufficient_role',
-        // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-        userRole: session!.user.role,
+        userRole,
         requiredRole: 'admin'
       },
       ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,
@@ -58,23 +61,19 @@ export default async function AdminLayout({
   // ═══════════════════════════════════════════════════════════════════
   // Better-Auth provides 'twoFactorEnabled' directly on the user object
   // This is the authoritative source maintained by the twoFactor plugin
-  // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-  const has2FAEnabled = session!.user.twoFactorEnabled || false;
+  const has2FAEnabled = twoFactorEnabled || false;
 
   if (!has2FAEnabled) {
     // Log 2FA enforcement failure
     void auditLogService.log({
-      // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-      userId: session!.user.id,
+      userId,
       action: 'admin_access_denied',
       entityType: 'admin_panel',
       entityId: '2fa_check_failed',
       metadata: {
         reason: '2fa_not_enabled',
-        // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-        userRole: session!.user.role,
-        // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-        twoFactorEnabled: session!.user.twoFactorEnabled,
+        userRole,
+        twoFactorEnabled,
         timestamp: new Date().toISOString()
       },
       ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,
@@ -88,16 +87,13 @@ export default async function AdminLayout({
   // SUCCESS: Log successful admin access
   // ═══════════════════════════════════════════════════════════════════
   void auditLogService.log({
-    // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-    userId: session!.user.id,
+    userId,
     action: 'admin_access_granted',
     entityType: 'admin_panel',
     entityId: 'access_granted',
     metadata: {
-      // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-      email: session!.user.email,
-      // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-      role: session!.user.role,
+      email: userEmail,
+      role: userRole,
       has2FA: true
     },
     ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,

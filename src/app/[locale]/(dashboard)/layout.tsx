@@ -1,13 +1,13 @@
 // src/app/(dashboard)/layout.tsx
 
-import { headers } from 'next/headers';
-import { getLocale } from 'next-intl/server';
-import type { ReactNode } from 'react';
 import { VerificationWarning } from '@/components/dashboard/verification-warning';
 import { Header } from '@/components/layout/header';
 import { Sidebar } from '@/components/layout/sidebar';
 import { redirect } from '@/i18n/routing';
 import { auth } from '@/lib/auth';
+import { getLocale } from 'next-intl/server';
+import { headers } from 'next/headers';
+import type { ReactNode } from 'react';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -27,18 +27,17 @@ export default async function DashboardLayout({
     redirect({ href: '/login', locale });
   }
 
-  // session is guaranteed non-null after redirect guard
+  // After guard, session is guaranteed to be non-null
+  // TypeScript can't infer this from redirect, so we assert the type
+  const authenticatedSession = session as NonNullable<typeof session>;
+  const sessionUser = authenticatedSession.user;
   const user = {
-    // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-    name: session!.user.name,
-    // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-    email: session!.user.email,
-    // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-    image: session!.user.image
+    name: sessionUser.name,
+    email: sessionUser.email,
+    image: sessionUser.image
   } as const;
 
-  // biome-ignore lint/style/noNonNullAssertion: session is guaranteed non-null by guard above
-  const isEmailVerified: boolean = session!.user.emailVerified ?? false;
+  const isEmailVerified: boolean = sessionUser.emailVerified ?? false;
 
   return (
     <div className="flex h-screen">

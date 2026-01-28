@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'bun:test';
 import { renderEmail } from '@/emails/render';
 import type {
   AppLocale,
@@ -5,7 +6,6 @@ import type {
   PasswordResetPayload,
   WelcomeEmailPayload
 } from '@/emails/types';
-import { describe, expect, it } from 'bun:test';
 
 describe('Email i18n Rendering', () => {
   describe('Welcome Email', () => {
