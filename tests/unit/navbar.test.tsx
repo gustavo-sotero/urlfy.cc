@@ -6,6 +6,44 @@ import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, render, screen } from '@testing-library/react';
 import { Navbar } from '@/components/layout/navbar';
 
+// Mock next-intl
+mock.module('next-intl', () => ({
+  useTranslations: mock((namespace: string) => {
+    const messages: Record<string, Record<string, string>> = {
+      Navigation: {
+        features: 'Recursos',
+        project: 'O Projeto',
+        docs: 'API Docs'
+      },
+      Common: {
+        login: 'Login',
+        signup: 'Criar conta',
+        dashboard: 'Dashboard'
+      }
+    };
+    return (key: string) => messages[namespace]?.[key] || key;
+  })
+}));
+
+// Mock i18n routing
+mock.module('@/i18n/routing', () => ({
+  Link: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: React.ReactNode;
+    href: string;
+    [key: string]: unknown;
+  }) => {
+    return (
+      <a href={href} {...props}>
+        {children}
+      </a>
+    );
+  }
+}));
+
 // Mock auth client
 mock.module('@/lib/auth.client', () => ({
   useSession: mock(() => ({
@@ -23,6 +61,11 @@ mock.module('@/lib/session-provider', () => ({
     refetch: async () => {},
     error: null
   }))
+}));
+
+// Mock LanguageSwitcher
+mock.module('@/components/shared/language-switcher', () => ({
+  LanguageSwitcher: () => <div>Language</div>
 }));
 
 describe('Navbar', () => {

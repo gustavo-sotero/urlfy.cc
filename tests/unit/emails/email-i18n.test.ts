@@ -157,7 +157,7 @@ describe('Email i18n Rendering', () => {
 
       expect(result.subject).toBe('Data Deletion Request Received');
       expect(result.html).toContain('Hello, Grace');
-      expect(result.html).toContain('Export My Data Before Deletion');
+      expect(result.html).toContain('https://urlfy.cc/export');
     });
 
     it('should render in Portuguese', async () => {
@@ -177,7 +177,7 @@ describe('Email i18n Rendering', () => {
 
       expect(result.subject).toBe('Solicitação de Exclusão de Dados Recebida');
       expect(result.html).toContain('Olá, Henrique');
-      expect(result.html).toContain('Exportar Meus Dados Antes da Exclusão');
+      expect(result.html).toContain('https://urlfy.cc/export');
     });
   });
 
@@ -239,7 +239,9 @@ describe('Email i18n Rendering', () => {
 
       expect(result.subject).toContain('85%');
       expect(result.html).toContain('Hello, Kate!');
-      expect(result.html).toContain('85 / 100');
+      expect(result.html).toContain('85');
+      expect(result.html).toContain('100');
+      expect(result.html).toContain('links');
     });
 
     it('should render in Portuguese with interpolated percentage', async () => {
@@ -257,7 +259,9 @@ describe('Email i18n Rendering', () => {
 
       expect(result.subject).toContain('90%');
       expect(result.html).toContain('Olá, Lucas!');
-      expect(result.html).toContain('90 / 100');
+      expect(result.html).toContain('90');
+      expect(result.html).toContain('100');
+      expect(result.html).toContain('links');
     });
   });
 

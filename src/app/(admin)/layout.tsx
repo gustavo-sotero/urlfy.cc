@@ -1,11 +1,11 @@
 // src/app/(admin)/layout.tsx
 
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { AdminHeader } from '@/components/admin/layout/admin-header';
 import { AdminSidebar } from '@/components/admin/layout/admin-sidebar';
 import { auth } from '@/lib/auth';
 import { auditLogService } from '@/server/services/audit.service';
-import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
 
 export default async function AdminLayout({
   children

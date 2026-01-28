@@ -1,13 +1,13 @@
 // src/app/(dashboard)/layout.tsx
 
+import { headers } from 'next/headers';
+import { getLocale } from 'next-intl/server';
+import type { ReactNode } from 'react';
 import { VerificationWarning } from '@/components/dashboard/verification-warning';
 import { Header } from '@/components/layout/header';
 import { Sidebar } from '@/components/layout/sidebar';
 import { redirect } from '@/i18n/routing';
 import { auth } from '@/lib/auth';
-import { getLocale } from 'next-intl/server';
-import { headers } from 'next/headers';
-import type { ReactNode } from 'react';
 
 interface DashboardLayoutProps {
   children: ReactNode;

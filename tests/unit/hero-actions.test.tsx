@@ -9,6 +9,40 @@ import { HeroActions } from '@/components/home/hero-actions';
 // Create a mock function we can control
 const mockUseAuthState = mock();
 
+// Mock next-intl
+mock.module('next-intl', () => ({
+  useTranslations: mock((namespace: string) => {
+    const messages: Record<string, Record<string, string>> = {
+      Hero: {
+        loading: 'Carregando...',
+        goToDashboard: 'Ir para Dashboard',
+        getStarted: 'Começar gratuitamente',
+        signIn: 'Fazer login'
+      }
+    };
+    return (key: string) => messages[namespace]?.[key] || key;
+  })
+}));
+
+// Mock i18n routing
+mock.module('@/i18n/routing', () => ({
+  Link: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: React.ReactNode;
+    href: string;
+    [key: string]: unknown;
+  }) => {
+    return (
+      <a href={href} {...props}>
+        {children}
+      </a>
+    );
+  }
+}));
+
 // Mock session provider
 mock.module('@/lib/session-provider', () => ({
   useAuthState: mockUseAuthState
