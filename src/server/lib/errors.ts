@@ -24,6 +24,8 @@ export type LinkErrorCode =
   | 'SHORTENER_BLOCKED'
   | 'DOMAIN_BANNED'
   | 'URL_TOO_LONG'
+  | 'URL_INTERNAL_BLOCKED'
+  | 'URL_RESOLUTION_FAILED'
   | 'QUOTA_EXCEEDED'
   | 'SHORTCODE_GENERATION_FAILED'
   | 'INVALID_ALIAS_FORMAT'
@@ -38,9 +40,11 @@ export const ERROR_HTTP_MAP: Record<LinkErrorCode, number> = {
   AUTH_REQUIRED: 401,
   INVALID_FORMAT: 400,
   INVALID_PROTOCOL: 400,
-  SHORTENER_BLOCKED: 422,
-  DOMAIN_BANNED: 422,
+  SHORTENER_BLOCKED: 400,
+  DOMAIN_BANNED: 400,
   URL_TOO_LONG: 400,
+  URL_INTERNAL_BLOCKED: 400,
+  URL_RESOLUTION_FAILED: 400,
   QUOTA_EXCEEDED: 402,
   SHORTCODE_GENERATION_FAILED: 500,
   INVALID_ALIAS_FORMAT: 400,
@@ -104,6 +108,9 @@ function getErrorMessage(code: LinkErrorCode): string {
     SHORTENER_BLOCKED: 'Não é permitido encurtar outros encurtadores',
     DOMAIN_BANNED: 'Este domínio foi bloqueado',
     URL_TOO_LONG: 'URL muito longa (máximo: 2048 caracteres)',
+    URL_INTERNAL_BLOCKED:
+      'URLs para redes internas ou privadas não são permitidas',
+    URL_RESOLUTION_FAILED: 'Não foi possível resolver o hostname da URL',
     QUOTA_EXCEEDED: 'Limite de links do seu plano foi atingido',
     SHORTCODE_GENERATION_FAILED: 'Erro ao gerar código curto',
     INVALID_ALIAS_FORMAT:

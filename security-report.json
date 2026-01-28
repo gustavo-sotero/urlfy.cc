@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-01-28T15:17:30.410Z",
+  "generatedAt": "2026-01-28T20:10:46.465Z",
   "baseUrl": "http://localhost:3000",
   "environment": "development",
   "checks": [
@@ -12,8 +12,8 @@
     {
       "category": "Headers",
       "check": "Strict-Transport-Security",
-      "status": "fail",
-      "details": "Missing HSTS header"
+      "status": "pass",
+      "details": "max-age=31536000; includeSubDomains; preload"
     },
     {
       "category": "Headers",
@@ -102,20 +102,20 @@
     {
       "category": "Input Validation",
       "check": "Block Internal URL",
-      "status": "fail",
-      "details": "Status: 201 (expected 400)"
+      "status": "pass",
+      "details": "Status: 400 (expected 400)"
     },
     {
       "category": "Input Validation",
       "check": "Block Shortener URL",
-      "status": "fail",
-      "details": "Status: 422 (expected 400)"
+      "status": "pass",
+      "details": "Status: 400 (expected 400)"
     }
   ],
   "summary": {
     "total": 18,
-    "passed": 15,
-    "failed": 3,
+    "passed": 18,
+    "failed": 0,
     "warnings": 0,
     "skipped": 0
   }

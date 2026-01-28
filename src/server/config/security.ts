@@ -33,9 +33,8 @@ export const SECURITY_HEADERS = {
     ...(isProduction ? ['upgrade-insecure-requests'] : [])
   ].join('; '),
 
-  ...(isProduction && {
-    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload'
-  }),
+  // HSTS enabled in all environments (browsers ignore over HTTP)
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',

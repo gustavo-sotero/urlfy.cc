@@ -34,7 +34,7 @@ import {
   isValidAliasFormat,
   validateCustomAlias
 } from '@/server/services/shortcode.service';
-import { validateUrlAsync } from '@/server/services/url-validator';
+import { validateUrlSafe } from '@/server/services/url-validator';
 import type {
   CreateLinkInput,
   Link,
@@ -100,8 +100,8 @@ export const LinkService = {
   ): Promise<Link> {
     const linkId = crypto.randomUUID();
 
-    // 1. Validar URL
-    const validation = await validateUrlAsync(input.url);
+    // 1. Validar URL com proteção SSRF
+    const validation = await validateUrlSafe(input.url);
     if (!validation.valid) {
       throw createLinkError(validation.error);
     }

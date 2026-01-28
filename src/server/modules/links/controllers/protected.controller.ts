@@ -184,7 +184,7 @@ export const protectedLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/bulk',
-    async ({ body, user, headers, set }) => {
+    async ({ body, user, request, set }) => {
       try {
         // Check email verification
         if (!user?.emailVerified) {
@@ -220,9 +220,8 @@ export const protectedLinksController = new Elysia()
           };
         }
 
-        // Obter IP hash
-        const clientIp =
-          headers['x-forwarded-for'] || headers['x-real-ip'] || 'unknown';
+        // Obter IP hash usando getClientIp para consistência
+        const clientIp = getClientIp(request);
         const ipHash = createHash('sha256').update(clientIp).digest('hex');
 
         const results: Array<{

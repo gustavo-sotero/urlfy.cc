@@ -306,10 +306,12 @@ export class RedirectService {
       }
     }
 
-    // Outra request está populando o cache - aguarda um pouco
+    // Outra request está populando o cache - aguarda com jitter
     stampedeLocksWaited.add(1);
     logger.debug('Lock not acquired, waiting for cache population', { code });
-    await Bun.sleep(50); // 50ms
+    // Jittered backoff: 50-100ms para desincronizar retries
+    const jitter = 50 + Math.floor(Math.random() * 50);
+    await Bun.sleep(jitter);
 
     // Tenta pegar do cache novamente (provavelmente já foi populado)
     const cached = await cacheService.getLink(code);

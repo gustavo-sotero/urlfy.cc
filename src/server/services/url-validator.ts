@@ -1,11 +1,38 @@
 // src/server/services/url-validator.ts
 
+import { lookup } from 'node:dns/promises';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { bannedUrls } from '@/db/schema';
 import { createLogger } from '@/server/lib/telemetry';
 
 const logger = createLogger('url-validator');
+
+// SSRF Protection: Private IP ranges (RFC 1918, loopback, link-local)
+const PRIVATE_IP_RANGES = [
+  // IPv4
+  /^127\./, // Loopback (127.0.0.0/8)
+  /^10\./, // Class A private (10.0.0.0/8)
+  /^172\.(1[6-9]|2\d|3[0-1])\./, // Class B private (172.16.0.0/12)
+  /^192\.168\./, // Class C private (192.168.0.0/16)
+  /^169\.254\./, // Link-local (169.254.0.0/16)
+  /^0\./, // Current network (0.0.0.0/8)
+  // IPv6
+  /^::1$/, // Loopback
+  /^fe80:/i, // Link-local
+  /^fc00:/i, // Unique local (fc00::/7)
+  /^fd/i // Unique local (fd00::/8)
+];
+
+const BLOCKED_HOSTNAMES = [
+  'localhost',
+  'localhost.localdomain',
+  'metadata.google.internal', // GCP metadata
+  '169.254.169.254', // AWS/Azure metadata
+  'metadata.goog' // GCP alternative
+];
+
+const INTERNAL_TLD_PATTERNS = [/\.internal$/i, /\.local$/i, /\.localdomain$/i];
 
 const BLOCKED_SHORTENERS = new Set([
   'bit.ly',
@@ -44,7 +71,9 @@ export type ValidationError =
   | 'INVALID_PROTOCOL'
   | 'SHORTENER_BLOCKED'
   | 'DOMAIN_BANNED'
-  | 'URL_TOO_LONG';
+  | 'URL_TOO_LONG'
+  | 'URL_INTERNAL_BLOCKED'
+  | 'URL_RESOLUTION_FAILED';
 
 /**
  * Loads banned domains from the database into memory cache.
@@ -93,6 +122,32 @@ export async function reloadBannedDomains(): Promise<void> {
 }
 
 /**
+ * Check if an IP address is in a private/internal range
+ * @param ip - IP address to check
+ * @returns true if IP is private/internal
+ */
+export function isPrivateIP(ip: string): boolean {
+  return PRIVATE_IP_RANGES.some((regex) => regex.test(ip));
+}
+
+/**
+ * Check if a hostname should be blocked (localhost, metadata endpoints)
+ * @param hostname - Hostname to check
+ * @returns true if hostname is blocked
+ */
+export function isBlockedHostname(hostname: string): boolean {
+  const lower = hostname.toLowerCase();
+
+  // Exact match
+  if (BLOCKED_HOSTNAMES.includes(lower)) {
+    return true;
+  }
+
+  // Pattern match for internal TLDs
+  return INTERNAL_TLD_PATTERNS.some((pattern) => pattern.test(lower));
+}
+
+/**
  * Valida uma URL de destino
  * @param url - URL a ser validada
  * @returns Resultado da validação
@@ -137,6 +192,49 @@ export function validateUrl(url: string): ValidationResult {
 export async function validateUrlAsync(url: string): Promise<ValidationResult> {
   await loadBannedDomainsFromDb();
   return validateUrl(url);
+}
+
+/**
+ * Safe URL validation with SSRF protection (async DNS resolution)
+ * This is the recommended function for validating user-provided URLs
+ * @param url - URL to validate
+ * @returns Validation result with SSRF checks
+ */
+export async function validateUrlSafe(url: string): Promise<ValidationResult> {
+  // Run synchronous checks first (format, protocol, shortener block)
+  const syncResult = await validateUrlAsync(url);
+  if (!syncResult.valid) {
+    return syncResult;
+  }
+
+  const { hostname } = new URL(url);
+
+  // Block known dangerous hostnames
+  if (isBlockedHostname(hostname)) {
+    logger.warn('Blocked internal hostname', { hostname });
+    return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
+  }
+
+  // Resolve DNS and check IP
+  try {
+    const { address } = await lookup(hostname);
+
+    if (isPrivateIP(address)) {
+      logger.warn('Blocked private IP address', { hostname, address });
+      return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
+    }
+
+    logger.debug('URL passed SSRF validation', { hostname, address });
+  } catch (error) {
+    // DNS resolution failed - block to be safe
+    logger.warn('DNS resolution failed', {
+      hostname,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return { valid: false, error: 'URL_RESOLUTION_FAILED' };
+  }
+
+  return { valid: true };
 }
 
 /**

@@ -161,7 +161,7 @@ export const publicLinksController = new Elysia()
           value: token,
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
+          sameSite: 'strict',
           path: '/',
           maxAge: 300 // 5 minutes
         });
