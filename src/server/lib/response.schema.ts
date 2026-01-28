@@ -41,6 +41,8 @@ export const ErrorCodes = t.Union(
     t.Literal('URL_MALICIOUS'),
     t.Literal('INVALID_URL'),
     t.Literal('SHORTENER_BLOCKED'),
+    t.Literal('URL_INTERNAL_BLOCKED'),
+    t.Literal('URL_RESOLUTION_FAILED'),
     t.Literal('RATE_LIMITED'),
     t.Literal('LINK_BANNED'),
     t.Literal('QUOTA_EXCEEDED'),

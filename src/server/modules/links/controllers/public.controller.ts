@@ -8,13 +8,13 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { jwtPlugin } from '@/server/config/plugins';
 import { handleLinkError } from '@/server/lib/errors';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth } from '@/server/middleware/auth.middleware';
 import * as qrService from '@/server/services/qr.service';
-import { validateUrlAsync } from '@/server/services/url-validator';
+import { validateUrlSafe } from '@/server/services/url-validator';
+import { Elysia, t } from 'elysia';
 
 import {
   LinkCodeParam,
@@ -63,7 +63,7 @@ export const publicLinksController = new Elysia()
   .post(
     '/validate',
     async ({ body }) => {
-      const validation = await validateUrlAsync(body.url);
+      const validation = await validateUrlSafe(body.url);
 
       if (validation.valid) {
         return {
