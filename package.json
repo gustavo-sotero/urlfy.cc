@@ -35,7 +35,7 @@
     "db:seed": "bun run src/db/scripts/seed-reserved-slugs.ts",
     "db:seed:test-users": "bun run src/db/scripts/seed-test-users.ts",
     "db:seed:analytics": "bun run src/db/scripts/seed-analytics.ts",
-    "auth:generate": "bun x @better-auth/cli generate --config ./src/lib/auth.cli.ts"
+    "auth:generate": "bunx @better-auth/cli generate --config ./src/lib/auth.cli.ts --output ./src/db/schema/initial.auth.ts --yes"
   },
   "dependencies": {
     "@elysiajs/bearer": "^1.4.2",

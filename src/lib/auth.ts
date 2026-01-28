@@ -1,25 +1,33 @@
+/**
+ * ═════════════════════════════════════════════════════════════════════
+ * AUTH RUNTIME CONFIGURATION
+ * ═════════════════════════════════════════════════════════════════════
+ * Better-Auth configuration for application runtime (uses Bun native drivers)
+ *
+ * Module: Authentication & Identity (Module 2)
+ * Spec: module-02-authentication.md
+ * ═════════════════════════════════════════════════════════════════════
+ */
+
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { admin, apiKey, openAPI, twoFactor } from 'better-auth/plugins';
 import { db } from '@/db';
 import type { Session as DbSession, User as DbUser } from '@/db/schema/auth';
 import * as schema from '@/db/schema/auth';
 import { auditLogService } from '@/server/services/audit.service';
 import { emailService } from '@/server/services/email.service';
+import { baseAuthConfig, getPlugins } from './auth.config';
 
-const authSecret =
-  process.env.BETTER_AUTH_SECRET ||
-  (process.env.NODE_ENV === 'test'
-    ? 'test-secret-min-32-chars-long'
-    : undefined);
-
-if (!authSecret) {
-  throw new Error('BETTER_AUTH_SECRET is required');
-}
-
+// ═══════════════════════════════════════════════════════════════════
+// RUNTIME-SPECIFIC CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════
+// Uses shared base config with runtime-specific enhancements
 export const auth = betterAuth({
+  // Spread shared configuration
+  ...baseAuthConfig,
+
   // ═══════════════════════════════════════════════════════════════════
-  // DATABASE ADAPTER
+  // DATABASE ADAPTER (Bun SQL for runtime)
   // ═══════════════════════════════════════════════════════════════════
   database: drizzleAdapter(db, {
     provider: 'pg',
@@ -34,25 +42,10 @@ export const auth = betterAuth({
   }),
 
   // ═══════════════════════════════════════════════════════════════════
-  // APP INFO
-  // ═══════════════════════════════════════════════════════════════════
-  appName: 'urlfy.cc',
-  baseURL:
-    process.env.BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:3000',
-  basePath: '/auth', // Better-Auth internal path prefix (combined with Elysia prefix)
-  secret: authSecret,
-
-  // ═══════════════════════════════════════════════════════════════════
-  // EMAIL & PASSWORD
+  // RUNTIME ENHANCEMENTS: Password Hashing (Bun native)
   // ═══════════════════════════════════════════════════════════════════
   emailAndPassword: {
-    enabled: true,
-    // Allow unverified users to log in, but restrict features
-    requireEmailVerification: false,
-    minPasswordLength: 8,
-    maxPasswordLength: 128,
+    ...baseAuthConfig.emailAndPassword,
     password: {
       hash: async (password: string) => {
         return Bun.password.hash(password, {
@@ -84,7 +77,6 @@ export const auth = betterAuth({
           firstName: user.name?.split(' ')[0] || 'User',
           resetUrl: url,
           expiresInMinutes: 15
-          // locale will be resolved from user if available
         })
         .catch((error) => {
           console.warn('Failed to send reset password email', error);
@@ -108,7 +100,6 @@ export const auth = betterAuth({
           to: user.email,
           firstName: user.name?.split(' ')[0] || 'User',
           verificationUrl: url
-          // locale will be resolved from user if available
         })
         .catch((error) => {
           console.warn('Failed to send verification email', error);
@@ -117,141 +108,14 @@ export const auth = betterAuth({
   },
 
   // ═══════════════════════════════════════════════════════════════════
-  // OAUTH PROVIDERS
+  // PLUGINS (with conditional admin based on environment)
   // ═══════════════════════════════════════════════════════════════════
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      enabled: !!(
-        process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      )
-    },
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID || '',
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-      enabled: !!(
-        process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-      )
-    }
-  },
+  plugins: getPlugins({
+    disableAdmin: process.env.NODE_ENV === 'test'
+  }),
 
   // ═══════════════════════════════════════════════════════════════════
-  // SESSION CONFIGURATION
-  // ═══════════════════════════════════════════════════════════════════
-  session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // 1 day
-    cookieCache: {
-      enabled: true,
-      maxAge: 30 // 30 seconds (reduced for faster 2FA verification)
-    }
-  },
-
-  // ═══════════════════════════════════════════════════════════════════
-  // COOKIE CONFIGURATION
-  // ═══════════════════════════════════════════════════════════════════
-  advanced: {
-    cookiePrefix: 'urlfy',
-    useSecureCookies: process.env.NODE_ENV === 'production',
-    crossSubDomainCookies: {
-      enabled: false
-    },
-    defaultCookieAttributes: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
-    }
-  },
-
-  // ═══════════════════════════════════════════════════════════════════
-  // USER CONFIGURATION
-  // ═══════════════════════════════════════════════════════════════════
-  user: {
-    additionalFields: {
-      role: {
-        type: 'string',
-        defaultValue: 'user',
-        required: true,
-        input: false
-      },
-      linksQuota: {
-        type: 'number',
-        defaultValue: 100,
-        required: true,
-        input: false
-      },
-      linksCount: {
-        type: 'number',
-        defaultValue: 0,
-        required: true,
-        input: false
-      },
-      banned: {
-        type: 'boolean',
-        defaultValue: false,
-        required: true,
-        input: false
-      },
-      bannedAt: {
-        type: 'date',
-        required: false,
-        input: false
-      },
-      bannedReason: {
-        type: 'string',
-        required: false,
-        input: false
-      },
-      deletedAt: {
-        type: 'date',
-        required: false,
-        input: false
-      }
-    }
-  },
-
-  // ═══════════════════════════════════════════════════════════════════
-  // RATE LIMITING
-  // ═══════════════════════════════════════════════════════════════════
-  rateLimit: {
-    enabled: true,
-    window: 60, // 1 minute
-    max: 100 // 100 requests per minute
-  },
-
-  // ═══════════════════════════════════════════════════════════════════
-  // PLUGINS
-  // ═══════════════════════════════════════════════════════════════════
-  // Note: API key functionality is implemented via custom middleware (apiKeyAuth)
-  // Note: OpenAPI documentation is generated via Elysia's @elysiajs/swagger plugin
-  // ═══════════════════════════════════════════════════════════════════
-  plugins: [
-    // Two-Factor Authentication
-    twoFactor({
-      issuer: 'urlfy.cc',
-      totpWindow: 1
-    }),
-
-    // Admin Plugin (disabled in tests to avoid adapter inconsistencies)
-    ...(process.env.NODE_ENV === 'test'
-      ? []
-      : [
-          admin({
-            impersonationSessionDuration: 60 * 60 // 1 hour
-          })
-        ]),
-
-    // API Keys (RF-29)
-    apiKey(),
-
-    // Better-Auth OpenAPI docs (RF-30)
-    // Served under /api/auth/reference by default.
-    openAPI({ path: '/api/auth/reference' })
-  ],
-
-  // ═══════════════════════════════════════════════════════════════════
-  // CALLBACKS
+  // CALLBACKS (Audit Logs & Email Notifications)
   // ═══════════════════════════════════════════════════════════════════
   callbacks: {
     onSignIn: async ({
@@ -314,18 +178,13 @@ export const auth = betterAuth({
           to: user.email,
           firstName: user.name?.split(' ')[0] || 'User',
           email: user.email,
-          userId: user.id // Pass userId to fetch user's preferred locale
+          userId: user.id
         });
       } catch (error) {
         console.warn('Failed to send welcome email', error);
       }
     }
-  },
-
-  // ═══════════════════════════════════════════════════════════════════
-  // TRUST PROXY (for production behind load balancer)
-  // ═══════════════════════════════════════════════════════════════════
-  trustedOrigins: process.env.TRUSTED_ORIGINS?.split(',') || []
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════

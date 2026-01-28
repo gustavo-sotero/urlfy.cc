@@ -15,24 +15,20 @@
 
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { admin, apiKey, openAPI, twoFactor } from 'better-auth/plugins';
 import { db } from '@/db/cli';
 import * as schema from '@/db/schema/auth';
+import { baseAuthConfig, getPlugins } from './auth.config';
 
-const authSecret =
-  process.env.BETTER_AUTH_SECRET ||
-  (process.env.NODE_ENV === 'test'
-    ? 'test-secret-min-32-chars-long'
-    : undefined);
-
-if (!authSecret) {
-  throw new Error('BETTER_AUTH_SECRET is required');
-}
-
-// This config is for the better-auth CLI which runs with Node.js
+// ═══════════════════════════════════════════════════════════════════
+// CLI-SPECIFIC CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════
+// Uses shared base config with CLI-specific overrides
 export const auth = betterAuth({
+  // Spread shared configuration
+  ...baseAuthConfig,
+
   // ═══════════════════════════════════════════════════════════════════
-  // DATABASE ADAPTER (Node.js compatible)
+  // DATABASE ADAPTER (Node.js compatible for CLI)
   // ═══════════════════════════════════════════════════════════════════
   database: drizzleAdapter(db, {
     provider: 'pg',
@@ -47,90 +43,7 @@ export const auth = betterAuth({
   }),
 
   // ═══════════════════════════════════════════════════════════════════
-  // APP INFO
+  // PLUGINS (using shared configuration)
   // ═══════════════════════════════════════════════════════════════════
-  appName: 'urlfy.cc',
-  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
-  secret: authSecret,
-
-  // ═══════════════════════════════════════════════════════════════════
-  // EMAIL & PASSWORD
-  // ═══════════════════════════════════════════════════════════════════
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: true
-  },
-
-  // ═══════════════════════════════════════════════════════════════════
-  // OAUTH PROVIDERS
-  // ═══════════════════════════════════════════════════════════════════
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      enabled: !!(
-        process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      )
-    },
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID || '',
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-      enabled: !!(
-        process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-      )
-    }
-  },
-
-  // ═══════════════════════════════════════════════════════════════════
-  // USER CONFIGURATION
-  // ═══════════════════════════════════════════════════════════════════
-  user: {
-    additionalFields: {
-      role: {
-        type: 'string',
-        defaultValue: 'user',
-        required: true,
-        input: false
-      },
-      linksQuota: {
-        type: 'number',
-        defaultValue: 100,
-        required: true,
-        input: false
-      },
-      linksCount: {
-        type: 'number',
-        defaultValue: 0,
-        required: true,
-        input: false
-      },
-      bannedAt: {
-        type: 'date',
-        required: false,
-        input: false
-      },
-      bannedReason: {
-        type: 'string',
-        required: false,
-        input: false
-      },
-      deletedAt: {
-        type: 'date',
-        required: false,
-        input: false
-      }
-    }
-  },
-
-  // ═══════════════════════════════════════════════════════════════════
-  // PLUGINS
-  // ═══════════════════════════════════════════════════════════════════
-  plugins: [
-    twoFactor({
-      issuer: 'urlfy.cc'
-    }),
-    admin(),
-    apiKey(),
-    openAPI({ path: '/api/auth/reference' })
-  ]
+  plugins: getPlugins()
 });
