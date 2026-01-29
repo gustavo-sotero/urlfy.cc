@@ -166,7 +166,7 @@ export const publicLinksController = new Elysia()
           maxAge: 300 // 5 minutes
         });
 
-        // Retorna URL para redirect
+        // Return URL for redirect
         const shortUrl = `${process.env.PUBLIC_APP_URL || 'https://urlfy.cc'}/${
           params.code
         }`;

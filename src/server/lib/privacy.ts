@@ -1,18 +1,18 @@
 // src/server/lib/privacy.ts
 
-import { createHash } from 'node:crypto';
 import { createLogger } from '@/server/lib/telemetry';
+import { createHash } from 'node:crypto';
 
 const logger = createLogger('privacy');
 
 /**
- * Gerencia salt rotativo semanal para anonimização de IPs
- * Compliance LGPD/GDPR: IPs nunca são armazenados em texto
+ * Weekly rotating salt manager for IP anonymization
+ * LGPD/GDPR Compliance: IPs are never stored as plain text
  *
- * Estratégia:
- * - Cada semana um novo salt baseado em ano + número da semana
- * - Mesma sessão em uma semana produz hash idêntico
- * - Semanas diferentes produzem hashes diferentes (impossível rastrear)
+ * Strategy:
+ * - New salt each week based on year + week number
+ * - Same session within a week produces identical hash
+ * - Different weeks produce different hashes (impossible to track across weeks)
  */
 
 export interface SaltInfo {
@@ -24,11 +24,11 @@ export interface SaltInfo {
 }
 
 /**
- * Calcula o número da semana ISO
- * Usada para salt rotation semanal
+ * Calculates ISO week number
+ * Used for weekly salt rotation
  */
 function getWeekNumber(date: Date): number {
-  // Cálculo ISO week (segunda-feira é dia 1)
+  // ISO week calculation (Monday is day 1)
   const d = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
   );
@@ -39,13 +39,13 @@ function getWeekNumber(date: Date): number {
 }
 
 /**
- * Retorna info do salt para uma data específica
+ * Returns salt info for a specific date
  */
 export function getSaltInfo(date: Date = new Date()): SaltInfo {
   const year = date.getFullYear();
   const week = getWeekNumber(date);
 
-  // Calcula primeira segunda-feira da semana ISO
+  // Calculate first Monday of ISO week
   const simple = new Date(date);
   const dayNum = simple.getDay() || 7;
   simple.setDate(simple.getDate() - dayNum + 1);
@@ -67,24 +67,24 @@ export function getSaltInfo(date: Date = new Date()): SaltInfo {
 }
 
 /**
- * Hash do visitante com salt rotativo semanal
+ * Visitor hash with weekly rotating salt
  *
- * Parâmetros:
- * - ip: IP do visitante (pode ser null para casos raros)
- * - linkId: ID do link (fornece escopo)
- * - date: Data para determinar o salt (default: agora)
+ * Parameters:
+ * - ip: Visitor IP (can be null for rare cases)
+ * - linkId: Link ID (provides scope)
+ * - date: Date to determine salt (default: now)
  *
- * Resultado:
- * - Hash SHA-256 determinístico mas não reverso
- * - Impossível vincular hashes entre semanas
- * - Compliance: IP nunca é armazenado
+ * Result:
+ * - Deterministic but non-reversible SHA-256 hash
+ * - Impossible to link hashes across weeks
+ * - Compliance: IP is never stored
  */
 export function hashVisitor(
   ip: string | null,
   linkId: string,
   date: Date = new Date()
 ): string {
-  // Fallback para visitors sem IP
+  // Fallback for visitors without IP
   if (!ip || ip.trim() === '') {
     const { salt } = getSaltInfo(date);
     const uniqueId = `anonymous:${linkId}:${salt}`;
@@ -98,8 +98,8 @@ export function hashVisitor(
 }
 
 /**
- * Valida se um hash foi gerado nesta semana
- * Útil para debugging / compliance audits
+ * Validates if a hash was generated this week
+ * Useful for debugging / compliance audits
  */
 export function validateHashForWeek(
   hash: string,
@@ -112,11 +112,11 @@ export function validateHashForWeek(
 }
 
 /**
- * Obtém todos os possíveis hashes para um IP em um período
- * Útil para anonimização retroativa
+ * Gets all possible hashes for an IP within a period
+ * Useful for retroactive anonymization
  *
- * Exemplo: Se um usuário solicitou exclusão, podemos encontrar
- * todos seus hashes neste período e deletar
+ * Example: If a user requested deletion, we can find
+ * all their hashes in this period and delete them
  */
 export function getHashesForPeriod(
   ip: string,
@@ -131,13 +131,13 @@ export function getHashesForPeriod(
     endDate: Date;
   }> = [];
 
-  // Itera por todas as semanas no período
+  // Iterate through all weeks in the period
   const currentDate = new Date(startDate);
 
   while (currentDate < endDate) {
     const saltInfo = getSaltInfo(currentDate);
 
-    // Adiciona apenas uma vez por semana
+    // Add only once per week
     if (!hashes.some((h) => h.week === saltInfo.salt)) {
       hashes.push({
         hash: hashVisitor(ip, linkId, currentDate),
@@ -147,7 +147,7 @@ export function getHashesForPeriod(
       });
     }
 
-    // Próxima semana
+    // Next week
     currentDate.setDate(currentDate.getDate() + 7);
   }
 
@@ -155,10 +155,10 @@ export function getHashesForPeriod(
 }
 
 /**
- * Função de teste: valida que implementação está correta
+ * Test function: validates that implementation is correct
  */
 export function validatePrivacyImplementation(): boolean {
-  // Hash diferente para semanas diferentes
+  // Different hash for different weeks
   const now = new Date();
   const nextWeek = new Date(now);
   nextWeek.setDate(nextWeek.getDate() + 7);
@@ -171,7 +171,7 @@ export function validatePrivacyImplementation(): boolean {
     return false;
   }
 
-  // Mesmo IP + link + semana = hash idêntico
+  // Same IP + link + week = identical hash
   const hash3 = hashVisitor('192.168.1.1', 'link-id', now);
   if (hash1 !== hash3) {
     logger.error(
@@ -180,7 +180,7 @@ export function validatePrivacyImplementation(): boolean {
     return false;
   }
 
-  // IP diferente = hash diferente
+  // Different IP = different hash
   const hash4 = hashVisitor('192.168.1.2', 'link-id', now);
   if (hash1 === hash4) {
     logger.error(
@@ -189,11 +189,11 @@ export function validatePrivacyImplementation(): boolean {
     return false;
   }
 
-  // Link diferente = hash diferente
+  // Different link = different hash
   const hash5 = hashVisitor('192.168.1.1', 'different-link', now);
   if (hash1 === hash5) {
     logger.error(
-      '[Privacy] CRITICAL: Links diferentes produziram hash idêntico!'
+      '[Privacy] CRITICAL: Different links produced identical hash!'
     );
     return false;
   }
@@ -202,7 +202,7 @@ export function validatePrivacyImplementation(): boolean {
   return true;
 }
 
-// Valida implementação na inicialização
+// Validate implementation at initialization
 if (import.meta.main) {
   const isValid = validatePrivacyImplementation();
   process.exit(isValid ? 0 : 1);

@@ -1,0 +1,378 @@
+// src/lib/api/admin.ts
+/**
+ * Admin API Client
+ * Type-safe wrapper for admin-related endpoints
+ */
+
+import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
+import { BASE_URL, client, createClientWithHeaders } from './client';
+import { handleEden, toQueryParams } from './error';
+
+// ═══════════════════════════════════════════════════════════════════
+// ADMIN STATS
+// ═══════════════════════════════════════════════════════════════════
+
+export interface AdminStats {
+  totalLinks: number;
+  totalClicks: number;
+  totalUsers: number;
+  activeLinksToday: number;
+  requestsPerSecond: number;
+}
+
+/**
+ * Get global admin statistics (client-side)
+ */
+export async function getAdminStats(): Promise<AdminStats> {
+  const response = await client.api.admin.stats.get();
+  return handleEden(response);
+}
+
+/**
+ * Get global admin statistics (server-side with headers)
+ * Use this from Next.js server components to forward authentication cookies
+ */
+export async function getAdminStatsSSR(
+  headers: HeadersInit
+): Promise<AdminStats> {
+  const serverClient = createClientWithHeaders(headers);
+  const response = await serverClient.api.admin.stats.get();
+  return handleEden(response);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GROWTH STATS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Get growth statistics for admin dashboard
+ */
+export async function getGrowthStats(
+  range: '7d' | '30d' = '7d'
+): Promise<Array<{ date: string; clicks: number; newUsers: number }>> {
+  const response = await client.api.admin.stats.growth.get({
+    query: { range }
+  });
+  return handleEden(response);
+}
+
+/**
+ * Get growth statistics (server-side with headers)
+ */
+export async function getGrowthStatsSSR(
+  headers: HeadersInit,
+  range: '7d' | '30d' = '7d'
+): Promise<Array<{ date: string; clicks: number; newUsers: number }>> {
+  const serverClient = createClientWithHeaders(headers);
+  const response = await serverClient.api.admin.stats.growth.get({
+    query: { range }
+  });
+  return handleEden(response);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LINK SEARCH & MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Search links by URL or short code
+ */
+export async function searchLinks(query: string): Promise<LinkResponse[]> {
+  const response = await client.api.admin.links.search.get({
+    query: { q: query }
+  });
+  const result =
+    handleEden<
+      Array<{
+        id: string;
+        shortCode: string;
+        originalUrl: string;
+        isActive: boolean;
+        isBanned: boolean;
+        createdAt: string;
+        clicksCount: number;
+      }>
+    >(response);
+
+  // Transform to LinkResponse format
+  return result.map((link) => ({
+    id: link.id,
+    shortCode: link.shortCode,
+    shortUrl: `${BASE_URL}/${link.shortCode}`,
+    originalUrl: link.originalUrl,
+    redirectType: 302,
+    clicksCount: link.clicksCount,
+    isActive: link.isActive,
+    isBanned: link.isBanned,
+    createdAt: link.createdAt,
+    updatedAt: link.createdAt
+  })) as LinkResponse[];
+}
+
+/**
+ * List links with pagination (client-side)
+ */
+export async function listAdminLinks(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}): Promise<PaginatedResponse<LinkResponse>> {
+  const response = await client.api.admin.links.get({
+    query: {
+      page: params?.page?.toString(),
+      limit: params?.limit?.toString(),
+      search: params?.search
+    }
+  });
+
+  const result = handleEden<{
+    data: Array<{
+      id: string;
+      shortCode: string;
+      originalUrl: string;
+      isActive: boolean;
+      isBanned: boolean;
+      createdAt: string;
+      clicksCount: number;
+    }>;
+    meta: {
+      total: number;
+      page: number;
+      perPage: number;
+      lastPage: number;
+      hasMore: boolean;
+    };
+  }>(response);
+
+  // Transform to LinkResponse format
+  const data = result.data.map((link) => ({
+    id: link.id,
+    shortCode: link.shortCode,
+    shortUrl: `${BASE_URL}/${link.shortCode}`,
+    originalUrl: link.originalUrl,
+    redirectType: 302,
+    clicksCount: link.clicksCount,
+    isActive: link.isActive,
+    isBanned: link.isBanned,
+    createdAt: link.createdAt,
+    updatedAt: link.createdAt
+  })) as LinkResponse[];
+
+  return {
+    data,
+    meta: result.meta
+  };
+}
+
+/**
+ * List links with pagination (server-side with headers)
+ */
+export async function listAdminLinksSSR(
+  headers: HeadersInit,
+  params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }
+): Promise<PaginatedResponse<LinkResponse>> {
+  const serverClient = createClientWithHeaders(headers);
+  const response = await serverClient.api.admin.links.get({
+    query: {
+      page: params?.page?.toString(),
+      limit: params?.limit?.toString(),
+      search: params?.search
+    }
+  });
+
+  const result = handleEden<{
+    data: Array<{
+      id: string;
+      shortCode: string;
+      originalUrl: string;
+      isActive: boolean;
+      isBanned: boolean;
+      createdAt: string;
+      clicksCount: number;
+    }>;
+    meta: {
+      total: number;
+      page: number;
+      perPage: number;
+      lastPage: number;
+      hasMore: boolean;
+    };
+  }>(response);
+
+  // Transform to LinkResponse format
+  const data = result.data.map((link) => ({
+    id: link.id,
+    shortCode: link.shortCode,
+    shortUrl: `${BASE_URL}/${link.shortCode}`,
+    originalUrl: link.originalUrl,
+    redirectType: 302,
+    clicksCount: link.clicksCount,
+    isActive: link.isActive,
+    isBanned: link.isBanned,
+    createdAt: link.createdAt,
+    updatedAt: link.createdAt
+  })) as LinkResponse[];
+
+  return {
+    data,
+    meta: result.meta
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LINK BAN/UNBAN
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Ban a link
+ */
+export async function banLink(id: string, reason: string): Promise<void> {
+  const response = await client.api.admin.links({ linkId: id }).ban.patch({
+    isBanned: true,
+    bannedReason: reason
+  });
+  handleEden(response);
+}
+
+/**
+ * Unban a link
+ */
+export async function unbanLink(id: string): Promise<void> {
+  const response = await client.api.admin.links({ linkId: id }).unban.patch();
+  handleEden(response);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// USER MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+
+export interface UserResponse {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  banned: boolean;
+  bannedReason: string | null;
+  bannedAt: string | null;
+  twoFactorEnabled: boolean;
+  linksQuota: number;
+  linksCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UsersQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: string;
+  isBanned?: boolean;
+}
+
+/**
+ * List users with pagination and filters
+ */
+export async function getUsers(
+  query?: UsersQuery
+): Promise<PaginatedResponse<UserResponse>> {
+  const apiQuery = query
+    ? toQueryParams({
+        page: query.page,
+        limit: query.limit,
+        search: query.search,
+        role: query.role,
+        isBanned:
+          query.isBanned !== undefined ? String(query.isBanned) : undefined
+      })
+    : {};
+
+  const response = await client.api.admin.users.get({ query: apiQuery });
+  return handleEden<PaginatedResponse<UserResponse>>(response);
+}
+
+/**
+ * Update user (role, ban status, quota)
+ */
+export async function updateUser(
+  userId: string,
+  data: {
+    role?: string;
+    banned?: boolean;
+    bannedReason?: string;
+    linksQuota?: number;
+  }
+): Promise<UserResponse> {
+  const response = await client.api.admin.users({ userId }).patch(data);
+  return handleEden(response);
+}
+
+/**
+ * Update user role (convenience wrapper)
+ */
+export async function updateUserRole(
+  userId: string,
+  role: string
+): Promise<UserResponse> {
+  return updateUser(userId, { role });
+}
+
+/**
+ * Ban user (convenience wrapper)
+ */
+export async function banUser(
+  userId: string,
+  reason?: string
+): Promise<UserResponse> {
+  return updateUser(userId, {
+    banned: true,
+    bannedReason: reason || 'Banned by administrator'
+  });
+}
+
+/**
+ * Unban user (convenience wrapper)
+ */
+export async function unbanUser(userId: string): Promise<UserResponse> {
+  return updateUser(userId, {
+    banned: false,
+    bannedReason: 'Unbanned by administrator'
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AUDIT LOGS
+// ═══════════════════════════════════════════════════════════════════
+
+export interface AuditLogEntry {
+  id: string;
+  userId: string;
+  userEmail?: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata?: Record<string, unknown>;
+  ipAddress: string;
+  createdAt: string;
+}
+
+export interface AuditLogsQuery {
+  from?: string;
+  to?: string;
+  action?: string;
+  userId?: string;
+  page?: number;
+  /** Maps to 'limit' in backend query parameter */
+  limit?: number;
+}
+
+export async function getAuditLogs(
+  query?: AuditLogsQuery
+): Promise<PaginatedResponse<AuditLogEntry>> {
+  const apiQuery = query ? toQueryParams({ ...query }) : {};
+  const response = await client.api.admin.audit.get({ query: apiQuery });
+  return handleEden<PaginatedResponse<AuditLogEntry>>(response);
+}

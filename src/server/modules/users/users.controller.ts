@@ -15,6 +15,7 @@ import {
   PaginatedResponse,
   SuccessResponse
 } from '@/server/lib/response.schema';
+import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
 import {
   UserBanBody,
@@ -28,6 +29,8 @@ import { UserService } from './users.service';
 
 export const usersController = new Elysia({ prefix: '/users' })
   .use(requireAdmin)
+  // Apply rate limiting to all admin user management endpoints
+  .use(adminRateLimits.userManagement)
   // Inject model schemas for type inference and OpenAPI docs
   .use(UsersModel)
 

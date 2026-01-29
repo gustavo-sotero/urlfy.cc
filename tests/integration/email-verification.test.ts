@@ -3,12 +3,12 @@
  * Tests that unverified users can log in but cannot create links
  */
 
+import { beforeAll, describe, expect, test } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { user as userTable } from '@/db/schema/auth';
 import { links } from '@/db/schema/links';
 import { api } from '@/server';
-import { beforeAll, describe, expect, test } from 'bun:test';
-import { eq } from 'drizzle-orm';
 import { createElysiaTestClient } from '../helpers/elysia-test-client';
 import { isDatabaseAvailable } from '../helpers/integration-helper';
 

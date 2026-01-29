@@ -89,7 +89,9 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb'
-    }
+    },
+    // Enable nonce-based CSP for Script components
+    nextScriptWorkers: false // Keep false to ensure nonce works properly
   }
 };
 

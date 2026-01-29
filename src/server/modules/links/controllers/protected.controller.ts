@@ -97,7 +97,7 @@ export const createLinkController = new Elysia()
           };
         }
 
-        // Verificar idempotency key
+        // Check idempotency key
         const idempotencyKey = headers['idempotency-key'];
         if (idempotencyKey) {
           if (!validateIdempotencyKey(idempotencyKey)) {
@@ -123,18 +123,18 @@ export const createLinkController = new Elysia()
           }
         }
 
-        // Obter IP hash
+        // Get IP hash
         const clientIp = getClientIp(request);
         const ipHash = createHash('sha256').update(clientIp).digest('hex');
 
-        // Criar link
+        // Create link
         const link = await LinkService.createLink(
           body,
           user?.id ?? undefined,
           ipHash
         );
 
-        // Armazenar idempotency se fornecida
+        // Store idempotency if provided
         if (idempotencyKey) {
           await setIdempotency(idempotencyKey, link.id);
         }

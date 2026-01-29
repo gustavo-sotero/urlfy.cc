@@ -74,13 +74,13 @@ function validateImageUrl(url: string | null | undefined): string | null {
   try {
     const { hostname, protocol } = new URL(url);
 
-    // Apenas HTTPS para segurança
+    // Only HTTPS for security
     if (protocol !== 'https:') {
       logger.warn('Image URL uses non-HTTPS protocol', { protocol });
       return null;
     }
 
-    // Verifica se está na whitelist de CDNs
+    // Check if hostname is in CDN whitelist
     const isAllowed = Array.from(ALLOWED_IMAGE_HOSTS).some(
       (host) => hostname === host || hostname.endsWith(`.${host}`)
     );
@@ -173,23 +173,23 @@ export function sanitizeNotes(notes: string | null | undefined): string | null {
 }
 
 /**
- * Sanitiza entrada de usuário para busca
- * Previne injection e reduz ruído
+ * Sanitizes user input for search
+ * Prevents injection and reduces noise
  */
 export function sanitizeSearchQuery(query: string | null | undefined): string {
   if (!query) return '';
 
-  // Remove caracteres especiais perigosos
+  // Remove dangerous special characters
   let clean = DOMPurify.sanitize(query, { ALLOWED_TAGS: [] });
 
-  // Limita tamanho
+  // Limit size
   clean = clean.slice(0, 200).trim();
 
   return clean;
 }
 
 /**
- * Valida e sanitiza campos de entrada de link
+ * Validates and sanitizes link input fields
  */
 export interface SanitizedLinkInput {
   title: string | null;

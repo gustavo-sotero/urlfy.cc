@@ -62,7 +62,7 @@ export interface LinkResponse {
   isActive: boolean;
   isBanned: boolean;
   bannedReason: string | null;
-  isProtected: boolean; // true se tem senha
+  isProtected: boolean; // true if password protected
   expiresAt: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
@@ -89,7 +89,7 @@ export interface PaginatedResponse<T> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// DB TYPES (inferidos do Drizzle)
+// DB TYPES (inferred from Drizzle)
 // ═══════════════════════════════════════════════════════════════════
 export type Link = typeof links.$inferSelect;
 export type NewLink = typeof links.$inferInsert;

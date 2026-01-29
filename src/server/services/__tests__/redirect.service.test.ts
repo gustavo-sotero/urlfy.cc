@@ -32,7 +32,7 @@ function mockResolvedValue<T>(mockFn: ReturnType<typeof mock>, value: T): void {
   mockFn.mockImplementation(() => Promise.resolve(value));
 }
 
-// Mock do cache service
+// Cache service mock
 const mockCache = {
   getLink: mock<(code: string) => Promise<CachedLink | null>>(() =>
     Promise.resolve(null)
@@ -46,7 +46,7 @@ const mockCache = {
   getCacheStats: mock(() => Promise.resolve({ hits: 0, misses: 0, hitRate: 0 }))
 };
 
-// Mock do database - with configurable limit result for select chain
+// Database mock - with configurable limit result for select chain
 const mockLimitFn = mock<() => Promise<Array<{ id: string }>>>(() =>
   Promise.resolve([])
 );
@@ -69,7 +69,7 @@ const mockDb = {
   }
 };
 
-// Mock do circuit breaker
+// Circuit breaker mock
 const mockCircuitBreaker = {
   execute: mock(<T>(fn: () => Promise<T>) => fn()),
   getStatus: mock(() => 'CLOSED')

@@ -40,7 +40,7 @@ describe('Analytics Integration', () => {
       .execute()
       .catch(() => {});
 
-    // Cria um link de teste
+    // Create a test link
     const [newLink] = await db
       .insert(links)
       .values({
@@ -54,7 +54,7 @@ describe('Analytics Integration', () => {
   });
 
   afterAll(async () => {
-    // Cleanup após testes
+    // Cleanup after tests
     await db
       .delete(analyticsEvents)
       .where(eq(analyticsEvents.linkId, testLinkId))
@@ -109,7 +109,7 @@ describe('Analytics Integration', () => {
 
       expect(event.id).toBeDefined();
 
-      // Verifica inserção
+      // Verify insertion
       const retrieved = await db
         .select()
         .from(analyticsEvents)
@@ -128,7 +128,7 @@ describe('Analytics Integration', () => {
 
       const initialCount = initialClicks[0]?.clicks || 0;
 
-      // Simula update de clicks
+      // Simulate clicks update
       await db.insert(analyticsEvents).values({
         linkId: testLinkId,
         visitorHash: hashVisitor('192.168.1.2', testLinkId),
@@ -139,7 +139,7 @@ describe('Analytics Integration', () => {
         isBot: false
       });
 
-      // Atualiza contador
+      // Update counter
       const updated = await db
         .select({ clicks: links.clicksCount })
         .from(links)
@@ -151,7 +151,7 @@ describe('Analytics Integration', () => {
     it('should handle multiple events from same visitor in same week', async () => {
       const visitorHash = hashVisitor('192.168.1.3', testLinkId);
 
-      // Insere dois eventos do mesmo visitante
+      // Insert two events from the same visitor
       await db.insert(analyticsEvents).values({
         linkId: testLinkId,
         visitorHash,
@@ -166,7 +166,7 @@ describe('Analytics Integration', () => {
         isBot: false
       });
 
-      // Ambos devem ter o mesmo hash
+      // Both should have the same hash
       const events = await db
         .select({ hash: analyticsEvents.visitorHash })
         .from(analyticsEvents)
@@ -186,7 +186,7 @@ describe('Analytics Integration', () => {
         isBot: true
       });
 
-      // Verifica inserção de bot
+      // Verify bot insertion
       const botEvents = await db
         .select()
         .from(analyticsEvents)
@@ -198,7 +198,7 @@ describe('Analytics Integration', () => {
 
   describe('Analytics Service', () => {
     it('should get daily stats', async () => {
-      // Insere alguns eventos
+      // Insert some events
       for (let i = 0; i < 3; i++) {
         await db.insert(analyticsEvents).values({
           linkId: testLinkId,
@@ -208,7 +208,7 @@ describe('Analytics Integration', () => {
         });
       }
 
-      // Agrega manualmente
+      // Aggregate manually
       const today = new Date().toISOString().split('T')[0];
       await db
         .insert(linkClicksDaily)

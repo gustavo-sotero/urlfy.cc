@@ -43,7 +43,7 @@ describe('Email Service i18n Integration', () => {
         userId: 'test-user-id'
       });
 
-      // Verifica que o locale foi resolvido e o subject está em português
+      // Verify that locale was resolved and subject is in Portuguese
       expect(capturedLocale).toBe('pt-br');
       expect(capturedSubject).toContain('Bem-vindo');
       expect(capturedSubject).not.toContain('Welcome');
@@ -85,7 +85,7 @@ describe('Email Service i18n Integration', () => {
         userId: 'test-user-id'
       });
 
-      // Verifica que o locale foi resolvido e o subject está em inglês
+      // Verify that locale was resolved and subject is in English
       expect(capturedLocale).toBe('en');
       expect(capturedSubject).toContain('Confirm your email');
       expect(capturedSubject).not.toContain('Confirme seu email');
@@ -127,7 +127,7 @@ describe('Email Service i18n Integration', () => {
         userId: 'test-user-id'
       });
 
-      // Verifica que o locale foi resolvido e o subject está em português
+      // Verify that locale was resolved and subject is in Portuguese
       expect(capturedLocale).toBe('pt-br');
       expect(capturedSubject).toContain('Redefinir sua senha');
       expect(capturedSubject).not.toContain('Reset your password');

@@ -8,16 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import {
-  and,
-  arrayContains,
-  desc,
-  eq,
-  isNull,
-  like,
-  or,
-  sql
-} from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import { createLinkError } from '@/server/lib/errors';
@@ -43,6 +33,16 @@ import type {
   PaginatedResponse,
   UpdateLinkInput
 } from '@/types/links.types';
+import {
+  and,
+  arrayContains,
+  desc,
+  eq,
+  isNull,
+  like,
+  or,
+  sql
+} from 'drizzle-orm';
 
 const BASE_URL = process.env.PUBLIC_APP_URL || 'https://urlfy.cc';
 
@@ -60,10 +60,10 @@ export const LinkService = {
   // ─────────────────────────────────────────────────────────────────
 
   /**
-   * Verifica a senha de um link protegido
-   * @param code - Short code do link
-   * @param password - Senha fornecida
-   * @returns true se a senha está correta
+   * Verifies the password of a protected link
+   * @param code - Short code of the link
+   * @param password - Password provided
+   * @returns true if the password is correct
    */
   async verifyLinkPassword(code: string, password: string): Promise<boolean> {
     const link = await LinkService.getLinkByCode(code);
@@ -73,7 +73,7 @@ export const LinkService = {
     }
 
     if (!link.passwordHash) {
-      // Link não é protegido por senha
+      // Link is not password protected
       return true;
     }
 
@@ -87,11 +87,11 @@ export const LinkService = {
   // ─────────────────────────────────────────────────────────────────
 
   /**
-   * Cria um novo link encurtado
-   * @param input - Dados do link
-   * @param userId - ID do usuário (opcional para guests)
-   * @param ipHash - Hash do IP do criador
-   * @returns Link criado
+   * Creates a new shortened link
+   * @param input - Link data
+   * @param userId - User ID (optional for guests)
+   * @param ipHash - Hash of creator's IP
+   * @returns Created link
    */
   async createLink(
     input: CreateLinkInput,
@@ -236,7 +236,7 @@ export const LinkService = {
 
     const orderFn = sortOrder === 'asc' ? orderColumn : desc(orderColumn);
 
-    // Executar queries em paralelo
+    // Execute queries in parallel
     const [items, countResult] = await Promise.all([
       db
         .select()
@@ -349,11 +349,11 @@ export const LinkService = {
       }
     }
 
-    // Processar senha se fornecida
+    // Process password if provided
     let passwordHash: string | null | undefined;
     if ('password' in input) {
       if (input.password === null) {
-        passwordHash = null; // Remove senha
+        passwordHash = null; // Remove password
       } else if (input.password) {
         if (input.password.length < 8) {
           throw createLinkError('PASSWORD_TOO_WEAK');
@@ -366,7 +366,7 @@ export const LinkService = {
       }
     }
 
-    // Processar expiração
+    // Process expiration
     const expiresAt =
       input.expiresAt !== undefined
         ? input.expiresAt === null
@@ -374,7 +374,7 @@ export const LinkService = {
           : new Date(input.expiresAt)
         : undefined;
 
-    // Sanitizar meta tags apenas se fornecidas
+    // Sanitize meta tags only if provided
     const meta = sanitizeMetaTags({
       title: input.metaTitle ?? null,
       description: input.metaDescription ?? null,
@@ -567,7 +567,7 @@ export const LinkService = {
   // ─────────────────────────────────────────────────────────────────
 
   /**
-   * Invalida cache de um link
+   * Invalidate link cache
    */
   async invalidateLinkCache(
     code: string,

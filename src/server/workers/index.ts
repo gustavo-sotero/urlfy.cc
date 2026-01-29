@@ -13,14 +13,14 @@ import { createLogger } from '@/server/lib/telemetry';
 const logger = createLogger('workers-init');
 
 /**
- * Inicializa jobs agendados
+ * Initialize scheduled jobs
  * Workers are started separately via src/workers.ts
  */
 export async function initializeWorkers(): Promise<void> {
   try {
     logger.info('[WorkersInit] Starting scheduler initialization...');
 
-    // Inicia jobs agendados
+    // Start scheduled jobs
     aggregationJob.start();
     logger.info(
       '[WorkersInit] ✅ Aggregation scheduler started (daily at 02:00 UTC)'
@@ -57,7 +57,7 @@ export async function shutdownWorkers(): Promise<void> {
   try {
     logger.info('[WorkersShutdown] Starting scheduler shutdown...');
 
-    // Para jobs agendados
+    // Stop scheduled jobs
     aggregationJob.stop();
     cleanupJob.stop();
     dataDeletionJob.stop();

@@ -1,7 +1,5 @@
 // src/server/jobs/scheduler.ts
 
-import { CronJob } from 'cron';
-import { and, eq, lt } from 'drizzle-orm';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema/audit';
 import {
@@ -11,26 +9,28 @@ import {
 } from '@/server/lib/queue';
 import { createLogger } from '@/server/lib/telemetry';
 import { MetricsService } from '@/server/services/metrics.service';
+import { CronJob } from 'cron';
+import { and, eq, lt } from 'drizzle-orm';
 
 const logger = createLogger('scheduler');
 
 /**
- * Scheduler para jobs agendados (cron)
- * - Agregação diária de analytics
- * - Limpeza semanal de dados antigos
- * - Manutenção de partições
+ * Scheduler for scheduled jobs (cron)
+ * - Daily analytics aggregation
+ * - Weekly cleanup of old data
+ * - Partition maintenance
  */
 
 // ═══════════════════════════════════════════════════════════════════
-// AGREGAÇÃO DIÁRIA
+// DAILY AGGREGATION
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Executa diariamente às 02:00 UTC
- * Agrega eventos brutos do dia anterior em tabelas de agregação
+ * Runs daily at 02:00 UTC
+ * Aggregates raw events from the previous day into aggregation tables
  */
 export const aggregationJob = new CronJob(
-  '0 2 * * *', // 02:00 UTC = 23:00 BRT (véspera)
+  '0 2 * * *', // 02:00 UTC = 23:00 BRT (previous day)
   async () => {
     try {
       const yesterday = getYesterday();
@@ -118,12 +118,12 @@ export const rpsCalculationJob = new CronJob(
  * Busca deletion requests com deadline atingido e enfileira para processamento
  */
 export const dataDeletionJob = new CronJob(
-  '1,31 * * * *', // A cada 30 minutos
+  '1,31 * * * *', // Every 30 minutes
   async () => {
     try {
       logger.info('[Scheduler] Running data deletion check');
 
-      // Buscar requests pendentes com deadline atingido
+      // Find pending requests with deadline reached
       const pendingRequests = await db
         .select()
         .from(dataDeletionRequest)
@@ -143,7 +143,7 @@ export const dataDeletionJob = new CronJob(
         `[Scheduler] Found ${pendingRequests.length} deletion requests due`
       );
 
-      // Enfileira cada request para processamento
+      // Enqueue each request for processing
       for (const request of pendingRequests) {
         try {
           // Schedule deletion job via Redis Streams
@@ -194,7 +194,7 @@ function _getToday(): string {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// INICIALIZAÇÃO E SHUTDOWN
+// INITIALIZATION AND SHUTDOWN
 // ═══════════════════════════════════════════════════════════════════
 
 /**

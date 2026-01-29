@@ -1,8 +1,8 @@
 // src/db/scripts/partition-manager.ts
 
-import { sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { createLogger } from '@/server/lib/telemetry';
+import { sql } from 'drizzle-orm';
 
 const logger = createLogger('partition-manager');
 
@@ -13,38 +13,38 @@ export interface PartitionInfo {
 }
 
 /**
- * Gerencia partições da tabela analytics_events
- * - Cria partições futuras automaticamente
- * - Remove partições antigas baseado na política de retenção
- * - Mantém dados agregados após 90 dias
+ * Manages partitions for the analytics_events table
+ * - Creates future partitions automatically
+ * - Removes old partitions based on retention policy
+ * - Maintains aggregated data after 90 days
  */
 export class PartitionManager {
   private readonly tableName = 'analytics_events';
-  private readonly retentionDays = 90; // Política de retenção: 90 dias
-  private readonly lookaheadMonths = 3; // Criar partições futuras: 3 meses
+  private readonly retentionDays = 90; // Retention policy: 90 days
+  private readonly lookaheadMonths = 3; // Create future partitions: 3 months
 
   /**
-   * Executa manutenção completa de partições
+   * Runs complete partition maintenance
    */
   async runMaintenance(): Promise<void> {
     try {
-      logger.info('[PartitionManager] Iniciando manutenção de partições...');
+      logger.info('[PartitionManager] Starting partition maintenance...');
 
-      // Lista partições existentes
+      // List existing partitions
       const existing = await this.listPartitions();
       logger.info(
-        `[PartitionManager] Encontradas ${existing.length} partições existentes`
+        `[PartitionManager] Found ${existing.length} existing partitions`
       );
 
-      // Cria partições futuras
+      // Create future partitions
       await this.createFuturePartitions(existing);
 
-      // Remove partições antigas
+      // Remove old partitions
       await this.dropOldPartitions(existing);
 
-      logger.info('[PartitionManager] Manutenção concluída com sucesso');
+      logger.info('[PartitionManager] Maintenance completed successfully');
     } catch (error) {
-      logger.error('[PartitionManager] Erro durante manutenção', {
+      logger.error('[PartitionManager] Error during maintenance', {
         error: error instanceof Error ? error.message : String(error)
       });
       throw error;
@@ -52,7 +52,7 @@ export class PartitionManager {
   }
 
   /**
-   * Lista partições existentes
+   * Lists existing partitions
    */
   async listPartitions(): Promise<PartitionInfo[]> {
     try {
@@ -82,7 +82,7 @@ export class PartitionManager {
         };
       });
     } catch (error) {
-      logger.error('[PartitionManager] Erro ao listar partições', {
+      logger.error('[PartitionManager] Error listing partitions', {
         error: error instanceof Error ? error.message : String(error)
       });
       return [];
@@ -90,7 +90,7 @@ export class PartitionManager {
   }
 
   /**
-   * Cria partições para os próximos N meses
+   * Creates partitions for the next N months
    */
   async createFuturePartitions(existing: PartitionInfo[]): Promise<void> {
     const existingNames = new Set(existing.map((p) => p.name));
@@ -101,7 +101,9 @@ export class PartitionManager {
       const partitionName = this.getPartitionName(date);
 
       if (existingNames.has(partitionName)) {
-        logger.debug(`[PartitionManager] Partição ${partitionName} já existe`);
+        logger.debug(
+          `[PartitionManager] Partition ${partitionName} already exists`
+        );
         continue;
       }
 
@@ -111,7 +113,7 @@ export class PartitionManager {
           new Date(date.getFullYear(), date.getMonth() + 1, 1)
         );
 
-        logger.info(`[PartitionManager] Criando partição: ${partitionName}`, {
+        logger.info(`[PartitionManager] Creating partition: ${partitionName}`, {
           startDate,
           endDate
         });
@@ -125,24 +127,24 @@ export class PartitionManager {
           `)
         );
 
-        // Cria índices locais na partição
+        // Create local indexes on the partition
         await this.createPartitionIndexes(partitionName);
 
         logger.info(
-          `[PartitionManager] Partição criada com sucesso: ${partitionName}`
+          `[PartitionManager] Partition created successfully: ${partitionName}`
         );
       } catch (error) {
-        // Ignora erro se partição já existe
+        // Ignore error if partition already exists
         if (
           error instanceof Error &&
           error.message.includes('already exists')
         ) {
           logger.debug(
-            `[PartitionManager] Partição ${partitionName} já foi criada`
+            `[PartitionManager] Partition ${partitionName} was already created`
           );
         } else {
           logger.error(
-            `[PartitionManager] Erro ao criar partição ${partitionName}`,
+            `[PartitionManager] Error creating partition ${partitionName}`,
             {
               error: error instanceof Error ? error.message : String(error)
             }
@@ -153,7 +155,7 @@ export class PartitionManager {
   }
 
   /**
-   * Remove partições mais antigas que a política de retenção
+   * Removes partitions older than retention policy
    */
   async dropOldPartitions(existing: PartitionInfo[]): Promise<void> {
     const cutoffDate = new Date();
@@ -163,7 +165,7 @@ export class PartitionManager {
       if (partition.endDate < cutoffDate) {
         try {
           logger.info(
-            `[PartitionManager] Removendo partição antiga: ${partition.name}`
+            `[PartitionManager] Removing old partition: ${partition.name}`
           );
 
           await db.execute(
@@ -171,11 +173,11 @@ export class PartitionManager {
           );
 
           logger.info(
-            `[PartitionManager] Partição removida com sucesso: ${partition.name}`
+            `[PartitionManager] Partition removed successfully: ${partition.name}`
           );
         } catch (error) {
           logger.error(
-            `[PartitionManager] Erro ao remover partição ${partition.name}`,
+            `[PartitionManager] Error removing partition ${partition.name}`,
             {
               error: error instanceof Error ? error.message : String(error)
             }
@@ -186,7 +188,7 @@ export class PartitionManager {
   }
 
   /**
-   * Cria índices locais em uma partição
+   * Creates local indexes on a partition
    */
   private async createPartitionIndexes(partitionName: string): Promise<void> {
     const indexes = [
@@ -201,7 +203,7 @@ export class PartitionManager {
         await db.execute(sql.raw(indexSql));
       } catch (error) {
         logger.warn(
-          `[PartitionManager] Erro ao criar índice em ${partitionName}`,
+          `[PartitionManager] Error creating index on ${partitionName}`,
           {
             error: error instanceof Error ? error.message : String(error)
           }
@@ -211,7 +213,7 @@ export class PartitionManager {
   }
 
   /**
-   * Gera nome da partição baseado na data
+   * Generates partition name based on date
    */
   private getPartitionName(date: Date): string {
     const year = date.getFullYear();
@@ -220,14 +222,14 @@ export class PartitionManager {
   }
 
   /**
-   * Formata data para SQL
+   * Formats date for SQL
    */
   private formatDate(date: Date): string {
     return date.toISOString().split('T')[0];
   }
 
   /**
-   * Parse bounds da partição
+   * Parse partition bounds
    */
   private parsePartitionBounds(bounds: string): {
     startDate: Date;

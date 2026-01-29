@@ -23,6 +23,8 @@
     "test:redirect": "bun test src/server/services/__tests__/redirect.service.test.ts src/server/middleware/__tests__/redirect.middleware.test.ts",
     "security:report": "bun run scripts/security-report.ts",
     "security:audit": "bun audit --production",
+    "security:check": "bun run security:test-secrets && bun run security:audit",
+    "security:test-secrets": "bun run scripts/check-test-secrets.ts",
     "docker:up": "cd docker && docker-compose up -d",
     "docker:down": "cd docker && docker-compose down",
     "docker:logs": "cd docker && docker-compose logs -f",

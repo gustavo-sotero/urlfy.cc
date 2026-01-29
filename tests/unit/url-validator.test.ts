@@ -1,9 +1,9 @@
+import { describe, expect, it, mock } from 'bun:test';
 import {
   isBlockedHostname,
   isPrivateIP,
   validateUrlSafe
 } from '@/server/services/url-validator';
-import { describe, expect, it, mock } from 'bun:test';
 
 // Mock dns lookup
 const mockLookup = mock((hostname: string) => {

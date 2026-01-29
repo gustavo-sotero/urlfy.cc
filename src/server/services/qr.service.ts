@@ -30,19 +30,19 @@ export async function generateQRCode(
   const cacheKey = `qr:${code}:${size}:${format}`;
 
   try {
-    // Verifica cache
+    // Check cache
     const cached = await redis.get(cacheKey);
     if (cached) {
       return format === 'svg' ? cached : Buffer.from(cached, 'base64');
     }
   } catch (error) {
-    // Se Redis falhar, continua sem cache
+    // If Redis fails, continue without cache
     logger.warn('Redis unavailable for QR cache', {
       error: error instanceof Error ? error.message : String(error)
     });
   }
 
-  // Gera QR Code
+  // Generate QR Code
   const options = {
     width: size,
     margin: 2,
@@ -132,7 +132,7 @@ export function validateQRSize(size: number): QRSize {
     return size as QRSize;
   }
 
-  // Retorna o mais próximo
+  // Return the closest valid size
   return validSizes.reduce((prev, curr) =>
     Math.abs(curr - size) < Math.abs(prev - size) ? curr : prev
   );

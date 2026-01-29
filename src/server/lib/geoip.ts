@@ -53,23 +53,23 @@ export async function lookupGeoIP(ip: string): Promise<GeoLocation> {
     timezone: null
   };
 
-  // Verifica se é IP privado
+  // Check if IP is private
   if (isPrivateIP(ip)) {
     return defaultLocation;
   }
 
-  // Cache por prefixo /24 para otimizar
+  // Cache by /24 prefix to optimize
   const ipPrefix = getIPPrefix(ip);
   const cacheKey = CACHE_KEYS.geo(ipPrefix);
 
   try {
-    // Tenta buscar do cache
+    // Try to get from cache
     const cached = await redis.get(cacheKey);
     if (cached) {
       return JSON.parse(cached);
     }
 
-    // Busca do GeoLite2 (via auto-downloaded MMDB)
+    // Fetch from GeoLite2 (via auto-downloaded MMDB)
     const reader = await getGeoIPReader();
     if (!reader) {
       return defaultLocation;

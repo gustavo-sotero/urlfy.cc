@@ -7,7 +7,7 @@ import * as schema from './schema';
 // Type for the drizzle instance
 type DrizzleDatabase = ReturnType<typeof drizzle>;
 
-// Singleton da conexão
+// Connection singleton
 let dbInstance: DrizzleDatabase | null = null;
 let sqlConnection: SQL | null = null;
 let connectionError: Error | null = null;
@@ -26,7 +26,7 @@ export function getDatabase(): DrizzleDatabase {
   }
 
   try {
-    // Usa Bun SQL nativo (PostgreSQL, MySQL ou SQLite)
+    // Use native Bun SQL (PostgreSQL, MySQL or SQLite)
     sqlConnection = new SQL({
       url: databaseUrl,
       max: Number.parseInt(process.env.DB_POOL_MAX || '20', 10),
@@ -68,9 +68,9 @@ const dbProxy = new Proxy({} as DrizzleDatabase, {
 
 export const db = dbProxy;
 
-// Exporta conexão SQL bruta para queries customizadas
+// Export raw SQL connection for custom queries
 export function getSqlConnection(): SQL {
-  getDatabase(); // Garante inicialização
+  getDatabase(); // Ensure initialization
   if (!sqlConnection) {
     throw new Error('SQL connection not initialized');
   }
@@ -86,7 +86,7 @@ export async function checkDatabaseHealth(): Promise<{
   const start = performance.now();
 
   try {
-    // Executa query simples para testar conexão
+    // Execute simple query to test connection
     await db.execute(sql`SELECT 1`);
 
     const latencyMs = Math.round(performance.now() - start);

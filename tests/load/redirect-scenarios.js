@@ -185,7 +185,7 @@ function performRedirect(code) {
   const latency = Date.now() - startTime;
   redirectLatency.add(latency);
 
-  // Verifica cache hit via header customizado (se implementado)
+  // Check cache hit via custom header (if implemented)
   const cacheStatus = res.headers['X-Cache-Status'];
   if (cacheStatus === 'HIT') {
     cacheHits.add(1);
@@ -193,7 +193,7 @@ function performRedirect(code) {
     cacheMisses.add(1);
   }
 
-  // Validações
+  // Validations
   const success = check(res, {
     'is redirect': (r) => r.status === 301 || r.status === 302,
     'has location': (r) => r.headers.Location !== undefined,

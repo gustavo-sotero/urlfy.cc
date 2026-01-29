@@ -204,15 +204,15 @@ export class RedirectService {
             return { link: null, cacheHit };
           }
 
-          // L2: Verifica cache de link banido
+          // L2: Check banned link cache
           const isBanned = await cacheService.isBanned(code);
           if (isBanned) {
             logger.debug('Banned cache hit', { code });
             span.setAttribute('cache.type', 'banned');
             span.setAttribute('cache.hit', true);
             cacheHits.add(1, { type: 'banned' });
-            // Retorna um link "fantasma" para validação retornar BANNED
-            // IMPORTANTE: isActive DEVE ser true para que validateLink chegue na checagem de isBanned
+            // Return a "phantom" link so validateLink returns BANNED
+            // IMPORTANT: isActive MUST be true so validateLink reaches the isBanned check
             cacheHit = true;
             return {
               link: {
@@ -292,34 +292,34 @@ export class RedirectService {
         const link = await this.fetchFromDatabase(code);
 
         if (link) {
-          // Popula cache
+          // Populate cache
           await cacheService.setLink(code, link);
         } else {
-          // Cache negativo
+          // Negative cache
           await cacheService.setNotFound(code);
         }
 
         return link;
       } finally {
-        // Sempre libera o lock
+        // Always release the lock
         await releaseLock(lockKey);
       }
     }
 
-    // Outra request está populando o cache - aguarda com jitter
+    // Another request is populating the cache - wait with jitter
     stampedeLocksWaited.add(1);
     logger.debug('Lock not acquired, waiting for cache population', { code });
-    // Jittered backoff: 50-100ms para desincronizar retries
+    // Jittered backoff: 50-100ms to desynchronize retries
     const jitter = 50 + Math.floor(Math.random() * 50);
     await Bun.sleep(jitter);
 
-    // Tenta pegar do cache novamente (provavelmente já foi populado)
+    // Try to get from cache again (probably already populated)
     const cached = await cacheService.getLink(code);
     if (cached) {
       return cached;
     }
 
-    // Se ainda não está no cache, faz fallback para busca direta
+    // If still not in cache, fallback to direct fetch
     logger.warn('Cache still empty after waiting, fetching from database', {
       code
     });
@@ -331,7 +331,7 @@ export class RedirectService {
    */
   private async fetchFromDatabase(code: string): Promise<CachedLink | null> {
     return dbCircuitBreaker.execute(async () => {
-      // Use select direto com where ao invés de query builder devido a type issues
+      // Use direct select with where instead of query builder due to type issues
       const results = await db
         .select({
           id: links.id,
@@ -358,7 +358,7 @@ export class RedirectService {
         return null;
       }
 
-      // Converte para CachedLink (timestamp para string)
+      // Convert to CachedLink (timestamp to string)
       return {
         id: link.id,
         originalUrl: link.originalUrl,
@@ -454,24 +454,24 @@ export class RedirectService {
         originalUrl: link.originalUrl,
         error: error instanceof Error ? error.message : String(error)
       });
-      // Retorna URL original em caso de erro
+      // Return original URL in case of error
       return link.originalUrl;
     }
   }
 
   /**
-   * Verifica se um código de short link está disponível
-   * (usado na criação de links customizados)
+   * Check if a short link code is available
+   * (used when creating custom links)
    */
   async isCodeAvailable(code: string): Promise<boolean> {
     try {
-      // Verifica cache primeiro
+      // Check cache first
       const cached = await cacheService.getLink(code);
       if (cached) {
         return false;
       }
 
-      // Verifica banco usando select direto
+      // Check database using direct select
       const results = await db
         .select({ id: links.id })
         .from(links)

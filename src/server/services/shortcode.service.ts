@@ -9,14 +9,14 @@ const MAX_RETRIES = 5;
 const ALIAS_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$/;
 
 /**
- * Gera um código curto único
- * Tenta MAX_RETRIES vezes antes de falhar
+ * Generates a unique short code
+ * Retries MAX_RETRIES times before failing
  */
 export async function generateUniqueCode(): Promise<string> {
   for (let i = 0; i < MAX_RETRIES; i++) {
     const code = generateShortCode();
 
-    // Verifica se já existe (link ou slug reservado)
+    // Check if code already exists (link or reserved slug)
     const [existingLink] = await db
       .select({ code: links.shortCode })
       .from(links)
@@ -38,9 +38,9 @@ export async function generateUniqueCode(): Promise<string> {
 }
 
 /**
- * Valida se um alias customizado está disponível
- * @param alias - Alias desejado
- * @returns true se disponível, false caso contrário
+ * Validates if a custom alias format is valid
+ * @param alias - The desired alias
+ * @returns true if valid format, false otherwise
  */
 export function isValidAliasFormat(alias: string): boolean {
   return ALIAS_REGEX.test(alias);
@@ -49,7 +49,7 @@ export function isValidAliasFormat(alias: string): boolean {
 export async function validateCustomAlias(alias: string): Promise<boolean> {
   if (!isValidAliasFormat(alias)) return false;
 
-  // Verifica se é reservado ou já existe
+  // Check if reserved or already exists
   const [existingLink] = await db
     .select({ code: links.shortCode })
     .from(links)

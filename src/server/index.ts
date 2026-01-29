@@ -16,6 +16,8 @@ import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
 import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 import { ResponseModels } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
+import { cspMiddleware } from '@/server/middleware/csp.middleware';
+import { errorMiddleware } from '@/server/middleware/error.middleware';
 import { securityHeadersMiddleware } from '@/server/middleware/security-headers';
 // Feature-based modules
 import {
@@ -53,6 +55,7 @@ const logger = createLogger('api-router');
 // ═══════════════════════════════════════════════════════════════════
 
 const publicDocsApp = new Elysia()
+  .use(cspMiddleware)
   .use(securityHeadersMiddleware)
   .use(ResponseModels)
   .use(
@@ -127,10 +130,14 @@ const publicDocsApp = new Elysia()
 // ═══════════════════════════════════════════════════════════════════
 
 export const api = new Elysia({ prefix: '/api' })
-  // Core plugins (JWT, CORS, Bearer, Security Headers)
+  // Error handling (must be first to catch all errors)
+  .use(errorMiddleware)
+
+  // Core plugins (JWT, CORS, Bearer, CSP, Security Headers)
   .use(jwtPlugin)
   .use(corsPlugin)
   .use(bearerPlugin)
+  .use(cspMiddleware)
   .use(securityHeadersMiddleware)
 
   // Register models for OpenAPI $ref support and type inference

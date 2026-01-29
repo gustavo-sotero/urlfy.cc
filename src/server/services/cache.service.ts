@@ -6,17 +6,17 @@ import type { CachedLink } from '@/types/redirect.types';
 
 const logger = createLogger('cache-service');
 
-// TTLs de cache (em segundos)
+// Cache TTLs (in seconds)
 export const CACHE_TTL = {
-  LINK: 3600, // 1 hora
-  LINK_META: 300, // 5 minutos
-  NEGATIVE: 300, // 5 minutos (cache de link não encontrado)
-  BANNED: 86400, // 24 horas
-  QR_CODE: 86400, // 24 horas
-  GEO: 86400 // 24 horas
+  LINK: 3600, // 1 hour
+  LINK_META: 300, // 5 minutes
+  NEGATIVE: 300, // 5 minutes (not found cache)
+  BANNED: 86400, // 24 hours
+  QR_CODE: 86400, // 24 hours
+  GEO: 86400 // 24 hours
 } as const;
 
-// Prefixos de chave
+// Key prefixes
 export const CACHE_PREFIX = {
   LINK: 'link:',
   LINK_META: 'link:meta:',
@@ -102,7 +102,7 @@ export class CacheService {
             ttl,
             threshold: originalTtl * 0.1
           });
-          // Retorna null para forçar refresh em background
+          // Return null to force refresh in background
           return null;
         }
       }
@@ -220,7 +220,7 @@ export class CacheService {
         redis.del(`${CACHE_PREFIX.LINK_BANNED}${code}`)
       ];
 
-      // Remove QR codes relacionados (pattern delete)
+      // Remove related QR codes (pattern delete)
       const qrPattern = `${CACHE_PREFIX.QR_CODE}${code}:*`;
       const qrKeys = await scanKeys(qrPattern);
 
@@ -293,7 +293,7 @@ export class CacheService {
         redis.send('DBSIZE', []) as Promise<number>
       ]);
 
-      // Parse das informações
+      // Parse the information
       const stats = this.parseRedisInfo(String(info));
       const memoryStats = this.parseRedisInfo(String(memory));
 
@@ -337,8 +337,8 @@ export class CacheService {
    * Incrementa o contador de cliques no cache de forma atômica
    * Usado pelo click.worker para manter o cache sincronizado com o DB
    *
-   * @param code - Short code do link
-   * @returns O novo valor do contador, ou null se o link não está em cache
+   * @param code - Short code of the link
+   * @returns The new counter value, or null if link is not in cache
    */
   async incrementClicksCount(code: string): Promise<number | null> {
     try {
@@ -347,7 +347,7 @@ export class CacheService {
       const cached = await redis.get(key);
 
       if (!cached) {
-        // Link não está em cache, nada a fazer
+        // Link is not in cache, nothing to do
         logger.debug('Cannot increment clicks - link not in cache', { code });
         return null;
       }
@@ -355,7 +355,7 @@ export class CacheService {
       const link = JSON.parse(cached) as CachedLink;
       const newClicksCount = (link.clicksCount ?? 0) + 1;
 
-      // Atualiza o objeto com o novo contador
+      // Update object with new counter
       const updatedLink: CachedLink = {
         ...link,
         clicksCount: newClicksCount

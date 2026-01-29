@@ -62,7 +62,7 @@ class UserAgentService {
         userAgentLength: userAgent.length
       });
 
-      // Fallback se parsing falhar
+      // Fallback if parsing fails
       return {
         browser: null,
         browserVersion: null,
@@ -98,7 +98,7 @@ class UserAgentService {
       case 'console':
       case 'smarttv':
       case 'wearable':
-        return 'desktop'; // Agrupar como desktop para simplificar
+        return 'desktop'; // Group as desktop to simplify
       default:
         return 'desktop';
     }

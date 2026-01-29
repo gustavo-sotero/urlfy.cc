@@ -21,6 +21,8 @@ import {
 import { db } from '@/db';
 import { analyticsEvents } from '@/db/schema';
 import { links } from '@/db/schema/links';
+import { CACHE_KEYS, CACHE_TTL } from '@/server/lib/cache-keys';
+import { getRedisClient } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type {
   AnalyticsBreakdown,
@@ -29,6 +31,52 @@ import type {
 } from '@/types/analytics.types';
 
 const logger = createLogger('analytics-service');
+const redis = getRedisClient();
+
+// ═══════════════════════════════════════════════════════════════════
+// CACHE HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Cache wrapper for analytics queries
+ * Implements cache-aside pattern with automatic JSON serialization
+ */
+async function withCache<T>(
+  cacheKey: string,
+  ttl: number,
+  fetcher: () => Promise<T>
+): Promise<T> {
+  try {
+    // Try to get from cache
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      logger.debug('Analytics cache hit', { cacheKey });
+      return JSON.parse(cached) as T;
+    }
+
+    logger.debug('Analytics cache miss', { cacheKey });
+
+    // Fetch fresh data
+    const data = await fetcher();
+
+    // Store in cache (fire-and-forget)
+    redis.set(cacheKey, JSON.stringify(data), 'EX', ttl).catch((err) => {
+      logger.warn('Failed to cache analytics data', {
+        cacheKey,
+        error: err instanceof Error ? err.message : String(err)
+      });
+    });
+
+    return data;
+  } catch (error) {
+    // If Redis fails, fall back to direct fetch
+    logger.warn('Analytics cache error, falling back to direct fetch', {
+      cacheKey,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return fetcher();
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPER TYPES
@@ -138,101 +186,119 @@ export const AnalyticsService = {
   /**
    * Get daily stats for a link
    * Uses real-time data from analytics_events for accurate counts
+   * Cached for 5 minutes to reduce database load
    */
   async getDailyStats(
     linkId: string,
     days: number = 30
   ): Promise<TimeSeries[]> {
-    try {
-      const startDate = getStartDate(days);
+    const startDate = getStartDate(days);
+    const cacheKey = CACHE_KEYS.ANALYTICS_TIMESERIES(
+      linkId,
+      startDate.toISOString(),
+      new Date().toISOString(),
+      'day'
+    );
 
-      const stats = await db
-        .select({
-          date: sql<Date | string>`DATE(${analyticsEvents.createdAt})`.as(
-            'date'
-          ),
-          clicks: countFn().as('clicks'),
-          uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
-            'uniqueVisitors'
+    return withCache(cacheKey, CACHE_TTL.ANALYTICS_TIMESERIES, async () => {
+      try {
+        const stats = await db
+          .select({
+            date: sql<Date | string>`DATE(${analyticsEvents.createdAt})`.as(
+              'date'
+            ),
+            clicks: countFn().as('clicks'),
+            uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
+              'uniqueVisitors'
+            )
+          })
+          .from(analyticsEvents)
+          .where(
+            and(
+              eq(analyticsEvents.linkId, linkId),
+              gte(analyticsEvents.createdAt, startDate),
+              eq(analyticsEvents.isBot, false)
+            )
           )
-        })
-        .from(analyticsEvents)
-        .where(
-          and(
-            eq(analyticsEvents.linkId, linkId),
-            gte(analyticsEvents.createdAt, startDate),
-            eq(analyticsEvents.isBot, false)
-          )
-        )
-        .groupBy(sql`DATE(${analyticsEvents.createdAt})`)
-        .orderBy(desc(sql`DATE(${analyticsEvents.createdAt})`));
+          .groupBy(sql`DATE(${analyticsEvents.createdAt})`)
+          .orderBy(desc(sql`DATE(${analyticsEvents.createdAt})`));
 
-      return stats.map((s) => ({
-        // Ensure date is a string in YYYY-MM-DD format
-        date:
-          s.date instanceof Date
-            ? s.date.toISOString().split('T')[0]
-            : String(s.date),
-        clicks: toNumber(s.clicks),
-        uniqueVisitors: toNumber(s.uniqueVisitors)
-      }));
-    } catch (error) {
-      logger.error('[AnalyticsService] Error getting daily stats', {
-        error: error instanceof Error ? error.message : String(error),
-        linkId
-      });
-      throw error;
-    }
+        return stats.map((s) => ({
+          // Ensure date is a string in YYYY-MM-DD format
+          date:
+            s.date instanceof Date
+              ? s.date.toISOString().split('T')[0]
+              : String(s.date),
+          clicks: toNumber(s.clicks),
+          uniqueVisitors: toNumber(s.uniqueVisitors)
+        }));
+      } catch (error) {
+        logger.error('[AnalyticsService] Error getting daily stats', {
+          error: error instanceof Error ? error.message : String(error),
+          linkId
+        });
+        throw error;
+      }
+    });
   },
 
   /**
    * Get country breakdown
    * Uses real-time data from analytics_events
+   * Cached for 5 minutes
    */
   async getCountryBreakdown(
     linkId: string,
     limit: number = 10,
     days: number = 30
   ): Promise<CountryBreakdownItem[]> {
-    try {
-      const startDate = getStartDate(days);
+    const startDate = getStartDate(days);
+    const cacheKey = CACHE_KEYS.ANALYTICS_BREAKDOWN(
+      linkId,
+      'countries',
+      startDate.toISOString(),
+      new Date().toISOString()
+    );
 
-      // Get countries with counts in a single query
-      const countries = await db
-        .select({
-          country: analyticsEvents.country,
-          clicks: countFn().as('clicks')
-        })
-        .from(analyticsEvents)
-        .where(
-          and(
-            eq(analyticsEvents.linkId, linkId),
-            gte(analyticsEvents.createdAt, startDate),
-            eq(analyticsEvents.isBot, false)
+    return withCache(cacheKey, CACHE_TTL.ANALYTICS_BREAKDOWN, async () => {
+      try {
+        // Get countries with counts in a single query
+        const countries = await db
+          .select({
+            country: analyticsEvents.country,
+            clicks: countFn().as('clicks')
+          })
+          .from(analyticsEvents)
+          .where(
+            and(
+              eq(analyticsEvents.linkId, linkId),
+              gte(analyticsEvents.createdAt, startDate),
+              eq(analyticsEvents.isBot, false)
+            )
           )
-        )
-        .groupBy(analyticsEvents.country)
-        .orderBy(desc(sql`clicks`))
-        .limit(limit);
+          .groupBy(analyticsEvents.country)
+          .orderBy(desc(sql`clicks`))
+          .limit(limit);
 
-      // Calculate total from the results
-      const total = countries.reduce((sum, c) => sum + toNumber(c.clicks), 0);
+        // Calculate total from the results
+        const total = countries.reduce((sum, c) => sum + toNumber(c.clicks), 0);
 
-      return countries.map((c) => {
-        const clicks = toNumber(c.clicks);
-        return {
-          country: c.country ?? 'unknown',
-          clicks,
-          percentage: calculatePercentage(clicks, total)
-        };
-      });
-    } catch (error) {
-      logger.error('[AnalyticsService] Error getting country breakdown', {
-        error: error instanceof Error ? error.message : String(error),
-        linkId
-      });
-      return [];
-    }
+        return countries.map((c) => {
+          const clicks = toNumber(c.clicks);
+          return {
+            country: c.country ?? 'unknown',
+            clicks,
+            percentage: calculatePercentage(clicks, total)
+          };
+        });
+      } catch (error) {
+        logger.error('[AnalyticsService] Error getting country breakdown', {
+          error: error instanceof Error ? error.message : String(error),
+          linkId
+        });
+        return [];
+      }
+    });
   },
 
   /**

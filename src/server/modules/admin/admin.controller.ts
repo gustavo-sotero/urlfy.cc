@@ -15,6 +15,7 @@ import {
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
+import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
 import {
   ADMIN_LINK_EXAMPLE,
@@ -34,6 +35,8 @@ const logger = createLogger('admin-controller');
 export const adminController = new Elysia({ prefix: '/admin' })
   // Apply admin authentication middleware
   .use(requireAdmin)
+  // Apply rate limiting to admin endpoints
+  .use(adminRateLimits.general)
   // Inject models for type inference and OpenAPI
   .use(AdminModels)
 

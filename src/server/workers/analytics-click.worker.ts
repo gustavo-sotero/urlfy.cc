@@ -9,6 +9,7 @@ import { analyticsEvents, links } from '@/db/schema';
 import { lookupGeoIP } from '@/server/lib/geoip';
 import { recordMetric } from '@/server/lib/metrics';
 import { hashVisitor } from '@/server/lib/privacy';
+import { getRedisClient } from '@/server/lib/redis';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { WorkerBase } from '@/server/lib/worker-base';
 import { cacheService } from '@/server/services/cache.service';
@@ -113,6 +114,17 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
         await cacheService.incrementClicksCount(enriched.shortCode);
       }
 
+      // Invalidate analytics cache for this link (fire-and-forget)
+      this.invalidateAnalyticsCache(enriched.linkId).catch((err) => {
+        this.logger.warn(
+          '[AnalyticsClickWorker] Failed to invalidate analytics cache',
+          {
+            linkId: enriched.linkId,
+            error: err instanceof Error ? err.message : String(err)
+          }
+        );
+      });
+
       const duration = Date.now() - startTime;
       recordMetric('analytics_job_processed', 1, {
         duration: String(duration),
@@ -191,6 +203,40 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
       return parsed.hostname;
     } catch {
       return undefined;
+    }
+  }
+
+  /**
+   * Invalidate analytics cache for a link
+   * Removes all cached analytics data for the link
+   */
+  private async invalidateAnalyticsCache(linkId: string): Promise<void> {
+    const redis = getRedisClient();
+
+    // Pattern to match all analytics cache keys for this link
+    const pattern = `analytics:*:${linkId}:*`;
+
+    try {
+      const keys = await redis.keys(pattern);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        this.logger.debug(
+          '[AnalyticsClickWorker] Invalidated analytics cache',
+          {
+            linkId,
+            keysRemoved: keys.length
+          }
+        );
+      }
+    } catch (error) {
+      // Non-critical error - log and continue
+      this.logger.warn(
+        '[AnalyticsClickWorker] Failed to invalidate analytics cache',
+        {
+          linkId,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      );
     }
   }
 }

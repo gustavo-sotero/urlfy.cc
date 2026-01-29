@@ -31,11 +31,11 @@ export const links = pgTable(
     shortCode: varchar('short_code', { length: 20 }).notNull().unique(),
     redirectType: smallint('redirect_type').notNull().default(302),
 
-    // Contadores
+    // Counters
     clicksCount: integer('clicks_count').notNull().default(0),
     maxClicks: integer('max_clicks'),
 
-    // Proteção
+    // Protection
     passwordHash: varchar('password_hash', { length: 255 }),
 
     // Status
@@ -44,7 +44,7 @@ export const links = pgTable(
     bannedAt: timestamp('banned_at', { withTimezone: true }),
     bannedReason: varchar('banned_reason', { length: 255 }),
 
-    // Validade
+    // Expiration
     expiresAt: timestamp('expires_at', { withTimezone: true }),
 
     // Meta tags (OG)
@@ -64,7 +64,7 @@ export const links = pgTable(
     // Audit
     createdByIpHash: varchar('created_by_ip_hash', { length: 64 }),
 
-    // Organização
+    // Organization
     tags: varchar('tags', { length: 50 }).array(),
     notes: text('notes'),
 
