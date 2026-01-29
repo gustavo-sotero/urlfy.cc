@@ -89,7 +89,7 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 | --------- | ---------------------------------------------------------------------------------- |
 | **RF-17** | Cada clique deve registrar: timestamp, país, cidade, browser, OS, device, referrer |
 | **RF-18** | IP deve ser anonimizado imediatamente (hash SHA-256)                               |
-| **RF-19** | Geo-location deve ser resolvida via MaxMind (offline)                              |
+| **RF-19** | Geo-location deve ser resolvida via GeoLite2 (offline, credential-free)            |
 | **RF-20** | Dados brutos mantidos por 90 dias, depois apenas agregados                         |
 | **RF-21** | Dashboard deve exibir: cliques por dia, top países, device breakdown               |
 
@@ -200,7 +200,7 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 - [ ] Circuit breaker
 - [x] Redis Streams (filas + DLQ) - Native Bun implementation
 - [ ] SigNoz (observability)
-- [ ] MaxMind (geo-location)
+- [x] GeoIP auto-download (geo-location)
 - [ ] CI/CD + testes de carga
 
 ### Fase 3: Autenticação

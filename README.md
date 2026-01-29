@@ -8,7 +8,7 @@ A high-performance, self-hosted URL shortener built with Next.js 16, ElysiaJS, B
 - 🐳 **100% Containerized**: Complete Docker Compose setup
 - 📊 **Observability**: OpenTelemetry + SigNoz for traces, metrics, and logs
 - 🔒 **LGPD/GDPR Compliant**: IP anonymization and data retention policies
-- 📍 **Geo-location**: Offline GeoIP lookup with MaxMind GeoLite2
+- 📍 **Geo-location**: Credential-free GeoIP with auto-download (no MaxMind account needed)
 - 🔄 **Event-Driven**: Redis Streams for asynchronous processing
 - 💾 **Automated Backups**: Hourly and daily database backups
 
@@ -16,7 +16,6 @@ A high-performance, self-hosted URL shortener built with Next.js 16, ElysiaJS, B
 
 - [Bun](https://bun.sh) >= 1.0
 - [Docker](https://www.docker.com/) and Docker Compose
-- [MaxMind Account](https://www.maxmind.com/en/geolite2/signup) (free)
 
 ## 🛠️ Quick Start
 
@@ -36,8 +35,11 @@ cp .env.example .env
 
 Edit `.env` and configure:
 
-- `MAXMIND_ACCOUNT_ID` and `MAXMIND_LICENSE_KEY` (required for GeoIP)
-- `ADMIN_API_KEY` (temporary admin access)
+- `BETTER_AUTH_SECRET` (generate with `openssl rand -base64 32`)
+- `INTERNAL_API_SECRET` (generate with `openssl rand -hex 32`)
+- `DATABASE_URL` (use strong password in production)
+
+**Note:** GeoIP works automatically - no credentials needed!
 
 ### 3. Start Infrastructure
 

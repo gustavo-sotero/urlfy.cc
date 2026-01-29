@@ -41,7 +41,7 @@ export const analyticsEvents = pgTable(
     // Visitor identification (LGPD: hashed IP + salt)
     visitorHash: varchar('visitor_hash', { length: 64 }).notNull(),
 
-    // Geo data (from MaxMind offline)
+    // Geo data (from GeoLite2 offline, auto-downloaded)
     country: varchar('country', { length: 2 }),
     city: varchar('city', { length: 100 }),
     latitude: integer('latitude'), // Scaled by 1000 for precision

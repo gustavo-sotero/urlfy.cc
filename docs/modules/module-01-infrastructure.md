@@ -22,17 +22,17 @@ Este módulo estabelece a **fundação técnica** do projeto urlfy.cc, incluindo
 
 ## 2. Stack Tecnológica
 
-| Componente         | Tecnologia                 | Versão | Justificativa                                       |
-| ------------------ | -------------------------- | ------ | --------------------------------------------------- |
-| **Runtime**        | Bun                        | 1.x+   | APIs nativas (SQL, Redis) para máxima performance   |
-| **Framework Web**  | Next.js (App Router)       | 16+    | SSR, RSC, Middleware nativo                         |
-| **API REST**       | ElysiaJS                   | latest | Type-safety E2E, excelente performance              |
-| **Banco de Dados** | PostgreSQL                 | 16+    | Particionamento nativo, robustez                    |
-| **Cache**          | Redis                      | 7+     | Protocolo RESP3 com Bun.redis                       |
-| **ORM**            | Drizzle                    | latest | Type-safe, compatível com Bun SQL                   |
-| **Filas**          | Redis Streams (Bun Native) | -      | Jobs agendados, Dead Letter Queue (XADD/XREADGROUP) |
-| **Observability**  | SigNoz + OpenTelemetry     | latest | Logs, traces e métricas unificados                  |
-| **GeoIP**          | MaxMind GeoLite2           | weekly | Lookup offline, sem limites de requests             |
+| Componente         | Tecnologia                 | Versão  | Justificativa                                       |
+| ------------------ | -------------------------- | ------- | --------------------------------------------------- |
+| **Runtime**        | Bun                        | 1.x+    | APIs nativas (SQL, Redis) para máxima performance   |
+| **Framework Web**  | Next.js (App Router)       | 16+     | SSR, RSC, Middleware nativo                         |
+| **API REST**       | ElysiaJS                   | latest  | Type-safety E2E, excelente performance              |
+| **Banco de Dados** | PostgreSQL                 | 16+     | Particionamento nativo, robustez                    |
+| **Cache**          | Redis                      | 7+      | Protocolo RESP3 com Bun.redis                       |
+| **ORM**            | Drizzle                    | latest  | Type-safe, compatível com Bun SQL                   |
+| **Filas**          | Redis Streams (Bun Native) | -       | Jobs agendados, Dead Letter Queue (XADD/XREADGROUP) |
+| **Observability**  | SigNoz + OpenTelemetry     | latest  | Logs, traces e métricas unificados                  |
+| **GeoIP**          | GeoLite2 (jsDelivr mirror) | monthly | Lookup offline, credential-free, sem limites        |
 
 ---
 
@@ -74,7 +74,7 @@ urlfy.cc/
 │   ├── backup.sh
 │   ├── create-partition.ts
 │   └── seed.ts
-├── geoip/                      # MaxMind data (volume mount)
+├── geoip/                      # GeoIP data (volume mount)
 ├── drizzle.config.ts
 ├── next.config.ts
 ├── package.json
@@ -109,7 +109,7 @@ services:
       REDIS_URL: redis://redis:6379
       OTEL_EXPORTER_OTLP_ENDPOINT: http://signoz:4318
       OTEL_SERVICE_NAME: urlfy-api
-      MAXMIND_DB_PATH: /app/geoip/GeoLite2-City.mmdb
+      GEOIP_DB_PATH: /app/geoip/GeoLite2-City.mmdb
     depends_on:
       postgres:
         condition: service_healthy
@@ -223,20 +223,20 @@ services:
       - urlfy-network
 
   # ═══════════════════════════════════════════════════════════════════
-  # GEOIP UPDATE (MAXMIND)
+  # GEOIP DOWNLOADER (Credential-free auto-download)
   # ═══════════════════════════════════════════════════════════════════
-  geoipupdate:
-    image: maxmindinc/geoipupdate:latest
+  geoip-downloader:
+    build:
+      context: ./geoip
+      dockerfile: Dockerfile
     container_name: urlfy-geoip
     restart: unless-stopped
     environment:
-      GEOIPUPDATE_ACCOUNT_ID: ${MAXMIND_ACCOUNT_ID}
-      GEOIPUPDATE_LICENSE_KEY: ${MAXMIND_LICENSE_KEY}
-      GEOIPUPDATE_EDITION_IDS: GeoLite2-City GeoLite2-Country
-      GEOIPUPDATE_FREQUENCY: 168 # Horas (1 semana)
-      GEOIPUPDATE_VERBOSE: 1
+      GEOIP_DB_PATH: /app/geoip/GeoLite2-City.mmdb
+      GEOIP_MAX_AGE_DAYS: 25
+      GEOIP_MMDB_URL: https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz
     volumes:
-      - geoip_data:/usr/share/GeoIP
+      - geoip_data:/app/geoip
     networks:
       - urlfy-network
 
@@ -1439,7 +1439,7 @@ curl http://localhost:3000/api/health/ready
 | 1.7  | Integrar OpenTelemetry com SigNoz                | ✅     |
 | 1.8  | Implementar logger estruturado                   | ✅     |
 | 1.9  | Configurar métricas customizadas                 | ✅     |
-| 1.10 | Setup MaxMind GeoIP com container geoipupdate    | ✅     |
+| 1.10 | Setup GeoIP auto-download (credential-free)      | ✅     |
 | 1.11 | Implementar `/api/health`                        | ✅     |
 | 1.12 | Implementar `/api/health/ready`                  | ✅     |
 | 1.13 | Implementar `/api/health/detailed`               | ✅     |
@@ -1463,10 +1463,10 @@ REDIS_URL=redis://localhost:6379
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 OTEL_SERVICE_NAME=urlfy-api
 
-# MaxMind
-MAXMIND_ACCOUNT_ID=your_account_id
-MAXMIND_LICENSE_KEY=your_license_key
-MAXMIND_DB_PATH=/app/geoip/GeoLite2-City.mmdb
+# GeoIP (Credential-free auto-download)
+GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
+GEOIP_MAX_AGE_DAYS=25
+GEOIP_MMDB_URL=https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz
 
 # App
 NODE_ENV=development

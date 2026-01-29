@@ -26,10 +26,15 @@ const envSchema = z.object({
   OTEL_SERVICE_NAME: z.string().default('urlfy-api'),
   OTEL_SERVICE_VERSION: z.string().optional(),
 
-  // GeoIP
-  MAXMIND_ACCOUNT_ID: z.string().optional(),
-  MAXMIND_LICENSE_KEY: z.string().optional(),
-  MAXMIND_DB_PATH: z.string().default('/app/geoip/GeoLite2-City.mmdb'),
+  // GeoIP (Credential-free auto-download)
+  GEOIP_DB_PATH: z.string().default('/app/geoip/GeoLite2-City.mmdb'),
+  GEOIP_MAX_AGE_DAYS: z.coerce.number().int().positive().default(25),
+  GEOIP_MMDB_URL: z
+    .string()
+    .url()
+    .default(
+      'https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz'
+    ),
 
   // Backup
   BACKUP_RETENTION_DAYS: z.string().default('7'),

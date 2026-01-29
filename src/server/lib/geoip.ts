@@ -1,6 +1,7 @@
-import { createHash } from 'node:crypto';
+import { getEnv } from '@/lib/env';
 import { Reader } from '@maxmind/geoip2-node';
 import type ReaderModel from '@maxmind/geoip2-node/dist/src/readerModel';
+import { createHash } from 'node:crypto';
 import { CACHE_KEYS, CACHE_TTL, redis } from './redis';
 import { createLogger } from './telemetry';
 
@@ -12,7 +13,7 @@ let readerInstance: ReaderModel | null = null;
 export async function getGeoIPReader(): Promise<ReaderModel | null> {
   if (readerInstance) return readerInstance;
 
-  const dbPath = process.env.MAXMIND_DB_PATH || '/app/geoip/GeoLite2-City.mmdb';
+  const dbPath = getEnv().GEOIP_DB_PATH;
 
   try {
     readerInstance = await Reader.open(dbPath);
@@ -68,13 +69,13 @@ export async function lookupGeoIP(ip: string): Promise<GeoLocation> {
       return JSON.parse(cached);
     }
 
-    // Busca do MaxMind
+    // Busca do GeoLite2 (via auto-downloaded MMDB)
     const reader = await getGeoIPReader();
     if (!reader) {
       return defaultLocation;
     }
 
-    // MaxMind Reader API
+    // GeoLite2 Reader API (MaxMind format)
     const cityData = await reader.city(ip);
 
     const location: GeoLocation = {

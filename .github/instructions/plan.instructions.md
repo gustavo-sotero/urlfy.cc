@@ -21,7 +21,7 @@ Este documento descreve o plano de implementação dividido em módulos lógicos
 | **1.3** | **Database Layer:** Configuração do Drizzle ORM, migrações iniciais e conexão Bun SQL.                                                | Arch Overview          |
 | **1.4** | **Cache Layer:** Configuração do cliente Redis (Bun Native) com tipos e padrões de chaves definidos.                                  | Caching Strategy       |
 | **1.5** | **Observabilidade:** Integração OpenTelemetry com SigNoz, logs estruturados e **alertas** para latência P99, error rate e cache miss. | RNF-09, RNF-10, RNF-11 |
-| **1.6** | **GeoIP Setup:** Container `geoipupdate` com MaxMind GeoLite2 e volume compartilhado.                                                 | RF-19                  |
+| **1.6** | **GeoIP Setup:** Credential-free auto-download container with GeoLite2 (jsDelivr CDN) and volume compartilhado.                       | RF-19                  |
 | **1.7** | **Health Endpoints:** Implementação de `/api/health` e `/api/health/ready` com verificação de dependências (DB, Redis).               | PRD 6                  |
 | **1.8** | **Backup & DR Strategy:** Configuração de `pg_dump` via cron ou pgBackRest para PostgreSQL (RPO/RTO < 1h). Snapshots Redis opcionais. | PRD 4.5                |
 

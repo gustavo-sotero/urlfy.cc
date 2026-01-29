@@ -51,7 +51,7 @@ Este módulo implementa o **sistema de analytics** do urlfy.cc, responsável por
           ▲
           │ GeoIP lookup
 ┌─────────┴─────────┐
-│  MaxMind GeoLite2 │
+│  GeoLite2 (CDN)   │
 │   (offline DB)    │
 └───────────────────┘
 ```
@@ -1383,7 +1383,7 @@ describe('Analytics Performance', () => {
 - [ ] Click Worker com enriquecimento
 - [ ] Aggregation Worker (cron diário)
 - [ ] Cleanup Worker (cron semanal)
-- [ ] GeoIP Service com MaxMind
+- [x] GeoIP Service (credential-free)
 - [ ] User-Agent parsing com detecção de bots
 - [ ] Hash de visitante LGPD compliant
 - [ ] Dead Letter Queue

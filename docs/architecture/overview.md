@@ -41,8 +41,8 @@ O urlfy.cc utiliza uma arquitetura híbrida com **Next.js** no frontend e **Elys
 │  └─────────────────────────────────────────────────────────┘  │
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │                    GeoIP Update                          │  │
-│  │              (MaxMind GeoLite2 Weekly)                   │  │
+│  │                 GeoIP Downloader                         │  │
+│  │          (Auto-download, no credentials)                 │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -60,7 +60,7 @@ O urlfy.cc utiliza uma arquitetura híbrida com **Next.js** no frontend e **Elys
 | **Queue**         | Redis Streams (Bun)      | Event-driven com XADD/XREADGROUP nativo via `Bun.redis`     |
 | **ORM**           | Drizzle                  | Type-safe, compatível com Bun SQL                           |
 | **Auth**          | Better-Auth              | Plugins: `twoFactor`, `admin`, `apiKey`, `openAPI`          |
-| **Geo**           | MaxMind GeoLite2         | Lookup offline, sem limites de requests                     |
+| **Geo**           | GeoLite2 (jsDelivr CDN)  | Auto-download via public mirror, no credentials required    |
 | **Observability** | SigNoz                   | OpenTelemetry nativo, logs/traces/métricas unificados       |
 | **Styling**       | TailwindCSS + Shadcn/UI  | Componentes acessíveis, design system                       |
 
@@ -179,16 +179,16 @@ services:
     volumes:
       - signoz_data:/var/lib/signoz
 
-  # MaxMind GeoIP Update (atualização semanal)
-  geoipupdate:
-    image: maxmindinc/geoipupdate
+  # GeoIP Downloader (credential-free, monthly refresh)
+  geoip-downloader:
+    build:
+      context: ./geoip
     environment:
-      GEOIPUPDATE_ACCOUNT_ID: ${MAXMIND_ACCOUNT_ID}
-      GEOIPUPDATE_LICENSE_KEY: ${MAXMIND_LICENSE_KEY}
-      GEOIPUPDATE_EDITION_IDS: GeoLite2-City
-      GEOIPUPDATE_FREQUENCY: 168 # horas (1 semana)
+      GEOIP_DB_PATH: /app/geoip/GeoLite2-City.mmdb
+      GEOIP_MAX_AGE_DAYS: 25
+      GEOIP_MMDB_URL: https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz
     volumes:
-      - geoip_data:/usr/share/GeoIP
+      - geoip_data:/app/geoip
 
 volumes:
   postgres_data:
@@ -200,8 +200,21 @@ volumes:
 ### Notas de Produção
 
 - **SigNoz:** Para produção, considerar deploy separado com ClickHouse
-- **MaxMind:** Requer conta gratuita em maxmind.com
+- **GeoIP:** Usa mirror público (jsDelivr CDN), sem necessidade de credenciais
 - **Scaling:** `docker-compose up --scale app=3` para múltiplas instâncias
+
+### GeoIP Auto-Download
+
+O sistema baixa automaticamente o banco GeoLite2-City:
+
+- **Fonte:** [wp-statistics/GeoLite2-City](https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz)
+- **Licença:** CC BY-SA 4.0 (MaxMind)
+- **Atualização:** 1º dia de cada mês (00:00 UTC)
+- **Validação:** Skip download se arquivo existente tem menos de `GEOIP_MAX_AGE_DAYS` (padrão: 25 dias)
+- **Configuração:**
+  - `GEOIP_DB_PATH`: Caminho do arquivo MMDB (padrão: `/app/geoip/GeoLite2-City.mmdb`)
+  - `GEOIP_MAX_AGE_DAYS`: Idade máxima do arquivo antes de re-download (padrão: 25)
+  - `GEOIP_MMDB_URL`: URL do mirror (padrão: jsDelivr CDN)
 
 ## Resiliência
 
