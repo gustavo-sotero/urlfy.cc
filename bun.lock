@@ -108,10 +108,10 @@
     },
   },
   "trustedDependencies": [
-    "protobufjs",
     "esbuild",
     "sharp",
     "@swc/core",
+    "protobufjs",
     "@parcel/watcher",
   ],
   "overrides": {

@@ -2,9 +2,9 @@
  * Unit tests for Navbar component
  */
 
-import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { cleanup, render, screen } from '@testing-library/react';
 import { Navbar } from '@/components/layout/navbar';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 
 // Mock next-intl
 mock.module('next-intl', () => ({
@@ -104,5 +104,16 @@ describe('Navbar', () => {
 
     const menuButton = screen.getAllByLabelText('Menu');
     expect(menuButton.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Component Performance', () => {
+  it('Navbar renders within acceptable time', () => {
+    const start = performance.now();
+    render(<Navbar />);
+    const duration = performance.now() - start;
+
+    // Increased threshold for test environments with overhead
+    expect(duration).toBeLessThan(1000);
   });
 });

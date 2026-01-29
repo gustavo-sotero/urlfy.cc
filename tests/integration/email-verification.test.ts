@@ -3,12 +3,12 @@
  * Tests that unverified users can log in but cannot create links
  */
 
-import { beforeAll, describe, expect, test } from 'bun:test';
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { user as userTable } from '@/db/schema/auth';
 import { links } from '@/db/schema/links';
 import { api } from '@/server';
+import { beforeAll, describe, expect, test } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import { createElysiaTestClient } from '../helpers/elysia-test-client';
 import { isDatabaseAvailable } from '../helpers/integration-helper';
 
@@ -16,8 +16,9 @@ import { isDatabaseAvailable } from '../helpers/integration-helper';
 const client = createElysiaTestClient(api);
 
 function createTestUrl(path: string): string {
+  // Use example.com (reserved for testing by RFC 2606) with unique path
   const nonce = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return `https://test-${nonce}.com/${path}`;
+  return `https://example.com/${path}-${nonce}`;
 }
 
 describe('Email Verification Enforcement', () => {
@@ -180,7 +181,9 @@ describe('Email Verification Enforcement', () => {
         }
       );
 
-      if (response.status === 422) {
+      // May fail validation for other reasons (e.g., DNS resolution in CI)
+      // but should NOT fail on email verification for verified users
+      if (response.status !== 201) {
         expect(response.body.error?.code).not.toBe(
           'EMAIL_VERIFICATION_REQUIRED'
         );
@@ -212,7 +215,9 @@ describe('Email Verification Enforcement', () => {
       });
 
       // Guest users should be allowed
-      if (response.status === 422) {
+      // May fail validation for other reasons (e.g., DNS resolution in CI)
+      // but should NOT fail on email verification check
+      if (response.status >= 400) {
         expect(response.body.error?.code).not.toBe(
           'EMAIL_VERIFICATION_REQUIRED'
         );

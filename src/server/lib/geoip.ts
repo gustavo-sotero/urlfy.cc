@@ -1,7 +1,7 @@
-import { getEnv } from '@/lib/env';
+import { createHash } from 'node:crypto';
 import { Reader } from '@maxmind/geoip2-node';
 import type ReaderModel from '@maxmind/geoip2-node/dist/src/readerModel';
-import { createHash } from 'node:crypto';
+import { getEnv } from '@/lib/env';
 import { CACHE_KEYS, CACHE_TTL, redis } from './redis';
 import { createLogger } from './telemetry';
 

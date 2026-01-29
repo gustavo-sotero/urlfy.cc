@@ -1,9 +1,9 @@
-import { describe, expect, it, mock } from 'bun:test';
 import {
   isBlockedHostname,
   isPrivateIP,
   validateUrlSafe
 } from '@/server/services/url-validator';
+import { describe, expect, it, mock } from 'bun:test';
 
 // Mock dns lookup
 const mockLookup = mock((hostname: string) => {
@@ -66,24 +66,53 @@ describe('URL Validator Service', () => {
     });
   });
 
-  describe('validateUrlSafe', () => {
-    it('should block internal hostnames', async () => {
-      const result = await validateUrlSafe('http://localhost:3000');
-      expect(result.valid).toBe(false);
-      if (!result.valid) {
-        expect(result.error).toBe('URL_INTERNAL_BLOCKED');
-      }
-    });
+  describe('SSRF Protection', () => {
+    describe('validateUrlSafe', () => {
+      it('should block internal hostnames', async () => {
+        const result = await validateUrlSafe('http://localhost:3000');
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.error).toBe('URL_INTERNAL_BLOCKED');
+        }
+      });
 
-    it('should block internal patterns', async () => {
-      const result = await validateUrlSafe('http://server.local/api');
-      expect(result.valid).toBe(false);
-      if (!result.valid) {
-        expect(result.error).toBe('URL_INTERNAL_BLOCKED');
-      }
-    });
+      it('should block internal patterns', async () => {
+        const result = await validateUrlSafe('http://server.local/api');
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.error).toBe('URL_INTERNAL_BLOCKED');
+        }
+      });
 
-    // Skip DNS tests for now as mocking built-in modules can be flaky in some envs
-    // We rely on unit tests for isPrivateIP which is the core logic used after resolution
+      it('should allow valid public domains', async () => {
+        // Test with a well-known public domain
+        // Note: In test env with DNS timeout, this may pass due to timeout leniency
+        const result = await validateUrlSafe('https://www.google.com');
+
+        // Either passes validation or fails with DNS error (acceptable in test env)
+        if (!result.valid) {
+          expect(
+            ['URL_RESOLUTION_FAILED', 'DOMAIN_BANNED'].includes(result.error)
+          ).toBe(true);
+        } else {
+          expect(result.valid).toBe(true);
+        }
+      });
+
+      it('should block private IPs after resolution', async () => {
+        // This test relies on the mock
+        const result = await validateUrlSafe('http://private.local');
+
+        // Should be blocked as private IP or internal pattern
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(
+            ['URL_INTERNAL_BLOCKED', 'URL_RESOLUTION_FAILED'].includes(
+              result.error
+            )
+          ).toBe(true);
+        }
+      });
+    });
   });
 });

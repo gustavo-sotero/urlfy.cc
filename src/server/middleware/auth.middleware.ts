@@ -1,5 +1,3 @@
-import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
-import { Elysia } from 'elysia';
 import {
   apiKey as apiKeyTable,
   twoFactor as twoFactorTable,
@@ -12,6 +10,8 @@ import { sanitizeHeaders } from '@/server/lib/log-sanitizer';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
+import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
+import { Elysia } from 'elysia';
 
 const logger = createLogger('auth-middleware');
 
@@ -22,9 +22,8 @@ function getTestUserFromHeaders(headers: Headers): User | null {
   if (!testUserId) return null;
 
   const emailVerifiedHeader = headers.get('x-test-email-verified');
-  const emailVerified = emailVerifiedHeader
-    ? emailVerifiedHeader === 'true'
-    : true;
+  // Default to false if header not present (matches real behavior)
+  const emailVerified = emailVerifiedHeader === 'true';
 
   const roleHeader = headers.get('x-test-user-role');
   const role = roleHeader === 'admin' ? 'admin' : 'user';

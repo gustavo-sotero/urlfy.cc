@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-// @ts-ignore - Dynamic import for test isolation
+// @ts-expect-error - Dynamic import for test isolation
 import { getWeeklySalt } from '../../src/server/lib/geoip';
 
 /**
