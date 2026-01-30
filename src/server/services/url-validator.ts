@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 import { lookup } from 'node:dns/promises';
 
 const logger = createLogger('url-validator');
+const nodeEnv = process.env.NODE_ENV as string | undefined;
 
 // SSRF Protection: Private IP ranges (RFC 1918, loopback, link-local)
 const PRIVATE_IP_RANGES = [
@@ -217,7 +218,7 @@ export async function validateUrlSafe(url: string): Promise<ValidationResult> {
     return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
   }
 
-  if (process.env.NODE_ENV === 'test') {
+  if (nodeEnv === 'test') {
     if (isPrivateIP(hostname)) {
       logger.warn('Blocked private IP hostname in test mode', { hostname });
       return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
@@ -252,7 +253,7 @@ export async function validateUrlSafe(url: string): Promise<ValidationResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     // In test environment, be more lenient with DNS timeouts for known domains
-    if (process.env.NODE_ENV === 'test' && errorMessage.includes('TIMEOUT')) {
+    if (nodeEnv === 'test' && errorMessage.includes('TIMEOUT')) {
       logger.warn('DNS timeout in test environment - allowing', { hostname });
       return { valid: true };
     }
