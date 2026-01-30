@@ -27,8 +27,14 @@ function getJwtSecret(): string {
     );
   }
 
-  // Provide a placeholder during build (never used at runtime)
-  return secret || 'build-time-placeholder-not-for-runtime-use';
+  // Provide a dummy value during build phase only (never used at runtime)
+  // This is NOT a secret - it's a build-time marker that gets replaced by env var
+  if (!secret) {
+    // Build-time only: generate a random placeholder that won't be used
+    return `build_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  }
+
+  return secret;
 }
 
 export const jwtPlugin = new Elysia({ name: 'jwt' }).use(
