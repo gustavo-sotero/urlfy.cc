@@ -15,7 +15,7 @@ const TAGS_MAX_LENGTH = 50;
 const TAGS_MAX_COUNT = 10;
 const NOTES_MAX = 500;
 
-// CDNs permitidos para imagens OG
+// Allowed CDNs for OG images
 const ALLOWED_IMAGE_HOSTS = new Set([
   'imgur.com',
   'i.imgur.com',
@@ -29,8 +29,8 @@ const ALLOWED_IMAGE_HOSTS = new Set([
 ]);
 
 /**
- * Sanitiza meta tags OG customizadas
- * Remove HTML, limita tamanhos e valida URLs de imagem
+ * Sanitize custom OG meta tags
+ * Removes HTML, limits lengths, and validates image URLs
  */
 export function sanitizeMetaTags(input: {
   title?: string | null;
@@ -55,10 +55,10 @@ export function sanitizeMetaTags(input: {
 }
 
 /**
- * Valida URL de imagem OG
- * - Apenas HTTPS
- * - Whitelist de CDNs confiáveis
- * - Limite de tamanho
+ * Validate OG image URL
+ * - HTTPS only
+ * - Whitelist of trusted CDNs
+ * - Size limit
  */
 function validateImageUrl(url: string | null | undefined): string | null {
   if (!url || url.trim().length === 0) return null;
@@ -100,8 +100,8 @@ function validateImageUrl(url: string | null | undefined): string | null {
 }
 
 /**
- * Sanitiza texto genérico
- * Remove HTML tags e limita tamanho
+ * Sanitize generic text
+ * Removes HTML tags and limits length
  */
 export function sanitizeText(
   text: string | null | undefined,
@@ -132,10 +132,10 @@ export function sanitizeText(
 }
 
 /**
- * Sanitiza tags/labels (array de strings)
- * - Remove duplicatas
- * - Limita quantidade e tamanho individual
- * - Remove strings vazias
+ * Sanitize tags/labels (array of strings)
+ * - Remove duplicates
+ * - Limit count and individual length
+ * - Remove empty strings
  */
 export function sanitizeTags(
   tags: string[] | null | undefined
@@ -166,7 +166,7 @@ export function sanitizeTags(
 }
 
 /**
- * Sanitiza notas/comentários
+ * Sanitize notes/comments
  */
 export function sanitizeNotes(notes: string | null | undefined): string | null {
   return sanitizeText(notes, NOTES_MAX);
@@ -222,8 +222,8 @@ export function sanitizeLinkInput(input: {
 }
 
 /**
- * Adiciona um host permitido para imagens (runtime)
- * @param host - Hostname a ser permitido (ex: 'cdn.example.com')
+ * Add an allowed image host (runtime)
+ * @param host - Hostname to allow (e.g., 'cdn.example.com')
  */
 export function allowImageHost(host: string): void {
   const normalized = host.toLowerCase().trim();
@@ -234,8 +234,8 @@ export function allowImageHost(host: string): void {
 }
 
 /**
- * Remove um host da lista de permitidos
- * @param host - Hostname a ser removido
+ * Remove a host from the allow list
+ * @param host - Hostname to remove
  */
 export function disallowImageHost(host: string): void {
   const normalized = host.toLowerCase().trim();
@@ -244,7 +244,7 @@ export function disallowImageHost(host: string): void {
 }
 
 /**
- * Obtém lista de hosts permitidos
+ * Get allowed hosts list
  */
 export function getAllowedImageHosts(): string[] {
   return Array.from(ALLOWED_IMAGE_HOSTS).sort();

@@ -7,13 +7,13 @@ const logger = createLogger('distributed-lock');
 const redis = getRedisClient();
 
 /**
- * Tenta adquirir um lock distribuído usando Redis SETNX
+ * Attempt to acquire a distributed lock using Redis SETNX
  *
- * @param key - Chave única para o lock
- * @param ttlMs - Tempo de vida do lock em milissegundos
- * @param retries - Número de tentativas (default: 0, não tenta novamente)
- * @param retryDelayMs - Delay entre tentativas em ms (default: 50ms)
- * @returns true se o lock foi adquirido, false caso contrário
+ * @param key - Unique lock key
+ * @param ttlMs - Lock time-to-live in milliseconds
+ * @param retries - Number of retries (default: 0, no retry)
+ * @param retryDelayMs - Delay between retries in ms (default: 50ms)
+ * @returns true if the lock was acquired, false otherwise
  */
 export async function acquireLock(
   key: string,
@@ -34,7 +34,7 @@ export async function acquireLock(
         return true;
       }
 
-      // Lock já existe
+      // Lock already exists
       if (attempts < retries) {
         await Bun.sleep(retryDelayMs);
         attempts++;
@@ -56,9 +56,9 @@ export async function acquireLock(
 }
 
 /**
- * Libera um lock distribuído
+ * Release a distributed lock
  *
- * @param key - Chave do lock a ser liberado
+ * @param key - Lock key to release
  */
 export async function releaseLock(key: string): Promise<void> {
   try {
@@ -78,13 +78,13 @@ export async function releaseLock(key: string): Promise<void> {
 }
 
 /**
- * Executa uma função com lock distribuído
- * Adquire o lock, executa a função e garante que o lock seja liberado
+ * Execute a function under a distributed lock
+ * Acquires the lock, runs the function, and always releases the lock
  *
- * @param key - Chave do lock
- * @param ttlMs - Tempo de vida do lock
- * @param fn - Função a ser executada
- * @returns Resultado da função ou null se não conseguir adquirir o lock
+ * @param key - Lock key
+ * @param ttlMs - Lock time-to-live
+ * @param fn - Function to execute
+ * @returns Function result or null if the lock could not be acquired
  */
 export async function withLock<T>(
   key: string,
@@ -106,10 +106,10 @@ export async function withLock<T>(
 }
 
 /**
- * Verifica se um lock existe
+ * Check whether a lock exists
  *
- * @param key - Chave do lock
- * @returns true se o lock existe, false caso contrário
+ * @param key - Lock key
+ * @returns true if the lock exists, false otherwise
  */
 export async function hasLock(key: string): Promise<boolean> {
   try {
@@ -125,10 +125,10 @@ export async function hasLock(key: string): Promise<boolean> {
 }
 
 /**
- * Obtém o TTL restante de um lock em milissegundos
+ * Get the remaining TTL for a lock in milliseconds
  *
- * @param key - Chave do lock
- * @returns TTL em ms ou -1 se não existir, -2 se não tiver TTL
+ * @param key - Lock key
+ * @returns TTL in ms, or -1 if missing, -2 if no TTL
  */
 export async function getLockTTL(key: string): Promise<number> {
   try {

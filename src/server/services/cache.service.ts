@@ -61,7 +61,7 @@ async function scanKeys(pattern: string, count = 100): Promise<string[]> {
 }
 
 /**
- * Service para operações de cache relacionadas ao redirect engine
+ * Service for cache operations related to the redirect engine
  */
 export class CacheService {
   private getRedis() {
@@ -69,12 +69,12 @@ export class CacheService {
   }
 
   /**
-   * Busca um link no cache com Probabilistic Early Expiration
-   * 10% de chance de refresh quando TTL < 10% do original
+   * Fetch a link from cache with Probabilistic Early Expiration
+   * 10% chance to refresh when TTL < 10% of original
    *
-   * @param code - Short code do link
-   * @param enableProbabilisticRefresh - Se deve aplicar early expiration (default: true)
-   * @returns Link cacheado ou null
+   * @param code - Link short code
+   * @param enableProbabilisticRefresh - Whether to apply early expiration (default: true)
+   * @returns Cached link or null
    */
   async getLink(
     code: string,
@@ -91,10 +91,10 @@ export class CacheService {
       }
 
       // Probabilistic Early Expiration
-      // Quando TTL < 10% do original, 10% de chance de forçar refresh
+      // When TTL < 10% of original, 10% chance to force refresh
       if (enableProbabilisticRefresh) {
         const ttl = await redis.ttl(key);
-        const originalTtl = CACHE_TTL.LINK; // 3600 segundos
+        const originalTtl = CACHE_TTL.LINK; // 3600 seconds
 
         if (ttl > 0 && ttl < originalTtl * 0.1 && Math.random() < 0.1) {
           logger.debug('Probabilistic early expiration triggered', {
@@ -119,7 +119,7 @@ export class CacheService {
   }
 
   /**
-   * Armazena um link no cache
+   * Store a link in cache
    */
   async setLink(code: string, link: CachedLink): Promise<void> {
     try {
@@ -137,7 +137,7 @@ export class CacheService {
   }
 
   /**
-   * Verifica se um código está no cache negativo (404)
+   * Check if a code is in the negative cache (404)
    */
   async isNotFound(code: string): Promise<boolean> {
     try {
@@ -155,7 +155,7 @@ export class CacheService {
   }
 
   /**
-   * Marca um código como não encontrado (cache negativo)
+   * Mark a code as not found (negative cache)
    */
   async setNotFound(code: string): Promise<void> {
     try {
@@ -172,7 +172,7 @@ export class CacheService {
   }
 
   /**
-   * Verifica se um link está banido no cache
+   * Check if a link is banned in cache
    */
   async isBanned(code: string): Promise<boolean> {
     try {
@@ -190,7 +190,7 @@ export class CacheService {
   }
 
   /**
-   * Marca um link como banido
+   * Mark a link as banned
    */
   async setBanned(code: string): Promise<void> {
     try {
@@ -207,7 +207,7 @@ export class CacheService {
   }
 
   /**
-   * Invalida todo o cache relacionado a um link
+   * Invalidate all cache entries related to a link
    */
   async invalidateLink(code: string): Promise<void> {
     try {
@@ -244,7 +244,7 @@ export class CacheService {
   }
 
   /**
-   * Invalida cache após ban de um link
+   * Invalidate cache after banning a link
    */
   async invalidateAndBan(code: string): Promise<void> {
     try {
@@ -261,7 +261,7 @@ export class CacheService {
   }
 
   /**
-   * Invalida cache após deleção de um link
+   * Invalidate cache after deleting a link
    */
   async invalidateAndMarkDeleted(code: string): Promise<void> {
     try {
@@ -278,7 +278,7 @@ export class CacheService {
   }
 
   /**
-   * Obtém estatísticas de cache
+   * Get cache statistics
    */
   async getCacheStats(): Promise<{
     memory: string;
@@ -315,7 +315,7 @@ export class CacheService {
   }
 
   /**
-   * Helper para parsear INFO do Redis
+   * Helper to parse Redis INFO
    */
   private parseRedisInfo(info: string): Record<string, string> {
     const result: Record<string, string> = {};
@@ -334,8 +334,8 @@ export class CacheService {
   }
 
   /**
-   * Incrementa o contador de cliques no cache de forma atômica
-   * Usado pelo click.worker para manter o cache sincronizado com o DB
+   * Atomically increment click count in cache
+   * Used by click.worker to keep cache in sync with the DB
    *
    * @param code - Short code of the link
    * @returns The new counter value, or null if link is not in cache
@@ -361,7 +361,7 @@ export class CacheService {
         clicksCount: newClicksCount
       };
 
-      // Preserva o TTL restante
+      // Preserve remaining TTL
       const ttl = await redis.ttl(key);
       const effectiveTtl = ttl > 0 ? ttl : CACHE_TTL.LINK;
 
@@ -379,14 +379,14 @@ export class CacheService {
         code,
         error: error instanceof Error ? error.message : String(error)
       });
-      // Não propaga erro - o cache será atualizado na próxima leitura do DB
+      // Do not propagate errors - cache will refresh on next DB read
       return null;
     }
   }
 
   /**
-   * Limpa cache em caso de teste ou manutenção
-   * ⚠️ USE COM CUIDADO - Remove TODAS as chaves do Redis
+   * Flush cache for tests or maintenance
+   * ⚠️ USE WITH CARE - Removes ALL Redis keys
    */
   async flushAll(): Promise<void> {
     try {
@@ -402,7 +402,7 @@ export class CacheService {
   }
 
   /**
-   * Limpa apenas as chaves de links
+   * Flush only link-related keys
    */
   async flushLinks(): Promise<void> {
     try {

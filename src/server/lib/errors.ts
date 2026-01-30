@@ -77,7 +77,7 @@ export const ERROR_HTTP_MAP: Record<LinkErrorCode, number> = {
 };
 
 /**
- * Converte erros em resposta formatada
+ * Convert errors to a formatted response
  * @deprecated Use AppError and errorMiddleware instead
  */
 export function handleLinkError(error: unknown): {
@@ -113,7 +113,7 @@ export function handleLinkError(error: unknown): {
     };
   }
 
-  // Erro desconhecido
+  // Unknown error
   const errorMessage =
     error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
   logger.error('Unhandled error', {
@@ -131,7 +131,7 @@ export function handleLinkError(error: unknown): {
 }
 
 /**
- * Mapeia código de erro para mensagem amigável
+ * Map error code to a user-friendly message
  */
 function getErrorMessage(code: LinkErrorCode): string {
   const messages: Record<LinkErrorCode, string> = {
@@ -159,7 +159,7 @@ function getErrorMessage(code: LinkErrorCode): string {
 }
 
 /**
- * Cria AppError a partir do código
+ * Create AppError from a code
  */
 export function createLinkError(
   code: LinkErrorCode,

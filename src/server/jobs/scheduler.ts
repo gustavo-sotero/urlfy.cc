@@ -1,7 +1,5 @@
 // src/server/jobs/scheduler.ts
 
-import { CronJob } from 'cron';
-import { and, eq, lt } from 'drizzle-orm';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema/audit';
 import {
@@ -11,6 +9,8 @@ import {
 } from '@/server/lib/queue';
 import { createLogger } from '@/server/lib/telemetry';
 import { MetricsService } from '@/server/services/metrics.service';
+import { CronJob } from 'cron';
+import { and, eq, lt } from 'drizzle-orm';
 
 const logger = createLogger('scheduler');
 
@@ -55,16 +55,16 @@ export const aggregationJob = new CronJob(
 );
 
 // ═══════════════════════════════════════════════════════════════════
-// LIMPEZA SEMANAL
+// WEEKLY CLEANUP
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Executa todo domingo às 03:00 UTC
- * - Remove eventos com mais de 90 dias
- * - Gerencia partições (cria futuras, remove antigas)
+ * Runs every Sunday at 03:00 UTC
+ * - Removes events older than 90 days
+ * - Manages partitions (creates future, removes old)
  */
 export const cleanupJob = new CronJob(
-  '0 3 * * 0', // 03:00 UTC todo domingo
+  '0 3 * * 0', // 03:00 UTC every Sunday
   async () => {
     try {
       logger.info('[Scheduler] Running weekly cleanup job');
@@ -85,7 +85,7 @@ export const cleanupJob = new CronJob(
 );
 
 // ═══════════════════════════════════════════════════════════════════
-// MÉTRICAS DE PERFORMANCE
+// PERFORMANCE METRICS
 // ═══════════════════════════════════════════════════════════════════
 
 /**
@@ -114,8 +114,8 @@ export const rpsCalculationJob = new CronJob(
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Executa a cada hora (01 e 31 minutos de cada hora)
- * Busca deletion requests com deadline atingido e enfileira para processamento
+ * Runs every hour (01 and 31 minutes of each hour)
+ * Finds deletion requests past deadline and enqueues for processing
  */
 export const dataDeletionJob = new CronJob(
   '1,31 * * * *', // Every 30 minutes
@@ -198,8 +198,8 @@ function _getToday(): string {
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Inicia todos os jobs agendados
- * Deve ser chamado durante inicialização do servidor
+ * Start all scheduled jobs
+ * Should be called during server initialization
  */
 export function startScheduler(): void {
   try {
@@ -223,8 +223,8 @@ export function startScheduler(): void {
 }
 
 /**
- * Para todos os jobs agendados
- * Deve ser chamado durante shutdown graceful
+ * Stop all scheduled jobs
+ * Should be called during graceful shutdown
  */
 export function stopScheduler(): void {
   try {
@@ -242,8 +242,8 @@ export function stopScheduler(): void {
 }
 
 /**
- * Função de teste: dispara um job imediatamente
- * Útil para debugging ou batches manuais
+ * Test helper: trigger a job immediately
+ * Useful for debugging or manual batches
  */
 export async function triggerAggregationNow(date?: string): Promise<void> {
   const dateToAggregate = date || getYesterday();
@@ -262,7 +262,7 @@ export async function triggerAggregationNow(date?: string): Promise<void> {
 }
 
 /**
- * Função de teste: dispara cleanup imediatamente
+ * Test helper: trigger cleanup immediately
  */
 export async function triggerCleanupNow(
   type: 'retention' | 'partitions' | 'full' = 'full'

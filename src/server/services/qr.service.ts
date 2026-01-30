@@ -1,7 +1,7 @@
 // src/server/services/qr.service.ts
 
-import QRCode from 'qrcode';
 import { createLogger } from '@/server/lib/telemetry';
+import QRCode from 'qrcode';
 import { redis } from '../lib/redis';
 
 const logger = createLogger('qr-service');
@@ -9,17 +9,17 @@ const logger = createLogger('qr-service');
 type QRFormat = 'png' | 'svg';
 type QRSize = 100 | 200 | 300 | 500 | 1000;
 
-const CACHE_TTL = 86400; // 24 horas
+const CACHE_TTL = 86400; // 24 hours
 
 /**
- * Gera QR Code para um link encurtado
- * Cacheia o resultado no Redis por 24h
+ * Generate a QR Code for a shortened link
+ * Caches the result in Redis for 24 hours
  *
- * @param shortUrl - URL completa do link encurtado (ex: https://urlfy.cc/abc123)
- * @param code - Short code do link (para cache key)
- * @param size - Tamanho em pixels (100-1000)
- * @param format - Formato de saída (png ou svg)
- * @returns Buffer (PNG) ou string (SVG)
+ * @param shortUrl - Full shortened URL (e.g., https://urlfy.cc/abc123)
+ * @param code - Link short code (for cache key)
+ * @param size - Size in pixels (100-1000)
+ * @param format - Output format (png or svg)
+ * @returns Buffer (PNG) or string (SVG)
  */
 export async function generateQRCode(
   shortUrl: string,
@@ -80,10 +80,10 @@ export async function generateQRCode(
 }
 
 /**
- * Invalida cache de QR codes para um link específico
- * Usado quando o link é editado ou deletado
+ * Invalidate QR cache for a specific link
+ * Used when the link is edited or deleted
  *
- * @param code - Short code do link
+ * @param code - Link short code
  */
 export async function invalidateQRCache(code: string): Promise<void> {
   try {
@@ -121,9 +121,9 @@ export async function invalidateQRCache(code: string): Promise<void> {
 }
 
 /**
- * Valida tamanho de QR code
- * @param size - Tamanho solicitado
- * @returns Tamanho validado ou default
+ * Validate QR code size
+ * @param size - Requested size
+ * @returns Validated size or default
  */
 export function validateQRSize(size: number): QRSize {
   const validSizes: QRSize[] = [100, 200, 300, 500, 1000];
@@ -139,9 +139,9 @@ export function validateQRSize(size: number): QRSize {
 }
 
 /**
- * Valida formato de QR code
- * @param format - Formato solicitado
- * @returns Formato validado ou default
+ * Validate QR code format
+ * @param format - Requested format
+ * @returns Validated format or default
  */
 export function validateQRFormat(format: string): QRFormat {
   return format === 'svg' ? 'svg' : 'png';

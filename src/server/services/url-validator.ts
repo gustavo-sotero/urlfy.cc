@@ -1,10 +1,10 @@
 // src/server/services/url-validator.ts
 
-import { lookup } from 'node:dns/promises';
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { bannedUrls } from '@/db/schema';
 import { createLogger } from '@/server/lib/telemetry';
+import { eq } from 'drizzle-orm';
+import { lookup } from 'node:dns/promises';
 
 const logger = createLogger('url-validator');
 const nodeEnv = process.env.NODE_ENV as string | undefined;
@@ -151,17 +151,17 @@ export function isBlockedHostname(hostname: string): boolean {
 }
 
 /**
- * Valida uma URL de destino
- * @param url - URL a ser validada
- * @returns Resultado da validação
+ * Validate a destination URL
+ * @param url - URL to validate
+ * @returns Validation result
  */
 export function validateUrl(url: string): ValidationResult {
-  // 1. Tamanho máximo (2048 chars é padrão de navegadores)
+  // 1. Maximum length (2048 chars is a common browser limit)
   if (url.length > 2048) {
     return { valid: false, error: 'URL_TOO_LONG' };
   }
 
-  // 2. Formato válido
+  // 2. Valid format
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -169,18 +169,18 @@ export function validateUrl(url: string): ValidationResult {
     return { valid: false, error: 'INVALID_FORMAT' };
   }
 
-  // 3. Protocolo permitido (apenas http/https)
+  // 3. Allowed protocol (http/https only)
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return { valid: false, error: 'INVALID_PROTOCOL' };
   }
 
-  // 4. Bloqueio de outros encurtadores
+  // 4. Block other URL shorteners
   const domain = parsed.hostname.replace(/^www\./, '').toLowerCase();
   if (BLOCKED_SHORTENERS.has(domain)) {
     return { valid: false, error: 'SHORTENER_BLOCKED' };
   }
 
-  // 5. Blacklist de domínios (from memory cache)
+  // 5. Domain blacklist (from in-memory cache)
   if (BLOCKED_DOMAINS.has(domain)) {
     return { valid: false, error: 'DOMAIN_BANNED' };
   }
@@ -292,8 +292,8 @@ async function resolveHostname(
 }
 
 /**
- * Adiciona um domínio à blacklist (runtime + database)
- * @param domain - Domínio a ser bloqueado
+ * Add a domain to the blacklist (runtime + database)
+ * @param domain - Domain to block
  * @param reason - Reason for blocking
  * @param createdBy - User ID who created the ban
  */
@@ -321,8 +321,8 @@ export async function blockDomainPersistent(
 }
 
 /**
- * Adiciona um domínio à blacklist (runtime only)
- * @param domain - Domínio a ser bloqueado
+ * Add a domain to the blacklist (runtime only)
+ * @param domain - Domain to block
  */
 export function blockDomain(domain: string): void {
   const normalized = domain.replace(/^www\./, '').toLowerCase();
@@ -330,8 +330,8 @@ export function blockDomain(domain: string): void {
 }
 
 /**
- * Remove um domínio da blacklist (runtime only)
- * @param domain - Domínio a ser desbloqueado
+ * Remove a domain from the blacklist (runtime only)
+ * @param domain - Domain to unblock
  */
 export function unblockDomain(domain: string): void {
   const normalized = domain.replace(/^www\./, '').toLowerCase();
@@ -339,9 +339,9 @@ export function unblockDomain(domain: string): void {
 }
 
 /**
- * Verifica se um domínio está bloqueado
- * @param domain - Domínio a verificar
- * @returns true se bloqueado
+ * Check whether a domain is blocked
+ * @param domain - Domain to check
+ * @returns true if blocked
  */
 export function isDomainBlocked(domain: string): boolean {
   const normalized = domain.replace(/^www\./, '').toLowerCase();

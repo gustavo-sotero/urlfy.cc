@@ -1,8 +1,8 @@
 // src/server/services/useragent.service.ts
 
-import { UAParser } from 'ua-parser-js';
 import { createLogger } from '@/server/lib/telemetry';
 import type { UserAgentData } from '@/types/analytics.types';
+import { UAParser } from 'ua-parser-js';
 
 const logger = createLogger('useragent-service');
 
@@ -37,7 +37,7 @@ const BOT_PATTERNS = [
 
 class UserAgentService {
   /**
-   * Parse user agent string e retorna dados estruturados
+   * Parse user agent string and return structured data
    */
   parse(userAgent: string): UserAgentData {
     try {
@@ -75,7 +75,7 @@ class UserAgentService {
   }
 
   /**
-   * Detecta se user agent é um bot
+   * Detect whether the user agent is a bot
    */
   private detectBot(userAgent: string): boolean {
     if (!userAgent) return false;
@@ -84,8 +84,8 @@ class UserAgentService {
   }
 
   /**
-   * Mapeia tipo de dispositivo para valores padrão
-   * Retorna "desktop" como default para navegadores sem tipo específico
+   * Map device type to standard values
+   * Returns "desktop" by default for browsers without a specific type
    */
   private mapDeviceType(type?: string): 'desktop' | 'mobile' | 'tablet' | null {
     if (!type) return 'desktop'; // Desktop browsers don't have device type set
@@ -108,14 +108,14 @@ class UserAgentService {
 export const userAgentService = new UserAgentService();
 
 /**
- * Função auxiliar para parsing único
+ * Helper for one-off parsing
  */
 export function parseUserAgent(userAgent: string): UserAgentData {
   return userAgentService.parse(userAgent);
 }
 
 /**
- * Função auxiliar para detecção de bot
+ * Helper for bot detection
  */
 export function isBot(userAgent: string): boolean {
   const parsed = parseUserAgent(userAgent);

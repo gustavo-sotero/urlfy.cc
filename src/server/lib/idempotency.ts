@@ -4,12 +4,12 @@ import { redis } from './redis';
 import { createLogger } from './telemetry';
 
 const logger = createLogger('idempotency');
-const TTL = 86400; // 24 horas
+const TTL = 86400; // 24 hours
 
 /**
- * Verifica se uma idempotency key já foi processada
- * @param key - Chave de idempotência
- * @returns ID do recurso criado anteriormente ou null
+ * Check whether an idempotency key was already processed
+ * @param key - Idempotency key
+ * @returns Previously created resource ID or null
  */
 export async function checkIdempotency(key: string): Promise<string | null> {
   try {
@@ -23,9 +23,9 @@ export async function checkIdempotency(key: string): Promise<string | null> {
 }
 
 /**
- * Armazena resultado de operação idempotente
- * @param key - Chave de idempotência
- * @param resourceId - ID do recurso criado
+ * Store result of an idempotent operation
+ * @param key - Idempotency key
+ * @param resourceId - Created resource ID
  */
 export async function setIdempotency(
   key: string,
@@ -41,13 +41,13 @@ export async function setIdempotency(
 }
 
 /**
- * Valida formato de idempotency key
- * Deve ser um UUID ou string de 16-64 caracteres alfanuméricos
- * @param key - Chave a validar
- * @returns true se válida
+ * Validate idempotency key format
+ * Must be a UUID or a 16-64 character alphanumeric string
+ * @param key - Key to validate
+ * @returns true if valid
  */
 export function validateIdempotencyKey(key: string): boolean {
-  // UUID format ou string alfanumérica de 16-64 chars
+  // UUID format or a 16-64 character alphanumeric string
   const uuidRegex =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const alphanumericRegex = /^[a-zA-Z0-9_-]{16,64}$/;
