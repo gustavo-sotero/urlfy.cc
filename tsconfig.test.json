@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["bun-types"],
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "baseUrl": "."
+  },
+  "include": ["tests/**/*.ts", "tests/**/*.tsx", "src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", ".next"]
+}

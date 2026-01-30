@@ -5,17 +5,17 @@ import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import type { ClickEvent } from '@/types/analytics.types';
 
 /**
- * Internal API endpoint para enfileirar eventos de analytics
- * Este endpoint NÃO é exposto publicamente - apenas para chamadas internas do middleware
+ * Internal API endpoint to enqueue analytics events
+ * This endpoint is NOT publicly exposed - only for internal middleware calls
  *
- * IMPORTANTE: Roda no Node.js runtime (não Edge), onde Redis Streams funciona
+ * IMPORTANT: Runs on Node.js runtime (not Edge), where Redis Streams works
  */
 
 export const runtime = 'nodejs'; // Force Node.js runtime (not Edge)
 
 export async function POST(request: Request) {
   try {
-    // Verifica token interno usando INTERNAL_ANALYTICS_SECRET (preferido) ou INTERNAL_API_SECRET
+    // Validate internal token using INTERNAL_ANALYTICS_SECRET (preferred) or INTERNAL_API_SECRET
     const internalToken = request.headers.get('x-internal-token');
     const expectedToken =
       process.env.INTERNAL_ANALYTICS_SECRET || process.env.INTERNAL_API_SECRET;
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
     const event: ClickEvent = await request.json();
 
-    // Valida campos mínimos
+    // Validate required fields
     if (!event.linkId || !event.shortCode) {
       return NextResponse.json(
         { error: 'Invalid event data' },
@@ -37,8 +37,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Enfileira evento usando Redis Streams
-    // O worker fará o enriquecimento (GeoIP, User-Agent parsing, etc)
+    // Enqueue event using Redis Streams
+    // The worker will enrich it (GeoIP, User-Agent parsing, etc.)
     await RedisStream.add(STREAM_NAMES.analyticsClicks, {
       linkId: event.linkId,
       shortCode: event.shortCode,
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true }, { status: 202 });
   } catch (error) {
     console.error('Failed to enqueue analytics event:', error);
-    // Retorna 202 mesmo com erro - não queremos falhar o redirect
+    // Return 202 even on error - avoid breaking redirects
     return NextResponse.json({ success: false }, { status: 202 });
   }
 }

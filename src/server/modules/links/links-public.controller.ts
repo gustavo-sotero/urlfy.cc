@@ -10,43 +10,20 @@
 
 import { Elysia, t } from 'elysia';
 import { jwtPlugin } from '@/server/config/plugins';
-import { handleLinkError } from '@/server/lib/errors';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth } from '@/server/middleware/auth.middleware';
 import * as qrService from '@/server/services/qr.service';
 import { validateUrlSafe } from '@/server/services/url-validator';
-
+import { LinkPasswordService } from './link-password.service';
 import {
   LinkCodeParam,
   LinksModel,
   QrCodeQuery,
   ValidateUrlBody,
   VerifyPasswordBody
-} from '../links.schema';
-import { LinkService } from '../links.service';
-
-type ElysiaSet = { status?: number | string };
-
-// ═══════════════════════════════════════════════════════════════════
-// ERROR CODES & MESSAGES
-// ═══════════════════════════════════════════════════════════════════
-
-const ERROR_CODES = {
-  LINK_NOT_FOUND: 'LINK_NOT_FOUND'
-} as const;
-
-const ERROR_MESSAGES = {
-  LINK_NOT_FOUND: 'Link não encontrado'
-} as const;
-
-const handleControllerError = (
-  error: unknown,
-  set: ElysiaSet
-): { success: false; error: { code: string; message: string } } => {
-  const { status, ...body } = handleLinkError(error);
-  set.status = status;
-  return body;
-};
+} from './links.schema';
+import { LinkService } from './links.service';
 
 // ═══════════════════════════════════════════════════════════════════
 // PUBLIC ROUTES (guest allowed)
@@ -58,7 +35,7 @@ export const publicLinksController = new Elysia()
   .use(optionalAuth)
 
   // ─────────────────────────────────────────────────────────────────
-  // POST /links/validate - Validar URL
+  // POST /links/validate - Validate URL
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/validate',
@@ -83,6 +60,7 @@ export const publicLinksController = new Elysia()
         }
       };
     },
+
     {
       body: ValidateUrlBody,
       detail: {
@@ -131,55 +109,44 @@ export const publicLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/by-code/:code/verify-password',
-    async ({ params, body, set, jwt, cookie }) => {
-      try {
-        const isValid = await LinkService.verifyLinkPassword(
-          params.code,
-          body.password
-        );
+    async ({ params, body, jwt, cookie }) => {
+      const isValid = await LinkPasswordService.verifyLinkPassword(
+        params.code,
+        body.password
+      );
 
-        if (!isValid) {
-          set.status = 401;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_PASSWORD',
-              message: 'Senha incorreta'
-            }
-          };
-        }
-
-        // Generate JWT token for unlock
-        const token = await jwt.sign({
-          code: params.code,
-          type: 'unlock'
-        });
-
-        // Set cookie with the token
-        const cookieName = `urlfy_unlock_${params.code}`;
-        cookie[cookieName].set({
-          value: token,
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          path: '/',
-          maxAge: 300 // 5 minutes
-        });
-
-        // Return URL for redirect
-        const shortUrl = `${process.env.PUBLIC_APP_URL || 'https://urlfy.cc'}/${
-          params.code
-        }`;
-        return {
-          success: true as const,
-          data: {
-            redirectUrl: `/${params.code}`,
-            shortUrl
-          }
-        };
-      } catch (error) {
-        return handleControllerError(error, set);
+      if (!isValid) {
+        throw new AppError(ErrorCode.UNAUTHORIZED, 'Invalid password');
       }
+
+      // Generate JWT token for unlock
+      const token = await jwt.sign({
+        code: params.code,
+        type: 'unlock'
+      });
+
+      // Set cookie with the token
+      const cookieName = `urlfy_unlock_${params.code}`;
+      cookie[cookieName].set({
+        value: token,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+        maxAge: 300 // 5 minutes
+      });
+
+      // Return URL for redirect
+      const shortUrl = `${process.env.PUBLIC_APP_URL || 'https://urlfy.cc'}/${
+        params.code
+      }`;
+      return {
+        success: true as const,
+        data: {
+          redirectUrl: `/${params.code}`,
+          shortUrl
+        }
+      };
     },
     {
       params: LinkCodeParam,
@@ -213,47 +180,36 @@ export const publicLinksController = new Elysia()
   )
 
   // ─────────────────────────────────────────────────────────────────
-  // GET /links/by-code/:code/qr - Gerar QR Code (público)
+  // GET /links/by-code/:code/qr - Generate QR Code (public)
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/by-code/:code/qr',
     async ({ params, query, set }) => {
-      try {
-        const link = await LinkService.getLinkByCode(params.code);
-        if (!link) {
-          set.status = 404;
-          return {
-            success: false,
-            error: {
-              code: ERROR_CODES.LINK_NOT_FOUND,
-              message: ERROR_MESSAGES.LINK_NOT_FOUND
-            }
-          };
-        }
-
-        const size = qrService.validateQRSize(
-          query.size ? parseInt(query.size, 10) : 200
-        );
-        const format = qrService.validateQRFormat(query.format || 'png');
-
-        const shortUrl = `${process.env.PUBLIC_APP_URL || 'https://urlfy.cc'}/${
-          params.code
-        }`;
-        const qrCode = await qrService.generateQRCode(
-          shortUrl,
-          params.code,
-          size,
-          format
-        );
-
-        set.headers['Content-Type'] =
-          format === 'svg' ? 'image/svg+xml' : 'image/png';
-        set.headers['Cache-Control'] = 'public, max-age=86400';
-
-        return qrCode;
-      } catch (error) {
-        return handleControllerError(error, set);
+      const link = await LinkService.getLinkByCode(params.code);
+      if (!link) {
+        throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
       }
+
+      const size = qrService.validateQRSize(
+        query.size ? parseInt(query.size, 10) : 200
+      );
+      const format = qrService.validateQRFormat(query.format || 'png');
+
+      const shortUrl = `${process.env.PUBLIC_APP_URL || 'https://urlfy.cc'}/${
+        params.code
+      }`;
+      const qrCode = await qrService.generateQRCode(
+        shortUrl,
+        params.code,
+        size,
+        format
+      );
+
+      set.headers['Content-Type'] =
+        format === 'svg' ? 'image/svg+xml' : 'image/png';
+      set.headers['Cache-Control'] = 'public, max-age=86400';
+
+      return qrCode;
     },
     {
       params: LinkCodeParam,
@@ -277,39 +233,28 @@ export const publicLinksController = new Elysia()
   )
 
   // ─────────────────────────────────────────────────────────────────
-  // GET /links/by-code/:code/preview - Preview de link (público)
+  // GET /links/by-code/:code/preview - Link preview (public)
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/by-code/:code/preview',
-    async ({ params, set }) => {
-      try {
-        const link = await LinkService.getLinkByCode(params.code);
-        if (!link) {
-          set.status = 404;
-          return {
-            success: false,
-            error: {
-              code: ERROR_CODES.LINK_NOT_FOUND,
-              message: ERROR_MESSAGES.LINK_NOT_FOUND
-            }
-          };
-        }
-
-        return {
-          success: true as const,
-          data: {
-            shortCode: link.shortCode,
-            originalUrl: link.originalUrl,
-            metaTitle: link.metaTitle,
-            metaDescription: link.metaDescription,
-            metaImage: link.metaImage,
-            createdAt: link.createdAt.toISOString(),
-            isPasswordProtected: !!link.passwordHash
-          }
-        };
-      } catch (error) {
-        return handleControllerError(error, set);
+    async ({ params }) => {
+      const link = await LinkService.getLinkByCode(params.code);
+      if (!link) {
+        throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
       }
+
+      return {
+        success: true as const,
+        data: {
+          shortCode: link.shortCode,
+          originalUrl: link.originalUrl,
+          metaTitle: link.metaTitle,
+          metaDescription: link.metaDescription,
+          metaImage: link.metaImage,
+          createdAt: link.createdAt.toISOString(),
+          isPasswordProtected: !!link.passwordHash
+        }
+      };
     },
     {
       params: LinkCodeParam,

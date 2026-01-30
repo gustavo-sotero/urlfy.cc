@@ -165,22 +165,26 @@ export const AnalyticsService = {
    * Get total unique visitors for a link (all time)
    */
   async getTotalUniqueVisitors(linkId: string): Promise<number> {
-    try {
-      const result = await db
-        .select({
-          count: countDistinct(analyticsEvents.visitorHash)
-        })
-        .from(analyticsEvents)
-        .where(eq(analyticsEvents.linkId, linkId));
+    const cacheKey = CACHE_KEYS.ANALYTICS_SUMMARY(linkId, 'all', 'unique');
 
-      return toNumber(result[0]?.count);
-    } catch (error) {
-      logger.error('[AnalyticsService] Error getting total unique visitors', {
-        error: error instanceof Error ? error.message : String(error),
-        linkId
-      });
-      return 0;
-    }
+    return withCache(cacheKey, CACHE_TTL.ANALYTICS, async () => {
+      try {
+        const result = await db
+          .select({
+            count: countDistinct(analyticsEvents.visitorHash)
+          })
+          .from(analyticsEvents)
+          .where(eq(analyticsEvents.linkId, linkId));
+
+        return toNumber(result[0]?.count);
+      } catch (error) {
+        logger.error('[AnalyticsService] Error getting total unique visitors', {
+          error: error instanceof Error ? error.message : String(error),
+          linkId
+        });
+        return 0;
+      }
+    });
   },
 
   /**
@@ -309,42 +313,50 @@ export const AnalyticsService = {
     linkId: string,
     days: number = 30
   ): Promise<DeviceBreakdownItem[]> {
-    try {
-      const startDate = getStartDate(days);
+    const startDate = getStartDate(days);
+    const cacheKey = CACHE_KEYS.ANALYTICS_BREAKDOWN(
+      linkId,
+      'devices',
+      startDate.toISOString(),
+      new Date().toISOString()
+    );
 
-      const devices = await db
-        .select({
-          type: analyticsEvents.deviceType,
-          clicks: countFn().as('clicks')
-        })
-        .from(analyticsEvents)
-        .where(
-          and(
-            eq(analyticsEvents.linkId, linkId),
-            gte(analyticsEvents.createdAt, startDate),
-            eq(analyticsEvents.isBot, false)
+    return withCache(cacheKey, CACHE_TTL.ANALYTICS_BREAKDOWN, async () => {
+      try {
+        const devices = await db
+          .select({
+            type: analyticsEvents.deviceType,
+            clicks: countFn().as('clicks')
+          })
+          .from(analyticsEvents)
+          .where(
+            and(
+              eq(analyticsEvents.linkId, linkId),
+              gte(analyticsEvents.createdAt, startDate),
+              eq(analyticsEvents.isBot, false)
+            )
           )
-        )
-        .groupBy(analyticsEvents.deviceType)
-        .orderBy(desc(sql`clicks`));
+          .groupBy(analyticsEvents.deviceType)
+          .orderBy(desc(sql`clicks`));
 
-      const total = devices.reduce((sum, d) => sum + toNumber(d.clicks), 0);
+        const total = devices.reduce((sum, d) => sum + toNumber(d.clicks), 0);
 
-      return devices.map((d) => {
-        const clicks = toNumber(d.clicks);
-        return {
-          type: d.type ?? 'unknown',
-          clicks,
-          percentage: calculatePercentage(clicks, total)
-        };
-      });
-    } catch (error) {
-      logger.error('[AnalyticsService] Error getting device breakdown', {
-        error: error instanceof Error ? error.message : String(error),
-        linkId
-      });
-      return [];
-    }
+        return devices.map((d) => {
+          const clicks = toNumber(d.clicks);
+          return {
+            type: d.type ?? 'unknown',
+            clicks,
+            percentage: calculatePercentage(clicks, total)
+          };
+        });
+      } catch (error) {
+        logger.error('[AnalyticsService] Error getting device breakdown', {
+          error: error instanceof Error ? error.message : String(error),
+          linkId
+        });
+        return [];
+      }
+    });
   },
 
   /**
@@ -356,43 +368,51 @@ export const AnalyticsService = {
     limit: number = 10,
     days: number = 30
   ): Promise<BrowserBreakdownItem[]> {
-    try {
-      const startDate = getStartDate(days);
+    const startDate = getStartDate(days);
+    const cacheKey = CACHE_KEYS.ANALYTICS_BREAKDOWN(
+      linkId,
+      'browsers',
+      startDate.toISOString(),
+      new Date().toISOString()
+    );
 
-      const browsers = await db
-        .select({
-          name: analyticsEvents.browser,
-          clicks: countFn().as('clicks')
-        })
-        .from(analyticsEvents)
-        .where(
-          and(
-            eq(analyticsEvents.linkId, linkId),
-            gte(analyticsEvents.createdAt, startDate),
-            eq(analyticsEvents.isBot, false)
+    return withCache(cacheKey, CACHE_TTL.ANALYTICS_BREAKDOWN, async () => {
+      try {
+        const browsers = await db
+          .select({
+            name: analyticsEvents.browser,
+            clicks: countFn().as('clicks')
+          })
+          .from(analyticsEvents)
+          .where(
+            and(
+              eq(analyticsEvents.linkId, linkId),
+              gte(analyticsEvents.createdAt, startDate),
+              eq(analyticsEvents.isBot, false)
+            )
           )
-        )
-        .groupBy(analyticsEvents.browser)
-        .orderBy(desc(sql`clicks`))
-        .limit(limit);
+          .groupBy(analyticsEvents.browser)
+          .orderBy(desc(sql`clicks`))
+          .limit(limit);
 
-      const total = browsers.reduce((sum, b) => sum + toNumber(b.clicks), 0);
+        const total = browsers.reduce((sum, b) => sum + toNumber(b.clicks), 0);
 
-      return browsers.map((b) => {
-        const clicks = toNumber(b.clicks);
-        return {
-          name: b.name ?? 'unknown',
-          clicks,
-          percentage: calculatePercentage(clicks, total)
-        };
-      });
-    } catch (error) {
-      logger.error('[AnalyticsService] Error getting browser breakdown', {
-        error: error instanceof Error ? error.message : String(error),
-        linkId
-      });
-      return [];
-    }
+        return browsers.map((b) => {
+          const clicks = toNumber(b.clicks);
+          return {
+            name: b.name ?? 'unknown',
+            clicks,
+            percentage: calculatePercentage(clicks, total)
+          };
+        });
+      } catch (error) {
+        logger.error('[AnalyticsService] Error getting browser breakdown', {
+          error: error instanceof Error ? error.message : String(error),
+          linkId
+        });
+        return [];
+      }
+    });
   },
 
   /**
@@ -404,43 +424,51 @@ export const AnalyticsService = {
     limit: number = 10,
     days: number = 30
   ): Promise<ReferrerBreakdownItem[]> {
-    try {
-      const startDate = getStartDate(days);
+    const startDate = getStartDate(days);
+    const cacheKey = CACHE_KEYS.ANALYTICS_BREAKDOWN(
+      linkId,
+      'referrers',
+      startDate.toISOString(),
+      new Date().toISOString()
+    );
 
-      const referrers = await db
-        .select({
-          domain: analyticsEvents.referrerDomain,
-          clicks: countFn().as('clicks')
-        })
-        .from(analyticsEvents)
-        .where(
-          and(
-            eq(analyticsEvents.linkId, linkId),
-            gte(analyticsEvents.createdAt, startDate),
-            eq(analyticsEvents.isBot, false)
+    return withCache(cacheKey, CACHE_TTL.ANALYTICS_BREAKDOWN, async () => {
+      try {
+        const referrers = await db
+          .select({
+            domain: analyticsEvents.referrerDomain,
+            clicks: countFn().as('clicks')
+          })
+          .from(analyticsEvents)
+          .where(
+            and(
+              eq(analyticsEvents.linkId, linkId),
+              gte(analyticsEvents.createdAt, startDate),
+              eq(analyticsEvents.isBot, false)
+            )
           )
-        )
-        .groupBy(analyticsEvents.referrerDomain)
-        .orderBy(desc(sql`clicks`))
-        .limit(limit);
+          .groupBy(analyticsEvents.referrerDomain)
+          .orderBy(desc(sql`clicks`))
+          .limit(limit);
 
-      const total = referrers.reduce((sum, r) => sum + toNumber(r.clicks), 0);
+        const total = referrers.reduce((sum, r) => sum + toNumber(r.clicks), 0);
 
-      return referrers.map((r) => {
-        const clicks = toNumber(r.clicks);
-        return {
-          domain: r.domain ?? 'direct',
-          clicks,
-          percentage: calculatePercentage(clicks, total)
-        };
-      });
-    } catch (error) {
-      logger.error('[AnalyticsService] Error getting referrer breakdown', {
-        error: error instanceof Error ? error.message : String(error),
-        linkId
-      });
-      return [];
-    }
+        return referrers.map((r) => {
+          const clicks = toNumber(r.clicks);
+          return {
+            domain: r.domain ?? 'direct',
+            clicks,
+            percentage: calculatePercentage(clicks, total)
+          };
+        });
+      } catch (error) {
+        logger.error('[AnalyticsService] Error getting referrer breakdown', {
+          error: error instanceof Error ? error.message : String(error),
+          linkId
+        });
+        return [];
+      }
+    });
   },
 
   /**

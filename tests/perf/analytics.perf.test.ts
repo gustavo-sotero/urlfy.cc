@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'bun:test';
 import type { ClickEvent } from '@/types/analytics.types';
+import { testLogger } from '../helpers/test-logger';
 
 describe('Analytics Performance Tests', () => {
   describe('Event Processing Throughput', () => {
@@ -37,8 +38,8 @@ describe('Analytics Performance Tests', () => {
       const duration = Date.now() - startTime;
 
       expect(duration).toBeLessThan(5000);
-      console.log(`✓ Processed 1000 events in ${duration}ms`);
-      console.log(
+      testLogger.info(`✓ Processed 1000 events in ${duration}ms`);
+      testLogger.info(
         `  Throughput: ${Math.round((1000 / duration) * 1000)} events/sec`
       );
     });
@@ -63,7 +64,7 @@ describe('Analytics Performance Tests', () => {
       const p99 = latencies[p99Index];
 
       expect(p99).toBeLessThan(100);
-      console.log(`✓ P99 latency: ${p99}ms`);
+      testLogger.info(`✓ P99 latency: ${p99}ms`);
     });
 
     it('should handle burst traffic (1000 events/second)', async () => {
@@ -85,7 +86,7 @@ describe('Analytics Performance Tests', () => {
       const actualThroughput = (totalEvents / duration) * 1000;
 
       expect(actualThroughput).toBeGreaterThanOrEqual(eventsPerSecond * 0.8); // 80% tolerance
-      console.log(
+      testLogger.info(
         `✓ Burst throughput: ${Math.round(actualThroughput)} events/sec`
       );
     });
@@ -115,7 +116,7 @@ describe('Analytics Performance Tests', () => {
       const duration = Date.now() - startTime;
 
       expect(duration).toBeLessThan(10000);
-      console.log(`✓ Aggregated ${linkCount} links in ${duration}ms`);
+      testLogger.info(`✓ Aggregated ${linkCount} links in ${duration}ms`);
     });
 
     it('should handle aggregation of 1M events', async () => {
@@ -135,7 +136,7 @@ describe('Analytics Performance Tests', () => {
 
       // Should complete in reasonable time (< 30s)
       expect(duration).toBeLessThan(30000);
-      console.log(
+      testLogger.info(
         `✓ Aggregated ${totalEvents.toLocaleString()} events in ${duration}ms`
       );
     });
@@ -160,7 +161,7 @@ describe('Analytics Performance Tests', () => {
 
       expect(visitorHashes.size).toBeCloseTo(events * uniqueRatio, -2);
       expect(duration).toBeLessThan(100);
-      console.log(
+      testLogger.info(
         `✓ Counted ${visitorHashes.size} unique visitors from ${events} events in ${duration}ms`
       );
     });
@@ -191,7 +192,7 @@ describe('Analytics Performance Tests', () => {
       const duration = Date.now() - startTime;
 
       expect(duration).toBeLessThan(1000);
-      console.log(
+      testLogger.info(
         `✓ Looked up ${ipCount} IPs in ${duration}ms (${Math.round(
           (ipCount / duration) * 1000
         )} lookups/sec)`
@@ -230,7 +231,7 @@ describe('Analytics Performance Tests', () => {
       // Should be much faster due to caching
       expect(duration).toBeLessThan(200);
       expect(cacheLookups.size).toBe(prefixes);
-      console.log(
+      testLogger.info(
         `✓ ${totalIps} IPs, ${prefixes} cache lookups in ${duration}ms`
       );
     });
@@ -264,7 +265,7 @@ describe('Analytics Performance Tests', () => {
       const duration = Date.now() - startTime;
 
       expect(duration).toBeLessThan(2000);
-      console.log(
+      testLogger.info(
         `✓ Parsed ${iterations} user agents in ${duration}ms (${Math.round(
           (iterations / duration) * 1000
         )} parses/sec)`
@@ -287,7 +288,7 @@ describe('Analytics Performance Tests', () => {
 
       expect(botCount).toBe(300);
       expect(duration).toBeLessThan(10);
-      console.log(`✓ Detected ${botCount} bots in ${duration}ms`);
+      testLogger.info(`✓ Detected ${botCount} bots in ${duration}ms`);
     });
   });
 
@@ -306,7 +307,7 @@ describe('Analytics Performance Tests', () => {
       const duration = Date.now() - startTime;
 
       expect(duration).toBeLessThan(2000);
-      console.log(
+      testLogger.info(
         `✓ Inserted ${eventCount} events in ${duration}ms (${Math.round(
           (eventCount / duration) * 1000
         )} inserts/sec)`
@@ -332,7 +333,7 @@ describe('Analytics Performance Tests', () => {
 
       expect(duration).toBeLessThan(100);
       expect(stats).toHaveLength(days);
-      console.log(`✓ Queried ${days} days of stats in ${duration}ms`);
+      testLogger.info(`✓ Queried ${days} days of stats in ${duration}ms`);
     });
 
     it('should aggregate country breakdown in under 200ms', async () => {
@@ -354,7 +355,7 @@ describe('Analytics Performance Tests', () => {
 
       expect(duration).toBeLessThan(200);
       expect(breakdown).toHaveLength(countries);
-      console.log(`✓ Aggregated ${countries} countries in ${duration}ms`);
+      testLogger.info(`✓ Aggregated ${countries} countries in ${duration}ms`);
     });
   });
 
@@ -384,7 +385,7 @@ describe('Analytics Performance Tests', () => {
 
       // Should use < 50MB for 10k events
       expect(memoryIncreaseMB).toBeLessThan(50);
-      console.log(
+      testLogger.info(
         `✓ ${eventCount} events used ${memoryIncreaseMB.toFixed(2)}MB`
       );
     });
@@ -403,7 +404,7 @@ describe('Analytics Performance Tests', () => {
       }
 
       expect(processed).toBe(resultCount);
-      console.log(
+      testLogger.info(
         `✓ Streamed ${resultCount.toLocaleString()} results in batches`
       );
     });
@@ -436,7 +437,7 @@ describe('Analytics Performance Tests', () => {
 
       // Should benefit from concurrency
       expect(duration).toBeLessThan(1000);
-      console.log(
+      testLogger.info(
         `✓ ${concurrentJobs} concurrent jobs (${linksPerJob} links each) in ${duration}ms`
       );
     });
@@ -463,7 +464,7 @@ describe('Analytics Performance Tests', () => {
       const throughput = (totalEvents / duration) * 1000;
 
       expect(throughput).toBeGreaterThan(200); // > 200 events/sec
-      console.log(
+      testLogger.info(
         `✓ ${concurrentStreams} concurrent streams: ${totalEvents} events in ${duration}ms (${Math.round(
           throughput
         )} events/sec)`

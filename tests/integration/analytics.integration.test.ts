@@ -173,7 +173,9 @@ describe('Analytics Integration', () => {
         .where(eq(analyticsEvents.visitorHash, visitorHash));
 
       expect(events.length).toBe(2);
-      expect(events.every((e) => e.hash === visitorHash)).toBe(true);
+      expect(
+        events.every((e: { hash: string | null }) => e.hash === visitorHash)
+      ).toBe(true);
     });
 
     it('should exclude bots from analytics', async () => {

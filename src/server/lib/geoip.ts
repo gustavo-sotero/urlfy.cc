@@ -60,7 +60,7 @@ export async function lookupGeoIP(ip: string): Promise<GeoLocation> {
 
   // Cache by /24 prefix to optimize
   const ipPrefix = getIPPrefix(ip);
-  const cacheKey = CACHE_KEYS.geo(ipPrefix);
+  const cacheKey = CACHE_KEYS.GEO(ipPrefix);
 
   try {
     // Try to get from cache
@@ -87,7 +87,7 @@ export async function lookupGeoIP(ip: string): Promise<GeoLocation> {
     };
 
     // Cacheia resultado
-    await redis.setex(cacheKey, CACHE_TTL.geo, JSON.stringify(location));
+    await redis.setex(cacheKey, CACHE_TTL.GEO, JSON.stringify(location));
 
     return location;
   } catch (error) {

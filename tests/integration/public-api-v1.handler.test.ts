@@ -12,6 +12,7 @@
 import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test';
 import { and, eq, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { testLogger } from '../helpers/test-logger';
 
 // Infrastructure availability check
 let infrastructureAvailable = false;
@@ -114,9 +115,8 @@ describe('Public API v1 (handler-level)', () => {
     !createElysiaTestClient
   ) {
     test('should skip tests when infrastructure is unavailable', () => {
-      console.log(
-        '⚠️  Public API v1 tests skipped - infrastructure unavailable:',
-        setupError?.message
+      testLogger.warn(
+        `Public API v1 tests skipped - infrastructure unavailable: ${setupError?.message ?? 'unknown'}`
       );
       expect(true).toBe(true); // Dummy assertion to pass
     });

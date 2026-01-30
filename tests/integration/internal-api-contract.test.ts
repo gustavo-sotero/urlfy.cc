@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { SignJWT } from 'jose';
+import { testLogger } from '../helpers/test-logger';
 
 // Set Env vars for testing
 process.env.INTERNAL_API_SECRET = 'test-internal-secret-min-32-chars-long';
@@ -66,7 +67,9 @@ describe('Internal API Contract', () => {
     );
 
     if (response.status !== 200) {
-      console.log('Test 1 failed:', response.status, await response.text());
+      testLogger.warn(
+        `Test 1 failed: ${response.status} ${await response.text()}`
+      );
     }
     expect(response.status).toBe(200);
 
@@ -92,7 +95,9 @@ describe('Internal API Contract', () => {
     );
 
     if (response.status !== 200) {
-      console.log('Test 2 failed:', response.status, await response.text());
+      testLogger.warn(
+        `Test 2 failed: ${response.status} ${await response.text()}`
+      );
     }
     expect(response.status).toBe(200);
 

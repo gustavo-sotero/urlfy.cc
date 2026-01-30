@@ -127,7 +127,10 @@ export const LinkListQuery = t.Object({
       t.Literal('lastClickedAt')
     ])
   ),
-  sortOrder: t.Optional(t.Union([t.Literal('asc'), t.Literal('desc')]))
+  sortOrder: t.Optional(t.Union([t.Literal('asc'), t.Literal('desc')])),
+  fields: t.Optional(
+    t.String({ description: 'Comma-separated fields to return' })
+  )
 });
 export type LinkListQueryType = Static<typeof LinkListQuery>;
 

@@ -9,32 +9,21 @@
  */
 
 import { Elysia, t } from 'elysia';
-import { handleLinkError } from '@/server/lib/errors';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import { AnalyticsService } from '@/server/modules/analytics';
 
-import { LinkIdParam, LinksModel } from '../links.schema';
-import { LinkService } from '../links.service';
+import { LinkIdParam, LinksModel } from './links.schema';
+import { LinkService } from './links.service';
 
-type ElysiaSet = { status?: number | string };
-
-const unauthorizedResponse = {
-  success: false as const,
-  error: {
-    code: 'UNAUTHORIZED',
-    message: 'Authentication required'
+function requireUserId(user: { id: string } | null | undefined): string {
+  if (!user?.id) {
+    throw new AppError(ErrorCode.UNAUTHORIZED, 'Authentication required');
   }
-};
 
-const handleControllerError = (
-  error: unknown,
-  set: ElysiaSet
-): { success: false; error: { code: string; message: string } } => {
-  const { status, ...body } = handleLinkError(error);
-  set.status = status;
-  return body;
-};
+  return user.id;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // STATS ROUTES (authenticated)
@@ -45,31 +34,24 @@ export const statsLinksController = new Elysia()
   .use(requireAuth)
 
   // ─────────────────────────────────────────────────────────────────
-  // GET /links/:id/stats - Stats rápidas do link
+  // GET /links/:id/stats - Quick link stats
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/:id/stats',
-    async ({ params, user, set }) => {
-      try {
-        if (!user) {
-          set.status = 401;
-          return unauthorizedResponse;
-        }
+    async ({ params, user }) => {
+      const userId = requireUserId(user);
+      const link = await LinkService.getLinkById(params.id, userId);
 
-        const link = await LinkService.getLinkById(params.id, user.id);
-        return {
-          success: true,
-          data: {
-            clicks: link.clicksCount,
-            uniqueVisitors: await AnalyticsService.getTotalUniqueVisitors(
-              link.id
-            ),
-            lastClickedAt: link.lastClickedAt?.toISOString() ?? null
-          }
-        };
-      } catch (error) {
-        return handleControllerError(error, set);
-      }
+      return {
+        success: true,
+        data: {
+          clicks: link.clicksCount,
+          uniqueVisitors: await AnalyticsService.getTotalUniqueVisitors(
+            link.id
+          ),
+          lastClickedAt: link.lastClickedAt?.toISOString() ?? null
+        }
+      };
     },
     {
       params: LinkIdParam,

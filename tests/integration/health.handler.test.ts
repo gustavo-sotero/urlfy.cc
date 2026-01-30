@@ -16,6 +16,7 @@ import {
   expectOk
 } from '../helpers/elysia-test-client';
 import { isDatabaseAvailable } from '../helpers/integration-helper';
+import { testLogger } from '../helpers/test-logger';
 
 describe('Health Endpoints (handler-level)', () => {
   let client: ElysiaTestClient;
@@ -45,7 +46,7 @@ describe('Health Endpoints (handler-level)', () => {
   describe('GET /api/health/ready', () => {
     test('should return readiness status with services', async () => {
       if (!serverAvailable) {
-        console.log('Skipping readiness test - infrastructure unavailable');
+        testLogger.info('Skipping readiness test - infrastructure unavailable');
         return;
       }
 

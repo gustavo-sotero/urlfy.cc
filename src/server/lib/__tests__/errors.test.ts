@@ -34,7 +34,7 @@ describe('Error Handling', () => {
     it('should create error with correct HTTP status from map', () => {
       const error = createLinkError('QUOTA_EXCEEDED');
 
-      expect(error.httpStatus).toBe(402);
+      expect(error.status).toBe(402);
       expect(error.code).toBe('QUOTA_EXCEEDED');
     });
 

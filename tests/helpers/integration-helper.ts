@@ -1,6 +1,8 @@
 // tests/helpers/integration-helper.ts
 // Helper utilities for integration tests
 
+import { testLogger } from './test-logger';
+
 /**
  * Check if the development server is running at localhost:3000
  * @returns Promise<boolean> true if server is available
@@ -83,14 +85,14 @@ export function createIntegrationTestContext() {
     },
     skipIfNoServer(fn: () => void | Promise<void>) {
       if (!serverAvailable) {
-        console.log('⚠️  Skipping test: Server not running at localhost:3000');
+        testLogger.warn('Skipping test: Server not running at localhost:3000');
         return;
       }
       return fn();
     },
     skipIfNoDatabase(fn: () => void | Promise<void>) {
       if (!databaseAvailable) {
-        console.log('⚠️  Skipping test: Database not available');
+        testLogger.warn('Skipping test: Database not available');
         return;
       }
       return fn();

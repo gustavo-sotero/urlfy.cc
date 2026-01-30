@@ -10,6 +10,7 @@
  */
 
 import { Elysia, t } from 'elysia';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import {
   ErrorRef,
   PaginatedResponse,
@@ -86,13 +87,7 @@ export const usersController = new Elysia({ prefix: '/users' })
       const user = await UserService.getUserById(userId);
 
       if (!user) {
-        return {
-          success: false as const,
-          error: {
-            code: 'USER_NOT_FOUND',
-            message: 'User not found'
-          }
-        };
+        throw new AppError(ErrorCode.USER_NOT_FOUND, 'User not found');
       }
 
       return {
@@ -122,32 +117,21 @@ export const usersController = new Elysia({ prefix: '/users' })
   .patch(
     '/:userId/ban',
     async ({ params, body, user: adminUser }) => {
-      try {
-        const bannedUser = await UserService.banUser(
-          params.userId,
-          body.reason,
-          adminUser?.id
-        );
+      const bannedUser = await UserService.banUser(
+        params.userId,
+        body.reason,
+        adminUser?.id
+      );
 
-        return {
-          success: true as const,
-          data: {
-            id: bannedUser.id,
-            email: bannedUser.email,
-            bannedAt: bannedUser.bannedAt,
-            bannedReason: bannedUser.bannedReason
-          }
-        };
-      } catch (error) {
-        return {
-          success: false as const,
-          error: {
-            code: 'BAN_FAILED',
-            message:
-              error instanceof Error ? error.message : 'Failed to ban user'
-          }
-        };
-      }
+      return {
+        success: true as const,
+        data: {
+          id: bannedUser.id,
+          email: bannedUser.email,
+          bannedAt: bannedUser.bannedAt,
+          bannedReason: bannedUser.bannedReason
+        }
+      };
     },
     {
       params: UserIdParam,
@@ -194,23 +178,14 @@ export const usersController = new Elysia({ prefix: '/users' })
           }
         };
       } catch (error) {
-        return {
-          success: false as const,
-          error: {
-            code: 'UNBAN_FAILED',
-            message:
-              error instanceof Error ? error.message : 'Failed to unban user'
-          }
-        };
+        if (error instanceof AppError) throw error;
+        throw new AppError(ErrorCode.INTERNAL_ERROR, 'Failed to unban user', {
+          originalError: error
+        });
       }
     },
     {
       params: UserIdParam,
-      detail: {
-        tags: ['Admin', 'Users'],
-        summary: 'Unban user',
-        description: 'Remove ban from a user (admin only)'
-      },
       response: {
         200: SuccessResponse(
           t.Object({
@@ -248,26 +223,19 @@ export const usersController = new Elysia({ prefix: '/users' })
           }
         };
       } catch (error) {
-        return {
-          success: false as const,
-          error: {
-            code: 'UPDATE_ROLE_FAILED',
-            message:
-              error instanceof Error
-                ? error.message
-                : 'Failed to update user role'
+        if (error instanceof AppError) throw error;
+        throw new AppError(
+          ErrorCode.INTERNAL_ERROR,
+          'Failed to update user role',
+          {
+            originalError: error
           }
-        };
+        );
       }
     },
     {
       params: UserIdParam,
       body: UserRoleUpdateBody,
-      detail: {
-        tags: ['Admin', 'Users'],
-        summary: 'Update user role',
-        description: 'Change user role between user and admin (admin only)'
-      },
       response: {
         200: SuccessResponse(
           t.Object({
@@ -289,36 +257,19 @@ export const usersController = new Elysia({ prefix: '/users' })
   .patch(
     '/:userId/quota',
     async ({ params: { userId }, body: { linksQuota } }) => {
-      try {
-        const updated = await UserService.updateUserQuota(userId, linksQuota);
+      const updated = await UserService.updateUserQuota(userId, linksQuota);
 
-        if (!updated) {
-          return {
-            success: false as const,
-            error: {
-              code: 'USER_NOT_FOUND',
-              message: 'User not found'
-            }
-          };
-        }
-
-        return {
-          success: true as const,
-          data: {
-            id: updated.id,
-            linksQuota: updated.linksQuota
-          }
-        };
-      } catch (error) {
-        return {
-          success: false as const,
-          error: {
-            code: 'UPDATE_QUOTA_FAILED',
-            message:
-              error instanceof Error ? error.message : 'Failed to update quota'
-          }
-        };
+      if (!updated) {
+        throw new AppError(ErrorCode.USER_NOT_FOUND, 'User not found');
       }
+
+      return {
+        success: true as const,
+        data: {
+          id: updated.id,
+          linksQuota: updated.linksQuota
+        }
+      };
     },
     {
       params: UserIdParam,

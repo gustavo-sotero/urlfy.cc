@@ -21,6 +21,7 @@ import {
   it
 } from 'bun:test';
 import { eq } from 'drizzle-orm';
+import { testLogger } from '../helpers/test-logger';
 
 // Infrastructure availability check
 let infrastructureAvailable = false;
@@ -89,9 +90,8 @@ describe('Redirect Integration Tests', () => {
     !redirectService
   ) {
     it('should skip tests when infrastructure is unavailable', () => {
-      console.log(
-        '⚠️  Redirect Integration tests skipped - infrastructure unavailable:',
-        setupError?.message
+      testLogger.warn(
+        `Redirect Integration tests skipped - infrastructure unavailable: ${setupError?.message ?? 'unknown'}`
       );
       expect(true).toBe(true); // Dummy assertion to pass
     });

@@ -1,0 +1,54 @@
+import { and, eq, isNull } from 'drizzle-orm';
+import { db } from '@/db';
+import { links } from '@/db/schema';
+import { createLinkError } from '@/server/lib/errors';
+import type { Link } from '@/types/links.types';
+
+/**
+ * Busca link por ID (verifica ownership)
+ */
+export async function getLinkById(id: string, userId: string): Promise<Link> {
+  const [link] = await db
+    .select()
+    .from(links)
+    .where(
+      and(eq(links.id, id), eq(links.userId, userId), isNull(links.deletedAt))
+    )
+    .limit(1);
+
+  if (!link) {
+    throw createLinkError('LINK_NOT_FOUND');
+  }
+
+  return link;
+}
+
+/**
+ * Busca link por ID (sem verificação de ownership)
+ */
+export async function getLinkByIdUnsafe(id: string): Promise<Link> {
+  const [link] = await db
+    .select()
+    .from(links)
+    .where(and(eq(links.id, id), isNull(links.deletedAt)))
+    .limit(1);
+
+  if (!link) {
+    throw createLinkError('LINK_NOT_FOUND');
+  }
+
+  return link;
+}
+
+/**
+ * Busca link por short code (público)
+ */
+export async function getLinkByCode(code: string): Promise<Link | null> {
+  const [link] = await db
+    .select()
+    .from(links)
+    .where(and(eq(links.shortCode, code), isNull(links.deletedAt)))
+    .limit(1);
+
+  return link ?? null;
+}

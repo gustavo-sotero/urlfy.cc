@@ -8,6 +8,7 @@
  */
 
 import { openapi } from '@elysiajs/openapi';
+import { compression } from '@labzzhq/compressor';
 import { Elysia } from 'elysia';
 import type { OpenAPIV3 } from 'openapi-types';
 import { auth } from '@/lib/auth';
@@ -55,6 +56,7 @@ const logger = createLogger('api-router');
 // ═══════════════════════════════════════════════════════════════════
 
 const publicDocsApp = new Elysia()
+  .use(compression())
   .use(cspMiddleware)
   .use(securityHeadersMiddleware)
   .use(ResponseModels)
@@ -133,10 +135,11 @@ export const api = new Elysia({ prefix: '/api' })
   // Error handling (must be first to catch all errors)
   .use(errorMiddleware)
 
-  // Core plugins (JWT, CORS, Bearer, CSP, Security Headers)
+  // Core plugins (JWT, CORS, Bearer, Compression, CSP, Security Headers)
   .use(jwtPlugin)
   .use(corsPlugin)
   .use(bearerPlugin)
+  .use(compression())
   .use(cspMiddleware)
   .use(securityHeadersMiddleware)
 

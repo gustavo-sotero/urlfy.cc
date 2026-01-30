@@ -25,6 +25,7 @@ import {
   LINK_STATS_EXAMPLE,
   LinksModel
 } from '@/server/modules/links';
+import { LinkLifecycleService } from '@/server/modules/links/link-lifecycle.service';
 import { LinkService } from '@/server/modules/links/links.service';
 
 const logger = createLogger('v1-links-controller');
@@ -190,7 +191,7 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
     '/:id',
     async ({ params, apiKey, set }) => {
       try {
-        await LinkService.softDeleteLink(params.id, apiKey?.userId);
+        await LinkLifecycleService.softDeleteLink(params.id, apiKey?.userId);
         return {
           success: true as const,
           data: {
@@ -312,7 +313,7 @@ const listOperations = new Elysia({ name: 'V1Links.List' })
 
       return {
         success: true as const,
-        data: result.data.map((link) => LinkService.formatLinkResponse(link)),
+        data: result.data,
         meta: result.meta
       };
     },
@@ -325,7 +326,7 @@ const listOperations = new Elysia({ name: 'V1Links.List' })
         security: [{ apiKeyAuth: [] }]
       },
       response: {
-        200: PaginatedResponse(t.Ref('links.response'), {
+        200: PaginatedResponse(t.Partial(t.Ref('links.response')), {
           description: 'Paginated list of user links',
           exampleItem: LINK_RESPONSE_EXAMPLE
         }),

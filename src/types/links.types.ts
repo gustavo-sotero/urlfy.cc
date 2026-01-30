@@ -46,6 +46,7 @@ export interface ListLinksQuery {
   isActive?: boolean;
   sortBy?: 'createdAt' | 'clicksCount' | 'lastClickedAt';
   sortOrder?: 'asc' | 'desc';
+  fields?: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════

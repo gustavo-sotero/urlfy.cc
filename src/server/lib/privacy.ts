@@ -1,7 +1,7 @@
 // src/server/lib/privacy.ts
 
-import { createLogger } from '@/server/lib/telemetry';
 import { createHash } from 'node:crypto';
+import { createLogger } from '@/server/lib/telemetry';
 
 const logger = createLogger('privacy');
 

@@ -1,0 +1,39 @@
+import type { Link, LinkResponse } from '@/types/links.types';
+
+const BASE_URL = process.env.PUBLIC_APP_URL || 'https://urlfy.cc';
+
+/**
+ * Formata link para resposta da API
+ */
+export function formatLinkResponse(link: Link): LinkResponse {
+  const createdAt = link.createdAt
+    ? link.createdAt.toISOString()
+    : new Date().toISOString();
+  const updatedAt = link.updatedAt ? link.updatedAt.toISOString() : createdAt;
+
+  return {
+    id: link.id,
+    shortCode: link.shortCode,
+    shortUrl: `${BASE_URL}/${link.shortCode}`,
+    originalUrl: link.originalUrl,
+    redirectType: link.redirectType as 301 | 302,
+    clicksCount: link.clicksCount,
+    maxClicks: link.maxClicks ?? null,
+    isActive: link.isActive,
+    isBanned: link.isBanned,
+    bannedReason: link.bannedReason ?? null,
+    isProtected: !!link.passwordHash,
+    expiresAt: link.expiresAt?.toISOString() ?? null,
+    metaTitle: link.metaTitle ?? null,
+    metaDescription: link.metaDescription ?? null,
+    metaImage: link.metaImage ?? null,
+    utmSource: link.utmSource ?? null,
+    utmMedium: link.utmMedium ?? null,
+    utmCampaign: link.utmCampaign ?? null,
+    tags: link.tags ?? null,
+    notes: link.notes ?? null,
+    lastClickedAt: link.lastClickedAt?.toISOString() ?? null,
+    createdAt,
+    updatedAt
+  };
+}

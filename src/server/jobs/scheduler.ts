@@ -1,5 +1,7 @@
 // src/server/jobs/scheduler.ts
 
+import { CronJob } from 'cron';
+import { and, eq, lt } from 'drizzle-orm';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema/audit';
 import {
@@ -9,8 +11,6 @@ import {
 } from '@/server/lib/queue';
 import { createLogger } from '@/server/lib/telemetry';
 import { MetricsService } from '@/server/services/metrics.service';
-import { CronJob } from 'cron';
-import { and, eq, lt } from 'drizzle-orm';
 
 const logger = createLogger('scheduler');
 

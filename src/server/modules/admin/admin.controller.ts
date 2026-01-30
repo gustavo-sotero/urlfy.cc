@@ -376,6 +376,10 @@ export const adminController = new Elysia({ prefix: '/admin' })
     }
   )
 
+  // Apply stricter rate limits for link moderation actions
+  // This applies to all subsequent routes (ban/unban)
+  .use(adminRateLimits.linkBan)
+
   .patch(
     '/links/:linkId/ban',
     async ({ params, body, user, request, set }) => {

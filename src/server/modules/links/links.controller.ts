@@ -15,14 +15,14 @@
  */
 
 import { Elysia } from 'elysia';
+import { LinksModel } from './links.schema';
 import {
   createLinkController,
   protectedLinksController
-} from './controllers/protected.controller';
+} from './links-protected.controller';
 // Import sub-controllers
-import { publicLinksController } from './controllers/public.controller';
-import { statsLinksController } from './controllers/stats.controller';
-import { LinksModel } from './links.schema';
+import { publicLinksController } from './links-public.controller';
+import { statsLinksController } from './links-stats.controller';
 
 // ═══════════════════════════════════════════════════════════════════
 // LINKS CONTROLLER - Combined routes from sub-controllers

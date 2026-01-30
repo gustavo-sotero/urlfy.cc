@@ -10,7 +10,7 @@
 
 import { createHash } from 'node:crypto';
 import { Elysia, t } from 'elysia';
-import { handleLinkError } from '@/server/lib/errors';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import {
   checkIdempotency,
   setIdempotency,
@@ -23,7 +23,7 @@ import {
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
-
+import { LinkLifecycleService } from './link-lifecycle.service';
 import {
   LinkBulkCreateBody,
   LinkCreateBody,
@@ -31,44 +31,16 @@ import {
   LinkListQuery,
   LinksModel,
   LinkUpdateBody
-} from '../links.schema';
-import { LinkService } from '../links.service';
+} from './links.schema';
+import { LinkService } from './links.service';
 
-type ElysiaSet = { status?: number | string };
-
-// ═══════════════════════════════════════════════════════════════════
-// ERROR CODES & MESSAGES
-// ═══════════════════════════════════════════════════════════════════
-
-const ERROR_CODES = {
-  EMAIL_VERIFICATION_REQUIRED: 'EMAIL_VERIFICATION_REQUIRED',
-  INVALID_IDEMPOTENCY_KEY: 'INVALID_IDEMPOTENCY_KEY',
-  VALIDATION_ERROR: 'VALIDATION_ERROR'
-} as const;
-
-const ERROR_MESSAGES = {
-  EMAIL_VERIFICATION_REQUIRED:
-    'Você deve verificar seu e-mail antes de criar links. Verifique sua caixa de entrada.',
-  INVALID_IDEMPOTENCY_KEY: 'Chave de idempotência inválida',
-  NO_LINKS_PROVIDED: 'Nenhum link fornecido'
-} as const;
-
-const unauthorizedResponse = {
-  success: false as const,
-  error: {
-    code: 'UNAUTHORIZED',
-    message: 'Authentication required'
+function requireUserId(user: { id: string } | null | undefined): string {
+  if (!user?.id) {
+    throw new AppError(ErrorCode.UNAUTHORIZED, 'Authentication required');
   }
-};
 
-const handleControllerError = (
-  error: unknown,
-  set: ElysiaSet
-): { success: false; error: { code: string; message: string } } => {
-  const { status, ...body } = handleLinkError(error);
-  set.status = status;
-  return body;
-};
+  return user.id;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // CREATE LINK ROUTE (guest or authenticated)
@@ -79,75 +51,65 @@ export const createLinkController = new Elysia()
   .use(optionalAuth)
 
   // ─────────────────────────────────────────────────────────────────
-  // POST /links - Criar link (guest ou autenticado)
+  // POST /links - Create link (guest or authenticated)
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/',
     async ({ body, headers, request, user, set }) => {
-      try {
-        // Check email verification for authenticated users
-        if (user && !user.emailVerified) {
-          set.status = 403;
+      // Check email verification for authenticated users
+      if (user && !user.emailVerified) {
+        throw new AppError(
+          ErrorCode.FORBIDDEN,
+          'You must verify your email before creating links'
+        );
+      }
+
+      // Check idempotency key
+      const idempotencyKey = headers['idempotency-key'];
+      if (idempotencyKey) {
+        if (!validateIdempotencyKey(idempotencyKey)) {
+          throw new AppError(
+            ErrorCode.VALIDATION_ERROR,
+            'Invalid idempotency key'
+          );
+        }
+
+        const cached = await checkIdempotency(idempotencyKey);
+        if (cached) {
+          const link = user
+            ? await LinkService.getLinkById(cached, user.id)
+            : await LinkService.getLinkByIdUnsafe(cached);
+
           return {
-            success: false,
-            error: {
-              code: ERROR_CODES.EMAIL_VERIFICATION_REQUIRED,
-              message: ERROR_MESSAGES.EMAIL_VERIFICATION_REQUIRED
-            }
+            success: true,
+            data: LinkService.formatLinkResponse(link)
           };
         }
-
-        // Check idempotency key
-        const idempotencyKey = headers['idempotency-key'];
-        if (idempotencyKey) {
-          if (!validateIdempotencyKey(idempotencyKey)) {
-            set.status = 400;
-            return {
-              success: false,
-              error: {
-                code: ERROR_CODES.INVALID_IDEMPOTENCY_KEY,
-                message: ERROR_MESSAGES.INVALID_IDEMPOTENCY_KEY
-              }
-            };
-          }
-
-          const cached = await checkIdempotency(idempotencyKey);
-          if (cached) {
-            const link = user
-              ? await LinkService.getLinkById(cached, user.id)
-              : await LinkService.getLinkByIdUnsafe(cached);
-            return {
-              success: true,
-              data: LinkService.formatLinkResponse(link)
-            };
-          }
-        }
-
-        // Get IP hash
-        const clientIp = getClientIp(request);
-        const ipHash = createHash('sha256').update(clientIp).digest('hex');
-
-        // Create link
-        const link = await LinkService.createLink(
-          body,
-          user?.id ?? undefined,
-          ipHash
-        );
-
-        // Store idempotency if provided
-        if (idempotencyKey) {
-          await setIdempotency(idempotencyKey, link.id);
-        }
-
-        set.status = 201;
-        return {
-          success: true,
-          data: LinkService.formatLinkResponse(link)
-        };
-      } catch (error) {
-        return handleControllerError(error, set);
       }
+
+      // Get IP hash
+      const clientIp = getClientIp(request);
+      const ipHash = createHash('sha256').update(clientIp).digest('hex');
+
+      // Create link
+      const link = await LinkService.createLink(
+        body,
+        user?.id ?? undefined,
+        ipHash
+      );
+
+      // Store idempotency if provided
+      if (idempotencyKey) {
+        await setIdempotency(idempotencyKey, link.id);
+      }
+
+      set.status = 201;
+      return {
+        success: true,
+        data: LinkService.formatLinkResponse(link)
+      };
     },
+
     {
       body: LinkCreateBody,
       detail: {
@@ -180,91 +142,73 @@ export const protectedLinksController = new Elysia()
   .use(requireAuth)
 
   // ─────────────────────────────────────────────────────────────────
-  // POST /links/bulk - Criar múltiplos links
+  // POST /links/bulk - Create multiple links
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/bulk',
     async ({ body, user, request, set }) => {
-      try {
-        // Check email verification
-        if (!user?.emailVerified) {
-          set.status = 403;
-          return {
-            success: false,
-            error: {
-              code: ERROR_CODES.EMAIL_VERIFICATION_REQUIRED,
-              message: ERROR_MESSAGES.EMAIL_VERIFICATION_REQUIRED
-            }
-          };
-        }
-
-        if (!body.links || body.links.length === 0) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: ERROR_CODES.VALIDATION_ERROR,
-              message: ERROR_MESSAGES.NO_LINKS_PROVIDED
-            }
-          };
-        }
-
-        if (body.links.length > 100) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Máximo de 100 links por requisição'
-            }
-          };
-        }
-
-        // Obter IP hash usando getClientIp para consistência
-        const clientIp = getClientIp(request);
-        const ipHash = createHash('sha256').update(clientIp).digest('hex');
-
-        const results: Array<{
-          success: boolean;
-          data?: ReturnType<typeof LinkService.formatLinkResponse>;
-          error?: string;
-        }> = [];
-
-        for (const linkInput of body.links) {
-          try {
-            const link = await LinkService.createLink(
-              linkInput,
-              user?.id,
-              ipHash
-            );
-            results.push({
-              success: true,
-              data: LinkService.formatLinkResponse(link)
-            });
-          } catch (error) {
-            results.push({
-              success: false,
-              error: error instanceof Error ? error.message : 'Unknown error'
-            });
-          }
-        }
-
-        const created = results.filter((r) => r.success).length;
-        const failed = results.length - created;
-
-        set.status = 201;
-        return {
-          success: true,
-          data: {
-            created,
-            failed,
-            results: results.filter((r) => r.success).map((r) => r.data)
-          }
-        };
-      } catch (error) {
-        return handleControllerError(error, set);
+      // Check email verification
+      if (!user?.emailVerified) {
+        throw new AppError(
+          ErrorCode.FORBIDDEN,
+          'You must verify your email before creating links'
+        );
       }
+
+      if (!body.links || body.links.length === 0) {
+        throw new AppError(ErrorCode.VALIDATION_ERROR, 'No links provided');
+      }
+
+      if (body.links.length > 100) {
+        throw new AppError(
+          ErrorCode.VALIDATION_ERROR,
+          'Maximum of 100 links per request'
+        );
+      }
+
+      // Get IP hash for consistency
+      const clientIp = getClientIp(request);
+      const ipHash = createHash('sha256').update(clientIp).digest('hex');
+
+      const results: Array<{
+        success: boolean;
+        data?: ReturnType<typeof LinkService.formatLinkResponse>;
+        error?: string;
+      }> = [];
+
+      for (const linkInput of body.links) {
+        try {
+          const link = await LinkService.createLink(
+            linkInput,
+            user?.id,
+            ipHash
+          );
+          results.push({
+            success: true,
+            data: LinkService.formatLinkResponse(link)
+          });
+        } catch (error) {
+          results.push({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      const created = results.filter((r) => r.success).length;
+      const failed = results.length - created;
+
+      set.status = 201;
+      return {
+        success: true,
+        data: {
+          created,
+          failed,
+          results: results.filter((r) => r.success).map((r) => r.data)
+        }
+      };
     },
+
     {
       body: LinkBulkCreateBody,
       detail: {
@@ -294,44 +238,36 @@ export const protectedLinksController = new Elysia()
   )
 
   // ─────────────────────────────────────────────────────────────────
-  // GET /links - Listar links do usuário
+  // GET /links - List user links
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/',
-    async ({ query, user, set }) => {
-      try {
-        if (!user) {
-          set.status = 401;
-          return unauthorizedResponse;
-        }
+    async ({ query, user }) => {
+      const userId = requireUserId(user);
+      const result = await LinkService.listUserLinks(userId, {
+        page: query.page ? parseInt(query.page, 10) : 1,
+        perPage: query.perPage ? parseInt(query.perPage, 10) : 20,
+        search: query.search,
+        tags: query.tags ? query.tags.split(',') : undefined,
+        isActive:
+          query.isActive === 'true'
+            ? true
+            : query.isActive === 'false'
+              ? false
+              : undefined,
+        sortBy: query.sortBy as
+          | 'createdAt'
+          | 'clicksCount'
+          | 'lastClickedAt'
+          | undefined,
+        sortOrder: query.sortOrder as 'asc' | 'desc' | undefined
+      });
 
-        const result = await LinkService.listUserLinks(user.id, {
-          page: query.page ? parseInt(query.page, 10) : 1,
-          perPage: query.perPage ? parseInt(query.perPage, 10) : 20,
-          search: query.search,
-          tags: query.tags ? query.tags.split(',') : undefined,
-          isActive:
-            query.isActive === 'true'
-              ? true
-              : query.isActive === 'false'
-                ? false
-                : undefined,
-          sortBy: query.sortBy as
-            | 'createdAt'
-            | 'clicksCount'
-            | 'lastClickedAt'
-            | undefined,
-          sortOrder: query.sortOrder as 'asc' | 'desc' | undefined
-        });
-
-        return {
-          success: true,
-          data: result.data.map(LinkService.formatLinkResponse),
-          meta: result.meta
-        };
-      } catch (error) {
-        return handleControllerError(error, set);
-      }
+      return {
+        success: true,
+        data: result.data,
+        meta: result.meta
+      };
     },
     {
       query: LinkListQuery,
@@ -349,25 +285,17 @@ export const protectedLinksController = new Elysia()
   )
 
   // ─────────────────────────────────────────────────────────────────
-  // GET /links/:id - Obter link específico
+  // GET /links/:id - Get specific link
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/:id',
-    async ({ params, user, set }) => {
-      try {
-        if (!user) {
-          set.status = 401;
-          return unauthorizedResponse;
-        }
-
-        const link = await LinkService.getLinkById(params.id, user.id);
-        return {
-          success: true,
-          data: LinkService.formatLinkResponse(link)
-        };
-      } catch (error) {
-        return handleControllerError(error, set);
-      }
+    async ({ params, user }) => {
+      const userId = requireUserId(user);
+      const link = await LinkService.getLinkById(params.id, userId);
+      return {
+        success: true,
+        data: LinkService.formatLinkResponse(link)
+      };
     },
     {
       params: LinkIdParam,
@@ -387,25 +315,17 @@ export const protectedLinksController = new Elysia()
   )
 
   // ─────────────────────────────────────────────────────────────────
-  // PATCH /links/:id - Atualizar link
+  // PATCH /links/:id - Update link
   // ─────────────────────────────────────────────────────────────────
   .patch(
     '/:id',
-    async ({ params, body, user, set }) => {
-      try {
-        if (!user) {
-          set.status = 401;
-          return unauthorizedResponse;
-        }
-
-        const link = await LinkService.updateLink(params.id, user.id, body);
-        return {
-          success: true,
-          data: LinkService.formatLinkResponse(link)
-        };
-      } catch (error) {
-        return handleControllerError(error, set);
-      }
+    async ({ params, body, user }) => {
+      const userId = requireUserId(user);
+      const link = await LinkService.updateLink(params.id, userId, body);
+      return {
+        success: true,
+        data: LinkService.formatLinkResponse(link)
+      };
     },
     {
       params: LinkIdParam,
@@ -432,18 +352,10 @@ export const protectedLinksController = new Elysia()
   .delete(
     '/:id',
     async ({ params, user, set }) => {
-      try {
-        if (!user) {
-          set.status = 401;
-          return unauthorizedResponse;
-        }
-
-        await LinkService.softDeleteLink(params.id, user.id);
-        set.status = 204;
-        return null;
-      } catch (error) {
-        return handleControllerError(error, set);
-      }
+      const userId = requireUserId(user);
+      await LinkLifecycleService.softDeleteLink(params.id, userId);
+      set.status = 204;
+      return null;
     },
     {
       params: LinkIdParam,
@@ -463,25 +375,17 @@ export const protectedLinksController = new Elysia()
   )
 
   // ─────────────────────────────────────────────────────────────────
-  // POST /links/:id/restore - Restaurar link deletado
+  // POST /links/:id/restore - Restore deleted link
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/:id/restore',
-    async ({ params, user, set }) => {
-      try {
-        if (!user) {
-          set.status = 401;
-          return unauthorizedResponse;
-        }
-
-        const link = await LinkService.restoreLink(params.id, user.id);
-        return {
-          success: true,
-          data: LinkService.formatLinkResponse(link)
-        };
-      } catch (error) {
-        return handleControllerError(error, set);
-      }
+    async ({ params, user }) => {
+      const userId = requireUserId(user);
+      const link = await LinkLifecycleService.restoreLink(params.id, userId);
+      return {
+        success: true,
+        data: LinkService.formatLinkResponse(link)
+      };
     },
     {
       params: LinkIdParam,
@@ -501,26 +405,18 @@ export const protectedLinksController = new Elysia()
   )
 
   // ─────────────────────────────────────────────────────────────────
-  // POST /links/:id/duplicate - Duplicar link
+  // POST /links/:id/duplicate - Duplicate link
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/:id/duplicate',
     async ({ params, user, set }) => {
-      try {
-        if (!user) {
-          set.status = 401;
-          return unauthorizedResponse;
-        }
-
-        const link = await LinkService.duplicateLink(params.id, user.id);
-        set.status = 201;
-        return {
-          success: true,
-          data: LinkService.formatLinkResponse(link)
-        };
-      } catch (error) {
-        return handleControllerError(error, set);
-      }
+      const userId = requireUserId(user);
+      const link = await LinkLifecycleService.duplicateLink(params.id, userId);
+      set.status = 201;
+      return {
+        success: true,
+        data: LinkService.formatLinkResponse(link)
+      };
     },
     {
       params: LinkIdParam,
@@ -543,25 +439,20 @@ export const protectedLinksController = new Elysia()
   )
 
   // ─────────────────────────────────────────────────────────────────
-  // POST /links/:id/toggle - Toggle ativo/inativo
+  // POST /links/:id/toggle - Toggle active/inactive
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/:id/toggle',
-    async ({ params, user, set }) => {
-      try {
-        if (!user) {
-          set.status = 401;
-          return unauthorizedResponse;
-        }
-
-        const link = await LinkService.toggleLinkActive(params.id, user.id);
-        return {
-          success: true,
-          data: LinkService.formatLinkResponse(link)
-        };
-      } catch (error) {
-        return handleControllerError(error, set);
-      }
+    async ({ params, user }) => {
+      const userId = requireUserId(user);
+      const link = await LinkLifecycleService.toggleLinkActive(
+        params.id,
+        userId
+      );
+      return {
+        success: true,
+        data: LinkService.formatLinkResponse(link)
+      };
     },
     {
       params: LinkIdParam,

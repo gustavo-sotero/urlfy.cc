@@ -18,6 +18,7 @@ import {
   user as userTable
 } from '@/db/schema/auth';
 import { db } from '@/server/lib/db';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { auditLogService } from '@/server/services/audit.service';
 
 /**
@@ -132,7 +133,10 @@ export const UserService = {
       .returning();
 
     if (!user) {
-      throw new Error('User not found or already deleted');
+      throw new AppError(
+        ErrorCode.USER_NOT_FOUND,
+        'User not found or already deleted'
+      );
     }
 
     return user;
@@ -218,7 +222,7 @@ export const UserService = {
       .returning();
 
     if (!user) {
-      throw new Error('User not found');
+      throw new AppError(ErrorCode.USER_NOT_FOUND, 'User not found');
     }
 
     // Also revoke all active sessions
@@ -254,7 +258,7 @@ export const UserService = {
       .returning();
 
     if (!user) {
-      throw new Error('User not found');
+      throw new AppError(ErrorCode.USER_NOT_FOUND, 'User not found');
     }
 
     // Log audit event
@@ -287,7 +291,7 @@ export const UserService = {
       .returning();
 
     if (!user) {
-      throw new Error('User not found');
+      throw new AppError(ErrorCode.USER_NOT_FOUND, 'User not found');
     }
 
     // Log audit event

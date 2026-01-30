@@ -1,9 +1,11 @@
 // src/server/lib/errors.ts
 
+import { AppError, ErrorCode, type ErrorCodeType } from './error-handler';
 import { createLogger } from './telemetry';
 
 const logger = createLogger('errors');
 
+// Legacy Error Class - kept for backward compatibility/tests
 export class LinkError extends Error {
   constructor(
     public code: LinkErrorCode,
@@ -34,6 +36,26 @@ export type LinkErrorCode =
   | 'LINK_BANNED'
   | 'MAX_CLICKS_REACHED';
 
+const LINK_TO_APP_ERROR_MAP: Record<LinkErrorCode, ErrorCodeType> = {
+  LINK_NOT_FOUND: ErrorCode.LINK_NOT_FOUND,
+  ALIAS_UNAVAILABLE: ErrorCode.ALIAS_TAKEN,
+  AUTH_REQUIRED: ErrorCode.UNAUTHORIZED,
+  INVALID_FORMAT: ErrorCode.INVALID_URL,
+  INVALID_PROTOCOL: ErrorCode.INVALID_URL,
+  SHORTENER_BLOCKED: ErrorCode.SHORTENER_NOT_ALLOWED,
+  DOMAIN_BANNED: ErrorCode.URL_BLOCKED,
+  URL_TOO_LONG: ErrorCode.URL_TOO_LONG,
+  URL_INTERNAL_BLOCKED: ErrorCode.URL_BLOCKED,
+  URL_RESOLUTION_FAILED: ErrorCode.INVALID_URL,
+  QUOTA_EXCEEDED: ErrorCode.QUOTA_EXCEEDED,
+  SHORTCODE_GENERATION_FAILED: ErrorCode.INTERNAL_ERROR,
+  INVALID_ALIAS_FORMAT: ErrorCode.INVALID_INPUT,
+  PASSWORD_TOO_WEAK: ErrorCode.INVALID_INPUT,
+  LINK_EXPIRED: ErrorCode.LINK_EXPIRED,
+  LINK_BANNED: ErrorCode.LINK_BANNED,
+  MAX_CLICKS_REACHED: ErrorCode.MAX_CLICKS_REACHED
+};
+
 export const ERROR_HTTP_MAP: Record<LinkErrorCode, number> = {
   LINK_NOT_FOUND: 404,
   ALIAS_UNAVAILABLE: 409,
@@ -56,6 +78,7 @@ export const ERROR_HTTP_MAP: Record<LinkErrorCode, number> = {
 
 /**
  * Converte erros em resposta formatada
+ * @deprecated Use AppError and errorMiddleware instead
  */
 export function handleLinkError(error: unknown): {
   success: false;
@@ -75,6 +98,18 @@ export function handleLinkError(error: unknown): {
         details: error.details
       },
       status: error.httpStatus
+    };
+  }
+
+  if (error instanceof AppError) {
+    return {
+      success: false,
+      error: {
+        code: error.code,
+        message: error.message,
+        details: error.details
+      },
+      status: error.status
     };
   }
 
@@ -124,12 +159,13 @@ function getErrorMessage(code: LinkErrorCode): string {
 }
 
 /**
- * Cria LinkError a partir do código
+ * Cria AppError a partir do código
  */
 export function createLinkError(
   code: LinkErrorCode,
   details?: Record<string, unknown>
-): LinkError {
-  const httpStatus = ERROR_HTTP_MAP[code] || 400;
-  return new LinkError(code, httpStatus, details);
+): AppError {
+  const appCode = LINK_TO_APP_ERROR_MAP[code] || ErrorCode.INTERNAL_ERROR;
+  const message = getErrorMessage(code);
+  return new AppError(appCode, message, details);
 }

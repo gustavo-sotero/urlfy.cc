@@ -1,8 +1,8 @@
 // src/db/scripts/partition-manager.ts
 
+import { sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { createLogger } from '@/server/lib/telemetry';
-import { sql } from 'drizzle-orm';
 
 const logger = createLogger('partition-manager');
 

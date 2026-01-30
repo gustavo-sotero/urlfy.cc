@@ -30,7 +30,13 @@ function loadEnvFile(envPath: string): void {
     }
   } catch {
     // .env.test file is optional, continue without it
-    console.warn('⚠️ .env.test file not found, using environment variables');
+    process.stderr.write(
+      `${JSON.stringify({
+        level: 'warn',
+        message: '.env.test file not found, using environment variables',
+        timestamp: new Date().toISOString()
+      })}\n`
+    );
   }
 }
 
@@ -69,7 +75,13 @@ for (const secret of requiredSecrets) {
 // Ensure NODE_ENV is set to 'test'
 Object.defineProperty(process.env, 'NODE_ENV', { value: 'test' });
 
-console.log('✓ Test environment configured with secure secrets from .env.test');
+process.stdout.write(
+  `${JSON.stringify({
+    level: 'info',
+    message: 'Test environment configured with secure secrets from .env.test',
+    timestamp: new Date().toISOString()
+  })}\n`
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // HAPPY DOM FOR REACT TESTING

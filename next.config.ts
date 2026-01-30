@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
     '@elysiajs/cors',
     '@elysiajs/jwt',
     '@elysiajs/openapi',
+    '@labzzhq/compressor',
     // Auth & Database
     'better-auth',
     'drizzle-orm',
@@ -60,6 +61,7 @@ const nextConfig: NextConfig = {
     '/api/**/*': [
       './node_modules/elysia/**/*',
       './node_modules/@elysiajs/**/*',
+      './node_modules/@labzzhq/**/*',
       './node_modules/better-auth/**/*',
       './node_modules/drizzle-orm/**/*',
       './node_modules/qrcode/**/*',
