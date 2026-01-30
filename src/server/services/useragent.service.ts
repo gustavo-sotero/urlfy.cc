@@ -1,8 +1,8 @@
 // src/server/services/useragent.service.ts
 
+import { UAParser } from 'ua-parser-js';
 import { createLogger } from '@/server/lib/telemetry';
 import type { UserAgentData } from '@/types/analytics.types';
-import { UAParser } from 'ua-parser-js';
 
 const logger = createLogger('useragent-service');
 

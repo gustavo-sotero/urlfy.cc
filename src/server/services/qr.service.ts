@@ -1,7 +1,7 @@
 // src/server/services/qr.service.ts
 
-import { createLogger } from '@/server/lib/telemetry';
 import QRCode from 'qrcode';
+import { createLogger } from '@/server/lib/telemetry';
 import { redis } from '../lib/redis';
 
 const logger = createLogger('qr-service');

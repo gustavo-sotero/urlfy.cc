@@ -18,9 +18,9 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import type { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
+import { buildCspDirectives } from '@/lib/csp';
 import { handleRedirect } from '@/server/middleware/redirect.middleware';
 import { routing } from './i18n/routing';
 
@@ -63,12 +63,34 @@ export const config = {
   ]
 };
 
+function generateNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function applyCspHeaders(
+  response: NextResponse,
+  csp: string,
+  nonce: string
+): NextResponse {
+  response.headers.set('Content-Security-Policy', csp);
+  response.headers.set('X-CSP-Nonce', nonce);
+  return response;
+}
+
 /**
  * Next.js Proxy function (Next.js 16 requires 'proxy' export name)
  * Intercepts all requests and decides routing logic
  */
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const nonce = generateNonce();
+  const isProduction = process.env.NODE_ENV === 'production';
+  const csp = buildCspDirectives({ nonce, isProduction });
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set('x-csp-nonce', nonce);
+  const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
 
   // 1. Skip internal and static requests
   if (
@@ -81,7 +103,12 @@ export async function proxy(req: NextRequest) {
 
   // 2. Bypass i18n for system routes (Admin and Auth)
   if (isSystemRoute(pathname)) {
-    return NextResponse.next();
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders
+      }
+    });
+    return applyCspHeaders(response, csp, nonce);
   }
 
   // 3. Check for locale-prefixed paths or root
@@ -91,7 +118,8 @@ export async function proxy(req: NextRequest) {
 
   // Root path or locale-prefixed path → use i18n middleware
   if (isLocalePath || pathname === '/') {
-    return intlMiddleware(req);
+    const response = intlMiddleware(requestWithNonce);
+    return applyCspHeaders(response, csp, nonce);
   }
 
   // 4. Not a locale path and not system route → check if it's a short code
@@ -99,7 +127,12 @@ export async function proxy(req: NextRequest) {
 
   if (!shortCodeMatch) {
     // Not a valid short code pattern - let Next.js handle
-    return NextResponse.next();
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders
+      }
+    });
+    return applyCspHeaders(response, csp, nonce);
   }
 
   // Extract short code and process redirect
@@ -109,11 +142,13 @@ export async function proxy(req: NextRequest) {
   if (routing.locales.includes(shortCode as (typeof routing.locales)[number])) {
     // This is actually a locale without trailing slash
     // Redirect to properly formatted locale path
-    return NextResponse.redirect(new URL(`/${shortCode}/`, req.url));
+    const response = NextResponse.redirect(new URL(`/${shortCode}/`, req.url));
+    return applyCspHeaders(response, csp, nonce);
   }
 
   // Process the redirect through the redirect engine
-  return handleRedirect(req, shortCode);
+  const response = await handleRedirect(requestWithNonce, shortCode);
+  return applyCspHeaders(response, csp, nonce);
 }
 
 /**
