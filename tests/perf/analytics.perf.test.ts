@@ -1,7 +1,7 @@
 // tests/perf/analytics.perf.test.ts
 
-import type { ClickEvent } from '@/types/analytics.types';
 import { describe, expect, it } from 'bun:test';
+import type { ClickEvent } from '@/types/analytics.types';
 import { testLogger } from '../helpers/test-logger';
 
 describe('Analytics Performance Tests', () => {
