@@ -35,6 +35,7 @@ export const ErrorCode = {
   // 403 Forbidden
   // ═══════════════════════════════════════════════════════════════════
   FORBIDDEN: 'FORBIDDEN',
+  EMAIL_VERIFICATION_REQUIRED: 'EMAIL_VERIFICATION_REQUIRED',
   ADMIN_REQUIRED: 'ADMIN_REQUIRED',
   INSUFFICIENT_PERMISSIONS: 'INSUFFICIENT_PERMISSIONS',
 
@@ -117,6 +118,7 @@ const ERROR_STATUS_MAP: Record<ErrorCodeType, number> = {
   [ErrorCode.QUOTA_EXCEEDED]: 402,
   // 403
   [ErrorCode.FORBIDDEN]: 403,
+  [ErrorCode.EMAIL_VERIFICATION_REQUIRED]: 403,
   [ErrorCode.ADMIN_REQUIRED]: 403,
   [ErrorCode.INSUFFICIENT_PERMISSIONS]: 403,
   // 404

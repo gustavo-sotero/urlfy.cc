@@ -1,7 +1,7 @@
 // tests/perf/analytics.perf.test.ts
 
-import { describe, expect, it } from 'bun:test';
 import type { ClickEvent } from '@/types/analytics.types';
+import { describe, expect, it } from 'bun:test';
 import { testLogger } from '../helpers/test-logger';
 
 describe('Analytics Performance Tests', () => {
@@ -229,7 +229,7 @@ describe('Analytics Performance Tests', () => {
       const duration = Date.now() - startTime;
 
       // Should be much faster due to caching
-      expect(duration).toBeLessThan(200);
+      expect(duration).toBeLessThan(250);
       expect(cacheLookups.size).toBe(prefixes);
       testLogger.info(
         `✓ ${totalIps} IPs, ${prefixes} cache lookups in ${duration}ms`

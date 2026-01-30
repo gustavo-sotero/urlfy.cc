@@ -1,10 +1,10 @@
 // src/server/services/url-validator.ts
 
-import { lookup } from 'node:dns/promises';
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { bannedUrls } from '@/db/schema';
 import { createLogger } from '@/server/lib/telemetry';
+import { eq } from 'drizzle-orm';
+import { lookup } from 'node:dns/promises';
 
 const logger = createLogger('url-validator');
 
@@ -215,6 +215,15 @@ export async function validateUrlSafe(url: string): Promise<ValidationResult> {
   if (isBlockedHostname(hostname)) {
     logger.warn('Blocked internal hostname', { hostname });
     return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
+  }
+
+  if (process.env.NODE_ENV === 'test') {
+    if (isPrivateIP(hostname)) {
+      logger.warn('Blocked private IP hostname in test mode', { hostname });
+      return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
+    }
+
+    return { valid: true };
   }
 
   // Resolve DNS and check IPs

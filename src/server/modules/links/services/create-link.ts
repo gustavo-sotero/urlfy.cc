@@ -112,5 +112,37 @@ export async function createLink(
     })
     .returning();
 
-  return link;
+  if (!link) {
+    throw createLinkError('SHORTCODE_GENERATION_FAILED');
+  }
+
+  return {
+    id: link.id ?? linkId,
+    userId: link.userId ?? userId ?? null,
+    originalUrl: link.originalUrl ?? input.url,
+    shortCode: link.shortCode ?? shortCode,
+    redirectType: link.redirectType ?? input.redirectType ?? 302,
+    clicksCount: link.clicksCount ?? 0,
+    maxClicks: link.maxClicks ?? input.maxClicks ?? null,
+    passwordHash: link.passwordHash ?? passwordHash,
+    isActive: link.isActive ?? true,
+    isBanned: link.isBanned ?? false,
+    bannedAt: link.bannedAt ?? null,
+    bannedReason: link.bannedReason ?? null,
+    expiresAt: link.expiresAt ?? expiresAt,
+    metaTitle: link.metaTitle ?? meta.metaTitle ?? null,
+    metaDescription: link.metaDescription ?? meta.metaDescription ?? null,
+    metaImage: link.metaImage ?? meta.metaImage ?? null,
+    utmSource: link.utmSource ?? input.utmSource ?? null,
+    utmMedium: link.utmMedium ?? input.utmMedium ?? null,
+    utmCampaign: link.utmCampaign ?? input.utmCampaign ?? null,
+    lastClickedAt: link.lastClickedAt ?? null,
+    qrGeneratedAt: link.qrGeneratedAt ?? null,
+    createdByIpHash: link.createdByIpHash ?? ipHash ?? null,
+    tags: link.tags ?? tags ?? null,
+    notes: link.notes ?? notes ?? null,
+    createdAt: link.createdAt ?? now,
+    updatedAt: link.updatedAt ?? now,
+    deletedAt: link.deletedAt ?? null
+  };
 }

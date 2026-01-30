@@ -8,8 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { createHash } from 'node:crypto';
-import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import {
   checkIdempotency,
@@ -23,6 +21,8 @@ import {
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
+import { createHash } from 'node:crypto';
 import { LinkLifecycleService } from './link-lifecycle.service';
 import {
   LinkBulkCreateBody,
@@ -59,8 +59,8 @@ export const createLinkController = new Elysia()
       // Check email verification for authenticated users
       if (user && !user.emailVerified) {
         throw new AppError(
-          ErrorCode.FORBIDDEN,
-          'You must verify your email before creating links'
+          ErrorCode.EMAIL_VERIFICATION_REQUIRED,
+          'Você precisa verificar seu e-mail antes de criar links'
         );
       }
 
@@ -150,8 +150,8 @@ export const protectedLinksController = new Elysia()
       // Check email verification
       if (!user?.emailVerified) {
         throw new AppError(
-          ErrorCode.FORBIDDEN,
-          'You must verify your email before creating links'
+          ErrorCode.EMAIL_VERIFICATION_REQUIRED,
+          'Você precisa verificar seu e-mail antes de criar links'
         );
       }
 

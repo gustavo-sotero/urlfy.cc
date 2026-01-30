@@ -7,16 +7,17 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { auth } from '@/lib/auth';
 import { openapi } from '@elysiajs/openapi';
-import { compression } from '@labzzhq/compressor';
 import { Elysia } from 'elysia';
 import type { OpenAPIV3 } from 'openapi-types';
-import { auth } from '@/lib/auth';
 // Plugins
 import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
+import { isAppError } from '@/server/lib/error-handler';
 import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 import { ResponseModels } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
+import { compressionMiddleware } from '@/server/middleware/compression';
 import { cspMiddleware } from '@/server/middleware/csp.middleware';
 import { errorMiddleware } from '@/server/middleware/error.middleware';
 import { securityHeadersMiddleware } from '@/server/middleware/security-headers';
@@ -36,16 +37,16 @@ import { ApiKeysModel, apiKeysController } from '@/server/modules/api-keys';
 import { AuthModels, authController } from '@/server/modules/auth';
 import { contactController } from '@/server/modules/contact';
 import {
-  healthController,
   InternalModel,
+  healthController,
   internalController
 } from '@/server/modules/internal';
 import { LinksModel, linksController } from '@/server/modules/links';
 import { publicApiV1 } from '@/server/modules/public';
 import {
+  UsersModel,
   consentController,
   meController,
-  UsersModel,
   usersController
 } from '@/server/modules/users';
 
@@ -56,7 +57,7 @@ const logger = createLogger('api-router');
 // ═══════════════════════════════════════════════════════════════════
 
 const publicDocsApp = new Elysia()
-  .use(compression())
+  .use(compressionMiddleware())
   .use(cspMiddleware)
   .use(securityHeadersMiddleware)
   .use(ResponseModels)
@@ -139,7 +140,7 @@ export const api = new Elysia({ prefix: '/api' })
   .use(jwtPlugin)
   .use(corsPlugin)
   .use(bearerPlugin)
-  .use(compression())
+  .use(compressionMiddleware())
   .use(cspMiddleware)
   .use(securityHeadersMiddleware)
 
@@ -341,6 +342,19 @@ export const api = new Elysia({ prefix: '/api' })
   // Global error handler
   .onError(({ code, error, set, requestId }) => {
     set.headers['x-request-id'] = requestId;
+
+    if (isAppError(error)) {
+      set.status = error.status;
+      return {
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.details && { details: error.details })
+        },
+        requestId
+      };
+    }
 
     if (code === 'NOT_FOUND') {
       set.status = 404;
