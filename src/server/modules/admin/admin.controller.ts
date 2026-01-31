@@ -7,7 +7,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import type { User } from '@/lib/auth';
 import {
   ErrorRef,
@@ -17,6 +16,7 @@ import {
 import { createLogger } from '@/server/lib/telemetry';
 import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
 import {
   ADMIN_LINK_EXAMPLE,
   ADMIN_STATS_EXAMPLE,
@@ -45,7 +45,7 @@ export const adminController = new Elysia({ prefix: '/admin' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/stats',
-    async ({ set }) => {
+    async function getGlobalStats({ set }) {
       try {
         const stats = await AdminService.getGlobalStats();
 
@@ -89,7 +89,7 @@ export const adminController = new Elysia({ prefix: '/admin' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/stats/growth',
-    async ({ query, set }) => {
+    async function getGrowthStats({ query, set }) {
       try {
         const range = (query.range as '7d' | '30d') || '7d';
         const stats = await AdminService.getGrowthStats(range);

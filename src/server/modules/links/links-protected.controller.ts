@@ -351,7 +351,7 @@ export const protectedLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .delete(
     '/:id',
-    async ({ params, user, set }) => {
+    async function deleteLink({ params, user, set }) {
       const userId = requireUserId(user);
       await LinkLifecycleService.softDeleteLink(params.id, userId);
       set.status = 204;
@@ -379,7 +379,7 @@ export const protectedLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/:id/restore',
-    async ({ params, user }) => {
+    async function restoreLink({ params, user }) {
       const userId = requireUserId(user);
       const link = await LinkLifecycleService.restoreLink(params.id, userId);
       return {
@@ -443,7 +443,7 @@ export const protectedLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/:id/toggle',
-    async ({ params, user }) => {
+    async function quickToggleLink({ params, user }) {
       const userId = requireUserId(user);
       const link = await LinkLifecycleService.toggleLinkActive(
         params.id,

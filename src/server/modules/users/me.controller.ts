@@ -11,8 +11,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { desc, eq } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema/audit';
 import { sendEmail } from '@/server/lib/email';
@@ -24,6 +22,8 @@ import { UsersModel } from '@/server/modules/users/users.schema';
 import { requestContext } from '@/server/plugins/request-context';
 import { auditLogService } from '@/server/services/audit.service';
 import { gdprService } from '@/server/services/gdpr.service';
+import { desc, eq } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('user-data-controller');
 
@@ -45,7 +45,7 @@ export const meController = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/',
-    async ({ user, set }) => {
+    async function getCurrentUser({ user, set }) {
       if (!user) {
         set.status = 401;
         return unauthorizedResponse;
@@ -85,7 +85,7 @@ export const meController = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/quota',
-    async ({ user, set }) => {
+    async function getUserQuota({ user, set }) {
       if (!user) {
         set.status = 401;
         return unauthorizedResponse;
@@ -125,7 +125,7 @@ export const meController = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/export',
-    async ({ user, ip, userAgent, set }) => {
+    async function exportUserData({ user, ip, userAgent, set }) {
       if (!user) {
         set.status = 401;
         return unauthorizedResponse;

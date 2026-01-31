@@ -8,11 +8,11 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { handleLinkError } from '@/server/lib/errors';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
 import {
   ANALYTICS_BREAKDOWN_EXAMPLE,
   ANALYTICS_SUMMARY_EXAMPLE,
@@ -41,7 +41,7 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/all/summary',
-    async ({ user, query, set }) => {
+    async function getAllLinksSummary({ user, query, set }) {
       try {
         if (!user) {
           set.status = 401;
@@ -123,7 +123,7 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/all/daily',
-    async ({ user, query, set }) => {
+    async function getAllLinksDaily({ user, query, set }) {
       try {
         if (!user) {
           set.status = 401;

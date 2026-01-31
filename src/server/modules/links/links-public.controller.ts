@@ -237,7 +237,7 @@ export const publicLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/by-code/:code/preview',
-    async ({ params }) => {
+    async function previewLink({ params }) {
       const link = await LinkService.getLinkByCode(params.code);
       if (!link) {
         throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
