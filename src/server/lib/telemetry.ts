@@ -14,6 +14,7 @@
  * - CLI scripts
  */
 
+import { getEnv } from '@/lib/env';
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
@@ -41,15 +42,6 @@ if (
   diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
 }
 
-const OTEL_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-
-// Check if telemetry is enabled (requires explicit OTEL endpoint or OTEL_ENABLED=true)
-const TELEMETRY_ENABLED =
-  process.env.OTEL_ENABLED === 'true' || Boolean(OTEL_ENDPOINT);
-
-// Fallback to localhost if endpoint not set but telemetry is explicitly enabled
-const OTEL_ENDPOINT_URL = OTEL_ENDPOINT || 'http://localhost:4318';
-
 // ═══════════════════════════════════════════════════════════════════
 // RESOURCE (Identificação do Serviço)
 // ═══════════════════════════════════════════════════════════════════
@@ -61,26 +53,8 @@ const resource = resourceFromAttributes({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// EXPORTERS (only created if telemetry is enabled)
+// EXPORTERS (created lazily when telemetry is enabled)
 // ═══════════════════════════════════════════════════════════════════
-
-const traceExporter = TELEMETRY_ENABLED
-  ? new OTLPTraceExporter({
-      url: `${OTEL_ENDPOINT_URL}/traces`
-    })
-  : undefined;
-
-const metricExporter = TELEMETRY_ENABLED
-  ? new OTLPMetricExporter({
-      url: `${OTEL_ENDPOINT_URL}/metrics`
-    })
-  : undefined;
-
-const logExporter = TELEMETRY_ENABLED
-  ? new OTLPLogExporter({
-      url: `${OTEL_ENDPOINT_URL}/logs`
-    })
-  : undefined;
 
 // ═══════════════════════════════════════════════════════════════════
 // LOGGER PROVIDER
@@ -92,53 +66,76 @@ type LoggerProviderWithProcessor = LoggerProvider & {
   addLogRecordProcessor: (processor: unknown) => void;
 };
 
-if (logExporter && 'addLogRecordProcessor' in loggerProvider) {
-  (
-    loggerProvider as unknown as LoggerProviderWithProcessor
-  ).addLogRecordProcessor(new BatchLogRecordProcessor(logExporter));
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // SDK NODE (only with exporters if telemetry is enabled)
 // ═══════════════════════════════════════════════════════════════════
 
-const sdk = new NodeSDK({
-  resource,
-  traceExporter,
-  metricReaders: metricExporter
-    ? [
-        new PeriodicExportingMetricReader({
-          exporter: metricExporter,
-          exportIntervalMillis: 60000 // 1 minuto
-        })
-      ]
-    : [],
-  instrumentations: [
-    getNodeAutoInstrumentations({
-      '@opentelemetry/instrumentation-fs': {
-        enabled: false // Reduz ruído
-      }
-    })
-  ]
-});
+let sdk: NodeSDK | null = null;
 
 // ═══════════════════════════════════════════════════════════════════
 // INITIALIZATION
 // ═══════════════════════════════════════════════════════════════════
 
 export function initTelemetry() {
-  sdk.start();
-  if (TELEMETRY_ENABLED) {
-    console.log(`✅ Telemetry initialized (exporting to ${OTEL_ENDPOINT_URL})`);
-  } else {
-    console.log(
-      '✅ Telemetry initialized (local only - no OTEL_EXPORTER_OTLP_ENDPOINT set)'
-    );
+  const env = getEnv();
+
+  if (!env.TELEMETRY_ENABLED) {
+    console.log('[Telemetry] Disabled (TELEMETRY_ENABLED=false)');
+    return;
   }
+
+  if (!env.OTEL_EXPORTER_OTLP_ENDPOINT) {
+    console.warn(
+      '[Telemetry] Enabled but OTEL_EXPORTER_OTLP_ENDPOINT not set. Skipping initialization.'
+    );
+    return;
+  }
+
+  const traceExporter = new OTLPTraceExporter({
+    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/traces`
+  });
+
+  const metricExporter = new OTLPMetricExporter({
+    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/metrics`
+  });
+
+  const logExporter = new OTLPLogExporter({
+    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/logs`
+  });
+
+  if ('addLogRecordProcessor' in loggerProvider) {
+    (
+      loggerProvider as unknown as LoggerProviderWithProcessor
+    ).addLogRecordProcessor(new BatchLogRecordProcessor(logExporter));
+  }
+
+  sdk = new NodeSDK({
+    resource,
+    traceExporter,
+    metricReaders: [
+      new PeriodicExportingMetricReader({
+        exporter: metricExporter,
+        exportIntervalMillis: 60000 // 1 minuto
+      })
+    ],
+    instrumentations: [
+      getNodeAutoInstrumentations({
+        '@opentelemetry/instrumentation-fs': {
+          enabled: false // Reduz ruído
+        }
+      })
+    ]
+  });
+
+  sdk.start();
+  console.log(
+    `[Telemetry] Initializing with endpoint: ${env.OTEL_EXPORTER_OTLP_ENDPOINT}`
+  );
 }
 
 export async function shutdownTelemetry() {
   try {
+    if (!sdk) return;
     await sdk.shutdown();
     console.log('✅ OpenTelemetry shut down gracefully');
   } catch (error) {

@@ -25,9 +25,14 @@ const envSchema = z.object({
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
   OTEL_SERVICE_NAME: z.string().default('urlfy-api'),
   OTEL_SERVICE_VERSION: z.string().optional(),
-  OTEL_ENABLED: z
+  // Prefer TELEMETRY_ENABLED; keep OTEL_ENABLED for backward compatibility
+  TELEMETRY_ENABLED: z
     .string()
     .default('false')
+    .transform((val) => val === 'true'),
+  OTEL_ENABLED: z
+    .string()
+    .optional()
     .transform((val) => val === 'true'),
   OTEL_DEBUG: z
     .string()
@@ -114,7 +119,12 @@ export function validateEnv(): Env {
   }
 
   try {
-    env = envSchema.parse(process.env);
+    const parsedEnv = envSchema.parse(process.env);
+    env = {
+      ...parsedEnv,
+      TELEMETRY_ENABLED:
+        parsedEnv.TELEMETRY_ENABLED || Boolean(parsedEnv.OTEL_ENABLED)
+    };
 
     // Additional production checks
     if (env.NODE_ENV === 'production') {

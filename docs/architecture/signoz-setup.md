@@ -155,7 +155,7 @@ Default credentials: Create on first access.
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | -           | SigNoz collector URL    |
 | `OTEL_SERVICE_NAME`           | `urlfy-api` | Service name in traces  |
 | `OTEL_SERVICE_VERSION`        | `0.0.0`     | Semantic version        |
-| `OTEL_ENABLED`                | `false`     | Enable OTel export      |
+| `TELEMETRY_ENABLED`           | `false`     | Enable OTel export      |
 | `OTEL_TRACES_SAMPLER_ARG`     | `1.0`       | Sampling rate (0.0-1.0) |
 | `OTEL_DEBUG`                  | `false`     | Enable verbose logging  |
 
@@ -284,15 +284,18 @@ annotations:
 
 ## NPM Scripts Reference
 
-| Script                       | Description                              |
-| ---------------------------- | ---------------------------------------- |
-| `bun run signoz:clone`       | Clone SigNoz repository to ../signoz     |
-| `bun run signoz:up`          | Start SigNoz stack                       |
-| `bun run signoz:down`        | Stop SigNoz stack                        |
-| `bun run signoz:logs`        | Tail SigNoz logs                         |
-| `bun run docker:up:signoz`   | Start urlfy with SigNoz integration      |
-| `bun run docker:down:signoz` | Stop urlfy with SigNoz integration       |
-| `bun run docker:logs:signoz` | Tail logs for urlfy with SigNoz override |
+| Script                              | Description                              |
+| ----------------------------------- | ---------------------------------------- |
+| `bun run signoz:clone`              | Clone SigNoz repository to ../signoz     |
+| `bun run signoz:up`                 | Start SigNoz stack                       |
+| `bun run signoz:down`               | Stop SigNoz stack                        |
+| `bun run signoz:logs`               | Tail SigNoz logs                         |
+| `bun run docker:up:observability`   | Start urlfy with SigNoz integration      |
+| `bun run docker:down:observability` | Stop urlfy with SigNoz integration       |
+| `bun run docker:logs:observability` | Tail logs for urlfy with SigNoz override |
+| `bun run docker:up:signoz`          | Alias for observability up               |
+| `bun run docker:down:signoz`        | Alias for observability down             |
+| `bun run docker:logs:signoz`        | Alias for observability logs             |
 
 ---
 

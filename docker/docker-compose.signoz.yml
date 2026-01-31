@@ -26,7 +26,7 @@ services:
       - OTEL_TRACES_SAMPLER=parentbased_traceidratio
       - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-1.0}
       # Enable telemetry export
-      - OTEL_ENABLED=true
+      - TELEMETRY_ENABLED=true
     networks:
       - urlfy-network
       - signoz-net
