@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   # ═══════════════════════════════════════════════════════════════════
   # APLICAÇÃO PRINCIPAL (Next.js + ElysiaJS + Bun)
@@ -95,6 +93,8 @@ services:
     networks:
       - urlfy-network
     restart: unless-stopped
+    profiles:
+      - observability
     depends_on:
       - signoz-clickhouse
 
@@ -112,11 +112,17 @@ services:
       - CLICKHOUSE_HTTP_PORT=8123
       - CLICKHOUSE_HOST=signoz-clickhouse
       - CLICKHOUSE_DATABASE_NAME=signoz_traces
+      - SIGNOZ_LOCAL_DB_PATH=/var/lib/signoz/signoz.db
+    volumes:
+      - signoz_data:/var/lib/signoz
     networks:
       - urlfy-network
     restart: unless-stopped
+    profiles:
+      - observability
     depends_on:
-      - signoz-clickhouse
+      signoz-clickhouse:
+        condition: service_healthy
 
   # ═══════════════════════════════════════════════════════════════════
   # SIGNOZ FRONTEND
@@ -130,6 +136,8 @@ services:
     networks:
       - urlfy-network
     restart: unless-stopped
+    profiles:
+      - observability
     depends_on:
       - signoz-query-service
 
@@ -140,14 +148,21 @@ services:
     image: clickhouse/clickhouse-server:24.1.2-alpine
     volumes:
       - signoz_clickhouse_data:/var/lib/clickhouse
+      - ./signoz/clickhouse-config.xml:/etc/clickhouse-server/config.d/custom-config.xml:ro
     environment:
       - CLICKHOUSE_DB=signoz_traces
     networks:
       - urlfy-network
+    healthcheck:
+      test: ['CMD', 'clickhouse-client', '--query', 'SELECT 1']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
+    profiles:
+      - observability
 
-  # ═══════════════════════════════════════════════════════════════════
-  # GEOIP DOWNLOADER (Credential-free auto-download)
   # ═══════════════════════════════════════════════════════════════════
   # GEOIP DOWNLOADER (Credential-free auto-download)
   # ═══════════════════════════════════════════════════════════════════
@@ -163,30 +178,32 @@ services:
       - geoip_data:/app/geoip
     networks:
       - urlfy-network
-    restart: unless-stopped
+    restart: 'no'
+    entrypoint: []
+    command: ['/usr/local/bin/geoip-refresh.sh']
 
   # ═══════════════════════════════════════════════════════════════════
   # BACKUP SCHEDULER (PostgreSQL)
   # ═══════════════════════════════════════════════════════════════════
-  backup:
-    image: postgres:16-alpine
-    environment:
-      - PGHOST=postgres
-      - PGDATABASE=urlfy
-      - PGUSER=urlfy
-      - PGPASSWORD=${DB_PASSWORD:-urlfy}
-      - BACKUP_RETENTION_DAYS=7
-    volumes:
-      - ../scripts/backup.sh:/backup.sh:ro
-      - backup_data:/backups
-      - ./crontab:/etc/crontabs/root:ro
-    entrypoint: []
-    command: ['sh', '-c', 'chmod +x /backup.sh && crond -f -l 2']
-    networks:
-      - urlfy-network
-    restart: unless-stopped
-    depends_on:
-      - postgres
+  # NOTA: Em ambiente Windows/dev, executar backups manualmente via:
+  #       docker compose exec backup /backup.sh
+  # backup:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     - PGHOST=postgres
+  #     - PGDATABASE=urlfy
+  #     - PGUSER=urlfy
+  #     - PGPASSWORD=${DB_PASSWORD:-urlfy}
+  #     - BACKUP_RETENTION_DAYS=7
+  #   volumes:
+  #     - ../scripts/backup.sh:/backup.sh:ro
+  #     - backup_data:/backups
+  #   networks:
+  #     - urlfy-network
+  #   profiles:
+  #     - backup
+  #   depends_on:
+  #     - postgres
 
 # ═════════════════════════════════════════════════════════════════════
 # VOLUMES
@@ -198,6 +215,8 @@ volumes:
     name: urlfy_redis_data
   signoz_clickhouse_data:
     name: urlfy_signoz_clickhouse_data
+  signoz_data:
+    name: urlfy_signoz_data
   geoip_data:
     name: urlfy_geoip_data
   backup_data:
