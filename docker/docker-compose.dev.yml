@@ -1,13 +1,17 @@
 # ═══════════════════════════════════════════════════════════════════
 # DEVELOPMENT OVERRIDE
 # ═══════════════════════════════════════════════════════════════════
-# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# NOTE: In development, we override localhost bindings to allow external access
+#       for debugging tools and local development convenience.
 
 services:
   app:
     build:
       target: builder
     command: ['bun', 'dev']
+    init: true
     environment:
       - NODE_ENV=development
     volumes:
@@ -15,67 +19,41 @@ services:
       - ../.env:/app/.env:ro
     ports:
       - '3000:3000'
+    # Override: remove resource limits for development
+    deploy:
+      resources: {}
 
   postgres:
+    # Override: expose to all interfaces for local dev tools
     ports:
       - '5432:5432'
     environment:
       POSTGRES_PASSWORD: urlfy
+    # Override: remove resource limits for development
+    deploy:
+      resources: {}
 
   redis:
+    # Override: expose to all interfaces for local dev tools
     ports:
       - '6379:6379'
-
-  signoz-otel-collector:
-    profiles: []
-    ports:
-      - '4317:4317'
-      - '4318:4318'
-
-  signoz-query-service:
-    profiles: []
-    environment:
-      CLICKHOUSE_HOST: signoz-clickhouse
-      CLICKHOUSE_TCP_PORT: '9000'
-      CLICKHOUSE_HTTP_PORT: '8123'
-      ClickHouseUrl: tcp://signoz-clickhouse:9000
-      SIGNOZ_DB_DSN: tcp://signoz-clickhouse:9000?database=signoz_traces
-      GODEBUG: netdns=go
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-    sysctls:
-      - net.ipv6.conf.all.disable_ipv6=1
-      - net.ipv6.conf.default.disable_ipv6=1
-    restart: unless-stopped
-
-  signoz-frontend:
-    profiles: []
-    ports:
-      - '3301:3301'
-    restart: unless-stopped
-
-  signoz-clickhouse:
-    profiles: []
-    volumes:
-      - ./signoz/clickhouse-config.xml:/etc/clickhouse-server/config.d/listen_host.xml:ro
-    healthcheck:
-      test: ['CMD', 'wget', '--spider', '-q', '127.0.0.1:8123/ping']
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 30s
+    # Override: remove resource limits for development
+    deploy:
+      resources: {}
 
   # Development-only services
   postgres-admin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:8.14 # Pinned version
     environment:
       - PGADMIN_DEFAULT_EMAIL=admin@urlfy.cc
       - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
     ports:
       - '5050:80'
     networks:
       - urlfy-network
+    profiles:
+      - tools
 
   redis-commander:
     image: rediscommander/redis-commander:latest

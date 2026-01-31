@@ -1,16 +1,22 @@
-version: '3.9'
-
 # ═══════════════════════════════════════════════════════════════════
 # PRODUCTION OVERRIDE
 # ═══════════════════════════════════════════════════════════════════
-# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# SECURITY NOTES:
+# - Ensure all secrets are provided via environment variables or Docker secrets
+# - Database ports should NOT be exposed externally (use VPN/bastion for access)
+# - Consider using Docker Swarm or Kubernetes for production deployments
 
 services:
   app:
     build:
       target: runner
+    init: true
     environment:
       - NODE_ENV=production
+    # Remove port exposure - use reverse proxy (nginx/traefik) in production
+    ports: []
     deploy:
       replicas: 3
       restart_policy:
@@ -25,8 +31,19 @@ services:
         reservations:
           cpus: '0.5'
           memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: '100m'
+        max-file: '5'
+        labels: 'service,env'
+    labels:
+      - 'service=urlfy-app'
+      - 'env=production'
 
   postgres:
+    # Remove port exposure in production - access via internal network only
+    ports: []
     environment:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     deploy:
@@ -37,9 +54,16 @@ services:
         reservations:
           cpus: '1'
           memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: '200m'
+        max-file: '5'
 
   redis:
-    command: >
+    # Remove port exposure in production
+    ports: []
+    command: >-
       redis-server
       --appendonly yes
       --appendfsync everysec
@@ -48,6 +72,7 @@ services:
       --tcp-keepalive 60
       --timeout 0
       --requirepass ${REDIS_PASSWORD}
+      --protected-mode yes
     deploy:
       resources:
         limits:
@@ -56,19 +81,26 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: '100m'
+        max-file: '3'
 
-  # Production monitoring
+  # Production monitoring (pinned versions)
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.8.2
     command:
       - '--path.rootfs=/host'
     volumes:
       - /:/host:ro,rslave
     networks:
       - urlfy-network
+    profiles:
+      - monitoring
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -76,3 +108,12 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
     networks:
       - urlfy-network
+    profiles:
+      - monitoring
+
+# ═════════════════════════════════════════════════════════════════════
+# NETWORKS (required for override files)
+# ═════════════════════════════════════════════════════════════════════
+networks:
+  urlfy-network:
+    name: urlfy-network

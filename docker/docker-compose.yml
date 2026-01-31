@@ -6,15 +6,26 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    init: true # Proper signal handling (prevents zombie processes)
     ports:
       - '3000:3000'
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=postgres://urlfy:${DB_PASSWORD:-urlfy}@postgres:5432/urlfy
       - REDIS_URL=redis://redis:6379
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
-      - OTEL_SERVICE_NAME=urlfy-api
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
+      # Required secrets (use .env file or Docker secrets in production)
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-dev-secret-change-in-production-32chars}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET:-dev-internal-secret-change-in-prod}
+      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-in-production-32}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # OpenTelemetry (optional - enabled when using docker-compose.signoz.yml)
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-urlfy-api}
+      - OTEL_SERVICE_VERSION=${OTEL_SERVICE_VERSION:-0.0.0}
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -25,6 +36,25 @@ services:
     networks:
       - urlfy-network
     restart: unless-stopped
+    # Resource limits (prevent runaway memory/CPU)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    # Logging configuration (prevent disk exhaustion)
+    logging:
+      driver: json-file
+      options:
+        max-size: '50m'
+        max-file: '3'
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    read_only: false # Next.js needs write access to .next/cache
 
   # ═══════════════════════════════════════════════════════════════════
   # POSTGRESQL 16
@@ -37,24 +67,38 @@ services:
       POSTGRES_DB: urlfy
       POSTGRES_INITDB_ARGS: '--encoding=UTF-8 --lc-collate=C --lc-ctype=C'
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5433:5432' # Bind to 5433 externally (5432 often in use locally)
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - urlfy-network
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U urlfy -d urlfy']
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: '100m'
+        max-file: '3'
 
   # ═══════════════════════════════════════════════════════════════════
   # REDIS 7
   # ═══════════════════════════════════════════════════════════════════
   redis:
     image: redis:7-alpine
-    command: >
+    command: >-
       redis-server
       --appendonly yes
       --appendfsync everysec
@@ -62,106 +106,33 @@ services:
       --maxmemory-policy allkeys-lru
       --tcp-keepalive 60
       --timeout 0
+      --protected-mode yes
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379' # Bind only to localhost (security)
     volumes:
       - redis_data:/data
     networks:
       - urlfy-network
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
     restart: unless-stopped
-
-  # ═══════════════════════════════════════════════════════════════════
-  # SIGNOZ OTEL COLLECTOR
-  # ═══════════════════════════════════════════════════════════════════
-  signoz-otel-collector:
-    image: signoz/signoz-otel-collector:0.102.8
-    command:
-      [
-        '--config=/etc/otel-collector-config.yaml',
-        '--feature-gates=-pkg.translator.prometheus.NormalizeName'
-      ]
-    ports:
-      - '4317:4317' # OTLP gRPC
-      - '4318:4318' # OTLP HTTP
-    volumes:
-      - ./signoz-otel-collector-config.yaml:/etc/otel-collector-config.yaml
-    networks:
-      - urlfy-network
-    restart: unless-stopped
-    profiles:
-      - observability
-    depends_on:
-      - signoz-clickhouse
-
-  # ═══════════════════════════════════════════════════════════════════
-  # SIGNOZ QUERY SERVICE
-  # ═══════════════════════════════════════════════════════════════════
-  signoz-query-service:
-    image: signoz/query-service:0.55.0
-    ports:
-      - '8080:8080'
-    environment:
-      - STORAGE=clickhouse
-      - GODEBUG=netdns=go
-      - CLICKHOUSE_TCP_PORT=9000
-      - CLICKHOUSE_HTTP_PORT=8123
-      - CLICKHOUSE_HOST=signoz-clickhouse
-      - CLICKHOUSE_DATABASE_NAME=signoz_traces
-      - SIGNOZ_LOCAL_DB_PATH=/var/lib/signoz/signoz.db
-    volumes:
-      - signoz_data:/var/lib/signoz
-    networks:
-      - urlfy-network
-    restart: unless-stopped
-    profiles:
-      - observability
-    depends_on:
-      signoz-clickhouse:
-        condition: service_healthy
-
-  # ═══════════════════════════════════════════════════════════════════
-  # SIGNOZ FRONTEND
-  # ═══════════════════════════════════════════════════════════════════
-  signoz-frontend:
-    image: signoz/frontend:0.55.0
-    ports:
-      - '3301:3301'
-    environment:
-      - FRONTEND_API_ENDPOINT=http://signoz-query-service:8080
-    networks:
-      - urlfy-network
-    restart: unless-stopped
-    profiles:
-      - observability
-    depends_on:
-      - signoz-query-service
-
-  # ═══════════════════════════════════════════════════════════════════
-  # SIGNOZ CLICKHOUSE
-  # ═══════════════════════════════════════════════════════════════════
-  signoz-clickhouse:
-    image: clickhouse/clickhouse-server:24.1.2-alpine
-    volumes:
-      - signoz_clickhouse_data:/var/lib/clickhouse
-      - ./signoz/clickhouse-config.xml:/etc/clickhouse-server/config.d/custom-config.xml:ro
-    environment:
-      - CLICKHOUSE_DB=signoz_traces
-    networks:
-      - urlfy-network
-    healthcheck:
-      test: ['CMD', 'clickhouse-client', '--query', 'SELECT 1']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    restart: unless-stopped
-    profiles:
-      - observability
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 600M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: '50m'
+        max-file: '3'
 
   # ═══════════════════════════════════════════════════════════════════
   # GEOIP DOWNLOADER (Credential-free auto-download)
@@ -213,10 +184,6 @@ volumes:
     name: urlfy_postgres_data
   redis_data:
     name: urlfy_redis_data
-  signoz_clickhouse_data:
-    name: urlfy_signoz_clickhouse_data
-  signoz_data:
-    name: urlfy_signoz_data
   geoip_data:
     name: urlfy_geoip_data
   backup_data:

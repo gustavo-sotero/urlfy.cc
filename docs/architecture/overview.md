@@ -135,7 +135,7 @@ services:
     environment:
       - DATABASE_URL=postgres://urlfy:urlfy@postgres:5432/urlfy
       - REDIS_URL=redis://redis:6379
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz:4318
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
     depends_on:
       - postgres
       - redis
@@ -169,15 +169,20 @@ services:
       timeout: 5s
       retries: 5
 
-  # SigNoz (Observabilidade)
-  signoz:
-    image: signoz/signoz:latest
-    ports:
-      - '3301:3301' # UI
-      - '4317:4317' # OTLP gRPC
-      - '4318:4318' # OTLP HTTP
-    volumes:
-      - signoz_data:/var/lib/signoz
+  # ═══════════════════════════════════════════════════════════════════
+  # SIGNOZ (Observability) - EXTERNAL STACK
+  # ═══════════════════════════════════════════════════════════════════
+  # SigNoz runs as a separate Docker Compose stack due to its complexity
+  # (ClickHouse, Zookeeper, Schema Migrator, Query Service, OTEL Collector).
+  #
+  # To enable observability:
+  #   1. Clone SigNoz: git clone https://github.com/SigNoz/signoz.git ../signoz
+  #   2. Start SigNoz: cd ../signoz/deploy/docker && docker compose up -d
+  #   3. Start urlfy with override:
+  #      docker compose -f docker-compose.yml -f docker-compose.signoz.yml up -d
+  #
+  # See docs/architecture/signoz-setup.md for detailed instructions.
+  # ═══════════════════════════════════════════════════════════════════
 
   # GeoIP Downloader (credential-free, monthly refresh)
   geoip-downloader:
@@ -193,13 +198,12 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  signoz_data:
   geoip_data:
 ```
 
 ### Notas de Produção
 
-- **SigNoz:** Para produção, considerar deploy separado com ClickHouse
+- **SigNoz:** Executa como stack separado via `docker-compose.signoz.yml` - veja [signoz-setup.md](./signoz-setup.md)
 - **GeoIP:** Usa mirror público (jsDelivr CDN), sem necessidade de credenciais
 - **Scaling:** `docker-compose up --scale app=3` para múltiplas instâncias
 
@@ -250,7 +254,7 @@ import { trace } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 
 const exporter = new OTLPTraceExporter({
-  url: 'http://signoz:4318/traces'
+  url: 'http://signoz-otel-collector:4318/traces'
 });
 ```
 

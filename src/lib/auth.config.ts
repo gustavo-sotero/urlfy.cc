@@ -16,6 +16,11 @@ import { admin, apiKey, openAPI, twoFactor } from 'better-auth/plugins';
 // AUTH SECRET VALIDATION
 // ═══════════════════════════════════════════════════════════════════
 export function getAuthSecret(): string {
+  // Skip validation during build (Next.js static generation)
+  if (process.env.SKIP_ENV_VALIDATION === '1') {
+    return 'build-time-placeholder-secret-32chars';
+  }
+
   const authSecret =
     process.env.BETTER_AUTH_SECRET ||
     (process.env.NODE_ENV === 'test'

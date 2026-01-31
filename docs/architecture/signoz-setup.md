@@ -1,0 +1,316 @@
+# SigNoz Observability Setup
+
+> 📖 [← Voltar ao Overview](./overview.md) | [Caching →](./caching-strategy.md)
+
+**Navegação:** [Overview](./overview.md) · [Database](./database-schema.md) · [Caching](./caching-strategy.md) · [Security](./security.md) · [SigNoz](#) · [API](../api/endpoints.md)
+
+---
+
+## Overview
+
+urlfy.cc uses [SigNoz](https://signoz.io) for unified observability (traces, metrics, logs).
+The application includes full OpenTelemetry instrumentation out of the box.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           SIGNOZ STACK                                  │
+│                                                                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                  │
+│  │  Zookeeper   │  │  ClickHouse  │  │   SigNoz     │                  │
+│  │   (3.7.1)    │◄─┤   (25.5.6)   │◄─┤  Query Svc   │                  │
+│  └──────────────┘  └──────────────┘  └──────┬───────┘                  │
+│                                              │                          │
+│                    ┌─────────────────────────┼─────────────────────┐   │
+│                    │                         ▼                     │   │
+│                    │  ┌──────────────────────────────────────┐    │   │
+│                    │  │       OTEL Collector                 │    │   │
+│                    │  │  ┌─────────┐  ┌─────────┐            │    │   │
+│                    │  │  │  :4317  │  │  :4318  │            │    │   │
+│                    │  │  │  gRPC   │  │  HTTP   │            │    │   │
+│                    │  │  └────▲────┘  └────▲────┘            │    │   │
+│                    │  └───────┼────────────┼─────────────────┘    │   │
+│                    │          │            │                       │   │
+│                    └──────────┼────────────┼───────────────────────┘   │
+│                               │            │                           │
+│  ┌────────────────────────────┼────────────┼───────────────────────┐  │
+│  │                    signoz-net           │                       │  │
+│  └────────────────────────────┼────────────┼───────────────────────┘  │
+│                               │            │                           │
+└───────────────────────────────┼────────────┼───────────────────────────┘
+                                │            │
+┌───────────────────────────────┼────────────┼───────────────────────────┐
+│                       URLFY STACK          │                           │
+│                               │            │                           │
+│  ┌────────────────────────────▼────────────▼───────────────────────┐  │
+│  │                        APP (Next.js + Elysia)                   │  │
+│  │  OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318  │  │
+│  └─────────────────────────────────────────────────────────────────┘  │
+│                                                                         │
+│  ┌──────────────┐  ┌──────────────┐                                    │
+│  │  PostgreSQL  │  │    Redis     │                                    │
+│  └──────────────┘  └──────────────┘                                    │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐  │
+│  │                    urlfy-network                                │  │
+│  └─────────────────────────────────────────────────────────────────┘  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Port Mapping:**
+
+| Service        | Port   | Protocol | Purpose                          |
+| -------------- | ------ | -------- | -------------------------------- |
+| SigNoz UI      | `8080` | HTTP     | Dashboard & alerting             |
+| OTEL Collector | `4317` | gRPC     | OTLP gRPC receiver               |
+| OTEL Collector | `4318` | HTTP     | OTLP HTTP receiver (used by app) |
+| ClickHouse     | `9000` | TCP      | Internal DB (not exposed)        |
+
+---
+
+## Prerequisites
+
+- Docker with minimum **4GB RAM** allocated
+- Docker Compose v2.x
+- ~3GB disk space for ClickHouse data
+
+> ⚠️ **Windows Users:** SigNoz is not officially supported on Windows.
+> Use WSL2 with Docker Desktop configured to use WSL2 backend.
+
+---
+
+## Quick Start
+
+### 1. Clone SigNoz Repository
+
+```bash
+# From urlfy.cc root directory
+git clone https://github.com/SigNoz/signoz.git ../signoz
+```
+
+Or use the convenience script:
+
+```bash
+bun run signoz:clone
+```
+
+### 2. Start SigNoz Stack
+
+```bash
+cd ../signoz/deploy/docker
+docker compose up -d
+```
+
+Or use the convenience script:
+
+```bash
+bun run signoz:up
+```
+
+Wait for all services to be healthy (~2-3 minutes on first run):
+
+```bash
+docker compose ps
+```
+
+Expected output:
+
+```
+NAME                    STATUS
+signoz-clickhouse       Up (healthy)
+signoz-otel-collector   Up
+signoz-signoz           Up (healthy)
+signoz-zookeeper-1      Up (healthy)
+```
+
+### 3. Start urlfy with SigNoz Integration
+
+```bash
+cd /path/to/urlfy.cc/docker
+docker compose -f docker-compose.yml -f docker-compose.signoz.yml up -d
+```
+
+Or use the convenience script:
+
+```bash
+bun run docker:up:observability
+```
+
+### 4. Access SigNoz Dashboard
+
+Open [http://localhost:8080](http://localhost:8080) in your browser.
+
+Default credentials: Create on first access.
+
+---
+
+## Telemetry Configuration
+
+### Environment Variables
+
+| Variable                      | Default     | Description             |
+| ----------------------------- | ----------- | ----------------------- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | -           | SigNoz collector URL    |
+| `OTEL_SERVICE_NAME`           | `urlfy-api` | Service name in traces  |
+| `OTEL_SERVICE_VERSION`        | `0.0.0`     | Semantic version        |
+| `OTEL_ENABLED`                | `false`     | Enable OTel export      |
+| `OTEL_TRACES_SAMPLER_ARG`     | `1.0`       | Sampling rate (0.0-1.0) |
+| `OTEL_DEBUG`                  | `false`     | Enable verbose logging  |
+
+### Custom Metrics Exported
+
+| Metric                   | Type      | Labels                | Description            |
+| ------------------------ | --------- | --------------------- | ---------------------- |
+| `urlfy.redirect.latency` | Histogram | `cache_hit`, `status` | Redirect latency in ms |
+| `urlfy.cache.operations` | Counter   | `operation`, `result` | Cache hits/misses      |
+| `urlfy.queue.pending`    | Gauge     | `queue_name`          | Pending jobs in queue  |
+| `urlfy.db.query.latency` | Histogram | `operation`           | Database query latency |
+| `urlfy.links.created`    | Counter   | `user_type`           | Links created          |
+
+---
+
+## Production Considerations
+
+### Sampling Strategy
+
+For high-traffic production, reduce sampling rate:
+
+```yaml
+# docker-compose.signoz.yml
+environment:
+  - OTEL_TRACES_SAMPLER_ARG=0.1 # Sample 10% of traces
+```
+
+### Resource Limits
+
+SigNoz ClickHouse can grow significantly. Set limits:
+
+```yaml
+# In signoz/deploy/docker/docker-compose.yaml
+clickhouse:
+  deploy:
+    resources:
+      limits:
+        memory: 4G
+```
+
+### Data Retention
+
+Default retention: 7 days (traces/logs), 30 days (metrics).
+
+Configure in SigNoz UI: Settings → General → Retention Period.
+
+---
+
+## Troubleshooting
+
+### No Data in SigNoz
+
+1. Verify network connectivity:
+
+   ```bash
+   docker compose exec app ping signoz-otel-collector
+   ```
+
+2. Check OTEL exporter logs:
+
+   ```bash
+   docker compose logs app | grep -i otel
+   ```
+
+3. Verify collector is receiving data:
+   ```bash
+   docker logs signoz-otel-collector 2>&1 | grep "TracesExporter"
+   ```
+
+### High Memory Usage
+
+ClickHouse uses significant memory for queries. Recommendations:
+
+- Increase Docker memory limit to 6GB+
+- Reduce retention period
+- Enable trace sampling
+
+### Connection Refused Errors
+
+If the app can't reach the SigNoz collector:
+
+1. Ensure SigNoz is running: `docker compose ps` in signoz directory
+2. Verify the `signoz-net` network exists: `docker network ls | grep signoz`
+3. Check app is connected to both networks: `docker inspect docker-app-1`
+
+---
+
+## Alert Rules (SLO-based)
+
+Configure these alerts in SigNoz UI (Alerts → New Alert):
+
+### Redirect Latency P99
+
+```yaml
+alert: HighRedirectLatency
+expr: histogram_quantile(0.99, sum(rate(urlfy_redirect_latency_bucket[5m])) by (le)) > 300
+for: 5m
+severity: warning
+annotations:
+  summary: 'Redirect P99 latency exceeds 300ms'
+```
+
+### Error Rate
+
+```yaml
+alert: HighErrorRate
+expr: sum(rate(urlfy_http_requests_total{status=~"5.."}[5m])) / sum(rate(urlfy_http_requests_total[5m])) > 0.01
+for: 5m
+severity: critical
+annotations:
+  summary: 'Error rate exceeds 1%'
+```
+
+### Cache Hit Rate
+
+```yaml
+alert: LowCacheHitRate
+expr: sum(rate(urlfy_cache_operations_total{result="hit"}[10m])) / sum(rate(urlfy_cache_operations_total[10m])) < 0.7
+for: 10m
+severity: warning
+annotations:
+  summary: 'Cache hit rate below 70%'
+```
+
+---
+
+## NPM Scripts Reference
+
+| Script                       | Description                              |
+| ---------------------------- | ---------------------------------------- |
+| `bun run signoz:clone`       | Clone SigNoz repository to ../signoz     |
+| `bun run signoz:up`          | Start SigNoz stack                       |
+| `bun run signoz:down`        | Stop SigNoz stack                        |
+| `bun run signoz:logs`        | Tail SigNoz logs                         |
+| `bun run docker:up:signoz`   | Start urlfy with SigNoz integration      |
+| `bun run docker:down:signoz` | Stop urlfy with SigNoz integration       |
+| `bun run docker:logs:signoz` | Tail logs for urlfy with SigNoz override |
+
+---
+
+## Security Considerations
+
+1. **Network isolation:** SigNoz services should not be exposed externally in production. Use reverse proxy (nginx/traefik) with authentication.
+
+2. **Retention policy:** Configure appropriate retention in SigNoz UI to prevent disk exhaustion. Default: 7 days traces, 30 days metrics.
+
+3. **Sampling in production:** Set `OTEL_TRACES_SAMPLER_ARG=0.1` (10% sampling) for high-traffic scenarios to reduce storage costs.
+
+4. **Sensitive data:** Ensure no PII is included in trace attributes. The current implementation hashes IPs before logging.
+
+---
+
+## References
+
+- [SigNoz Docker Installation](https://signoz.io/docs/install/docker/)
+- [OpenTelemetry Node.js SDK](https://opentelemetry.io/docs/languages/js/getting-started/nodejs/)
+- [SigNoz Alert Configuration](https://signoz.io/docs/alerts/)
+- [urlfy.cc Architecture Overview](./overview.md)

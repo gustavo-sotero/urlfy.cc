@@ -22,9 +22,17 @@ const envSchema = z.object({
   REDIS_PORT: z.string().default('6379'),
 
   // OpenTelemetry
-  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().default('http://localhost:4318'),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
   OTEL_SERVICE_NAME: z.string().default('urlfy-api'),
   OTEL_SERVICE_VERSION: z.string().optional(),
+  OTEL_ENABLED: z
+    .string()
+    .default('false')
+    .transform((val) => val === 'true'),
+  OTEL_DEBUG: z
+    .string()
+    .default('false')
+    .transform((val) => val === 'true'),
 
   // GeoIP (Credential-free auto-download)
   GEOIP_DB_PATH: z.string().default('/app/geoip/GeoLite2-City.mmdb'),
@@ -83,8 +91,27 @@ type Env = z.infer<typeof envSchema>;
 
 let env: Env | null = null;
 
+// Build-time placeholder values (used when SKIP_ENV_VALIDATION=1)
+const buildTimePlaceholders: Partial<Record<keyof Env, string>> = {
+  DATABASE_URL: 'postgres://placeholder:placeholder@localhost:5432/placeholder',
+  BETTER_AUTH_SECRET: 'build-time-placeholder-secret-32chars',
+  INTERNAL_API_SECRET: 'build-time-placeholder-internal-secret'
+};
+
 export function validateEnv(): Env {
   if (env) return env;
+
+  // Skip validation during build (Next.js static generation)
+  if (process.env.SKIP_ENV_VALIDATION === '1') {
+    const placeholderEnv = { ...process.env };
+    for (const [key, value] of Object.entries(buildTimePlaceholders)) {
+      if (!placeholderEnv[key]) {
+        placeholderEnv[key] = value;
+      }
+    }
+    env = envSchema.parse(placeholderEnv);
+    return env;
+  }
 
   try {
     env = envSchema.parse(process.env);
