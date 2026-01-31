@@ -22,9 +22,11 @@ const envSchema = z.object({
   REDIS_PORT: z.string().default('6379'),
 
   // OpenTelemetry
-  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
   OTEL_SERVICE_NAME: z.string().default('urlfy-api'),
   OTEL_SERVICE_VERSION: z.string().optional(),
+  OTEL_TRACES_SAMPLER: z.string().optional(),
+  OTEL_TRACES_SAMPLER_ARG: z.string().optional(),
   // Prefer TELEMETRY_ENABLED; keep OTEL_ENABLED for backward compatibility
   TELEMETRY_ENABLED: z
     .string()
