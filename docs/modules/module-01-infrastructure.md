@@ -205,22 +205,19 @@ services:
       - urlfy-network
 
   # ═══════════════════════════════════════════════════════════════════
-  # SIGNOZ (OBSERVABILIDADE)
+  # SIGNOZ (OBSERVABILIDADE) - EXTERNAL STACK
   # ═══════════════════════════════════════════════════════════════════
-  signoz:
-    image: signoz/signoz-otel-collector:latest
-    container_name: urlfy-signoz
-    restart: unless-stopped
-    ports:
-      - '4317:4317' # OTLP gRPC
-      - '4318:4318' # OTLP HTTP
-      - '8888:8888' # Prometheus metrics
-    environment:
-      - SIGNOZ_CLUSTER_NAME=urlfy
-    volumes:
-      - signoz_data:/var/lib/signoz
-    networks:
-      - urlfy-network
+  # SigNoz runs as a separate Docker Compose stack due to its complexity
+  # (ClickHouse, Zookeeper, Schema Migrator, Query Service, OTEL Collector).
+  #
+  # To enable observability:
+  #   1. Clone SigNoz: git clone https://github.com/SigNoz/signoz.git ../signoz
+  #   2. Start SigNoz: cd ../signoz/deploy/docker && docker compose up -d
+  #   3. Start urlfy with override:
+  #      docker compose -f docker-compose.yml -f docker-compose.signoz.yml up -d
+  #
+  # See docs/architecture/signoz-setup.md for detailed instructions.
+  # ═══════════════════════════════════════════════════════════════════
 
   # ═══════════════════════════════════════════════════════════════════
   # GEOIP DOWNLOADER (Credential-free auto-download)
@@ -271,8 +268,6 @@ volumes:
     name: urlfy_postgres_data
   redis_data:
     name: urlfy_redis_data
-  signoz_data:
-    name: urlfy_signoz_data
   geoip_data:
     name: urlfy_geoip_data
   backup_data:
