@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
     '@elysiajs/cors',
     '@elysiajs/jwt',
     '@elysiajs/openapi',
+    '@elysiajs/opentelemetry',
     '@labzzhq/compressor',
     // Auth & Database
     'better-auth',

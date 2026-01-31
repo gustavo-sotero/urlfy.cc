@@ -8,8 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { createHash } from 'node:crypto';
-import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import {
   checkIdempotency,
@@ -23,6 +21,8 @@ import {
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
+import { createHash } from 'node:crypto';
 import { LinkLifecycleService } from './link-lifecycle.service';
 import {
   LinkBulkCreateBody,
@@ -55,7 +55,7 @@ export const createLinkController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/',
-    async ({ body, headers, request, user, set }) => {
+    async function createLink({ body, headers, request, user, set }) {
       // Check email verification for authenticated users
       if (user && !user.emailVerified) {
         throw new AppError(
@@ -146,7 +146,7 @@ export const protectedLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/bulk',
-    async ({ body, user, request, set }) => {
+    async function createBulkLinks({ body, user, request, set }) {
       // Check email verification
       if (!user?.emailVerified) {
         throw new AppError(
@@ -242,7 +242,7 @@ export const protectedLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/',
-    async ({ query, user }) => {
+    async function listUserLinks({ query, user }) {
       const userId = requireUserId(user);
       const result = await LinkService.listUserLinks(userId, {
         page: query.page ? parseInt(query.page, 10) : 1,
@@ -289,7 +289,7 @@ export const protectedLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/:id',
-    async ({ params, user }) => {
+    async function getLinkById({ params, user }) {
       const userId = requireUserId(user);
       const link = await LinkService.getLinkById(params.id, userId);
       return {
@@ -319,7 +319,7 @@ export const protectedLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .patch(
     '/:id',
-    async ({ params, body, user }) => {
+    async function updateLink({ params, body, user }) {
       const userId = requireUserId(user);
       const link = await LinkService.updateLink(params.id, userId, body);
       return {

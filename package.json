@@ -69,6 +69,7 @@
     "@elysiajs/eden": "^1.4.6",
     "@elysiajs/jwt": "^1.4.0",
     "@elysiajs/openapi": "^1.4.14",
+    "@elysiajs/opentelemetry": "^1.4.10",
     "@hookform/resolvers": "^5.2.2",
     "@labzzhq/compressor": "^1.1.1",
     "@maxmind/geoip2-node": "^6.3.4",

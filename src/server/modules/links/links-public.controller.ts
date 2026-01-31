@@ -8,13 +8,13 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { jwtPlugin } from '@/server/config/plugins';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth } from '@/server/middleware/auth.middleware';
 import * as qrService from '@/server/services/qr.service';
 import { validateUrlSafe } from '@/server/services/url-validator';
+import { Elysia, t } from 'elysia';
 import { LinkPasswordService } from './link-password.service';
 import {
   LinkCodeParam,
@@ -39,7 +39,7 @@ export const publicLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/validate',
-    async ({ body }) => {
+    async function validateUrl({ body }) {
       const validation = await validateUrlSafe(body.url);
 
       if (validation.valid) {
@@ -109,7 +109,7 @@ export const publicLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/by-code/:code/verify-password',
-    async ({ params, body, jwt, cookie }) => {
+    async function verifyLinkPassword({ params, body, jwt, cookie }) {
       const isValid = await LinkPasswordService.verifyLinkPassword(
         params.code,
         body.password
@@ -184,7 +184,7 @@ export const publicLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/by-code/:code/qr',
-    async ({ params, query, set }) => {
+    async function generateQrCode({ params, query, set }) {
       const link = await LinkService.getLinkByCode(params.code);
       if (!link) {
         throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
