@@ -1,10 +1,10 @@
+import { Elysia } from 'elysia';
 import {
   brotliCompressSync,
   constants,
   deflateSync,
   gzipSync
 } from 'node:zlib';
-import { Elysia } from 'elysia';
 
 type CompressionEncoding = 'br' | 'gzip' | 'deflate';
 
@@ -109,7 +109,9 @@ export function compressionMiddleware(options?: CompressionOptions) {
 
       if (!compressibleTypes.test(contentType)) return normalizedResponse;
 
-      const buffer = await normalizedResponse.arrayBuffer();
+      if (normalizedResponse.bodyUsed) return normalizedResponse;
+
+      const buffer = await normalizedResponse.clone().arrayBuffer();
       if (buffer.byteLength < threshold) return normalizedResponse;
 
       const compressed = compressBuffer(new Uint8Array(buffer), encoding);

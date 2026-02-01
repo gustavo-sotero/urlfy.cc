@@ -56,22 +56,19 @@ export function handleCORSPreflight(request: Request): Response | null {
 export function addCORSHeaders(response: Response, request: Request): Response {
   const origin = request.headers.get('Origin');
 
-  // Create new response with same body and status
-  const newResponse = new Response(response.body, response);
-
   // Add CORS headers from centralized config
   const corsHeaders = getCorsHeaders(origin);
 
   for (const [key, value] of Object.entries(corsHeaders)) {
-    newResponse.headers.set(key, value);
+    response.headers.set(key, value);
   }
 
   // Add Vary header for cache control
-  const existingVary = newResponse.headers.get('Vary');
+  const existingVary = response.headers.get('Vary');
   const varyValues = existingVary ? `${existingVary}, Origin` : 'Origin';
-  newResponse.headers.set('Vary', varyValues);
+  response.headers.set('Vary', varyValues);
 
-  return newResponse;
+  return response;
 }
 
 /**
