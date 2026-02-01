@@ -51,9 +51,35 @@ This will start:
 
 - PostgreSQL 16
 - Redis 7
-- SigNoz (observability platform)
 - GeoIP updater
 - Backup scheduler
+
+**Optional: Enable Observability (SigNoz)**
+
+For full observability with traces, metrics, and logs:
+
+```bash
+# 1. Clone SigNoz (one-time setup)
+bun run signoz:clone
+
+# 2. Start SigNoz stack
+bun run signoz:up
+
+# 3. Start urlfy with SigNoz integration
+bun run docker:up:signoz
+```
+
+SigNoz dashboard will be available at [http://localhost:8080](http://localhost:8080).
+
+For local development with SigNoz, ensure your `.env` has:
+
+```ini
+TELEMETRY_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+OTEL_SERVICE_NAME=urlfy-api-local
+```
+
+See [docs/architecture/signoz-setup.md](docs/architecture/signoz-setup.md) for detailed setup instructions.
 
 ### 4. Run Database Migrations
 
@@ -100,9 +126,21 @@ bun run docker:restart
 
 ### SigNoz Dashboard
 
-- URL: [http://localhost:3301](http://localhost:3301)
-- Traces, metrics, and logs unified
-- Pre-configured for application monitoring
+If you've started SigNoz (see setup instructions above):
+
+- **URL**: [http://localhost:8080](http://localhost:8080) (not 3301 - that's an old port)
+- **Features**: Traces, metrics, and logs unified in one platform
+- **Service Name**: `urlfy-api` (or `urlfy-api-local` for local dev)
+
+To verify telemetry is working:
+
+```bash
+# Make a test request
+curl http://localhost:3000/api/health
+
+# Check if traces appear in SigNoz (wait 10-30 seconds)
+# Navigate to Services → urlfy-api
+```
 
 ### Health Endpoints
 

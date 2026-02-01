@@ -53,7 +53,8 @@ const resource = resourceFromAttributes({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// EXPORTERS (created lazily when telemetry is enabled)
+// EXPORTERS (OTLP/HTTP Protocol - requires /v1/ prefix)
+// @see https://opentelemetry.io/docs/specs/otlp/#otlphttp
 // ═══════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════
@@ -92,15 +93,15 @@ export function initTelemetry() {
   }
 
   const traceExporter = new OTLPTraceExporter({
-    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/traces`
+    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`
   });
 
   const metricExporter = new OTLPMetricExporter({
-    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/metrics`
+    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/metrics`
   });
 
   const logExporter = new OTLPLogExporter({
-    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/logs`
+    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/logs`
   });
 
   if ('addLogRecordProcessor' in loggerProvider) {
@@ -129,7 +130,10 @@ export function initTelemetry() {
 
   sdk.start();
   console.log(
-    `[Telemetry] Initializing with endpoint: ${env.OTEL_EXPORTER_OTLP_ENDPOINT}`
+    `[Telemetry] ✅ Initialized with endpoint: ${env.OTEL_EXPORTER_OTLP_ENDPOINT}`
+  );
+  console.log(
+    `[Telemetry] Service: ${process.env.OTEL_SERVICE_NAME || 'urlfy-api'}`
   );
 }
 

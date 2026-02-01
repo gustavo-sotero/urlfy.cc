@@ -144,6 +144,53 @@ Open [http://localhost:8080](http://localhost:8080) in your browser.
 
 Default credentials: Create on first access.
 
+### 5. Validation Checklist
+
+After starting both SigNoz and urlfy, verify the integration is working:
+
+**Step 1: Check Telemetry Initialization**
+
+```bash
+# View app startup logs
+docker compose logs app | grep -i telemetry
+
+# Expected output:
+# [Telemetry] ✅ Initialized with endpoint: http://signoz-otel-collector:4318
+# [Telemetry] Service: urlfy-api
+```
+
+**Step 2: Generate Test Traffic**
+
+```bash
+# Make a request to generate telemetry data
+curl http://localhost:3000/api/health
+
+# Or visit http://localhost:3000 in your browser
+```
+
+**Step 3: Verify in SigNoz UI**
+
+1. Open [http://localhost:8080](http://localhost:8080)
+2. Navigate to **Services** tab (left sidebar)
+3. Look for `urlfy-api` in the services list
+4. Click on `urlfy-api` to view traces
+
+**Expected:** You should see traces appearing within 10-30 seconds of making requests.
+
+**Step 4: Check Metrics**
+
+1. In SigNoz UI, go to **Dashboard** tab
+2. Create a new panel with metric: `http.server.request.duration`
+3. Filter by `service.name = urlfy-api`
+
+**Step 5: Check Logs**
+
+1. Go to **Logs** tab
+2. Filter by `service.name = urlfy-api`
+3. You should see structured logs from the application
+
+**If No Data Appears:** See [Troubleshooting](#troubleshooting) section below.
+
 ---
 
 ## Telemetry Configuration
@@ -208,22 +255,126 @@ Configure in SigNoz UI: Settings → General → Retention Period.
 
 ### No Data in SigNoz
 
-1. Verify network connectivity:
+**Symptoms:** SigNoz dashboard shows no services or traces after starting the application.
 
-   ```bash
-   docker compose exec app ping signoz-otel-collector
-   ```
+**Root Causes & Solutions:**
 
-2. Check OTEL exporter logs:
+#### 1. OTLP Endpoint URL Misconfiguration
 
-   ```bash
-   docker compose logs app | grep -i otel
-   ```
+The OTLP/HTTP specification requires `/v1/` prefix for all signal types. Verify the exporter URLs in `src/server/lib/telemetry.ts` include:
 
-3. Verify collector is receiving data:
-   ```bash
-   docker logs signoz-otel-collector 2>&1 | grep "TracesExporter"
-   ```
+- Traces: `/v1/traces`
+- Metrics: `/v1/metrics`
+- Logs: `/v1/logs`
+
+**Correct Configuration:**
+
+```typescript
+const traceExporter = new OTLPTraceExporter({
+  url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`
+});
+```
+
+**Verification:**
+
+```bash
+# Check app startup logs for successful telemetry initialization
+docker compose logs app | grep -i telemetry
+# Expected: [Telemetry] ✅ Initialized with endpoint: http://signoz-otel-collector:4318
+```
+
+#### 2. Network Connectivity Issues
+
+**Verify Docker Network Configuration:**
+
+```bash
+# 1. Check if signoz-net network exists
+docker network ls | grep signoz
+
+# Expected output (name may vary):
+# abc123def456   signoz-net   bridge   local
+# OR
+# abc123def456   docker_default   bridge   local
+```
+
+If the network name differs from `signoz-net`, update `docker/docker-compose.signoz.yml`:
+
+```yaml
+networks:
+  signoz-net:
+    external: true
+    name: <ACTUAL_NETWORK_NAME> # Use the name from docker network ls
+```
+
+**Verify App is Connected to Both Networks:**
+
+```bash
+# Inspect app container networks
+docker inspect docker-app-1 | grep -A 10 "Networks"
+
+# Expected output should show both:
+# - urlfy-network
+# - signoz-net (or the actual network name)
+```
+
+**Test Connectivity:**
+
+```bash
+# From app container to SigNoz collector
+docker compose exec app ping -c 3 signoz-otel-collector
+
+# If ping fails, restart both stacks:
+cd ../signoz/deploy/docker && docker compose restart
+cd /path/to/urlfy.cc/docker && docker compose -f docker-compose.yml -f docker-compose.signoz.yml restart
+```
+
+#### 3. Environment Variable Validation
+
+**For Docker (Container-to-Container):**
+
+```bash
+# Verify OTEL_EXPORTER_OTLP_ENDPOINT is set correctly
+docker compose exec app env | grep OTEL
+
+# Expected for Docker:
+# OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
+# TELEMETRY_ENABLED=true
+```
+
+**For Local Development (`bun dev`):**
+
+```bash
+# Check .env file has localhost endpoint
+cat .env | grep OTEL
+
+# Expected for local dev:
+# OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+# TELEMETRY_ENABLED=true
+```
+
+#### 4. Check Exporter Logs
+
+```bash
+# Application logs
+docker compose logs app | grep -i otel
+
+# Look for:
+# ✅ [Telemetry] ✅ Initialized with endpoint: ...
+# ❌ Connection refused (wrong endpoint)
+# ❌ 404 Not Found (missing /v1/ prefix)
+```
+
+#### 5. Verify SigNoz Collector is Running
+
+```bash
+# Check collector status
+docker logs signoz-otel-collector 2>&1 | tail -50
+
+# Expected: "Everything is ready. Begin running and processing data."
+
+# Check if collector is receiving data
+docker logs signoz-otel-collector 2>&1 | grep "TracesExporter"
+```
 
 ### High Memory Usage
 
