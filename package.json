@@ -48,6 +48,8 @@
     "signoz:up": "cd ../signoz/deploy/docker && docker compose up -d",
     "signoz:down": "cd ../signoz/deploy/docker && docker compose down",
     "signoz:logs": "cd ../signoz/deploy/docker && docker compose logs -f",
+    "observability:up": "bun run scripts/observability-up.ts",
+    "observability:down": "bun run scripts/observability-down.ts",
     "docker:up:observability": "cd docker && docker compose -f docker-compose.yml -f docker-compose.signoz.yml up -d",
     "docker:down:observability": "cd docker && docker compose -f docker-compose.yml -f docker-compose.signoz.yml down",
     "docker:logs:observability": "cd docker && docker compose -f docker-compose.yml -f docker-compose.signoz.yml logs -f",

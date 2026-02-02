@@ -111,8 +111,14 @@ export function compressionMiddleware(options?: CompressionOptions) {
 
       if (normalizedResponse.bodyUsed) return normalizedResponse;
 
-      const buffer = await normalizedResponse.clone().arrayBuffer();
-      if (buffer.byteLength < threshold) return normalizedResponse;
+      const buffer = await normalizedResponse.arrayBuffer();
+      const baseHeaders = new Headers(normalizedResponse.headers);
+      if (buffer.byteLength < threshold) {
+        return new Response(buffer as unknown as BodyInit, {
+          status: normalizedResponse.status,
+          headers: baseHeaders
+        });
+      }
 
       const compressed = compressBuffer(new Uint8Array(buffer), encoding);
 
@@ -130,11 +136,11 @@ export function compressionMiddleware(options?: CompressionOptions) {
 
       set.headers['Content-Encoding'] = encoding;
 
+      const compressedHeaders = new Headers(baseHeaders);
+      compressedHeaders.set('Content-Type', contentType);
       return new Response(compressed as unknown as BodyInit, {
         status: normalizedResponse.status,
-        headers: {
-          'Content-Type': contentType
-        }
+        headers: compressedHeaders
       });
     }
   );

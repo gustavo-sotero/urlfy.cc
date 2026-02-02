@@ -83,7 +83,29 @@ The application includes full OpenTelemetry instrumentation out of the box.
 
 ## Quick Start
 
-### 1. Clone SigNoz Repository
+### 1. One-command setup (recommended)
+
+```bash
+bun run observability:up
+```
+
+> ⚠️ **Windows note:** Docker Desktop must be running with WSL2 backend enabled, otherwise the command will fail.
+
+This command:
+
+1. Clones SigNoz (if missing)
+2. Starts the SigNoz stack
+3. Starts urlfy with the SigNoz override compose
+
+To stop everything:
+
+```bash
+bun run observability:down
+```
+
+---
+
+### 2. Clone SigNoz Repository (manual)
 
 ```bash
 # From urlfy.cc root directory
@@ -96,7 +118,7 @@ Or use the convenience script:
 bun run signoz:clone
 ```
 
-### 2. Start SigNoz Stack
+### 3. Start SigNoz Stack
 
 ```bash
 cd ../signoz/deploy/docker
@@ -125,7 +147,7 @@ signoz-signoz           Up (healthy)
 signoz-zookeeper-1      Up (healthy)
 ```
 
-### 3. Start urlfy with SigNoz Integration
+### 4. Start urlfy with SigNoz Integration
 
 ```bash
 cd /path/to/urlfy.cc/docker
@@ -138,13 +160,13 @@ Or use the convenience script:
 bun run docker:up:observability
 ```
 
-### 4. Access SigNoz Dashboard
+### 5. Access SigNoz Dashboard
 
 Open [http://localhost:8080](http://localhost:8080) in your browser.
 
 Default credentials: Create on first access.
 
-### 5. Validation Checklist
+### 6. Validation Checklist
 
 After starting both SigNoz and urlfy, verify the integration is working:
 
@@ -441,6 +463,8 @@ annotations:
 | `bun run signoz:up`                 | Start SigNoz stack                       |
 | `bun run signoz:down`               | Stop SigNoz stack                        |
 | `bun run signoz:logs`               | Tail SigNoz logs                         |
+| `bun run observability:up`          | One-command setup (clone + up both)      |
+| `bun run observability:down`        | Stop urlfy + SigNoz stacks               |
 | `bun run docker:up:observability`   | Start urlfy with SigNoz integration      |
 | `bun run docker:down:observability` | Stop urlfy with SigNoz integration       |
 | `bun run docker:logs:observability` | Tail logs for urlfy with SigNoz override |

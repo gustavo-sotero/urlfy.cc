@@ -15,7 +15,7 @@ WORKDIR /app
 COPY package.json bun.lock* bunfig.toml ./
 
 # Instala dependências (incluindo devDependencies para build)
-RUN bun install --frozen-lockfile --production=false
+RUN bun install --frozen-lockfile
 
 # ═══════════════════════════════════════════════════════════════════
 # STAGE 2: Builder
@@ -59,10 +59,11 @@ FROM oven/bun:slim AS runner
 WORKDIR /app
 
 # Instala curl para healthcheck mais leve e cria usuário não-root em uma única camada
-# hadolint ignore=DL3018
-RUN apk add --no-cache curl && \
-    addgroup --system --gid 1001 urlfy && \
-    adduser --system --uid 1001 --ingroup urlfy --no-create-home urlfy && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd --system --gid 1001 urlfy && \
+    useradd --system --uid 1001 --gid urlfy --no-create-home --shell /usr/sbin/nologin urlfy && \
     mkdir -p .next/cache /app/geoip && \
     chown -R urlfy:urlfy .next /app/geoip
 

@@ -106,7 +106,7 @@ services:
       --maxmemory-policy allkeys-lru
       --tcp-keepalive 60
       --timeout 0
-      --protected-mode yes
+      --protected-mode no
     ports:
       - '127.0.0.1:6379:6379' # Bind only to localhost (security)
     volumes:
