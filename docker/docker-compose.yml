@@ -1,63 +1,17 @@
+# ═══════════════════════════════════════════════════════════════════
+# LOCAL DEVELOPMENT - docker compose up -d
+# ═══════════════════════════════════════════════════════════════════
+# Sobe PostgreSQL + Redis para desenvolvimento local.
+# A app roda fora do Docker via "bun run dev".
+#
+# Produção (Dokploy): PostgreSQL, Redis e SigNoz são serviços
+# separados no Dokploy (templates). Apenas o Dockerfile da app
+# e o geoip-downloader são usados do repositório.
+# ═══════════════════════════════════════════════════════════════════
+
 services:
   # ═══════════════════════════════════════════════════════════════════
-  # APLICAÇÃO PRINCIPAL (Next.js + ElysiaJS + Bun)
-  # ═══════════════════════════════════════════════════════════════════
-  app:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    init: true # Proper signal handling (prevents zombie processes)
-    ports:
-      - '3000:3000'
-    environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - DATABASE_URL=postgres://urlfy:${DB_PASSWORD:-urlfy}@postgres:5432/urlfy
-      - REDIS_URL=redis://redis:6379
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
-      # Required secrets (use .env file or Docker secrets in production)
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-dev-secret-change-in-production-32chars}
-      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET:-dev-internal-secret-change-in-prod}
-      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-in-production-32}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-      # OpenTelemetry (optional - enabled when using docker-compose.signoz.yml)
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
-      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-urlfy-api}
-      - OTEL_SERVICE_VERSION=${OTEL_SERVICE_VERSION:-0.0.0}
-      - TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - geoip_data:/app/geoip:ro
-    networks:
-      - urlfy-network
-    restart: unless-stopped
-    # Resource limits (prevent runaway memory/CPU)
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 256M
-    # Logging configuration (prevent disk exhaustion)
-    logging:
-      driver: json-file
-      options:
-        max-size: '50m'
-        max-file: '3'
-    # Security options
-    security_opt:
-      - no-new-privileges:true
-    read_only: false # Next.js needs write access to .next/cache
-
-  # ═══════════════════════════════════════════════════════════════════
-  # POSTGRESQL 16
+  # POSTGRESQL 16 (dev only)
   # ═══════════════════════════════════════════════════════════════════
   postgres:
     image: postgres:16-alpine
@@ -67,11 +21,9 @@ services:
       POSTGRES_DB: urlfy
       POSTGRES_INITDB_ARGS: '--encoding=UTF-8 --lc-collate=C --lc-ctype=C'
     ports:
-      - '127.0.0.1:5433:5432' # Bind to 5433 externally (5432 often in use locally)
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - urlfy-network
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U urlfy -d urlfy']
       interval: 10s
@@ -79,22 +31,9 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-    logging:
-      driver: json-file
-      options:
-        max-size: '100m'
-        max-file: '3'
 
   # ═══════════════════════════════════════════════════════════════════
-  # REDIS 7
+  # REDIS 7 (dev only)
   # ═══════════════════════════════════════════════════════════════════
   redis:
     image: redis:7-alpine
@@ -108,11 +47,9 @@ services:
       --timeout 0
       --protected-mode no
     ports:
-      - '127.0.0.1:6379:6379' # Bind only to localhost (security)
+      - '127.0.0.1:6379:6379'
     volumes:
       - redis_data:/data
-    networks:
-      - urlfy-network
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
@@ -120,19 +57,6 @@ services:
       retries: 5
       start_period: 5s
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 600M
-        reservations:
-          cpus: '0.1'
-          memory: 128M
-    logging:
-      driver: json-file
-      options:
-        max-size: '50m'
-        max-file: '3'
 
   # ═══════════════════════════════════════════════════════════════════
   # GEOIP DOWNLOADER (Credential-free auto-download)
@@ -147,34 +71,9 @@ services:
       - GEOIP_MMDB_URL=https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz
     volumes:
       - geoip_data:/app/geoip
-    networks:
-      - urlfy-network
     restart: 'no'
     entrypoint: []
     command: ['/usr/local/bin/geoip-refresh.sh']
-
-  # ═══════════════════════════════════════════════════════════════════
-  # BACKUP SCHEDULER (PostgreSQL)
-  # ═══════════════════════════════════════════════════════════════════
-  # NOTA: Em ambiente Windows/dev, executar backups manualmente via:
-  #       docker compose exec backup /backup.sh
-  # backup:
-  #   image: postgres:16-alpine
-  #   environment:
-  #     - PGHOST=postgres
-  #     - PGDATABASE=urlfy
-  #     - PGUSER=urlfy
-  #     - PGPASSWORD=${DB_PASSWORD:-urlfy}
-  #     - BACKUP_RETENTION_DAYS=7
-  #   volumes:
-  #     - ../scripts/backup.sh:/backup.sh:ro
-  #     - backup_data:/backups
-  #   networks:
-  #     - urlfy-network
-  #   profiles:
-  #     - backup
-  #   depends_on:
-  #     - postgres
 
 # ═════════════════════════════════════════════════════════════════════
 # VOLUMES
@@ -186,13 +85,3 @@ volumes:
     name: urlfy_redis_data
   geoip_data:
     name: urlfy_geoip_data
-  backup_data:
-    name: urlfy_backup_data
-
-# ═════════════════════════════════════════════════════════════════════
-# NETWORKS
-# ═════════════════════════════════════════════════════════════════════
-networks:
-  urlfy-network:
-    driver: bridge
-    name: urlfy-network

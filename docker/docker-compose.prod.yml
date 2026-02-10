@@ -1,33 +1,45 @@
 # ═══════════════════════════════════════════════════════════════════
-# PRODUCTION OVERRIDE
+# PRODUCTION (Dokploy) - App + GeoIP
 # ═══════════════════════════════════════════════════════════════════
-# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Usado no Dokploy como serviço do tipo "Compose".
+# PostgreSQL, Redis e SigNoz vêm de templates separados do Dokploy.
 #
-# SECURITY NOTES:
-# - Ensure all secrets are provided via environment variables or Docker secrets
-# - Database ports should NOT be exposed externally (use VPN/bastion for access)
-# - Consider using Docker Swarm or Kubernetes for production deployments
+# Variáveis de ambiente configuradas no Dokploy:
+#   DATABASE_URL, REDIS_URL, BETTER_AUTH_SECRET, JWT_SECRET,
+#   INTERNAL_API_SECRET, NEXT_PUBLIC_APP_URL, OTEL_EXPORTER_OTLP_ENDPOINT
+# ═══════════════════════════════════════════════════════════════════
 
 services:
   app:
     build:
+      context: ..
+      dockerfile: docker/Dockerfile
       target: runner
     init: true
     environment:
       - NODE_ENV=production
-    # Remove port exposure - use reverse proxy (nginx/traefik) in production
-    ports: []
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_HOST=${REDIS_HOST:-}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      # OpenTelemetry (SigNoz)
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-urlfy-api}
+      - OTEL_SERVICE_VERSION=${OTEL_SERVICE_VERSION:-0.1.0}
+      - TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
+    volumes:
+      - geoip_data:/app/geoip:ro
+    restart: unless-stopped
     deploy:
-      replicas: 3
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s
       resources:
         limits:
-          cpus: '1'
-          memory: 512M
+          cpus: '1.5'
+          memory: 768M
         reservations:
           cpus: '0.5'
           memory: 256M
@@ -36,84 +48,26 @@ services:
       options:
         max-size: '100m'
         max-file: '5'
-        labels: 'service,env'
-    labels:
-      - 'service=urlfy-app'
-      - 'env=production'
+    security_opt:
+      - no-new-privileges:true
 
-  postgres:
-    # Remove port exposure in production - access via internal network only
-    ports: []
+  geoip-downloader:
+    build:
+      context: ../docker/geoip
+      dockerfile: Dockerfile
     environment:
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '1'
-          memory: 1G
+      - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
+      - GEOIP_MAX_AGE_DAYS=25
+      - GEOIP_MMDB_URL=https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz
+    volumes:
+      - geoip_data:/app/geoip
+    # Usa o entrypoint padrão que faz download + inicia cron mensal
+    restart: unless-stopped
     logging:
       driver: json-file
       options:
-        max-size: '200m'
-        max-file: '5'
+        max-size: '10m'
+        max-file: '2'
 
-  redis:
-    # Remove port exposure in production
-    ports: []
-    command: >-
-      redis-server
-      --appendonly yes
-      --appendfsync everysec
-      --maxmemory 1gb
-      --maxmemory-policy allkeys-lru
-      --tcp-keepalive 60
-      --timeout 0
-      --requirepass ${REDIS_PASSWORD}
-      --protected-mode yes
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-    logging:
-      driver: json-file
-      options:
-        max-size: '100m'
-        max-file: '3'
-
-  # Production monitoring (pinned versions)
-  node-exporter:
-    image: prom/node-exporter:v1.8.2
-    command:
-      - '--path.rootfs=/host'
-    volumes:
-      - /:/host:ro,rslave
-    networks:
-      - urlfy-network
-    profiles:
-      - monitoring
-
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-    networks:
-      - urlfy-network
-    profiles:
-      - monitoring
-
-# ═════════════════════════════════════════════════════════════════════
-# NETWORKS (required for override files)
-# ═════════════════════════════════════════════════════════════════════
-networks:
-  urlfy-network:
-    name: urlfy-network
+volumes:
+  geoip_data:
