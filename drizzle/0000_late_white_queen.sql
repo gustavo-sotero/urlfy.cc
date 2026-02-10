@@ -102,11 +102,8 @@ CREATE TABLE "account" (
 CREATE TABLE "apikey" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text,
-	"start" text,
-	"prefix" text,
-	"key_prefix" text,
-	"key" text NOT NULL,
-	"key_hash" text,
+	"prefix" text NOT NULL,
+	"key_hash" text NOT NULL,
 	"user_id" text NOT NULL,
 	"refill_interval" integer,
 	"refill_amount" integer,
@@ -127,7 +124,8 @@ CREATE TABLE "apikey" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"permissions" text,
-	"metadata" text
+	"metadata" text,
+	CONSTRAINT "apikey_key_hash_unique" UNIQUE("key_hash")
 );
 --> statement-breakpoint
 CREATE TABLE "session" (
@@ -170,6 +168,7 @@ CREATE TABLE "user" (
 	"banned_at" timestamp,
 	"banned_reason" text,
 	"deleted_at" timestamp,
+	"locale" text DEFAULT 'en',
 	CONSTRAINT "user_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
@@ -190,6 +189,21 @@ CREATE TABLE "banned_urls" (
 	"source" varchar(50) DEFAULT 'manual' NOT NULL,
 	"created_by" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "contact_message" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" varchar(255) NOT NULL,
+	"email" varchar(255) NOT NULL,
+	"subject" varchar(255) NOT NULL,
+	"message" text NOT NULL,
+	"ip_address" varchar(45) NOT NULL,
+	"user_agent" text,
+	"status" varchar(20) DEFAULT 'unread' NOT NULL,
+	"telegram_sent" varchar(3) DEFAULT 'no' NOT NULL,
+	"telegram_error" text,
+	"consent_given" varchar(3) NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "links" (
@@ -263,9 +277,9 @@ CREATE INDEX "dataDeletionRequest_userId_idx" ON "data_deletion_request" USING b
 CREATE INDEX "dataDeletionRequest_status_idx" ON "data_deletion_request" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "dataDeletionRequest_deadlineAt_idx" ON "data_deletion_request" USING btree ("deadline_at");--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "apikey_key_idx" ON "apikey" USING btree ("key");--> statement-breakpoint
+CREATE INDEX "apikey_keyHash_idx" ON "apikey" USING btree ("key_hash");--> statement-breakpoint
 CREATE INDEX "apikey_userId_idx" ON "apikey" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "apikey_keyHash_idx" ON "apikey" USING btree ("key_hash");--> statement-breakpoint
+CREATE INDEX "apikey_prefix_idx" ON "apikey" USING btree ("prefix");--> statement-breakpoint
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "twoFactor_secret_idx" ON "two_factor" USING btree ("secret");--> statement-breakpoint
 CREATE INDEX "twoFactor_userId_idx" ON "two_factor" USING btree ("user_id");--> statement-breakpoint
@@ -273,6 +287,9 @@ CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("ident
 CREATE INDEX "idx_banned_urls_pattern" ON "banned_urls" USING btree ("url_pattern");--> statement-breakpoint
 CREATE INDEX "idx_banned_urls_match_type" ON "banned_urls" USING btree ("match_type");--> statement-breakpoint
 CREATE INDEX "idx_banned_urls_created_at" ON "banned_urls" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "contactMessage_createdAt_idx" ON "contact_message" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "contactMessage_status_idx" ON "contact_message" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "contactMessage_email_idx" ON "contact_message" USING btree ("email");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_links_short_code" ON "links" USING btree ("short_code");--> statement-breakpoint
 CREATE INDEX "idx_links_user_active" ON "links" USING btree ("user_id","deleted_at");--> statement-breakpoint
 CREATE INDEX "idx_links_created_at" ON "links" USING btree ("created_at");--> statement-breakpoint
