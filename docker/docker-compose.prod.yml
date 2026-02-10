@@ -30,6 +30,8 @@ services:
         limits:
           cpus: '0.5'
           memory: 256M
+    networks:
+      - dokploy-network
 
   # ─── Application ───────────────────────────────────────────────
   app:
@@ -76,6 +78,8 @@ services:
         max-file: '5'
     security_opt:
       - no-new-privileges:true
+    networks:
+      - dokploy-network
 
   geoip-downloader:
     build:
