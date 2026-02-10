@@ -29,7 +29,7 @@ COPY --from=dependencies /app/node_modules ./node_modules
 
 # Copia arquivos de configuração (sem duplicatas)
 COPY package.json bun.lock* bunfig.toml ./
-COPY tsconfig.json next.config.ts next-env.d.ts ./
+COPY tsconfig.json next.config.ts ./
 COPY instrumentation.ts drizzle.config.ts ./
 COPY components.json biome.json postcss.config.mjs ./
 
