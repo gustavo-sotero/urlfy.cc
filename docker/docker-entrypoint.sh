@@ -37,25 +37,24 @@ wait_for_database() {
   log_info "Waiting for database to be ready (timeout: ${MIGRATION_TIMEOUT}s)..."
 
   elapsed=0
+  last_error=""
   while [ "$elapsed" -lt "$MIGRATION_TIMEOUT" ]; do
-    # Use bun to test the DB connection with a simple query
-    if bun -e "
-      const { SQL } = require('bun');
-      try {
-        const sql = new SQL({ url: process.env.DATABASE_URL, connectionTimeout: 3 });
-        await sql.unsafe('SELECT 1');
-        process.exit(0);
-      } catch { process.exit(1); }
-    " 2>/dev/null; then
+    # Use a proper TypeScript file to test connectivity (avoids bun -e import issues)
+    output=$(bun run /app/db-check.ts 2>&1) && {
       log_ok "Database is ready"
       return 0
-    fi
+    }
 
+    # Capture last error for diagnostics
+    last_error="$output"
     elapsed=$((elapsed + 2))
     sleep 2
   done
 
   log_error "Database not ready after ${MIGRATION_TIMEOUT}s"
+  if [ -n "$last_error" ]; then
+    log_error "Last error: $last_error"
+  fi
   return 1
 }
 

@@ -71,8 +71,9 @@ COPY --from=builder --chown=urlfy:urlfy /app/.next/standalone ./
 COPY --from=builder --chown=urlfy:urlfy /app/.next/static ./.next/static
 COPY --from=builder --chown=urlfy:urlfy /app/drizzle ./drizzle
 
-# Copia migration script e entrypoint
+# Copia migration script, db health check e entrypoint
 COPY --chown=urlfy:urlfy docker/migrate.ts ./migrate.ts
+COPY --chown=urlfy:urlfy docker/db-check.ts ./db-check.ts
 COPY --chown=root:root docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
