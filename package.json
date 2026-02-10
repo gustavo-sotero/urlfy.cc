@@ -42,6 +42,8 @@
     "db:seed": "bun run src/db/scripts/seed-reserved-slugs.ts",
     "db:seed:test-users": "bun run src/db/scripts/seed-test-users.ts",
     "db:seed:analytics": "bun run src/db/scripts/seed-analytics.ts",
+    "db:validate": "bun run scripts/validate-migrations.ts",
+    "db:validate:strict": "bun run scripts/validate-migrations.ts --strict",
     "auth:generate": "bunx @better-auth/cli generate --config ./src/lib/auth.cli.ts --output ./src/db/schema/initial.auth.ts --yes"
   },
   "dependencies": {

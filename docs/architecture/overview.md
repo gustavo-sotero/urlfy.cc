@@ -8,44 +8,51 @@
 
 ## Visão Geral
 
-O urlfy.cc utiliza uma arquitetura híbrida com **Next.js** no frontend e **ElysiaJS** como API REST, ambos rodando sobre o runtime **Bun** em uma infraestrutura 100% containerizada.
+O urlfy.cc utiliza uma arquitetura híbrida com **Next.js** no frontend e **ElysiaJS** como API REST, ambos rodando sobre o runtime **Bun**. A infraestrutura de produção é gerenciada via **Dokploy** (self-hosted PaaS), com cada serviço de infra provisionado por templates do Dokploy.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         DOCKER COMPOSE                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                     APP (Next.js + Elysia)               │   │
-│  │                                                          │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │   │
-│  │     Proxy    │  │   Next.js    │  │   Elysia     │   │   │
-│  │  (proxy.ts)  │  │   (Pages)    │  │   (API)      │   │   │
-│  │  └──────┬───────┘  └──────────────┘  └──────┬───────┘   │   │
-│  │         │                                    │           │   │
-│  │         └────────────────────────────────────┘           │   │
-│  └──────────────────────────┬────────────────────────────────┘   │
-│                             │                                   │
-│  ┌──────────────┐  ┌───────▼──────┐  ┌──────────────────────┐  │
-│  │  PostgreSQL  │  │    Redis     │  │       SigNoz         │  │
-│  │     16       │  │      7       │  │   (Observability)    │  │
-│  └──────────────┘  │  (Streams)   │  └──────────────────────┘  │
-│                    └───────▲──────┘                             │
-│                            │                                    │
-│  ┌─────────────────────────┼─────────────────────────────────┐  │
-│  │                    WORKERS PROCESS                        │  │
-│  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │  │
-│  │   │ Analytics    │  │ Aggregation  │  │   Cleanup    │   │  │
-│  │   │   Worker     │  │    Worker    │  │   Worker     │   │  │
-│  │   └──────────────┘  └──────────────┘  └──────────────┘   │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                 GeoIP Downloader                         │  │
-│  │          (Auto-download, no credentials)                 │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────── Dokploy (VPS) ──────────────────────────────┐
+│                                                                │
+│  ┌──────── Compose: urlfy (Git repo) ────────────────────┐    │
+│  │                                                        │    │
+│  │  ┌──────────────────────────────────────────────────┐  │    │
+│  │  │           APP (Next.js + Elysia + Bun)           │  │    │
+│  │  │                                                  │  │    │
+│  │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐       │  │    │
+│  │  │  │  Proxy   │  │ Next.js  │  │  Elysia  │       │  │    │
+│  │  │  │(proxy.ts)│  │ (Pages)  │  │  (API)   │       │  │    │
+│  │  │  └────┬─────┘  └──────────┘  └────┬─────┘       │  │    │
+│  │  │       └───────────────────────────┘              │  │    │
+│  │  └──────────────────────┬───────────────────────────┘  │    │
+│  │                         │                              │    │
+│  │  ┌──────────────────────┼───────────────────────────┐  │    │
+│  │  │              WORKERS PROCESS                     │  │    │
+│  │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐       │  │    │
+│  │  │  │Analytics │  │Aggregat. │  │ Cleanup  │       │  │    │
+│  │  │  │  Worker  │  │  Worker  │  │  Worker  │       │  │    │
+│  │  │  └──────────┘  └──────────┘  └──────────┘       │  │    │
+│  │  └──────────────────────────────────────────────────┘  │    │
+│  │                                                        │    │
+│  │  ┌──────────────────────────────────────────────────┐  │    │
+│  │  │        GeoIP Downloader (cron mensal)            │  │    │
+│  │  │   Auto-download MMDB via jsDelivr CDN            │  │    │
+│  │  └──────────────────────────────────────────────────┘  │    │
+│  │             ▲ volume compartilhado                      │    │
+│  └─────────────┼──────────────────────────────────────────┘    │
+│                │                                               │
+│  ┌─────────────┼── Serviços Dokploy (Templates) ────────────┐  │
+│  │             │                                             │  │
+│  │  ┌─────────▼────┐  ┌──────────┐  ┌────────────────────┐  │  │
+│  │  │ PostgreSQL   │  │  Redis   │  │      SigNoz        │  │  │
+│  │  │     16       │  │    7     │  │  (Observability)   │  │  │
+│  │  └──────────────┘  └──────────┘  └────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                                                                │
+│  ┌─ Traefik (Dokploy) ──────────────────────────────────────┐  │
+│  │  urlfy.cc:443       → app:3000                            │  │
+│  │  signoz.urlfy.cc:443 → signoz-frontend:3301               │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ## Stack Tecnológica
@@ -123,89 +130,82 @@ GET /:code
                     └─────────────────────────┘
 ```
 
-## Docker Compose
+## Infraestrutura
+
+### Desenvolvimento Local
+
+O `docker-compose.yml` sobe apenas PostgreSQL + Redis para dev local. A app roda fora do Docker via `bun run dev`.
 
 ```yaml
+# docker/docker-compose.yml (dev)
 services:
-  # Aplicação principal (Next.js + Elysia)
+  postgres:
+    image: postgres:16-alpine
+    ports: ['127.0.0.1:5432:5432']
+  redis:
+    image: redis:7-alpine
+    ports: ['127.0.0.1:6379:6379']
+  geoip-downloader:
+    build: ./geoip # Download one-shot
+```
+
+**Uso:** `bun run docker:up` → `bun run dev`
+
+### Produção (Dokploy)
+
+Em produção, o deploy é feito via **Dokploy** (self-hosted PaaS). A arquitetura é organizada como **1 Projeto Dokploy** com serviços independentes:
+
+| Serviço       | Tipo no Dokploy     | Origem                           |
+| ------------- | ------------------- | -------------------------------- |
+| PostgreSQL 16 | Database (template) | Dokploy managed                  |
+| Redis 7       | Database (template) | Dokploy managed                  |
+| SigNoz        | Compose (template)  | Dokploy managed                  |
+| App + GeoIP   | Compose (Git)       | `docker/docker-compose.prod.yml` |
+
+O `docker-compose.prod.yml` contém apenas a **app** e o **geoip-downloader** com volume compartilhado:
+
+```yaml
+# docker/docker-compose.prod.yml (Dokploy)
+services:
   app:
-    build: .
-    ports:
-      - '3000:3000'
+    build:
+      dockerfile: docker/Dockerfile
+      target: runner
     environment:
-      - DATABASE_URL=postgres://urlfy:urlfy@postgres:5432/urlfy
-      - REDIS_URL=redis://redis:6379
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
-    depends_on:
-      - postgres
-      - redis
+      - DATABASE_URL=${DATABASE_URL} # Apontando para o Postgres do Dokploy
+      - REDIS_URL=${REDIS_URL} # Apontando para o Redis do Dokploy
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
     volumes:
       - geoip_data:/app/geoip:ro
 
-  # PostgreSQL 16
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: urlfy
-      POSTGRES_PASSWORD: urlfy
-      POSTGRES_DB: urlfy
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U urlfy']
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # Redis 7
-  redis:
-    image: redis:7-alpine
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # ═══════════════════════════════════════════════════════════════════
-  # SIGNOZ (Observability) - EXTERNAL STACK
-  # ═══════════════════════════════════════════════════════════════════
-  # SigNoz runs as a separate Docker Compose stack due to its complexity
-  # (ClickHouse, Zookeeper, Schema Migrator, Query Service, OTEL Collector).
-  #
-  # To enable observability:
-  #   1. Clone SigNoz: git clone https://github.com/SigNoz/signoz.git ../signoz
-  #   2. Start SigNoz: cd ../signoz/deploy/docker && docker compose up -d
-  #   3. Start urlfy with override:
-  #      docker compose -f docker-compose.yml -f docker-compose.signoz.yml up -d
-  #
-  # See docs/architecture/signoz-setup.md for detailed instructions.
-  # ═══════════════════════════════════════════════════════════════════
-
-  # GeoIP Downloader (credential-free, monthly refresh)
   geoip-downloader:
-    build:
-      context: ./geoip
-    environment:
-      GEOIP_DB_PATH: /app/geoip/GeoLite2-City.mmdb
-      GEOIP_MAX_AGE_DAYS: 25
-      GEOIP_MMDB_URL: https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz
+    build: docker/geoip
     volumes:
-      - geoip_data:/app/geoip
+      - geoip_data:/app/geoip # Download + cron mensal
 
 volumes:
-  postgres_data:
-  redis_data:
   geoip_data:
+```
+
+### Arquivos Docker no Repositório
+
+```
+docker/
+├── Dockerfile               # Build multi-stage da app (3 stages)
+├── docker-compose.yml       # Dev local (Postgres + Redis + GeoIP)
+├── docker-compose.prod.yml  # Produção Dokploy (App + GeoIP)
+└── geoip/
+    ├── Dockerfile           # Alpine + curl + cron
+    ├── geoip-entrypoint.sh  # Download + inicia cron daemon
+    └── geoip-refresh.sh     # Script de download/refresh
 ```
 
 ### Notas de Produção
 
-- **SigNoz:** Executa como stack separado via `docker-compose.signoz.yml` - veja [signoz-setup.md](./signoz-setup.md)
+- **PostgreSQL, Redis, SigNoz:** Provisionados como serviços separados no Dokploy (templates nativos)
+- **Networking:** Dokploy coloca todos os serviços do projeto na mesma Docker network interna
+- **SSL/TLS:** Gerenciado pelo Traefik integrado ao Dokploy (Let's Encrypt automático)
 - **GeoIP:** Usa mirror público (jsDelivr CDN), sem necessidade de credenciais
-- **Scaling:** `docker-compose up --scale app=3` para múltiplas instâncias
 
 ### GeoIP Auto-Download
 
@@ -280,6 +280,7 @@ Formato JSON com campos padronizados:
 
 ### Estratégia
 
-- **PostgreSQL:** `pg_dump` via cron ou **pgBackRest** para PITR
+- **PostgreSQL:** `pg_dump` via cron na VPS (`/opt/backups/urlfy/`) ou **pgBackRest** para PITR
 - **Redis:** Dados são cache, não requerem backup (RDB snapshots opcionais)
-- **Volumes Docker:** Named volumes com backup externo (rsync, restic)
+- **GeoIP:** Não requer backup — re-download automático via cron mensal
+- **Dokploy:** Backup e restore dos volumes Docker gerenciados pelo painel

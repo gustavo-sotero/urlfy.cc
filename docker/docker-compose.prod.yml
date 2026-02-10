@@ -10,14 +10,40 @@
 # ═══════════════════════════════════════════════════════════════════
 
 services:
+  # ─── Database Migrations (runs once before app starts) ─────────
+  # Can also be triggered independently:
+  #   docker compose -f docker-compose.prod.yml run --rm migrate
+  migrate:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runner
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - MIGRATION_ONLY=true
+    entrypoint: ['docker-entrypoint.sh']
+    command: ['echo', 'migrations complete']
+    restart: 'no'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # ─── Application ───────────────────────────────────────────────
   app:
     build:
       context: ..
       dockerfile: docker/Dockerfile
       target: runner
     init: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     environment:
       - NODE_ENV=production
+      - SKIP_MIGRATIONS=true
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - REDIS_HOST=${REDIS_HOST:-}

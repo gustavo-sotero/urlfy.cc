@@ -1,0 +1,197 @@
+#!/usr/bin/env bun
+
+/**
+ * Migration Safety Validator
+ *
+ * Scans migration SQL files for potentially destructive operations
+ * and warns about backwards-incompatible changes.
+ *
+ * Usage:
+ *   bun run scripts/validate-migrations.ts
+ *   bun run scripts/validate-migrations.ts --strict  (fails on any warning)
+ */
+
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+const MIGRATIONS_DIR = join(import.meta.dir, '..', 'drizzle');
+const STRICT = process.argv.includes('--strict');
+
+interface Warning {
+  file: string;
+  line: number;
+  severity: 'error' | 'warning';
+  message: string;
+  sql: string;
+}
+
+// Patterns that indicate destructive or dangerous operations
+const DANGEROUS_PATTERNS: Array<{
+  pattern: RegExp;
+  severity: 'error' | 'warning';
+  message: string;
+  skipInCreateTable?: boolean;
+}> = [
+  {
+    pattern: /DROP\s+TABLE\s+(?!IF\s+EXISTS)/i,
+    severity: 'error',
+    message: 'DROP TABLE without IF EXISTS — will fail if table does not exist'
+  },
+  {
+    pattern: /DROP\s+TABLE/i,
+    severity: 'warning',
+    message:
+      'DROP TABLE detected — this is a destructive operation, ensure data has been migrated'
+  },
+  {
+    pattern: /DROP\s+COLUMN/i,
+    severity: 'warning',
+    message:
+      'DROP COLUMN detected — existing code may still reference this column during rolling deploys'
+  },
+  {
+    pattern: /ALTER\s+TABLE\s+\w+\s+RENAME/i,
+    severity: 'warning',
+    message:
+      'RENAME detected — existing code may reference the old name during rolling deploys'
+  },
+  {
+    pattern: /ALTER\s+COLUMN\s+\w+\s+TYPE/i,
+    severity: 'warning',
+    message:
+      'Column type change — may cause data loss or require table rewrite on large tables'
+  },
+  {
+    pattern: /NOT\s+NULL(?!\s+DEFAULT)/i,
+    severity: 'warning',
+    message:
+      'Adding NOT NULL constraint without DEFAULT — will fail if existing rows have NULL values',
+    skipInCreateTable: true
+  },
+  {
+    pattern: /TRUNCATE/i,
+    severity: 'error',
+    message: 'TRUNCATE detected — this will delete all data in the table'
+  },
+  {
+    pattern: /DROP\s+INDEX\s+(?!IF\s+EXISTS|CONCURRENTLY)/i,
+    severity: 'warning',
+    message:
+      'DROP INDEX without IF EXISTS — consider using IF EXISTS for safety'
+  },
+  {
+    pattern: /CREATE\s+INDEX\s+(?!CONCURRENTLY|IF\s+NOT\s+EXISTS)/i,
+    severity: 'warning',
+    message:
+      'CREATE INDEX without CONCURRENTLY — may lock table on large datasets. Consider CREATE INDEX CONCURRENTLY',
+    skipInCreateTable: true
+  }
+];
+
+async function validateMigrations(): Promise<void> {
+  console.log('🔍 Validating migration files...\n');
+
+  const files = (await readdir(MIGRATIONS_DIR))
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
+
+  if (files.length === 0) {
+    console.log('No migration files found.');
+    return;
+  }
+
+  console.log(`Found ${files.length} migration file(s)\n`);
+
+  const warnings: Warning[] = [];
+
+  for (const file of files) {
+    const content = await readFile(join(MIGRATIONS_DIR, file), 'utf-8');
+    const lines = content.split('\n');
+
+    // Track whether we're inside a CREATE TABLE block
+    let insideCreateTable = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+
+      // Skip comments and empty lines
+      if (!line || line.startsWith('--')) continue;
+
+      // Track CREATE TABLE blocks — NOT NULL inside these is safe
+      if (/CREATE\s+TABLE/i.test(line)) {
+        insideCreateTable = true;
+      }
+      if (insideCreateTable && /\);/.test(line)) {
+        insideCreateTable = false;
+        continue;
+      }
+
+      for (const {
+        pattern,
+        severity,
+        message,
+        skipInCreateTable
+      } of DANGEROUS_PATTERNS) {
+        // Skip NOT NULL checks inside CREATE TABLE (they're safe)
+        if (skipInCreateTable && insideCreateTable) continue;
+
+        if (pattern.test(line)) {
+          warnings.push({
+            file,
+            line: i + 1,
+            severity,
+            message,
+            sql: line.substring(0, 120)
+          });
+        }
+      }
+    }
+  }
+
+  // Report
+  if (warnings.length === 0) {
+    console.log('✅ No issues found in migration files\n');
+    return;
+  }
+
+  const errors = warnings.filter((w) => w.severity === 'error');
+  const warns = warnings.filter((w) => w.severity === 'warning');
+
+  if (errors.length > 0) {
+    console.log(`\n❌ ERRORS (${errors.length}):\n`);
+    for (const w of errors) {
+      console.log(`  ${w.file}:${w.line}`);
+      console.log(`    ${w.message}`);
+      console.log(`    SQL: ${w.sql}\n`);
+    }
+  }
+
+  if (warns.length > 0) {
+    console.log(`\n⚠️  WARNINGS (${warns.length}):\n`);
+    for (const w of warns) {
+      console.log(`  ${w.file}:${w.line}`);
+      console.log(`    ${w.message}`);
+      console.log(`    SQL: ${w.sql}\n`);
+    }
+  }
+
+  console.log('─'.repeat(60));
+  console.log(`Summary: ${errors.length} error(s), ${warns.length} warning(s)`);
+
+  if (errors.length > 0) {
+    console.log('\n❌ Migration validation FAILED\n');
+    process.exit(1);
+  }
+
+  if (STRICT && warns.length > 0) {
+    console.log('\n❌ Migration validation FAILED (strict mode)\n');
+    process.exit(1);
+  }
+
+  console.log('\n✅ Migration validation PASSED (with warnings)\n');
+}
+
+validateMigrations().catch((err) => {
+  console.error('Unexpected error:', err);
+  process.exit(1);
+});

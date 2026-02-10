@@ -73,6 +73,11 @@ COPY --from=builder --chown=urlfy:urlfy /app/.next/static ./.next/static
 COPY --from=builder --chown=urlfy:urlfy /app/public ./public
 COPY --from=builder --chown=urlfy:urlfy /app/drizzle ./drizzle
 
+# Copia migration script e entrypoint
+COPY --chown=urlfy:urlfy docker/migrate.ts ./migrate.ts
+COPY --chown=root:root docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Verifica se server.js existe (fail-fast durante build)
 RUN test -f /app/server.js || (echo "❌ ERROR: server.js not found! Check Next.js standalone build" && exit 1)
 
@@ -91,5 +96,6 @@ ENV NODE_ENV=production \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl --fail --silent --max-time 5 http://localhost:3000/api/health || exit 1
 
-# Comando de inicialização
+# Entrypoint runs migrations, then CMD starts the app
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["bun", "server.js"]

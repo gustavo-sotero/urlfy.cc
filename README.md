@@ -1,324 +1,387 @@
-# urlfy.cc - URL Shortener
+<p align="center">
+  <h1 align="center">urlfy.cc</h1>
+  <p align="center">High-performance, self-hosted URL shortener with analytics, built for speed and privacy.</p>
+</p>
 
-A high-performance, self-hosted URL shortener built with Next.js 16, ElysiaJS, Bun runtime, and PostgreSQL.
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#tech-stack">Tech Stack</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="#environment-variables">Environment</a> •
+  <a href="#scripts">Scripts</a> •
+  <a href="#api">API</a> •
+  <a href="#testing">Testing</a> •
+  <a href="#deployment">Deployment</a> •
+  <a href="#documentation">Docs</a>
+</p>
 
-## 🚀 Features
+---
 
-- ⚡ **High Performance**: Bun runtime with native APIs for SQL and Redis
-- 🐳 **100% Containerized**: Complete Docker Compose setup
-- 📊 **Observability**: OpenTelemetry + SigNoz for traces, metrics, and logs
-- 🔒 **LGPD/GDPR Compliant**: IP anonymization and data retention policies
-- 📍 **Geo-location**: Credential-free GeoIP with auto-download (no MaxMind account needed)
-- 🔄 **Event-Driven**: Redis Streams for asynchronous processing
-- 💾 **Automated Backups**: Hourly and daily database backups
+## Features
 
-## 📋 Prerequisites
+- **Instant URL shortening** — no account required for basic usage
+- **Custom aliases** — branded short links for logged-in users
+- **Analytics dashboard** — clicks/day, geo-location, device & browser breakdown
+- **Password-protected links** — optional password gate before redirect
+- **Link expiration** — time-based and click-based expiration
+- **QR Code generation** — PNG/SVG export with configurable sizes (100–1000px)
+- **UTM tracking** — built-in `utm_source`, `utm_medium`, `utm_campaign` support
+- **Custom OG meta tags** — control link previews (title, description, image)
+- **Configurable redirect** — 301 (permanent) or 302 (temporary) per link
+- **API key access** — programmatic link management for developers
+- **Admin panel** — global KPIs, link moderation, user management, audit logs
+- **LGPD/GDPR compliant** — IP anonymization (SHA-256), data export/deletion endpoints, consent banner
+- **Dark mode** — full theme support
 
-- [Bun](https://bun.sh) >= 1.0
-- [Docker](https://www.docker.com/) and Docker Compose
+## Tech Stack
 
-## 🛠️ Quick Start
+| Layer             | Technology               | Purpose                                         |
+| ----------------- | ------------------------ | ----------------------------------------------- |
+| **Runtime**       | Bun 1.x+                 | Native SQL, Redis, and password hashing APIs    |
+| **Frontend**      | Next.js 16+ (App Router) | SSR, RSC, i18n routing via `next-intl`          |
+| **API**           | ElysiaJS                 | Type-safe REST API with OpenAPI auto-generation |
+| **Database**      | PostgreSQL 16            | Partitioned analytics, Drizzle ORM              |
+| **Cache**         | Redis 7                  | Hot-path caching, rate limiting, queues         |
+| **Queue**         | Redis Streams (BullMQ)   | Async analytics ingestion, background jobs      |
+| **Auth**          | Better-Auth              | OAuth, 2FA, API keys, admin roles               |
+| **Observability** | SigNoz (OpenTelemetry)   | Distributed traces, metrics, structured logs    |
+| **GeoIP**         | MaxMind GeoLite2         | Credential-free auto-download (jsDelivr CDN)    |
+| **UI**            | TailwindCSS + shadcn/ui  | Accessible component library, responsive design |
+| **Validation**    | TypeBox + Zod            | Runtime schema validation, type inference       |
 
-### 1. Clone and Install
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                       DOCKER COMPOSE                         │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │              APP (Next.js + ElysiaJS)                  │  │
+│  │                                                        │  │
+│  │   ┌────────────┐  ┌────────────┐  ┌────────────────┐  │  │
+│  │   │   Proxy    │  │  Next.js   │  │    Elysia      │  │  │
+│  │   │ (proxy.ts) │  │  (Pages)   │  │    (API)       │  │  │
+│  │   └─────┬──────┘  └────────────┘  └───────┬────────┘  │  │
+│  │         └──────────────────────────────────┘           │  │
+│  └─────────────────────────┬──────────────────────────────┘  │
+│                            │                                 │
+│  ┌──────────┐  ┌───────────▼──────┐  ┌────────────────────┐ │
+│  │PostgreSQL│  │      Redis       │  │      SigNoz        │ │
+│  │    16    │  │        7         │  │  (Observability)   │ │
+│  └──────────┘  └───────────▲──────┘  └────────────────────┘ │
+│                            │                                 │
+│  ┌─────────────────────────┼──────────────────────────────┐  │
+│  │                   WORKERS PROCESS                      │  │
+│  │  ┌────────────┐  ┌─────────────┐  ┌────────────────┐  │  │
+│  │  │ Analytics  │  │ Aggregation │  │    Cleanup     │  │  │
+│  │  │  Worker    │  │   Worker    │  │    Worker      │  │  │
+│  │  └────────────┘  └─────────────┘  └────────────────┘  │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                              │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │              GeoIP Downloader (auto)                   │  │
+│  └────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Redirect Hot Path
+
+The redirect engine is optimized for sub-30ms P50 latency:
+
+1. **Proxy** intercepts `/:code` requests
+2. **Redis cache** lookup (cache-aside pattern with stampede protection)
+3. **PostgreSQL** fallback on cache miss (with distributed lock via SETNX)
+4. **Validation** — active, not banned, not expired, within click limit, redirect depth < 3
+5. **Async analytics** — event enqueued to Redis Streams (non-blocking)
+6. **Redirect** — 301 or 302 response with `X-Request-Id` header
+
+## Getting Started
+
+### Prerequisites
+
+- [Bun](https://bun.sh) v1.x+
+- [Docker](https://www.docker.com/) & Docker Compose
+- [Node.js](https://nodejs.org/) 20+ (optional, for some tooling)
+
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/urlfy.cc.git
+git clone https://github.com/gustavo-sotero/urlfy.cc.git
 cd urlfy.cc
+```
+
+### 2. Install dependencies
+
+```bash
 bun install
 ```
 
-### 2. Configure Environment
+### 3. Start infrastructure services
+
+```bash
+bun run docker:up
+```
+
+This starts **PostgreSQL 16** and **Redis 7** in Docker containers.
+
+### 4. Configure environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and configure:
+Edit `.env` with your values (see [Environment Variables](#environment-variables) below).
 
-- `BETTER_AUTH_SECRET` (generate with `openssl rand -base64 32`)
-- `INTERNAL_API_SECRET` (generate with `openssl rand -hex 32`)
-- `DATABASE_URL` (use strong password in production)
-
-**Note:** GeoIP works automatically - no credentials needed!
-
-### 3. Start Infrastructure
+### 5. Run database migrations
 
 ```bash
-bun run docker:up
-```
-
-This will start:
-
-- PostgreSQL 16
-- Redis 7
-- GeoIP updater
-- Backup scheduler
-
-**Optional: Enable Observability (SigNoz)**
-
-For full observability with traces, metrics, and logs:
-
-```bash
-# 1. Clone SigNoz (one-time setup)
-bun run signoz:clone
-
-# 2. Start SigNoz stack
-bun run signoz:up
-
-# 3. Start urlfy with SigNoz integration
-bun run docker:up:signoz
-```
-
-SigNoz dashboard will be available at [http://localhost:8080](http://localhost:8080).
-
-For local development with SigNoz, ensure your `.env` has:
-
-```ini
-TELEMETRY_ENABLED=true
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-OTEL_SERVICE_NAME=urlfy-api-local
-```
-
-See [docs/architecture/signoz-setup.md](docs/architecture/signoz-setup.md) for detailed setup instructions.
-
-### 4. Run Database Migrations
-
-```bash
-bun run db:generate
 bun run db:migrate
 ```
 
-### 5. Start Development Server
+### 6. Seed initial data
 
 ```bash
-bun dev
+bun run db:seed
 ```
 
-This starts:
-
-- **Next.js app** on http://localhost:3000 (with hot reload)
-- **Worker processes** for analytics (with auto-reload)
-
-Both run concurrently with color-coded logs.
-
-Open [http://localhost:3000](http://localhost:3000)
-
-## 🐳 Docker Commands
+### 7. Download GeoIP database (optional)
 
 ```bash
-# Start all services
-bun run docker:up
-
-# Stop all services
-bun run docker:down
-
-# View logs
-bun run docker:logs
-
-# Rebuild containers
-bun run docker:build
-
-# Restart app only
-bun run docker:restart
+bun run docker:geoip
 ```
 
-## 📊 Monitoring
-
-### SigNoz Dashboard
-
-If you've started SigNoz (see setup instructions above):
-
-- **URL**: [http://localhost:8080](http://localhost:8080) (not 3301 - that's an old port)
-- **Features**: Traces, metrics, and logs unified in one platform
-- **Service Name**: `urlfy-api` (or `urlfy-api-local` for local dev)
-
-To verify telemetry is working:
+### 8. Start development server
 
 ```bash
-# Make a test request
-curl http://localhost:3000/api/health
-
-# Check if traces appear in SigNoz (wait 10-30 seconds)
-# Navigate to Services → urlfy-api
+bun run dev
 ```
 
-### Health Endpoints
+The app will be available at **http://localhost:3000**.
+
+> This starts both the Next.js app and the background workers concurrently.
+
+## Environment Variables
+
+| Variable                      | Required | Default                         | Description                              |
+| ----------------------------- | -------- | ------------------------------- | ---------------------------------------- |
+| `DATABASE_URL`                | Yes      | —                               | PostgreSQL connection string             |
+| `BETTER_AUTH_SECRET`          | Yes      | —                               | Auth secret (min 32 chars)               |
+| `INTERNAL_API_SECRET`         | Yes      | —                               | Internal API security key (min 16 chars) |
+| `REDIS_URL`                   | No       | `redis://localhost:6379`        | Redis connection string                  |
+| `NEXT_PUBLIC_APP_URL`         | No       | `http://localhost:3000`         | Public application URL                   |
+| `JWT_SECRET`                  | Prod     | —                               | JWT secret for password-protected links  |
+| `INTERNAL_ANALYTICS_SECRET`   | Prod     | —                               | Separate secret for analytics API        |
+| `GOOGLE_CLIENT_ID`            | No       | —                               | Google OAuth client ID                   |
+| `GOOGLE_CLIENT_SECRET`        | No       | —                               | Google OAuth client secret               |
+| `GITHUB_CLIENT_ID`            | No       | —                               | GitHub OAuth client ID                   |
+| `GITHUB_CLIENT_SECRET`        | No       | —                               | GitHub OAuth client secret               |
+| `RESEND_API_KEY`              | No       | —                               | Resend API key for transactional emails  |
+| `RESEND_FROM`                 | No       | —                               | Sender email address                     |
+| `TELEGRAM_BOT_TOKEN`          | No       | —                               | Telegram bot token for contact alerts    |
+| `TELEGRAM_CHAT_ID`            | No       | —                               | Telegram chat ID for notifications       |
+| `TELEMETRY_ENABLED`           | No       | `false`                         | Enable OpenTelemetry tracing             |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | No       | —                               | SigNoz/OTLP collector endpoint           |
+| `GEOIP_DB_PATH`               | No       | `/app/geoip/GeoLite2-City.mmdb` | Path to GeoLite2 MMDB file               |
+| `TRUSTED_ORIGINS`             | No       | —                               | Comma-separated list of trusted origins  |
+
+## Scripts
+
+### Development
+
+| Command              | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| `bun run dev`        | Start app + workers in dev mode (hot reload)   |
+| `bun run dev:app`    | Start only the Next.js app                     |
+| `bun run worker:dev` | Start only the background workers (watch mode) |
+| `bun run lint`       | Check & fix with Biome                         |
+| `bun run format`     | Format code with Biome                         |
+| `bun run type-check` | TypeScript type checking                       |
+
+### Database
+
+| Command               | Description                              |
+| --------------------- | ---------------------------------------- |
+| `bun run db:generate` | Generate Drizzle migrations              |
+| `bun run db:migrate`  | Run pending migrations                   |
+| `bun run db:push`     | Push schema directly (prototyping only)  |
+| `bun run db:studio`   | Open Drizzle Studio (visual DB explorer) |
+| `bun run db:seed`     | Seed reserved slugs                      |
+
+### Docker
+
+| Command                | Description                         |
+| ---------------------- | ----------------------------------- |
+| `bun run docker:up`    | Start PostgreSQL + Redis containers |
+| `bun run docker:down`  | Stop all containers                 |
+| `bun run docker:logs`  | Tail container logs                 |
+| `bun run docker:geoip` | Download GeoLite2 database          |
+
+### Build & Production
+
+| Command         | Description                        |
+| --------------- | ---------------------------------- |
+| `bun run build` | Build Next.js + post-build scripts |
+| `bun run start` | Start production app + workers     |
+
+### Testing
+
+| Command                    | Description                    |
+| -------------------------- | ------------------------------ |
+| `bun test`                 | Run all tests                  |
+| `bun run test:unit`        | Run unit tests only            |
+| `bun run test:integration` | Run integration tests          |
+| `bun run test:security`    | Run security tests             |
+| `bun run test:e2e`         | Run Playwright E2E tests       |
+| `bun run test:coverage`    | Run tests with coverage report |
+
+### Security
+
+| Command                   | Description                   |
+| ------------------------- | ----------------------------- |
+| `bun run security:report` | Generate security report      |
+| `bun run security:audit`  | Audit production dependencies |
+| `bun run security:scan`   | Run Snyk security scan        |
+
+## API
+
+The ElysiaJS API is mounted at `/api/` via a Next.js catch-all route and auto-generates OpenAPI documentation.
+
+### Key Endpoints
+
+| Method | Endpoint                   | Description                   | Auth     |
+| ------ | -------------------------- | ----------------------------- | -------- |
+| POST   | `/api/links`               | Create short link             | Optional |
+| GET    | `/api/links`               | List user's links (paginated) | Required |
+| GET    | `/api/links/:id`           | Get link details              | Required |
+| PATCH  | `/api/links/:id`           | Update link                   | Required |
+| DELETE | `/api/links/:id`           | Soft-delete link              | Required |
+| GET    | `/api/links/:id/analytics` | Get link analytics            | Required |
+| GET    | `/api/links/:id/qrcode`    | Generate QR code              | Optional |
+| POST   | `/api/auth/sign-up`        | Register new user             | —        |
+| POST   | `/api/auth/sign-in`        | Sign in                       | —        |
+| GET    | `/api/auth/reference`      | Auth API documentation        | —        |
+| GET    | `/api/me/export`           | LGPD data export              | Required |
+| DELETE | `/api/me/data`             | LGPD data deletion request    | Required |
+| GET    | `/api/health`              | Health check                  | —        |
+| GET    | `/api/health/ready`        | Readiness check (DB + Redis)  | —        |
+
+> Full API reference: [docs/api/endpoints.md](docs/api/endpoints.md)
+
+## Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router (pages, layouts, API gateway)
+│   ├── api/[[...slugs]]/   # ElysiaJS API catch-all mount point
+│   └── [locale]/           # i18n routing
+├── components/             # React components (UI, dashboard, admin, etc.)
+├── db/
+│   ├── schema/             # Drizzle ORM schemas (single source of truth)
+│   └── scripts/            # Seed data, migration runners
+├── emails/                 # React Email templates
+├── i18n/                   # Internationalization config
+├── lib/                    # Shared utilities, auth config, env validation
+├── messages/               # Translation files (pt-BR, en)
+├── server/
+│   ├── modules/            # Feature-based API modules (Elysia MVC)
+│   │   ├── links/          # Link CRUD, QR codes, UTM
+│   │   ├── analytics/      # Click analytics, aggregation
+│   │   ├── auth/           # Authentication endpoints
+│   │   ├── admin/          # Admin panel API
+│   │   └── ...
+│   ├── middleware/          # Redirect engine, rate limiting, security headers
+│   ├── services/           # Shared business logic
+│   ├── workers/            # Background job processors
+│   └── lib/                # Server utilities (cache, queue, circuit breaker)
+├── proxy.ts                # Edge redirect proxy (hot path)
+└── workers.ts              # Worker process entry point
+
+docker/
+├── docker-compose.yml      # Dev: PostgreSQL + Redis
+├── docker-compose.prod.yml # Production compose
+├── Dockerfile              # Multi-stage app build
+└── geoip/                  # GeoIP auto-downloader
+
+tests/
+├── unit/                   # Unit tests
+├── integration/            # Integration tests
+├── security/               # Security tests
+├── e2e/                    # Playwright E2E tests
+├── load/                   # Load testing (k6)
+└── perf/                   # Performance benchmarks
+```
+
+## Testing
 
 ```bash
-# Simple health check
-curl http://localhost:3000/api/health
-
-# Readiness check (dependencies)
-curl http://localhost:3000/api/health/ready
-
-# Detailed health (admin only)
-curl -H "x-api-key: your_admin_key" \
-  http://localhost:3000/api/health/detailed
-```
-
-### Worker Status (Redis Streams)
-
-```bash
-# Check stream lengths and consumer groups
-curl -H "x-api-key: your_admin_key" \
-  http://localhost:3000/api/admin/queues
-```
-
-## 🏗️ Architecture
-
-### Components
-
-- **Next.js 16+**: Server-side rendering and API routes
-- **ElysiaJS**: Type-safe REST API framework
-- **Bun Runtime**: Native Redis, SQL, and performance optimizations
-- **PostgreSQL 16**: Primary database with partitioning
-- **Redis 7**: Caching and event streaming (Streams API)
-- **OpenTelemetry + SigNoz**: Distributed tracing and observability
-
-### Event-Driven Processing
-
-The application uses **Redis Streams** for asynchronous event processing:
-
-```
-User Request → API → Redis XADD → Stream
-                                     ↓
-                                  Worker ← XREADGROUP
-                                     ↓
-                                PostgreSQL
-```
-
-**Workers run in a separate process** (`src/workers.ts`) for:
-
-- Click analytics processing
-- Daily aggregations
-- Cleanup jobs
-- GDPR data deletions
-
-See [REDIS-STREAMS-GUIDE.md](./docs/REDIS-STREAMS-GUIDE.md) for details.
-
-## 📁 Project Structure
-
-```
-urlfy.cc/
-├── docker/               # Docker configuration
-│   ├── docker-compose.yml
-│   ├── Dockerfile
-│   └── ...
-├── docs/                 # Documentation
-│   ├── prd.md           # Product Requirements
-│   ├── architecture/    # Architecture docs
-│   └── modules/         # Implementation modules
-├── scripts/             # Utility scripts
-│   └── backup.sh
-├── src/
-│   ├── app/             # Next.js App Router
-│   ├── db/              # Database schemas (Drizzle)
-│   ├── lib/             # Shared utilities
-│   └── server/          # Backend logic
-│       ├── api/         # ElysiaJS routes
-│       └── lib/         # Server utilities
-└── ...
-```
-
-## 🔧 Development
-
-### Database Operations
-
-```bash
-# Generate migration
-bun run db:generate
-
-# Apply migrations
-bun run db:migrate
-
-# Push schema (dev only)
-bun run db:push
-```
-
-### Code Quality
-
-```bash
-# Lint and format check
-bun run lint
-
-# Auto-format
-bun run format
-```
-
-## 📚 Documentation
-
-- [PRD (Product Requirements)](./docs/prd.md)
-- [Architecture Overview](./docs/architecture/overview.md)
-- [Database Schema](./docs/architecture/database-schema.md)
-- [Caching Strategy](./docs/architecture/caching-strategy.md)
-- [Security](./docs/architecture/security.md)
-- [API Reference](./docs/api/endpoints.md)
-- [Disaster Recovery](./docs/architecture/disaster-recovery.md)
-
-## 🗺️ Roadmap
-
-- [x] **Module 1**: Infrastructure & Core Setup
-- [ ] **Module 2**: Authentication & Identity (Better-Auth)
-- [ ] **Module 3**: Links Management (CRUD)
-- [ ] **Module 4**: Redirect Engine (Hot Path)
-- [ ] **Module 5**: Analytics & Data Processing
-- [ ] **Module 6**: Security & Compliance
-- [ ] **Module 7**: User Interface
-
-See [Implementation Plan](./docs/implementation-plan.md) for details.
-
-## 🧪 Testing
-
-```bash
-# Unit tests (coming soon)
+# Run all tests
 bun test
 
-# E2E tests (coming soon)
-bun test:e2e
+# Run with coverage
+bun run test:coverage
+
+# Run specific suites
+bun run test:unit
+bun run test:integration
+bun run test:security
+bun run test:e2e
 ```
 
-## 📦 Production Deployment
+### Performance Targets
 
-### Build Production Image
+| Metric               | Target  |
+| -------------------- | ------- |
+| Redirect Latency P50 | < 30ms  |
+| Redirect Latency P99 | < 300ms |
+| API Latency P99      | < 300ms |
+| Availability         | 99.9%   |
+| Cache Hit Rate       | > 85%   |
+| Error Rate           | < 0.1%  |
+
+## Deployment
+
+### Docker (Production)
 
 ```bash
-cd docker
-docker-compose -f docker-compose.yml build
+# Build the app image
+bun run docker:build:app
+
+# Start with production compose
+cd docker && docker compose -f docker-compose.prod.yml up -d
 ```
 
-### Environment Variables
+### Backup & Recovery
 
-Ensure the following are set in production:
+| Metric | Target   |
+| ------ | -------- |
+| RTO    | < 1 hour |
+| RPO    | < 1 hour |
 
-- `NODE_ENV=production`
-- Strong `ADMIN_API_KEY`
-- Valid MaxMind credentials
-- Secure database credentials
-- External backup storage configuration
+- **PostgreSQL**: `pg_dump` via cron or pgBackRest for PITR
+- **Redis**: Cache-only (RDB snapshots optional)
+- **Backup script**: `scripts/backup.sh`
 
-See [Disaster Recovery](./docs/architecture/disaster-recovery.md) for backup strategies.
+## Documentation
 
-## 🛡️ Security
+| Document                                                   | Description                            |
+| ---------------------------------------------------------- | -------------------------------------- |
+| [Architecture Overview](docs/architecture/overview.md)     | System architecture and Docker Compose |
+| [Database Schema](docs/architecture/database-schema.md)    | Tables, indexes, partitioning strategy |
+| [Caching Strategy](docs/architecture/caching-strategy.md)  | Redis cache-aside, stampede protection |
+| [Security](docs/architecture/security.md)                  | Rate limiting, CORS, CSRF, LGPD        |
+| [API Endpoints](docs/api/endpoints.md)                     | Full REST API reference                |
+| [Observability](docs/architecture/observability-elysia.md) | OpenTelemetry + SigNoz setup           |
+| [Best Practices](docs/development/best-practices.md)       | Code conventions and patterns          |
 
-- IP anonymization (SHA-256 with weekly salt rotation)
-- Private IP detection
-- LGPD/GDPR compliant data handling
-- Automated backup retention
-- Health check dependency validation
+## License
 
-## 📝 License
-
-MIT
-
-## 🤝 Contributing
-
-This is a portfolio project. Issues and PRs are welcome for learning purposes.
-
-## 📧 Contact
-
-Gustavo Sotero - [Your Contact]
+This project is private and not licensed for public use.
 
 ---
 
-**Status**: Module 1 (Infrastructure) - ✅ Complete  
-**Next**: Module 2 (Authentication) - 🚧 In Progress
+<p align="center">
+  Built with Bun, Next.js, ElysiaJS, and PostgreSQL.<br/>
+  Made by <a href="https://github.com/gustavo-sotero">Gustavo Sotero</a>.
+</p>
