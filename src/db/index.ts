@@ -25,10 +25,17 @@ export function getDatabase(): DrizzleDatabase {
     throw connectionError;
   }
 
+  // Default to sslmode=prefer when the URL doesn't specify it.
+  // This lets managed PostgreSQL (that requires TLS) work out of the box.
+  const urlHasSSL = databaseUrl.includes('sslmode=');
+  const connUrl = urlHasSSL
+    ? databaseUrl
+    : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=prefer`;
+
   try {
     // Use native Bun SQL (PostgreSQL, MySQL or SQLite)
     sqlConnection = new SQL({
-      url: databaseUrl,
+      url: connUrl,
       max: Number.parseInt(process.env.DB_POOL_MAX || '20', 10),
       idleTimeout: Number.parseInt(
         process.env.DB_POOL_IDLE_TIMEOUT || '30',

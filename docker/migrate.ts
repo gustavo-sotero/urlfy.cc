@@ -81,9 +81,16 @@ async function main() {
 
   let sql: SQL | null = null;
 
+  // Default to sslmode=prefer when the URL doesn't specify it.
+  // This lets managed PostgreSQL (that requires TLS) work without manual config.
+  const urlHasSSL = databaseUrl.includes('sslmode=');
+  const connUrl = urlHasSSL
+    ? databaseUrl
+    : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=prefer`;
+
   try {
     sql = new SQL({
-      url: databaseUrl,
+      url: connUrl,
       max: 1, // Single connection for migrations
       connectionTimeout: 10,
       idleTimeout: 5
