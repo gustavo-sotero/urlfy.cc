@@ -69,7 +69,6 @@ RUN apt-get update && \
 # Copia arquivos necessários do build standalone
 COPY --from=builder --chown=urlfy:urlfy /app/.next/standalone ./
 COPY --from=builder --chown=urlfy:urlfy /app/.next/static ./.next/static
-COPY --from=builder --chown=urlfy:urlfy /app/public ./public
 COPY --from=builder --chown=urlfy:urlfy /app/drizzle ./drizzle
 
 # Copia migration script e entrypoint
