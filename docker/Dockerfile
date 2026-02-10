@@ -37,7 +37,6 @@ COPY components.json biome.json postcss.config.mjs ./
 COPY scripts ./scripts
 
 # Copia código fonte
-COPY public ./public
 COPY src ./src
 COPY drizzle ./drizzle
 
