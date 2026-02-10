@@ -17,11 +17,12 @@
  *   1 - Error (migration failed)
  */
 
-import { SQL } from 'bun';
-import { drizzle } from 'drizzle-orm/bun-sql';
-import { migrate } from 'drizzle-orm/bun-sql/migrator';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { SQL } from 'bun';
+import { sql } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/bun-sql';
+import { migrate } from 'drizzle-orm/bun-sql/migrator';
 
 const DRY_RUN = process.env.MIGRATION_DRY_RUN === 'true';
 const MIGRATIONS_FOLDER = './drizzle';
@@ -51,10 +52,9 @@ async function getAppliedMigrationCount(
   db: ReturnType<typeof drizzle>
 ): Promise<number> {
   try {
-    const result = (await db.execute({
-      sql: 'SELECT count(*)::int as count FROM drizzle.__drizzle_migrations',
-      params: []
-    } as any)) as any;
+    const result = await db.execute<{ count: number }>(
+      sql`SELECT count(*)::int as count FROM drizzle.__drizzle_migrations`
+    );
     return result?.[0]?.count ?? 0;
   } catch {
     // Table doesn't exist yet = first run, all migrations are pending

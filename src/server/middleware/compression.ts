@@ -1,10 +1,10 @@
-import { Elysia } from 'elysia';
 import {
   brotliCompressSync,
   constants,
   deflateSync,
   gzipSync
 } from 'node:zlib';
+import { Elysia } from 'elysia';
 
 type CompressionEncoding = 'br' | 'gzip' | 'deflate';
 
