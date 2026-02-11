@@ -6,12 +6,12 @@
 # Environment variables:
 #   SKIP_MIGRATIONS=true  - Skip migrations (useful for rollback)
 #   MIGRATION_ONLY=true   - Run migrations and exit (CI/CD use)
-#   MIGRATION_TIMEOUT=30  - Max seconds to wait for DB (default: 30)
+#   MIGRATION_TIMEOUT=5   - Max seconds to wait for DB (default: 5)
 # ═══════════════════════════════════════════════════════════════════
 
 set -e
 
-MIGRATION_TIMEOUT="${MIGRATION_TIMEOUT:-30}"
+MIGRATION_TIMEOUT="${MIGRATION_TIMEOUT:-5}"
 
 # ─── Helpers ──────────────────────────────────────────────────────
 
