@@ -24,8 +24,6 @@ services:
       - MIGRATION_ONLY=true
     entrypoint: ['docker-entrypoint.sh']
     command: ['echo', 'migrations complete']
-    networks:
-      - dokploy-network
     restart: 'no'
     deploy:
       resources:
@@ -62,8 +60,6 @@ services:
       - TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
     volumes:
       - geoip_data:/app/geoip:ro
-    networks:
-      - dokploy-network
     restart: unless-stopped
     deploy:
       resources:
@@ -99,9 +95,9 @@ services:
         max-size: '10m'
         max-file: '2'
 
-volumes:
-  geoip_data:
-
 networks:
   dokploy-network:
     external: true
+
+volumes:
+  geoip_data:

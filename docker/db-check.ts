@@ -46,9 +46,12 @@ function safeUrl(raw: string): string {
 // If the URL already contains sslmode, use it as-is.
 // Otherwise append sslmode=prefer (try TLS first, fallback to plain).
 const urlHasSSL = url.includes('sslmode=');
-const connUrl = urlHasSSL
+const connUrlPrefer = urlHasSSL
   ? url
   : `${url}${url.includes('?') ? '&' : '?'}sslmode=prefer`;
+const connUrlDisable = urlHasSSL
+  ? url
+  : `${url}${url.includes('?') ? '&' : '?'}sslmode=disable`;
 
 function parseHostPort(raw: string): { host: string; port: number } | null {
   try {
@@ -86,7 +89,7 @@ async function tcpProbe(host: string, port: number): Promise<void> {
 }
 
 try {
-  const hostPort = parseHostPort(connUrl);
+  const hostPort = parseHostPort(connUrlPrefer);
   if (hostPort) {
     try {
       const lookup = await dns.lookup(hostPort.host);
@@ -112,13 +115,37 @@ try {
     }
   }
 
-  const sql = new SQL({
-    url: connUrl,
-    connectionTimeout: timeoutSecondsClamped,
-    max: 1
-  });
-  await sql.unsafe('SELECT 1');
-  await sql.close();
+  const connectOnce = async (connectionUrl: string) => {
+    const sql = new SQL({
+      url: connectionUrl,
+      connectionTimeout: timeoutSecondsClamped,
+      max: 1
+    });
+    try {
+      await sql.unsafe('SELECT 1');
+    } finally {
+      await sql.close();
+    }
+  };
+
+  try {
+    await connectOnce(connUrlPrefer);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+
+    // Dokploy internal DBs sometimes hang when the client attempts TLS.
+    // If sslmode was auto-added and we hit a timeout, retry forcing plain.
+    const shouldRetryPlain =
+      !urlHasSSL && message.toLowerCase().includes('timeout');
+
+    if (!shouldRetryPlain) throw err;
+
+    console.error(
+      `[db-check] Retry with sslmode=disable after timeout (auto-sslmode)`
+    );
+    await connectOnce(connUrlDisable);
+  }
+
   process.exit(0);
 } catch (err) {
   const message = err instanceof Error ? err.message : String(err);

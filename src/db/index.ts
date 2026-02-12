@@ -28,24 +28,46 @@ export function getDatabase(): DrizzleDatabase {
   // Default to sslmode=prefer when the URL doesn't specify it.
   // This lets managed PostgreSQL (that requires TLS) work out of the box.
   const urlHasSSL = databaseUrl.includes('sslmode=');
-  const connUrl = urlHasSSL
+  const connUrlPrefer = urlHasSSL
     ? databaseUrl
     : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=prefer`;
+  const connUrlDisable = urlHasSSL
+    ? databaseUrl
+    : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=disable`;
 
   try {
+    const max = Number.parseInt(process.env.DB_POOL_MAX || '20', 10);
+    const idleTimeout = Number.parseInt(
+      process.env.DB_POOL_IDLE_TIMEOUT || '30',
+      10
+    );
+    const connectionTimeout = Number.parseInt(
+      process.env.DB_POOL_CONNECTION_TIMEOUT || '10',
+      10
+    );
+
+    const connect = (url: string) =>
+      new SQL({
+        url,
+        max,
+        idleTimeout,
+        connectionTimeout
+      });
+
     // Use native Bun SQL (PostgreSQL, MySQL or SQLite)
-    sqlConnection = new SQL({
-      url: connUrl,
-      max: Number.parseInt(process.env.DB_POOL_MAX || '20', 10),
-      idleTimeout: Number.parseInt(
-        process.env.DB_POOL_IDLE_TIMEOUT || '30',
-        10
-      ),
-      connectionTimeout: Number.parseInt(
-        process.env.DB_POOL_CONNECTION_TIMEOUT || '10',
-        10
-      )
-    });
+    try {
+      sqlConnection = connect(connUrlPrefer);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const shouldRetryPlain =
+        !urlHasSSL && message.toLowerCase().includes('timeout');
+      if (!shouldRetryPlain) throw err;
+
+      console.warn(
+        '⚠️ DB connect timeout with sslmode=prefer (auto). Retrying with sslmode=disable...'
+      );
+      sqlConnection = connect(connUrlDisable);
+    }
     dbInstance = drizzle(sqlConnection, { schema });
 
     console.log('✅ Database connection established (Bun SQL)');
