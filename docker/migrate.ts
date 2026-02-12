@@ -17,12 +17,12 @@
  *   1 - Error (migration failed)
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { SQL } from 'bun';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { migrate } from 'drizzle-orm/bun-sql/migrator';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const DRY_RUN = process.env.MIGRATION_DRY_RUN === 'true';
 const MIGRATIONS_FOLDER = './drizzle';
@@ -90,6 +90,7 @@ async function main() {
 
   try {
     sql = new SQL({
+      adapter: 'postgres',
       url: connUrl,
       max: 1, // Single connection for migrations
       connectionTimeout: 10,
