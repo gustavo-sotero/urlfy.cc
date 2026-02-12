@@ -20,6 +20,8 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       target: runner
+    ports:
+      - '3333:3000'
     init: true
     environment:
       - NODE_ENV=production
