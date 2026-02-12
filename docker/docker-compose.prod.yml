@@ -101,3 +101,7 @@ services:
 
 volumes:
   geoip_data:
+
+networks:
+  dokploy-network:
+    external: true
