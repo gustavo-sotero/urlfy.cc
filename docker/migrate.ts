@@ -124,40 +124,45 @@ async function main() {
     ? databaseUrl
     : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=disable`;
 
-  const createConnection = (url: string) =>
+  const createConnection = (url: string, timeout = 10) =>
     new SQL({
       url,
       max: 1, // Single connection for migrations
-      connectionTimeout: 10,
+      connectionTimeout: timeout,
       idleTimeout: 5
     });
 
   try {
-    // Try with sslmode=prefer first, fallback to disable on timeout
-    // (Dokploy internal DBs sometimes hang when the client attempts TLS)
-    try {
-      sql = createConnection(connUrlPrefer);
-      const db = drizzle(sql);
-      // Quick connectivity test
-      await db.execute(sqlQuery`SELECT 1`);
-      // Connection works with prefer, continue with this db
-      return await runMigrations(db, localTags);
-    } catch (preferErr) {
-      const message =
-        preferErr instanceof Error ? preferErr.message : String(preferErr);
-      const shouldRetryPlain =
-        !urlHasSSL && message.toLowerCase().includes('timeout');
-
-      if (!shouldRetryPlain) throw preferErr;
-
-      console.log('⚠️  SSL prefer timed out, retrying with sslmode=disable...');
-      // Close the hung connection
+    // Try with sslmode=prefer first, fallback to disable on any error.
+    // Dokploy internal DBs sometimes hang when the client attempts TLS,
+    // and drizzle wraps the underlying timeout as "Failed query: ..." which
+    // hides the original error message — so we retry on ANY failure.
+    if (!urlHasSSL) {
       try {
-        await sql?.close();
-      } catch {
-        /* ignore */
+        sql = createConnection(connUrlPrefer, 5);
+        const db = drizzle(sql);
+        // Quick connectivity test through drizzle
+        await db.execute(sqlQuery`SELECT 1`);
+        // Connection works with prefer, continue with this db
+        return await runMigrations(db, localTags);
+      } catch (preferErr) {
+        const msg =
+          preferErr instanceof Error ? preferErr.message : String(preferErr);
+        console.log(
+          `⚠️  sslmode=prefer failed (${msg}), retrying with sslmode=disable...`
+        );
+        // Close the hung connection
+        try {
+          await sql?.close();
+        } catch {
+          /* ignore */
+        }
+        sql = createConnection(connUrlDisable);
+        const db = drizzle(sql);
+        return await runMigrations(db, localTags);
       }
-      sql = createConnection(connUrlDisable);
+    } else {
+      sql = createConnection(databaseUrl);
       const db = drizzle(sql);
       return await runMigrations(db, localTags);
     }
