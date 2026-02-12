@@ -2,7 +2,9 @@
 # ═══════════════════════════════════════════════════════════════════
 # Docker Entrypoint - urlfy.cc
 # ═══════════════════════════════════════════════════════════════════
-# Runs database migrations before starting the application.
+# 1. Replaces NEXT_PUBLIC_* build-time placeholders with runtime values
+# 2. Runs database migrations before starting the application
+#
 # Environment variables:
 #   SKIP_MIGRATIONS=true  - Skip migrations (useful for rollback)
 #   MIGRATION_ONLY=true   - Run migrations and exit (CI/CD use)
@@ -33,6 +35,58 @@ log_warn() {
 
 log_error() {
   echo "[entrypoint] ❌ $1"
+}
+
+# ─── Replace NEXT_PUBLIC_* build-time values with runtime env ─────
+# Next.js inlines NEXT_PUBLIC_* at build time. If the runtime env
+# differs from the build arg (e.g. same image, different domain),
+# this step patches the built JS files so the app picks up the
+# actual runtime value.
+# ──────────────────────────────────────────────────────────────────
+
+replace_next_public_env() {
+  # Only run if NEXT_PUBLIC_APP_URL is set at runtime
+  if [ -z "${NEXT_PUBLIC_APP_URL}" ]; then
+    log_info "NEXT_PUBLIC_APP_URL not set — skipping runtime env replacement"
+    return 0
+  fi
+
+  # Check if .next directory exists
+  if [ ! -d /app/.next ]; then
+    log_warn ".next directory not found — skipping runtime env replacement"
+    return 0
+  fi
+
+  # Read the build-time value (written by Dockerfile during build)
+  BUILD_URL=""
+  if [ -f /app/.next/BUILD_NEXT_PUBLIC_APP_URL ]; then
+    BUILD_URL=$(cat /app/.next/BUILD_NEXT_PUBLIC_APP_URL | tr -d '[:space:]')
+  fi
+
+  # If build-time value matches runtime value, skip replacement
+  if [ "${BUILD_URL}" = "${NEXT_PUBLIC_APP_URL}" ]; then
+    log_info "NEXT_PUBLIC_APP_URL matches build value — no replacement needed"
+    return 0
+  fi
+
+  # Determine what to replace (build-time value or default localhost)
+  if [ -n "${BUILD_URL}" ]; then
+    SEARCH_PATTERN="${BUILD_URL}"
+  else
+    SEARCH_PATTERN="http://localhost:3000"
+  fi
+
+  log_info "Replacing '${SEARCH_PATTERN}' -> '${NEXT_PUBLIC_APP_URL}' in .next files..."
+
+  count=$(grep -rl "${SEARCH_PATTERN}" /app/.next/ 2>/dev/null | wc -l || true)
+  if [ "$count" -gt 0 ]; then
+    grep -rl "${SEARCH_PATTERN}" /app/.next/ 2>/dev/null | while read -r file; do
+      sed -i "s|${SEARCH_PATTERN}|${NEXT_PUBLIC_APP_URL}|g" "$file"
+    done
+    log_ok "Replaced NEXT_PUBLIC_APP_URL in ${count} files"
+  else
+    log_info "No files contained '${SEARCH_PATTERN}' — nothing to replace"
+  fi
 }
 
 # ─── Wait for Database ────────────────────────────────────────────
@@ -89,6 +143,9 @@ run_migrations() {
 main() {
   log_info "Starting urlfy.cc entrypoint..."
   log_info "NODE_ENV=${NODE_ENV:-development}"
+
+  # Step 0: Replace NEXT_PUBLIC_* build-time values with runtime env
+  replace_next_public_env
 
   # Step 1: Wait for database
   if ! wait_for_database; then

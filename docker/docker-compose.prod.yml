@@ -20,6 +20,10 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       target: runner
+      args:
+        # NEXT_PUBLIC_* vars are inlined at build time by Next.js.
+        # In Dokploy: configure these as "Build Arguments".
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://urlfy.cc}
     init: true
     environment:
       - NODE_ENV=production
@@ -30,10 +34,22 @@ services:
       - REDIS_HOST=${REDIS_HOST:-}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
+      # Auth
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-${NEXT_PUBLIC_APP_URL}}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - INTERNAL_ANALYTICS_SECRET=${INTERNAL_ANALYTICS_SECRET}
       - JWT_SECRET=${JWT_SECRET}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-}
+      # OAuth (optional)
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
+      # Email (optional)
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_FROM=${RESEND_FROM:-}
       # OpenTelemetry (SigNoz)
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-urlfy-api}

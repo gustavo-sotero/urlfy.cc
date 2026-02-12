@@ -17,10 +17,9 @@ import {
 import { createAuthClient } from 'better-auth/react';
 
 export const authClient = createAuthClient({
-  baseURL:
-    process.env.BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:3000',
+  // On the client side, only NEXT_PUBLIC_* vars are available (inlined at build).
+  // Use empty string to default to the current origin (relative requests).
+  baseURL: process.env.NEXT_PUBLIC_APP_URL || '',
   fetchOptions: {
     credentials: 'include' // Required for cookies to be sent with requests
   },

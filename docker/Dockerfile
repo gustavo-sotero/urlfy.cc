@@ -40,13 +40,21 @@ COPY scripts ./scripts
 COPY src ./src
 COPY drizzle ./drizzle
 
+# ── Build-time args for NEXT_PUBLIC_* (inlined by Next.js bundler) ──
+# These MUST be provided as --build-arg during docker build.
+# In Dokploy: set them as "Build Arguments" in the service settings.
+ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+
 # Build da aplicação Next.js
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV SKIP_ENV_VALIDATION=1
 ENV NODE_ENV=production
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
-RUN bun run build && \
+RUN echo "Building with NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}" && \
+    bun run build && \
     echo "✅ Build completed" && \
+    echo "${NEXT_PUBLIC_APP_URL}" > /app/.next/BUILD_NEXT_PUBLIC_APP_URL && \
     ls -la .next/ && \
     ls -la .next/standalone/ || (echo "❌ ERROR: standalone folder not found" && exit 1)
 
@@ -69,6 +77,7 @@ RUN apt-get update && \
 # Copia arquivos necessários do build standalone
 COPY --from=builder --chown=urlfy:urlfy /app/.next/standalone ./
 COPY --from=builder --chown=urlfy:urlfy /app/.next/static ./.next/static
+COPY --from=builder --chown=urlfy:urlfy /app/.next/BUILD_NEXT_PUBLIC_APP_URL ./.next/BUILD_NEXT_PUBLIC_APP_URL
 COPY --from=builder --chown=urlfy:urlfy /app/drizzle ./drizzle
 
 # Copia migration script, db health check e entrypoint

@@ -99,10 +99,13 @@ type Env = z.infer<typeof envSchema>;
 let env: Env | null = null;
 
 // Build-time placeholder values (used when SKIP_ENV_VALIDATION=1)
+// During `next build` these vars are not available (they come from docker env).
+// Placeholders prevent validation errors while still allowing the build to succeed.
 const buildTimePlaceholders: Partial<Record<keyof Env, string>> = {
   DATABASE_URL: 'postgres://placeholder:placeholder@localhost:5432/placeholder',
-  BETTER_AUTH_SECRET: 'build-time-placeholder-secret-32chars',
-  INTERNAL_API_SECRET: 'build-time-placeholder-internal-secret'
+  BETTER_AUTH_SECRET: 'build-time-placeholder-secret-32chars-xx',
+  INTERNAL_API_SECRET: 'build-time-placeholder-internal-secret',
+  INTERNAL_ANALYTICS_SECRET: 'build-time-placeholder-analytics-secret'
 };
 
 export function validateEnv(): Env {
