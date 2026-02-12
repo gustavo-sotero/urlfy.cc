@@ -10,43 +10,22 @@
 # ═══════════════════════════════════════════════════════════════════
 
 services:
-  # ─── Database Migrations (runs once before app starts) ─────────
-  # Can also be triggered independently:
-  #   docker compose -f docker-compose.prod.yml run --rm migrate
-  migrate:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: runner
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
-      - MIGRATION_ONLY=true
-    entrypoint: ['docker-entrypoint.sh']
-    command: ['echo', 'migrations complete']
-    networks:
-      - dokploy-network
-    restart: 'no'
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-
   # ─── Application ───────────────────────────────────────────────
+  # Migrations run automatically via docker-entrypoint.sh before
+  # the app starts. To run migrations independently:
+  #   docker compose -f docker-compose.prod.yml run --rm app \
+  #     sh -c "MIGRATION_ONLY=true docker-entrypoint.sh echo done"
   app:
     build:
       context: ..
       dockerfile: docker/Dockerfile
       target: runner
     init: true
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
     environment:
       - NODE_ENV=production
-      - SKIP_MIGRATIONS=true
       - DATABASE_URL=${DATABASE_URL}
+      - MIGRATION_TIMEOUT=${MIGRATION_TIMEOUT:-120}
+      - DB_CHECK_TIMEOUT=${DB_CHECK_TIMEOUT:-10}
       - REDIS_URL=${REDIS_URL}
       - REDIS_HOST=${REDIS_HOST:-}
       - REDIS_PORT=${REDIS_PORT:-6379}

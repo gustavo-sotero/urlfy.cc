@@ -18,7 +18,7 @@
  */
 
 import { SQL } from 'bun';
-import { sql } from 'drizzle-orm';
+import { sql as sqlQuery } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { migrate } from 'drizzle-orm/bun-sql/migrator';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -53,13 +53,46 @@ async function getAppliedMigrationCount(
 ): Promise<number> {
   try {
     const result = await db.execute<{ count: number }>(
-      sql`SELECT count(*)::int as count FROM drizzle.__drizzle_migrations`
+      sqlQuery`SELECT count(*)::int as count FROM drizzle.__drizzle_migrations`
     );
     return result?.[0]?.count ?? 0;
   } catch {
     // Table doesn't exist yet = first run, all migrations are pending
     return -1;
   }
+}
+
+async function runMigrations(
+  db: ReturnType<typeof drizzle>,
+  localTags: string[]
+) {
+  const appliedCount = await getAppliedMigrationCount(db);
+  const pendingCount =
+    appliedCount === -1 ? localTags.length : localTags.length - appliedCount;
+
+  if (appliedCount >= 0) {
+    console.log(`   Applied: ${appliedCount} | Pending: ${pendingCount}`);
+  } else {
+    console.log('   First run — all migrations are pending');
+  }
+
+  if (pendingCount <= 0) {
+    console.log('✅ Database is up to date — no migrations to apply');
+    process.exit(0);
+  }
+
+  if (DRY_RUN) {
+    console.log(`🔍 DRY RUN — ${pendingCount} migration(s) would be applied:`);
+    for (const tag of localTags.slice(appliedCount === -1 ? 0 : appliedCount)) {
+      console.log(`   → ${tag}`);
+    }
+    process.exit(0);
+  }
+
+  console.log(`⏳ Applying ${pendingCount} migration(s)...`);
+  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  console.log('✅ Migrations completed successfully');
+  process.exit(0);
 }
 
 async function main() {
@@ -84,56 +117,50 @@ async function main() {
   // Default to sslmode=prefer when the URL doesn't specify it.
   // This lets managed PostgreSQL (that requires TLS) work without manual config.
   const urlHasSSL = databaseUrl.includes('sslmode=');
-  const connUrl = urlHasSSL
+  const connUrlPrefer = urlHasSSL
     ? databaseUrl
     : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=prefer`;
+  const connUrlDisable = urlHasSSL
+    ? databaseUrl
+    : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=disable`;
 
-  try {
-    sql = new SQL({
-      adapter: 'postgres',
-      url: connUrl,
+  const createConnection = (url: string) =>
+    new SQL({
+      url,
       max: 1, // Single connection for migrations
       connectionTimeout: 10,
       idleTimeout: 5
     });
 
-    const db = drizzle(sql);
+  try {
+    // Try with sslmode=prefer first, fallback to disable on timeout
+    // (Dokploy internal DBs sometimes hang when the client attempts TLS)
+    try {
+      sql = createConnection(connUrlPrefer);
+      const db = drizzle(sql);
+      // Quick connectivity test
+      await db.execute(sqlQuery`SELECT 1`);
+      // Connection works with prefer, continue with this db
+      return await runMigrations(db, localTags);
+    } catch (preferErr) {
+      const message =
+        preferErr instanceof Error ? preferErr.message : String(preferErr);
+      const shouldRetryPlain =
+        !urlHasSSL && message.toLowerCase().includes('timeout');
 
-    // Check how many migrations are already applied
-    const appliedCount = await getAppliedMigrationCount(db);
-    const pendingCount =
-      appliedCount === -1 ? localTags.length : localTags.length - appliedCount;
+      if (!shouldRetryPlain) throw preferErr;
 
-    if (appliedCount >= 0) {
-      console.log(`   Applied: ${appliedCount} | Pending: ${pendingCount}`);
-    } else {
-      console.log('   First run — all migrations are pending');
-    }
-
-    // Skip if nothing to do
-    if (pendingCount <= 0) {
-      console.log('✅ Database is up to date — no migrations to apply');
-      process.exit(0);
-    }
-
-    if (DRY_RUN) {
-      console.log(
-        `🔍 DRY RUN — ${pendingCount} migration(s) would be applied:`
-      );
-      for (const tag of localTags.slice(
-        appliedCount === -1 ? 0 : appliedCount
-      )) {
-        console.log(`   → ${tag}`);
+      console.log('⚠️  SSL prefer timed out, retrying with sslmode=disable...');
+      // Close the hung connection
+      try {
+        await sql?.close();
+      } catch {
+        /* ignore */
       }
-      process.exit(0);
+      sql = createConnection(connUrlDisable);
+      const db = drizzle(sql);
+      return await runMigrations(db, localTags);
     }
-
-    // Apply pending migrations
-    console.log(`⏳ Applying ${pendingCount} migration(s)...`);
-    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
-    console.log('✅ Migrations completed successfully');
-
-    process.exit(0);
   } catch (error) {
     console.error(
       '❌ Migration failed:',
