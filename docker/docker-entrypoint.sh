@@ -6,12 +6,16 @@
 # Environment variables:
 #   SKIP_MIGRATIONS=true  - Skip migrations (useful for rollback)
 #   MIGRATION_ONLY=true   - Run migrations and exit (CI/CD use)
-#   MIGRATION_TIMEOUT=5   - Max seconds to wait for DB (default: 5)
+#   MIGRATION_TIMEOUT=30  - Max seconds to wait for DB (default: 30)
+#   DB_CHECK_TIMEOUT=5    - Per-attempt DB connect timeout in seconds (default: 5)
+#   DB_CHECK_SLEEP=2      - Seconds to sleep between attempts (default: 2)
 # ═══════════════════════════════════════════════════════════════════
 
 set -e
 
-MIGRATION_TIMEOUT="${MIGRATION_TIMEOUT:-5}"
+MIGRATION_TIMEOUT="${MIGRATION_TIMEOUT:-30}"
+DB_CHECK_TIMEOUT="${DB_CHECK_TIMEOUT:-5}"
+DB_CHECK_SLEEP="${DB_CHECK_SLEEP:-2}"
 
 # ─── Helpers ──────────────────────────────────────────────────────
 
@@ -36,19 +40,22 @@ log_error() {
 wait_for_database() {
   log_info "Waiting for database to be ready (timeout: ${MIGRATION_TIMEOUT}s)..."
 
-  elapsed=0
+  start_ts=$(date +%s)
+  deadline_ts=$((start_ts + MIGRATION_TIMEOUT))
+
+  attempt=1
   last_error=""
-  while [ "$elapsed" -lt "$MIGRATION_TIMEOUT" ]; do
+  while [ "$(date +%s)" -lt "$deadline_ts" ]; do
     # Use a proper TypeScript file to test connectivity (avoids bun -e import issues)
-    output=$(bun run /app/db-check.ts 2>&1) && {
+    output=$(DB_CHECK_TIMEOUT="${DB_CHECK_TIMEOUT}" bun run /app/db-check.ts 2>&1) && {
       log_ok "Database is ready"
       return 0
     }
 
-    # Capture last error for diagnostics
     last_error="$output"
-    elapsed=$((elapsed + 2))
-    sleep 2
+    log_warn "Database not ready yet (attempt ${attempt})"
+    attempt=$((attempt + 1))
+    sleep "$DB_CHECK_SLEEP"
   done
 
   log_error "Database not ready after ${MIGRATION_TIMEOUT}s"

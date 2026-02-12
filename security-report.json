@@ -1,19 +1,19 @@
 {
-  "generatedAt": "2026-01-28T20:54:18.817Z",
+  "generatedAt": "2026-02-11T22:46:48.095Z",
   "baseUrl": "http://localhost:3000",
-  "environment": "development",
+  "environment": "production",
   "checks": [
     {
       "category": "Headers",
       "check": "Content-Security-Policy",
       "status": "pass",
-      "details": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com; connect-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+      "details": "frame-ancestors 'none'"
     },
     {
       "category": "Headers",
       "check": "Strict-Transport-Security",
-      "status": "pass",
-      "details": "max-age=31536000; includeSubDomains; preload"
+      "status": "fail",
+      "details": "Missing HSTS header"
     },
     {
       "category": "Headers",
@@ -36,8 +36,8 @@
     {
       "category": "Headers",
       "check": "Permissions-Policy",
-      "status": "pass",
-      "details": "camera=(), microphone=(), geolocation=(), payment=()"
+      "status": "warning",
+      "details": "Missing Permissions-Policy header"
     },
     {
       "category": "Headers",
@@ -54,8 +54,8 @@
     {
       "category": "Rate Limiting",
       "check": "Rate limit headers present",
-      "status": "pass",
-      "details": "Limit: 600, Remaining: 595"
+      "status": "warning",
+      "details": "Rate limit headers not found"
     },
     {
       "category": "CORS",
@@ -66,8 +66,8 @@
     {
       "category": "CORS",
       "check": "Preflight requests handled",
-      "status": "pass",
-      "details": "Preflight status: 204"
+      "status": "warning",
+      "details": "Preflight status: 401"
     },
     {
       "category": "Authentication",
@@ -96,27 +96,27 @@
     {
       "category": "Input Validation",
       "check": "Block JavaScript URL",
-      "status": "pass",
-      "details": "Status: 400 (expected 400)"
+      "status": "fail",
+      "details": "Status: 401 (expected 400)"
     },
     {
       "category": "Input Validation",
       "check": "Block Internal URL",
-      "status": "pass",
-      "details": "Status: 400 (expected 400)"
+      "status": "fail",
+      "details": "Status: 401 (expected 400)"
     },
     {
       "category": "Input Validation",
       "check": "Block Shortener URL",
-      "status": "pass",
-      "details": "Status: 400 (expected 400)"
+      "status": "fail",
+      "details": "Status: 401 (expected 400)"
     }
   ],
   "summary": {
     "total": 18,
-    "passed": 18,
-    "failed": 0,
-    "warnings": 0,
+    "passed": 11,
+    "failed": 4,
+    "warnings": 3,
     "skipped": 0
   }
 }
