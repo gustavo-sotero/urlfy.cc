@@ -5,7 +5,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
@@ -85,25 +84,24 @@ export default function EditLinkPage() {
   const { data: link, isLoading, isError, error, refetch } = useLink(linkId);
   const updateLink = useUpdateLink();
 
+  // react-hook-form's `values` prop keeps the form in sync with fetched data
+  // automatically — no useEffect needed, no extra render cycle.
   const form = useForm<FormData>({
-    resolver: zodResolver(createSchema(t))
+    resolver: zodResolver(createSchema(t)),
+    values: link
+      ? {
+          isActive: link.isActive,
+          expiresAt: link.expiresAt
+            ? new Date(link.expiresAt).toISOString().slice(0, 16)
+            : undefined,
+          maxClicks: link.maxClicks || undefined,
+          metaTitle: link.metaTitle || undefined,
+          metaDescription: link.metaDescription || undefined,
+          metaImage: link.metaImage || undefined,
+          notes: link.notes || undefined
+        }
+      : undefined
   });
-
-  useEffect(() => {
-    if (link) {
-      form.reset({
-        isActive: link.isActive,
-        expiresAt: link.expiresAt
-          ? new Date(link.expiresAt).toISOString().slice(0, 16)
-          : undefined,
-        maxClicks: link.maxClicks || undefined,
-        metaTitle: link.metaTitle || undefined,
-        metaDescription: link.metaDescription || undefined,
-        metaImage: link.metaImage || undefined,
-        notes: link.notes || undefined
-      });
-    }
-  }, [link, form]);
 
   const onSubmit = async (data: FormData) => {
     try {

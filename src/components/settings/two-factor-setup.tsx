@@ -16,6 +16,15 @@
 
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
+import { CheckCircle2, Copy, Download, Loader2, Shield } from 'lucide-react';
+import Image from 'next/image';
+import { useTranslations } from 'next-intl';
+import qrcode from 'qrcode';
+import { useCallback, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,15 +43,6 @@ import {
   InputOTPSlot
 } from '@/components/ui/input-otp';
 import { authClient } from '@/lib/auth.client';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { CheckCircle2, Copy, Download, Loader2, Shield } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import Image from 'next/image';
-import qrcode from 'qrcode';
-import { useCallback, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES

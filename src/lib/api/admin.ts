@@ -6,7 +6,7 @@
 
 import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
 import { BASE_URL, client, createClientWithHeaders } from './client';
-import { handleEden, toQueryParams, type TreatyResponse } from './error';
+import { handleEden, type TreatyResponse, toQueryParams } from './error';
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN STATS
