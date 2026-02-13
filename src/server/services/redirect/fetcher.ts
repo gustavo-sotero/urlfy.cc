@@ -1,3 +1,5 @@
+import { trace } from '@opentelemetry/api';
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import * as schema from '@/db/schema';
 import { CircuitBreaker } from '@/server/lib/circuit-breaker';
@@ -11,8 +13,6 @@ import {
   stampedeLocksWaited
 } from '@/server/lib/telemetry';
 import type { CachedLink } from '@/types/redirect.types';
-import { trace } from '@opentelemetry/api';
-import { eq } from 'drizzle-orm';
 import { CACHE_PREFIX, cacheService } from '../cache.service';
 
 const { links } = schema;

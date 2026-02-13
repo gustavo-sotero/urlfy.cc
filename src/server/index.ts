@@ -58,7 +58,6 @@ const logger = createLogger('api-router');
 // ═══════════════════════════════════════════════════════════════════
 
 const publicDocsApp = new Elysia()
-  .use(compressionMiddleware())
   .use(cspMiddleware)
   .use(securityHeadersMiddleware)
   .use(ResponseModels)
@@ -124,7 +123,8 @@ const publicDocsApp = new Elysia()
             description: 'Production server'
           }
         ]
-      }
+      },
+      embedSpec: true
     })
   )
   .use(publicApiV1);
@@ -250,7 +250,8 @@ export const api = new Elysia({ prefix: '/api' })
             description: 'Production server'
           }
         ]
-      }
+      },
+      embedSpec: true
     })
   )
 

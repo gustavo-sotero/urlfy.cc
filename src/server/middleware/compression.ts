@@ -100,7 +100,11 @@ export function compressionMiddleware(options?: CompressionOptions) {
       const encoding = selectEncoding(acceptEncoding, encodings);
       if (!encoding) return normalizedResponse;
 
-      if (set.headers['content-encoding'] || set.headers['Content-Encoding']) {
+      if (
+        set.headers['content-encoding'] ||
+        set.headers['Content-Encoding'] ||
+        normalizedResponse.headers.get('content-encoding')
+      ) {
         return normalizedResponse;
       }
 

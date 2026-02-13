@@ -14,7 +14,6 @@
  * - CLI scripts
  */
 
-import { getEnv } from '@/lib/env';
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
@@ -32,6 +31,7 @@ import {
   SEMRESATTRS_SERVICE_NAME,
   SEMRESATTRS_SERVICE_VERSION
 } from '@opentelemetry/semantic-conventions';
+import { getEnv } from '@/lib/env';
 
 // Only enable telemetry diagnostics for actual errors in development
 // INFO level is too verbose and logs stack traces for logger registration

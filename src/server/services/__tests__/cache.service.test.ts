@@ -1,7 +1,7 @@
 // src/server/services/__tests__/cache.service.test.ts
 
-import type { CachedLink } from '@/types/redirect.types';
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CachedLink } from '@/types/redirect.types';
 
 // Mock telemetry to avoid initialization
 mock.module('@/server/lib/telemetry', () => ({
