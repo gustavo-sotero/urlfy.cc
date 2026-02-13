@@ -5,7 +5,7 @@
 import { closeDatabase, initDatabase } from '@/db';
 import { validateEnv } from '@/lib/env';
 import { closeRedis } from '@/server/lib/redis';
-import { initTelemetry } from '@/server/lib/telemetry';
+import { initTelemetry, shutdownTelemetry } from '@/server/lib/telemetry';
 
 // Only initialize in server environment and skip during build phase
 if (
@@ -46,7 +46,7 @@ async function setupGracefulShutdown() {
 
     try {
       // Close connections
-      await Promise.all([closeDatabase(), closeRedis()]);
+      await Promise.all([closeDatabase(), closeRedis(), shutdownTelemetry()]);
 
       console.log('✅ Graceful shutdown complete');
       process.exit(0);

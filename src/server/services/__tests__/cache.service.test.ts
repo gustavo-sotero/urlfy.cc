@@ -1,7 +1,7 @@
 // src/server/services/__tests__/cache.service.test.ts
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { CachedLink } from '@/types/redirect.types';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // Mock telemetry to avoid initialization
 mock.module('@/server/lib/telemetry', () => ({
@@ -15,6 +15,8 @@ mock.module('@/server/lib/telemetry', () => ({
   shutdownTelemetry: () => Promise.resolve(),
   cacheHits: { add: () => {} },
   cacheMisses: { add: () => {} },
+  recordCacheHit: () => {},
+  recordCacheMiss: () => {},
   redisFallbacks: { add: () => {} },
   recordRedirectMetrics: () => {},
   stampedeLocksAcquired: { add: () => {} },

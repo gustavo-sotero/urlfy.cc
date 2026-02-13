@@ -14,6 +14,7 @@
  * - CLI scripts
  */
 
+import { getEnv } from '@/lib/env';
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
@@ -31,7 +32,6 @@ import {
   SEMRESATTRS_SERVICE_NAME,
   SEMRESATTRS_SERVICE_VERSION
 } from '@opentelemetry/semantic-conventions';
-import { getEnv } from '@/lib/env';
 
 // Only enable telemetry diagnostics for actual errors in development
 // INFO level is too verbose and logs stack traces for logger registration
@@ -64,7 +64,7 @@ const resource = resourceFromAttributes({
 const loggerProvider = new LoggerProvider({ resource });
 // Generic type to allow access to addLogRecordProcessor
 type LoggerProviderWithProcessor = LoggerProvider & {
-  addLogRecordProcessor: (processor: unknown) => void;
+  addLogRecordProcessor: (processor: BatchLogRecordProcessor) => void;
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -72,16 +72,25 @@ type LoggerProviderWithProcessor = LoggerProvider & {
 // ═══════════════════════════════════════════════════════════════════
 
 let sdk: NodeSDK | null = null;
+let telemetryInitialized = false;
+let logProcessorConfigured = false;
+let telemetryShuttingDown = false;
 
 // ═══════════════════════════════════════════════════════════════════
 // INITIALIZATION
 // ═══════════════════════════════════════════════════════════════════
 
 export function initTelemetry() {
+  if (telemetryInitialized) {
+    console.log('[Telemetry] Already initialized. Skipping re-initialization.');
+    return;
+  }
+
   const env = getEnv();
 
   if (!env.TELEMETRY_ENABLED) {
     console.log('[Telemetry] Disabled (TELEMETRY_ENABLED=false)');
+    telemetryInitialized = true;
     return;
   }
 
@@ -89,6 +98,7 @@ export function initTelemetry() {
     console.warn(
       '[Telemetry] Enabled but OTEL_EXPORTER_OTLP_ENDPOINT not set. Skipping initialization.'
     );
+    telemetryInitialized = true;
     return;
   }
 
@@ -104,10 +114,19 @@ export function initTelemetry() {
     url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/logs`
   });
 
-  if ('addLogRecordProcessor' in loggerProvider) {
+  if (!logProcessorConfigured && 'addLogRecordProcessor' in loggerProvider) {
     (
       loggerProvider as unknown as LoggerProviderWithProcessor
-    ).addLogRecordProcessor(new BatchLogRecordProcessor(logExporter));
+    ).addLogRecordProcessor(
+      new BatchLogRecordProcessor(logExporter, {
+        maxQueueSize: 2048,
+        maxExportBatchSize: 512,
+        scheduledDelayMillis: 1000,
+        exportTimeoutMillis: 10000
+      })
+    );
+
+    logProcessorConfigured = true;
   }
 
   sdk = new NodeSDK({
@@ -129,20 +148,54 @@ export function initTelemetry() {
   });
 
   sdk.start();
+  telemetryInitialized = true;
+  telemetryShuttingDown = false;
+
   console.log(
     `[Telemetry] ✅ Initialized with endpoint: ${env.OTEL_EXPORTER_OTLP_ENDPOINT}`
   );
   console.log(
     `[Telemetry] Service: ${process.env.OTEL_SERVICE_NAME || 'urlfy-api'}`
   );
+
+  const bootstrapLogger = loggerProvider.getLogger('telemetry-bootstrap');
+  bootstrapLogger.emit({
+    severityText: 'INFO',
+    body: JSON.stringify({
+      message: 'Telemetry logger pipeline initialized',
+      timestamp: new Date().toISOString(),
+      logger: 'telemetry-bootstrap'
+    }),
+    attributes: {
+      logger: 'telemetry-bootstrap',
+      event: 'telemetry.init',
+      service: process.env.OTEL_SERVICE_NAME || 'urlfy-api'
+    }
+  });
+
+  void loggerProvider.forceFlush().catch(() => {
+    // Best effort: telemetry should never crash app startup
+  });
 }
 
 export async function shutdownTelemetry() {
   try {
-    if (!sdk) return;
+    if (!telemetryInitialized || !sdk) return;
+    if (telemetryShuttingDown) return;
+
+    telemetryShuttingDown = true;
+
+    await loggerProvider.forceFlush();
+    await loggerProvider.shutdown();
     await sdk.shutdown();
+
+    sdk = null;
+    telemetryInitialized = false;
+    telemetryShuttingDown = false;
+
     console.log('✅ OpenTelemetry shut down gracefully');
   } catch (error) {
+    telemetryShuttingDown = false;
     console.error('❌ Error shutting down OpenTelemetry:', error);
   }
 }
@@ -161,6 +214,64 @@ export interface LogContext {
 }
 
 export type Logger = ReturnType<typeof createLogger>;
+
+function normalizeAttributeValue(
+  value: unknown
+): string | number | boolean | string[] | number[] | boolean[] | undefined {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    if (value.every((item) => typeof item === 'string')) {
+      return value;
+    }
+    if (value.every((item) => typeof item === 'number')) {
+      return value;
+    }
+    if (value.every((item) => typeof item === 'boolean')) {
+      return value;
+    }
+
+    return [JSON.stringify(value)];
+  }
+
+  if (value instanceof Error) {
+    return `${value.name}: ${value.message}`;
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function toOtelAttributes(
+  data: Record<string, unknown>
+): Record<string, string | number | boolean | string[] | number[] | boolean[]> {
+  const attributes: Record<
+    string,
+    string | number | boolean | string[] | number[] | boolean[]
+  > = {};
+
+  for (const [key, value] of Object.entries(data)) {
+    const normalized = normalizeAttributeValue(value);
+    if (normalized !== undefined) {
+      attributes[key] = normalized;
+    }
+  }
+
+  return attributes;
+}
 
 export function createLogger(name: string) {
   const logger = loggerProvider.getLogger(name);
@@ -187,11 +298,24 @@ export function createLogger(name: string) {
     }
 
     // Emite log estruturado
-    logger.emit({
-      severityText: level.toUpperCase(),
-      body: JSON.stringify(logRecord),
-      attributes: logRecord as unknown as Attributes
-    });
+    const attributes = toOtelAttributes(logRecord) as unknown as Attributes;
+
+    try {
+      logger.emit({
+        severityText: level.toUpperCase(),
+        body: JSON.stringify(logRecord),
+        attributes
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[Telemetry] Failed to emit log record', {
+          error: error instanceof Error ? error.message : String(error),
+          logger: name,
+          level,
+          message
+        });
+      }
+    }
 
     // Console log para desenvolvimento
     if (process.env.NODE_ENV === 'development') {
@@ -328,30 +452,29 @@ class CacheMetricsTracker {
 
 const cacheMetricsTracker = new CacheMetricsTracker();
 
-// Create wrapper functions that track metrics
-const originalCacheHitsAdd = cacheHits.add.bind(cacheHits);
-const originalCacheMissesAdd = cacheMisses.add.bind(cacheMisses);
-
-// Override add methods to track locally
-type MutableMetric = {
-  add: (value: number, attributes?: Record<string, string>) => void;
-};
-
-(cacheHits as unknown as MutableMetric).add = (
-  value: number,
+/**
+ * Record a cache hit with OTel counter + local tracker for hit rate gauge.
+ * Use this instead of `cacheHits.add()` directly.
+ */
+export function recordCacheHit(
+  value = 1,
   attributes?: Record<string, string>
-) => {
+): void {
   cacheMetricsTracker.recordHit();
-  return originalCacheHitsAdd(value, attributes);
-};
+  cacheHits.add(value, attributes);
+}
 
-(cacheMisses as unknown as MutableMetric).add = (
-  value: number,
+/**
+ * Record a cache miss with OTel counter + local tracker for hit rate gauge.
+ * Use this instead of `cacheMisses.add()` directly.
+ */
+export function recordCacheMiss(
+  value = 1,
   attributes?: Record<string, string>
-) => {
+): void {
   cacheMetricsTracker.recordMiss();
-  return originalCacheMissesAdd(value, attributes);
-};
+  cacheMisses.add(value, attributes);
+}
 
 /**
  * Observable gauge for cache hit rate

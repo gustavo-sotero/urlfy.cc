@@ -9,36 +9,72 @@
  *   bun run --watch src/workers.ts  (dev mode)
  */
 
-import { createLogger } from './server/lib/telemetry';
+import { validateEnv } from './lib/env';
+import {
+  createLogger,
+  initTelemetry,
+  shutdownTelemetry
+} from './server/lib/telemetry';
 import { aggregationWorker } from './server/workers/aggregation-stream.worker';
 import { analyticsClickWorker } from './server/workers/analytics-click.worker';
 import { cleanupWorker } from './server/workers/cleanup-stream.worker';
 import { deletionWorker } from './server/workers/deletion-stream.worker';
 
 const logger = createLogger('workers-main');
+let isExiting = false;
+
+async function exitWithTelemetryFlush(
+  code: number,
+  reason: string,
+  context?: Record<string, unknown>
+) {
+  if (isExiting) return;
+  isExiting = true;
+
+  logger.error(`[Main] ${reason}`, context);
+
+  try {
+    await Promise.race([
+      shutdownTelemetry(),
+      new Promise((resolve) => setTimeout(resolve, 2500))
+    ]);
+  } finally {
+    process.exit(code);
+  }
+}
+
+/**
+ * All worker instances for startup and shutdown coordination
+ */
+const allWorkers = [
+  { name: 'Analytics Click', instance: analyticsClickWorker },
+  { name: 'Aggregation', instance: aggregationWorker },
+  { name: 'Cleanup', instance: cleanupWorker },
+  { name: 'Deletion', instance: deletionWorker }
+];
 
 /**
  * Main entry point
  */
 async function main() {
+  try {
+    validateEnv();
+  } catch (_error) {
+    console.error('❌ Environment validation failed');
+    process.exit(1);
+  }
+
+  initTelemetry();
+
   logger.info('🚀 Starting Workers...');
   logger.info('Press Ctrl+C to stop gracefully');
 
   try {
-    // Start all workers (they run in background with their own error handling)
-    const workers = [
-      { name: 'Analytics Click', worker: analyticsClickWorker },
-      { name: 'Aggregation', worker: aggregationWorker },
-      { name: 'Cleanup', worker: cleanupWorker },
-      { name: 'Deletion', worker: deletionWorker }
-    ];
-
-    for (const { name, worker } of workers) {
-      worker.run().catch((error) => {
-        logger.error(`[Main] ${name} worker crashed`, {
+    for (const { name, instance } of allWorkers) {
+      instance.run().catch((error) => {
+        void exitWithTelemetryFlush(1, `${name} worker crashed`, {
           error: error instanceof Error ? error.message : String(error)
         });
-        process.exit(1);
       });
 
       logger.info(`✅ ${name} Worker started`);
@@ -46,27 +82,55 @@ async function main() {
 
     logger.info('✅ All workers started successfully');
   } catch (error) {
-    logger.error('[Main] Failed to start workers', {
+    void exitWithTelemetryFlush(1, 'Failed to start workers', {
       error: error instanceof Error ? error.message : String(error)
     });
-    process.exit(1);
   }
 }
 
 // Handle uncaught errors
 process.on('uncaughtException', (error) => {
-  logger.error('[Main] Uncaught exception', {
+  void exitWithTelemetryFlush(1, 'Uncaught exception', {
     error: error.message,
     stack: error.stack
   });
-  process.exit(1);
 });
 
 process.on('unhandledRejection', (reason) => {
-  logger.error('[Main] Unhandled rejection', {
+  void exitWithTelemetryFlush(1, 'Unhandled rejection', {
     reason: String(reason)
   });
-  process.exit(1);
+});
+
+const gracefulWorkerShutdown = async (signal: string) => {
+  logger.info(`[Main] ${signal} received. Shutting down workers...`);
+  try {
+    // Stop all workers gracefully (drain in-flight work)
+    await Promise.allSettled(
+      allWorkers.map(async ({ name, instance }) => {
+        try {
+          await instance.stop();
+          logger.info(`✅ ${name} Worker stopped`);
+        } catch (error) {
+          logger.error(`❌ Failed to stop ${name} Worker`, {
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      })
+    );
+
+    await shutdownTelemetry();
+  } finally {
+    process.exit(0);
+  }
+};
+
+process.on('SIGTERM', () => {
+  void gracefulWorkerShutdown('SIGTERM');
+});
+
+process.on('SIGINT', () => {
+  void gracefulWorkerShutdown('SIGINT');
 });
 
 // Start

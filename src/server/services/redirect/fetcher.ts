@@ -1,18 +1,18 @@
-import { trace } from '@opentelemetry/api';
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import * as schema from '@/db/schema';
 import { CircuitBreaker } from '@/server/lib/circuit-breaker';
 import { acquireLock, releaseLock } from '@/server/lib/redis';
 import {
-  cacheHits,
-  cacheMisses,
   createLogger,
+  recordCacheHit,
+  recordCacheMiss,
   redisFallbacks,
   stampedeLocksAcquired,
   stampedeLocksWaited
 } from '@/server/lib/telemetry';
 import type { CachedLink } from '@/types/redirect.types';
+import { trace } from '@opentelemetry/api';
+import { eq } from 'drizzle-orm';
 import { CACHE_PREFIX, cacheService } from '../cache.service';
 
 const { links } = schema;
@@ -54,7 +54,7 @@ export async function getLink(code: string): Promise<LinkFetchResult> {
           logger.debug('Negative cache hit', { code });
           span.setAttribute('cache.type', 'negative');
           span.setAttribute('cache.hit', true);
-          cacheHits.add(1, { type: 'negative' });
+          recordCacheHit(1, { type: 'negative' });
           cacheHit = true;
           return { link: null, cacheHit };
         }
@@ -65,7 +65,7 @@ export async function getLink(code: string): Promise<LinkFetchResult> {
           logger.debug('Banned cache hit', { code });
           span.setAttribute('cache.type', 'banned');
           span.setAttribute('cache.hit', true);
-          cacheHits.add(1, { type: 'banned' });
+          recordCacheHit(1, { type: 'banned' });
           // Return a "phantom" link so validateLink returns BANNED
           cacheHit = true;
           return {
@@ -93,7 +93,7 @@ export async function getLink(code: string): Promise<LinkFetchResult> {
           logger.debug('Link cache hit', { code });
           span.setAttribute('cache.type', 'link');
           span.setAttribute('cache.hit', true);
-          cacheHits.add(1, { type: 'link' });
+          recordCacheHit(1, { type: 'link' });
           cacheHit = true;
           return { link: cached, cacheHit };
         }
@@ -101,7 +101,7 @@ export async function getLink(code: string): Promise<LinkFetchResult> {
         // L4: Cache miss - fetch from DB with stampede protection
         logger.debug('Cache miss', { code });
         span.setAttribute('cache.hit', false);
-        cacheMisses.add(1);
+        recordCacheMiss(1);
         return {
           link: await fetchWithStampedeProtection(code),
           cacheHit

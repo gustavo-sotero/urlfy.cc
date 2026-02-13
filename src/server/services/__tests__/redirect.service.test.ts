@@ -16,8 +16,8 @@ process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
 process.env.REDIS_URL = 'redis://localhost:6379';
 process.env.JWT_SECRET = 'test-secret-key-for-testing';
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { CachedLink } from '@/types/redirect.types';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // ═══════════════════════════════════════════════════════════════════
 // Helper function for Bun mock compatibility
@@ -91,6 +91,8 @@ const mockTelemetry = {
   })),
   cacheHits: { add: mock(() => {}) },
   cacheMisses: { add: mock(() => {}) },
+  recordCacheHit: mock(() => {}),
+  recordCacheMiss: mock(() => {}),
   redisFallbacks: { add: mock(() => {}) },
   recordRedirectMetrics: mock(() => {}),
   stampedeLocksAcquired: { add: mock(() => {}) },
