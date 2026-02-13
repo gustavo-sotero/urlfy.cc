@@ -5,11 +5,11 @@
 
 'use client';
 
+import { Button } from '@/components/ui/button';
+import { Link } from '@/i18n/routing';
 import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Link } from '@/i18n/routing';
 
 interface ConsentPreferences {
   analytics: boolean;
@@ -19,28 +19,38 @@ interface ConsentPreferences {
 
 /**
  * Consent Banner Component
- * Shows consent request for analytics and marketing tracking
+ * Shows consent request for analytics and marketing tracking.
+ *
+ * The `needsConsent` check is done synchronously via a lazy `useState`
+ * initializer so we avoid a useEffect just to read localStorage.
+ * The only remaining useEffect is the 500 ms cosmetic delay — a
+ * legitimate timer side-effect.
  */
 export function ConsentBanner() {
   const t = useTranslations('Consent');
-  const [showBanner, setShowBanner] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const privacyHref = useMemo(() => ({ pathname: '/privacy' as const }), []);
+  // Derive "needs consent" synchronously from localStorage on mount.
+  // No useEffect needed for this — it's a one-time read used as
+  // initial state.
+  const [needsConsent] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return !localStorage.getItem('consent_preferences');
+  });
+
+  // The small delay before showing the banner is a deliberate UX choice
+  // to avoid a jarring appearance. A timer IS an external side-effect,
+  // so useEffect is the correct tool here.
+  const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    // Check if consent was already given
-    const consent = localStorage.getItem('consent_preferences');
+    if (!needsConsent) return;
 
-    if (!consent) {
-      // Wait a bit before showing to avoid jarring appearance
-      const timer = setTimeout(() => {
-        setShowBanner(true);
-      }, 500);
+    const timer = setTimeout(() => setShowBanner(true), 500);
+    return () => clearTimeout(timer);
+  }, [needsConsent]);
 
-      return () => clearTimeout(timer);
-    }
-  }, []);
+  const [isLoading, setIsLoading] = useState(false);
+  const privacyHref = useMemo(() => ({ pathname: '/privacy' as const }), []);
 
   const handleAcceptAll = async (): Promise<void> => {
     setIsLoading(true);
