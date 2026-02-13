@@ -1,9 +1,9 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import { headers } from 'next/headers';
 import { SkipLink } from '@/components/layout/skip-link';
 import { CspNonceProvider } from '@/components/providers/csp-nonce-provider';
 import { Providers } from '@/lib/providers';
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import { headers } from 'next/headers';
 import './globals.css';
 
 const geistSans = Geist({
@@ -36,7 +36,7 @@ export default async function RootLayout({
   const lang = url.includes('/pt-br') ? 'pt-BR' : 'en';
 
   return (
-    <html lang={lang} suppressHydrationWarning>
+    <html lang={lang} className="dark" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

@@ -45,7 +45,6 @@ export const Settings = {
     title: 'Preferências',
     description: 'Personalize sua experiência',
     language: 'Idioma',
-    theme: 'Tema',
     notifications: 'Notificações',
     emailNotifications: 'Notificações por E-mail',
     emailNotificationsDescription:

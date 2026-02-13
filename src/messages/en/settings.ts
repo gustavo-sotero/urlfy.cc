@@ -45,7 +45,6 @@ export const Settings = {
     title: 'Preferences',
     description: 'Customize your experience',
     language: 'Language',
-    theme: 'Theme',
     notifications: 'Notifications',
     emailNotifications: 'Email Notifications',
     emailNotificationsDescription:
