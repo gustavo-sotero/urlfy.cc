@@ -7,11 +7,11 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Button } from '@/components/ui/button';
 import { FileQuestion } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { JSX } from 'react';
+import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
   title: 'Page not found - urlfy.cc',

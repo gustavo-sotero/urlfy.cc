@@ -1,8 +1,8 @@
 // src/components/query-error.tsx
 
-import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Button } from '@/components/ui/button';
 
 interface QueryErrorProps {
   error: Error;
