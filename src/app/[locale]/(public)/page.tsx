@@ -44,7 +44,7 @@ export default async function LandingPage(): Promise<JSX.Element> {
   const tFeatures = await getTranslations('Features');
   const tLinkForm = await getTranslations('LinkForm');
   return (
-    <div className="scroll-smooth">
+    <div>
       {/* Project Disclaimer */}
       <RevealSection>
         <section className="border-b bg-muted/50 py-4">
