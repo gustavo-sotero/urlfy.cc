@@ -5,8 +5,6 @@
 
 'use client';
 
-import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,50 +22,15 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { apiClient } from '@/lib/api-client';
-
-interface StreamStats {
-  name: string;
-  length: number;
-  groups: number;
-  consumers?: number;
-  pending?: number;
-  lastGeneratedId?: string;
-}
-
-type QueuesData = Record<string, StreamStats>;
+import type { StreamStats } from '@/lib/api';
+import { useQueueStats } from '@/lib/hooks';
+import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 
 export default function AdminQueuesPage() {
-  const [data, setData] = useState<QueuesData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
-
-  const fetchQueueStats = useCallback(async () => {
-    try {
-      setError(null);
-      const response = await apiClient.get('/api/admin/queues');
-
-      if (response.success) {
-        setData(response.data);
-      } else {
-        setError(response.error?.message || 'Failed to load queue stats');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  }, []); // Empty dependency array since it only uses setState
-  useEffect(() => {
-    if (!autoRefresh) return;
-
-    const interval = setInterval(() => {
-      fetchQueueStats();
-    }, 5000); // Auto-refresh every 5s
-
-    return () => clearInterval(interval);
-  }, [autoRefresh, fetchQueueStats]);
+  const { data, isLoading, error, refetch, isFetching } =
+    useQueueStats(autoRefresh);
 
   const getHealthStatus = (stats: StreamStats) => {
     const pending = stats.pending ?? 0;
@@ -96,15 +59,14 @@ export default function AdminQueuesPage() {
   };
 
   const handleRefresh = () => {
-    setLoading(true);
-    fetchQueueStats();
+    refetch();
   };
 
   const toggleAutoRefresh = () => {
-    setAutoRefresh(!autoRefresh);
+    setAutoRefresh((prev) => !prev);
   };
 
-  if (loading && !data) {
+  if (isLoading && !data) {
     return (
       <div className="flex items-center justify-center min-h-100">
         <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -117,7 +79,7 @@ export default function AdminQueuesPage() {
       <div className="flex flex-col items-center justify-center min-h-100 gap-4">
         <AlertCircle className="h-12 w-12 text-destructive" />
         <p className="text-lg font-medium">Failed to load queue stats</p>
-        <p className="text-sm text-muted-foreground">{error}</p>
+        <p className="text-sm text-muted-foreground">{error.message}</p>
         <Button onClick={handleRefresh}>Try Again</Button>
       </div>
     );
@@ -147,10 +109,10 @@ export default function AdminQueuesPage() {
             variant="outline"
             size="sm"
             onClick={handleRefresh}
-            disabled={loading}
+            disabled={isFetching}
           >
             <RefreshCw
-              className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}
+              className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`}
             />
             Refresh
           </Button>
@@ -162,7 +124,9 @@ export default function AdminQueuesPage() {
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm font-medium">Error loading latest data</p>
-            <p className="text-xs text-muted-foreground mt-1">{error}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {error.message}
+            </p>
           </div>
         </div>
       )}

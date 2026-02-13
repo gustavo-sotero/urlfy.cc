@@ -16,15 +16,6 @@
 
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { CheckCircle2, Copy, Download, Loader2, Shield } from 'lucide-react';
-import Image from 'next/image';
-import { useTranslations } from 'next-intl';
-import qrcode from 'qrcode';
-import { useCallback, useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,6 +34,15 @@ import {
   InputOTPSlot
 } from '@/components/ui/input-otp';
 import { authClient } from '@/lib/auth.client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { CheckCircle2, Copy, Download, Loader2, Shield } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import Image from 'next/image';
+import qrcode from 'qrcode';
+import { useCallback, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -130,11 +130,11 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
   };
 
   // ═══════════════════════════════════════════════════════════════════
-  // STEP 3: VERIFICATION
+  // STEP 3: VERIFICATION (shared logic)
   // ═══════════════════════════════════════════════════════════════════
 
-  const handleVerifyCode = async () => {
-    if (verificationCode.length !== 6) {
+  const verifyTotpCode = async (code: string) => {
+    if (code.length !== 6) {
       toast.error(t('errors.code6digits'));
       return;
     }
@@ -142,7 +142,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
     setIsLoading(true);
     try {
       const result = await authClient.twoFactor.verifyTotp({
-        code: verificationCode
+        code
       });
 
       if (!result.data) {
@@ -171,6 +171,20 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
       setVerificationCode('');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleVerifyCode = () => verifyTotpCode(verificationCode);
+
+  /**
+   * Event-driven auto-verify: triggers verification immediately when
+   * the user finishes typing the 6th digit, using the local `value`
+   * parameter (not stale state) to avoid React batching issues.
+   */
+  const handleVerificationCodeChange = (value: string) => {
+    setVerificationCode(value);
+    if (value.length === 6 && currentStep === 'verify') {
+      void verifyTotpCode(value);
     }
   };
 
@@ -236,53 +250,6 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
       return '';
     }
   };
-
-  // Auto-verify when code is complete
-  // Note: We avoid using useCallback here to prevent dependency issues
-  // The effect intentionally only depends on verification state
-  useEffect(() => {
-    async function verifyCode() {
-      if (verificationCode.length !== 6) {
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        const result = await authClient.twoFactor.verifyTotp({
-          code: verificationCode
-        });
-
-        if (!result.data) {
-          toast.error(t('errors.invalidCode'));
-          setVerificationCode('');
-          return;
-        }
-
-        // Backup codes were already fetched in handlePasswordSubmit
-        // Now just show them to the user
-        if (backupCodes.length > 0) {
-          setCurrentStep('backup');
-        } else {
-          // Success but no backup codes (shouldn't happen)
-          toast.success(t('success.activated'));
-          handleClose();
-          onSuccess();
-        }
-      } catch (error) {
-        console.error('2FA verify error:', error);
-        toast.error(
-          error instanceof Error ? error.message : t('errors.invalidCode')
-        );
-        setVerificationCode('');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    if (verificationCode.length === 6 && currentStep === 'verify') {
-      void verifyCode();
-    }
-  }, [verificationCode, currentStep, backupCodes, onSuccess, handleClose, t]);
 
   // ═══════════════════════════════════════════════════════════════════
   // RENDER
@@ -417,7 +384,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
                 <InputOTP
                   maxLength={6}
                   value={verificationCode}
-                  onChange={setVerificationCode}
+                  onChange={handleVerificationCodeChange}
                   disabled={isLoading}
                 >
                   <InputOTPGroup>

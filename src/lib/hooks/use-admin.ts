@@ -3,6 +3,8 @@
  * React Query hooks for admin operations
  */
 
+import * as api from '@/lib/api-client';
+import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
 import {
   type UseMutationOptions,
   type UseQueryOptions,
@@ -10,8 +12,6 @@ import {
   useQuery,
   useQueryClient
 } from '@tanstack/react-query';
-import * as api from '@/lib/api-client';
-import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
 import { linkKeys } from './use-links';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -21,6 +21,9 @@ import { linkKeys } from './use-links';
 export const adminKeys = {
   all: ['admin'] as const,
   stats: () => [...adminKeys.all, 'stats'] as const,
+  queues: () => [...adminKeys.all, 'queues'] as const,
+  links: (params?: { page?: number; limit?: number; search?: string }) =>
+    [...adminKeys.all, 'links', params] as const,
   search: (query: string) => [...adminKeys.all, 'search', query] as const,
   auditLogs: (filters: api.AuditLogsQuery) =>
     [...adminKeys.all, 'audit', filters] as const,
@@ -48,6 +51,30 @@ export function useAdminStats(
     queryKey: adminKeys.stats(),
     queryFn: () => api.getAdminStats(),
     staleTime: 30_000, // 30 seconds
+    ...options
+  });
+}
+
+export function useQueueStats(autoRefresh = true) {
+  return useQuery({
+    queryKey: adminKeys.queues(),
+    queryFn: () => api.getQueueStats(),
+    staleTime: 5_000,
+    refetchInterval: autoRefresh ? 5_000 : false
+  });
+}
+
+export function useAdminLinks(
+  params?: { page?: number; limit?: number; search?: string },
+  options?: Omit<
+    UseQueryOptions<PaginatedResponse<LinkResponse>>,
+    'queryKey' | 'queryFn'
+  >
+) {
+  return useQuery({
+    queryKey: adminKeys.links(params),
+    queryFn: () => api.listAdminLinks(params),
+    staleTime: 30_000,
     ...options
   });
 }

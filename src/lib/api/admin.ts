@@ -6,7 +6,7 @@
 
 import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
 import { BASE_URL, client, createClientWithHeaders } from './client';
-import { handleEden, toQueryParams } from './error';
+import { handleEden, toQueryParams, type TreatyResponse } from './error';
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN STATS
@@ -68,6 +68,27 @@ export async function getGrowthStatsSSR(
     query: { range }
   });
   return handleEden(response);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// QUEUE STATS
+// ═══════════════════════════════════════════════════════════════════
+
+export interface StreamStats {
+  name: string;
+  length: number;
+  groups: number;
+  consumers?: number;
+  pending?: number;
+  lastGeneratedId?: string;
+}
+
+/**
+ * Get Redis Streams queue statistics (client-side)
+ */
+export async function getQueueStats(): Promise<Record<string, StreamStats>> {
+  const response = await client.api.admin.queues.get();
+  return handleEden(response as TreatyResponse);
 }
 
 // ═══════════════════════════════════════════════════════════════════

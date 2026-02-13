@@ -3,24 +3,16 @@
  * SESSION PROVIDER - Centralized Session State
  * ═════════════════════════════════════════════════════════════════════
  * Provides a single source of truth for session state across the app.
- * This prevents multiple useSession() calls from causing duplicate
- * API requests and infinite re-render loops.
+ * Uses TanStack Query internally for deduplication, caching, and
+ * automatic state management while exposing a stable context API.
  * ═════════════════════════════════════════════════════════════════════
  */
 
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import type { Session, User } from 'better-auth/types';
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react';
+import { createContext, type ReactNode, useContext, useMemo } from 'react';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -47,6 +39,23 @@ interface SessionContextValue {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 // ═══════════════════════════════════════════════════════════════════
+// QUERY KEY & FETCHER
+// ═══════════════════════════════════════════════════════════════════
+
+export const SESSION_QUERY_KEY = ['session'] as const;
+
+async function fetchSessionData(): Promise<SessionData | null> {
+  const { authClient } = await import('./auth.client');
+  const result = await authClient.getSession();
+
+  if (result.error) {
+    throw new Error(result.error.message || 'Failed to fetch session');
+  }
+
+  return result.data ?? null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // PROVIDER
 // ═══════════════════════════════════════════════════════════════════
 
@@ -55,65 +64,29 @@ interface SessionProviderProps {
 }
 
 export function SessionProvider({ children }: SessionProviderProps) {
-  const [data, setData] = useState<SessionData | null>(null);
-  const [isPending, setIsPending] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const {
+    data: sessionData,
+    isPending,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: SESSION_QUERY_KEY,
+    queryFn: fetchSessionData,
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    retry: false
+  });
 
-  // Track if we've already fetched to prevent duplicate calls
-  const hasFetched = useRef(false);
-  const isFetching = useRef(false);
-
-  const fetchSession = useCallback(async () => {
-    // Prevent concurrent fetches
-    if (isFetching.current) return;
-
-    isFetching.current = true;
-    setIsPending(true);
-    setError(null);
-
-    try {
-      const { authClient } = await import('./auth.client');
-      const result = await authClient.getSession();
-
-      if (result.data) {
-        setData(result.data);
-      } else {
-        setData(null);
-      }
-
-      if (result.error) {
-        setError(new Error(result.error.message || 'Failed to fetch session'));
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err : new Error('Failed to fetch session')
-      );
-      setData(null);
-    } finally {
-      setIsPending(false);
-      isFetching.current = false;
-    }
-  }, []);
-
-  // Fetch session once on mount
-  useEffect(() => {
-    if (hasFetched.current) return;
-    hasFetched.current = true;
-
-    fetchSession();
-  }, [fetchSession]);
-
-  const refetch = useCallback(async () => {
-    hasFetched.current = false;
-    await fetchSession();
-  }, [fetchSession]);
+  const data = sessionData ?? null;
 
   const value = useMemo<SessionContextValue>(
     () => ({
       data,
       isPending,
-      error,
-      refetch,
+      error: error ?? null,
+      refetch: async () => {
+        await refetch();
+      },
       isAuthenticated: !!data?.user
     }),
     [data, isPending, error, refetch]
