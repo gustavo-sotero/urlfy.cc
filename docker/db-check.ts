@@ -14,9 +14,9 @@
  *   1 - Connection failed
  */
 
-import { SQL } from 'bun';
 import dns from 'node:dns/promises';
 import net from 'node:net';
+import { SQL } from 'bun';
 
 const url = process.env.DATABASE_URL;
 const timeoutSecondsRaw = process.env.DB_CHECK_TIMEOUT;
