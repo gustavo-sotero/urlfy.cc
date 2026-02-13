@@ -24,7 +24,7 @@ if (
   // Initialize telemetry
   initTelemetry();
 
-  // Eagerly test database connectivity and handle SSL fallback.
+  // Eagerly test database connectivity.
   // This MUST complete before the server accepts requests.
   try {
     await initDatabase();

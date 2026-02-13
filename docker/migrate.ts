@@ -114,13 +114,12 @@ async function main() {
 
   let sql: SQL | null = null;
 
-  // Default to sslmode=prefer when the URL doesn't specify it.
-  // This lets managed PostgreSQL (that requires TLS) work without manual config.
+  // Default to sslmode=disable when the URL doesn't specify it.
+  // Bun SQL's sslmode=prefer hangs for the full connectionTimeout when
+  // PostgreSQL doesn't support TLS (common in Docker-to-Docker setups).
+  // If the database requires TLS, set sslmode=require in DATABASE_URL.
   const urlHasSSL = databaseUrl.includes('sslmode=');
-  const connUrlPrefer = urlHasSSL
-    ? databaseUrl
-    : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=prefer`;
-  const connUrlDisable = urlHasSSL
+  const connUrl = urlHasSSL
     ? databaseUrl
     : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=disable`;
 
@@ -133,39 +132,9 @@ async function main() {
     });
 
   try {
-    // Try with sslmode=prefer first, fallback to disable on any error.
-    // Dokploy internal DBs sometimes hang when the client attempts TLS,
-    // and drizzle wraps the underlying timeout as "Failed query: ..." which
-    // hides the original error message — so we retry on ANY failure.
-    if (!urlHasSSL) {
-      try {
-        sql = createConnection(connUrlPrefer, 5);
-        const db = drizzle(sql);
-        // Quick connectivity test through drizzle
-        await db.execute(sqlQuery`SELECT 1`);
-        // Connection works with prefer, continue with this db
-        return await runMigrations(db, localTags);
-      } catch (preferErr) {
-        const msg =
-          preferErr instanceof Error ? preferErr.message : String(preferErr);
-        console.log(
-          `⚠️  sslmode=prefer failed (${msg}), retrying with sslmode=disable...`
-        );
-        // Close the hung connection
-        try {
-          await sql?.close();
-        } catch {
-          /* ignore */
-        }
-        sql = createConnection(connUrlDisable);
-        const db = drizzle(sql);
-        return await runMigrations(db, localTags);
-      }
-    } else {
-      sql = createConnection(databaseUrl);
-      const db = drizzle(sql);
-      return await runMigrations(db, localTags);
-    }
+    sql = createConnection(connUrl);
+    const db = drizzle(sql);
+    return await runMigrations(db, localTags);
   } catch (error) {
     console.error(
       '❌ Migration failed:',

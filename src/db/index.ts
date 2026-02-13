@@ -14,8 +14,7 @@ let connectionError: Error | null = null;
 
 // Connection configuration (computed lazily on first getDatabase() call)
 let connectionConfig: {
-  connUrlPrefer: string;
-  connUrlDisable: string;
+  connUrl: string;
   urlHasSSL: boolean;
   max: number;
   idleTimeout: number;
@@ -30,11 +29,18 @@ function getConnectionConfig() {
     throw new Error('DATABASE_URL environment variable is not set');
   }
 
+  // If the user already specified sslmode in DATABASE_URL, respect it.
+  // Otherwise default to sslmode=disable.
+  //
+  // Why NOT sslmode=prefer (Bun SQL default)?
+  // Bun SQL's "prefer" does NOT gracefully fall back when the PostgreSQL
+  // server doesn't support TLS. Instead it hangs for the entire
+  // connectionTimeout (10s+) before throwing ERR_POSTGRES_CONNECTION_TIMEOUT.
+  // This breaks Docker-to-Docker connections where PostgreSQL runs without SSL.
+  //
+  // If your PostgreSQL requires TLS, add ?sslmode=require to DATABASE_URL.
   const urlHasSSL = databaseUrl.includes('sslmode=');
-  const connUrlPrefer = urlHasSSL
-    ? databaseUrl
-    : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=prefer`;
-  const connUrlDisable = urlHasSSL
+  const connUrl = urlHasSSL
     ? databaseUrl
     : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=disable`;
 
@@ -49,8 +55,7 @@ function getConnectionConfig() {
   );
 
   connectionConfig = {
-    connUrlPrefer,
-    connUrlDisable,
+    connUrl,
     urlHasSSL,
     max,
     idleTimeout,
@@ -72,11 +77,11 @@ export function getDatabase(): DrizzleDatabase {
   if (dbInstance) return dbInstance;
 
   try {
-    const { connUrlPrefer } = getConnectionConfig();
-    sqlConnection = createSqlConnection(connUrlPrefer);
+    const { connUrl } = getConnectionConfig();
+    sqlConnection = createSqlConnection(connUrl);
     dbInstance = drizzle(sqlConnection, { schema });
     // NOTE: Connection is lazy — no actual TCP/TLS happens here.
-    // Call initDatabase() to eagerly test connectivity and handle SSL fallback.
+    // Call initDatabase() to eagerly test connectivity.
     return dbInstance;
   } catch (error) {
     connectionError =
@@ -89,15 +94,12 @@ export function getDatabase(): DrizzleDatabase {
 }
 
 /**
- * Eagerly tests database connectivity and handles SSL fallback.
+ * Eagerly tests database connectivity.
  *
  * Bun SQL connections are lazy — `new SQL(...)` never opens a socket.
- * This function forces an actual connection by running `SELECT 1` and,
- * if the URL didn't include an explicit `sslmode=`, retries with
- * `sslmode=disable` when the TLS negotiation times out.
+ * This function forces an actual connection by running `SELECT 1`.
  *
  * Must be called during server startup (before serving requests).
- * Matches the proven pattern from docker/db-check.ts.
  */
 export async function initDatabase(): Promise<void> {
   // Ensure lazy instances are created
@@ -107,58 +109,15 @@ export async function initDatabase(): Promise<void> {
     throw new Error('SQL connection not initialized after getDatabase()');
   }
 
-  const config = getConnectionConfig();
-
   try {
-    // Force actual connection — this is where TLS negotiation happens
+    // Force actual connection — Bun SQL is lazy, so this is where the
+    // first TCP/TLS handshake happens.
     await sqlConnection.unsafe('SELECT 1');
     console.log('✅ Database connection established (Bun SQL)');
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-
-    // Only retry with sslmode=disable if:
-    // 1. sslmode was auto-added (not user-specified in DATABASE_URL)
-    // 2. The error is a connection timeout (TLS negotiation hang)
-    const isTimeout = message.toLowerCase().includes('timeout');
-    const shouldRetryPlain = !config.urlHasSSL && isTimeout;
-
-    if (!shouldRetryPlain) {
-      connectionError = err instanceof Error ? err : new Error(message);
-      throw connectionError;
-    }
-
-    console.warn(
-      `⚠️  sslmode=prefer timed out (${message}). Re-connecting with sslmode=disable...`
-    );
-
-    // Close the broken connection to prevent leaked sockets
-    try {
-      await sqlConnection.close({ timeout: 0 });
-    } catch {
-      // Ignore close errors — connection is already broken
-    }
-
-    // Create new connection with sslmode=disable
-    const newSql = createSqlConnection(config.connUrlDisable);
-
-    try {
-      await newSql.unsafe('SELECT 1');
-    } catch (retryErr) {
-      // Both sslmode=prefer AND sslmode=disable failed — fatal
-      connectionError =
-        retryErr instanceof Error
-          ? retryErr
-          : new Error('Failed to connect with sslmode=disable');
-      throw connectionError;
-    }
-
-    // Replace global singletons
-    sqlConnection = newSql;
-    dbInstance = drizzle(sqlConnection, { schema });
-
-    console.log(
-      '✅ Database connection established (Bun SQL, sslmode=disable)'
-    );
+    connectionError = err instanceof Error ? err : new Error(message);
+    throw connectionError;
   }
 }
 
@@ -221,6 +180,7 @@ export async function closeDatabase(): Promise<void> {
     dbInstance = null;
     sqlConnection = null;
     connectionConfig = null;
+    connectionError = null;
     console.log('Database connection closed');
   }
 }

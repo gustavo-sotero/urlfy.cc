@@ -6,8 +6,8 @@
  * running migrations.
  *
  * If the DATABASE_URL doesn't include ?sslmode=, defaults to
- * ssl: "prefer" so managed PostgreSQL instances (that require TLS)
- * work out of the box while plain local databases still connect.
+ * sslmode=disable (Bun SQL's "prefer" hangs on non-TLS servers).
+ * For TLS, set ?sslmode=require in DATABASE_URL.
  *
  * Exit codes:
  *   0 - Database is reachable
@@ -44,12 +44,13 @@ function safeUrl(raw: string): string {
 }
 
 // If the URL already contains sslmode, use it as-is.
-// Otherwise append sslmode=prefer (try TLS first, fallback to plain).
+// Otherwise default to sslmode=disable.
+//
+// Bun SQL's sslmode=prefer hangs for the full connectionTimeout when
+// PostgreSQL doesn't support TLS (common in Docker-to-Docker setups).
+// If the database requires TLS, set sslmode=require in DATABASE_URL.
 const urlHasSSL = url.includes('sslmode=');
-const connUrlPrefer = urlHasSSL
-  ? url
-  : `${url}${url.includes('?') ? '&' : '?'}sslmode=prefer`;
-const connUrlDisable = urlHasSSL
+const connUrl = urlHasSSL
   ? url
   : `${url}${url.includes('?') ? '&' : '?'}sslmode=disable`;
 
@@ -89,7 +90,7 @@ async function tcpProbe(host: string, port: number): Promise<void> {
 }
 
 try {
-  const hostPort = parseHostPort(connUrlPrefer);
+  const hostPort = parseHostPort(connUrl);
   if (hostPort) {
     try {
       const lookup = await dns.lookup(hostPort.host);
@@ -128,23 +129,7 @@ try {
     }
   };
 
-  try {
-    await connectOnce(connUrlPrefer);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-
-    // Dokploy internal DBs sometimes hang when the client attempts TLS.
-    // If sslmode was auto-added and we hit a timeout, retry forcing plain.
-    const shouldRetryPlain =
-      !urlHasSSL && message.toLowerCase().includes('timeout');
-
-    if (!shouldRetryPlain) throw err;
-
-    console.error(
-      `[db-check] Retry with sslmode=disable after timeout (auto-sslmode)`
-    );
-    await connectOnce(connUrlDisable);
-  }
+  await connectOnce(connUrl);
 
   process.exit(0);
 } catch (err) {
@@ -152,7 +137,7 @@ try {
   console.error(`[db-check] ${message}`);
   console.error(`[db-check] URL: ${safeUrl(url)}`);
   console.error(
-    `[db-check] SSL: ${urlHasSSL ? '(from URL)' : 'prefer (auto)'}`
+    `[db-check] SSL: ${urlHasSSL ? '(from URL)' : 'disable (auto)'}`
   );
   process.exit(1);
 }
