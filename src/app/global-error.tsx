@@ -1,25 +1,5 @@
 'use client';
 
-const texts = {
-  en: {
-    title: 'Critical Error',
-    description:
-      'An unexpected error occurred in the application. Please try again.',
-    retry: 'Try again'
-  },
-  'pt-br': {
-    title: 'Erro Crítico',
-    description:
-      'Ocorreu um erro inesperado na aplicação. Por favor, tente novamente.',
-    retry: 'Tentar novamente'
-  }
-} as const;
-
-function getLocale(): 'en' | 'pt-br' {
-  if (typeof window === 'undefined') return 'en';
-  return window.location.pathname.startsWith('/pt-br') ? 'pt-br' : 'en';
-}
-
 export default function GlobalError({
   error,
   reset
@@ -27,12 +7,8 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const locale = getLocale();
-  const t = texts[locale];
-  const htmlLang = locale === 'pt-br' ? 'pt-BR' : 'en';
-
   return (
-    <html lang={htmlLang}>
+    <html lang="en">
       <body
         style={{
           margin: 0,
@@ -78,8 +54,9 @@ export default function GlobalError({
               fontWeight: 700
             }}
           >
-            {t.title}
+            Critical Error
           </h1>
+          <p style={{ marginTop: '0.25rem', color: '#737373' }}>Erro Crítico</p>
           <p
             style={{
               marginTop: '0.5rem',
@@ -87,7 +64,8 @@ export default function GlobalError({
               color: '#737373'
             }}
           >
-            {t.description}
+            An unexpected error occurred in the application. Please try again. /
+            Ocorreu um erro inesperado na aplicação. Por favor, tente novamente.
           </p>
           {process.env.NODE_ENV === 'development' && error?.message && (
             <pre
@@ -141,7 +119,7 @@ export default function GlobalError({
               <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
               <path d="M8 16H3v5" />
             </svg>
-            {t.retry}
+            Try again / Tentar novamente
           </button>
         </div>
       </body>

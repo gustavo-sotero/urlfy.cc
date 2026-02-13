@@ -1,21 +1,15 @@
 /**
  * Consent Banner Component
  * LGPD/GDPR compliant cookie and analytics consent banner
- *
- * NOTE: This component is rendered inside <Providers> (root layout),
- * which is OUTSIDE <NextIntlClientProvider>. Therefore we cannot use
- * useTranslations(). Instead we import message objects directly and
- * detect the locale from the URL pathname.
  */
 
 'use client';
 
-import { X } from 'lucide-react';
-import { usePathname } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Consent as ConsentEN } from '@/messages/en/consent';
-import { Consent as ConsentPTBR } from '@/messages/pt-br/consent';
+import { Link } from '@/i18n/routing';
+import { X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useEffect, useMemo, useState } from 'react';
 
 interface ConsentPreferences {
   analytics: boolean;
@@ -23,24 +17,16 @@ interface ConsentPreferences {
   timestamp: string;
 }
 
-const translations = {
-  en: ConsentEN,
-  'pt-br': ConsentPTBR
-} as const;
-
 /**
  * Consent Banner Component
  * Shows consent request for analytics and marketing tracking
  */
 export function ConsentBanner() {
+  const t = useTranslations('Consent');
   const [showBanner, setShowBanner] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const pathname = usePathname();
-  const t = useMemo(() => {
-    const locale = pathname?.startsWith('/pt-br') ? 'pt-br' : 'en';
-    return translations[locale];
-  }, [pathname]);
+  const privacyHref = useMemo(() => ({ pathname: '/privacy' as const }), []);
 
   useEffect(() => {
     // Check if consent was already given
@@ -120,19 +106,19 @@ export function ConsentBanner() {
               id="consent-title"
               className="mb-2 text-lg font-semibold text-foreground"
             >
-              {t.title}
+              {t('title')}
             </h3>
             <p
               id="consent-description"
               className="mb-4 text-sm text-muted-foreground"
             >
-              {t.description}{' '}
-              <a
-                href="/privacy"
+              {t('description')}{' '}
+              <Link
+                href={privacyHref}
                 className="text-primary underline hover:text-primary/80"
               >
-                {t.privacyPolicy}
-              </a>
+                {t('privacyPolicy')}
+              </Link>
               .
             </p>
 
@@ -145,25 +131,25 @@ export function ConsentBanner() {
                   className="h-4 w-4"
                   aria-describedby="essential-hint"
                 />
-                <span>{t.essential}</span>
+                <span>{t('essential')}</span>
               </label>
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   defaultChecked
                   className="h-4 w-4"
-                  aria-label={t.analytics}
+                  aria-label={t('analytics')}
                 />
-                <span>{t.analytics}</span>
+                <span>{t('analytics')}</span>
               </label>
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   defaultChecked
                   className="h-4 w-4"
-                  aria-label={t.marketing}
+                  aria-label={t('marketing')}
                 />
-                <span>{t.marketing}</span>
+                <span>{t('marketing')}</span>
               </label>
             </div>
           </div>
@@ -172,7 +158,7 @@ export function ConsentBanner() {
             type="button"
             onClick={() => setShowBanner(false)}
             className="shrink-0 text-muted-foreground hover:text-foreground"
-            aria-label={t.closeAriaLabel}
+            aria-label={t('closeAriaLabel')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -184,7 +170,7 @@ export function ConsentBanner() {
             onClick={handleOpenSettings}
             disabled={isLoading}
           >
-            {t.customize}
+            {t('customize')}
           </Button>
 
           <Button
@@ -192,11 +178,11 @@ export function ConsentBanner() {
             onClick={handleRejectAll}
             disabled={isLoading}
           >
-            {t.rejectAll}
+            {t('rejectAll')}
           </Button>
 
           <Button onClick={handleAcceptAll} disabled={isLoading}>
-            {isLoading ? t.saving : t.acceptAll}
+            {isLoading ? t('saving') : t('acceptAll')}
           </Button>
         </div>
       </div>

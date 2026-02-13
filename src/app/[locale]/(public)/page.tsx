@@ -7,6 +7,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { BarChart3, Github, Info, Rocket, Shield, Zap } from 'lucide-react';
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+import type { JSX } from 'react';
 import { LinkForm } from '@/components/forms/link-form';
 import { HeroActions } from '@/components/home/hero-actions';
 import { RevealSection } from '@/components/shared/reveal-section';
@@ -20,10 +24,6 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
-import { BarChart3, Github, Info, Rocket, Shield, Zap } from 'lucide-react';
-import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
-import type { JSX } from 'react';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('Hero');

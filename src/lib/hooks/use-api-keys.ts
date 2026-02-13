@@ -3,6 +3,7 @@
  * React Query hooks for API key management
  */
 
+import * as api from '@/lib/api-client';
 import {
   type UseMutationOptions,
   type UseQueryOptions,
@@ -10,8 +11,6 @@ import {
   useQuery,
   useQueryClient
 } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import * as api from '@/lib/api-client';
 
 // ═══════════════════════════════════════════════════════════════════
 // QUERY KEYS
@@ -55,25 +54,20 @@ export function useCreateApiKey(
   options?: UseMutationOptions<api.ApiKeyCreated, Error, api.CreateApiKeyInput>
 ) {
   const queryClient = useQueryClient();
+  const { onSuccess, onError, ...restOptions } = options ?? {};
 
   return useMutation({
+    ...restOptions,
     mutationFn: (input: api.CreateApiKeyInput) => api.createApiKey(input),
-    onSuccess: () => {
+    onSuccess: (data, variables, onMutateResult, context) => {
       // Invalidate the list to refetch keys
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.lists() });
 
-      // Success toast
-      toast.success('Chave de API criada com sucesso!', {
-        description: 'Copie a chave agora - ela não será exibida novamente.'
-      });
+      onSuccess?.(data, variables, onMutateResult, context);
     },
-    onError: (error) => {
-      // Error toast
-      toast.error('Erro ao criar chave de API', {
-        description: error.message || 'Tente novamente mais tarde'
-      });
-    },
-    ...options
+    onError: (error, variables, onMutateResult, context) => {
+      onError?.(error, variables, onMutateResult, context);
+    }
   });
 }
 
@@ -84,22 +78,19 @@ export function useRevokeApiKey(
   options?: UseMutationOptions<{ message: string }, Error, string>
 ) {
   const queryClient = useQueryClient();
+  const { onSuccess, onError, ...restOptions } = options ?? {};
 
   return useMutation({
+    ...restOptions,
     mutationFn: (id: string) => api.revokeApiKey(id),
-    onSuccess: () => {
+    onSuccess: (data, variables, onMutateResult, context) => {
       // Invalidate the list to refetch keys
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.lists() });
 
-      // Success toast
-      toast.success('Chave de API revogada com sucesso!');
+      onSuccess?.(data, variables, onMutateResult, context);
     },
-    onError: (error) => {
-      // Error toast
-      toast.error('Erro ao revogar chave de API', {
-        description: error.message || 'Tente novamente mais tarde'
-      });
-    },
-    ...options
+    onError: (error, variables, onMutateResult, context) => {
+      onError?.(error, variables, onMutateResult, context);
+    }
   });
 }

@@ -1,11 +1,11 @@
 // src/components/shared/copy-button.tsx
 'use client';
 
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { Check, Copy } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface CopyButtonProps {
   text: string;

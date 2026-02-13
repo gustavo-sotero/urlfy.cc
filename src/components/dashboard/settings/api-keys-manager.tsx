@@ -17,22 +17,6 @@
 
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  AlertTriangle,
-  Check,
-  Copy,
-  ExternalLink,
-  Key,
-  Loader2,
-  Plus,
-  Trash2
-} from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,6 +58,22 @@ import {
   useCreateApiKey,
   useRevokeApiKey
 } from '@/lib/hooks/use-api-keys';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  AlertTriangle,
+  Check,
+  Copy,
+  ExternalLink,
+  Key,
+  Loader2,
+  Plus,
+  Trash2
+} from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES & SCHEMAS
@@ -275,7 +275,11 @@ function CreateApiKeyDialog() {
   const t = useTranslations('Settings.apiKeysManager');
   const [open, setOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
-  const createMutation = useCreateApiKey();
+  const createMutation = useCreateApiKey({
+    onError: (error) => {
+      toast.error(error.message);
+    }
+  });
 
   const schema = createKeySchema(
     t('validation.nameMin'),
@@ -431,7 +435,11 @@ function CreateApiKeyDialog() {
 export function ApiKeysManager() {
   const t = useTranslations('Settings.apiKeysManager');
   const { data, isLoading } = useApiKeys();
-  const revokeMutation = useRevokeApiKey();
+  const revokeMutation = useRevokeApiKey({
+    onError: (error) => {
+      toast.error(error.message);
+    }
+  });
 
   const handleRevoke = (id: string) => {
     revokeMutation.mutate(id);
