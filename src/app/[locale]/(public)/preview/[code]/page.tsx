@@ -123,7 +123,7 @@ export default async function PreviewPage({ params }: Props) {
 
             {link.isPasswordProtected && (
               <p className="text-sm text-muted-foreground">
-                {t('passwordProtected')}
+                {t('passwordProtectedWarning')}
               </p>
             )}
           </CardContent>

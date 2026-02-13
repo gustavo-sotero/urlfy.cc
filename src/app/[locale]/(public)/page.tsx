@@ -193,7 +193,9 @@ export default async function LandingPage(): Promise<JSX.Element> {
               </div>
               <Card className="max-w-2xl mx-auto">
                 <CardHeader className="text-center">
-                  <CardTitle className="text-2xl">Gustavo Sotero</CardTitle>
+                  <CardTitle className="text-2xl">
+                    {tHero('developer.name')}
+                  </CardTitle>
                   <CardDescription>{tHero('developer.role')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">

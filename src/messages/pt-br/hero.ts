@@ -28,6 +28,7 @@ export const Hero = {
   },
   developer: {
     title: 'Conheça o Desenvolvedor',
+    name: 'Gustavo Sotero',
     role: 'Desenvolvedor Full-Stack',
     description:
       'Desenvolvedor especializado em arquitetura de sistemas de alta performance, TypeScript e infraestrutura moderna. Este projeto representa uma demonstração prática de competências técnicas em engenharia de software.',

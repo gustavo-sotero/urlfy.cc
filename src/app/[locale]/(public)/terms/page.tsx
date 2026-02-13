@@ -10,6 +10,7 @@ import type { Metadata } from 'next';
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { JSX } from 'react';
 import { RevealSection } from '@/components/shared/reveal-section';
+import { Link } from '@/i18n/routing';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('Terms');
@@ -173,9 +174,9 @@ export default async function TermsPage(): Promise<JSX.Element> {
             </h2>
             <p>
               {t('sections.s10.content')}{' '}
-              <a href="/contact" className="text-primary hover:underline">
+              <Link href="/contact" className="text-primary hover:underline">
                 {t('sections.s10.contactLink')}
-              </a>
+              </Link>
             </p>
           </section>
         </article>

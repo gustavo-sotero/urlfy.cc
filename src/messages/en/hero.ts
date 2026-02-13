@@ -27,6 +27,7 @@ export const Hero = {
   },
   developer: {
     title: 'Meet the Developer',
+    name: 'Gustavo Sotero',
     role: 'Full-Stack Developer',
     description:
       'Developer specialized in high-performance systems architecture, TypeScript, and modern infrastructure. This project represents a practical demonstration of technical competencies in software engineering.',

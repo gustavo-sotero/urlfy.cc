@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { ContactForm } from '@/components/forms/contact-form';
 import { RevealSection } from '@/components/shared/reveal-section';
+import { Link } from '@/i18n/routing';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('Contact');
@@ -79,30 +80,30 @@ export default async function ContactPage() {
             <div className="rounded-lg border bg-card p-6 shadow-sm">
               <h3 className="mb-2 font-semibold">{t('quickLinks')}</h3>
               <div className="space-y-2">
-                <a
+                <Link
                   href="/help"
                   className="block text-sm text-muted-foreground hover:text-foreground"
                 >
                   {t('helpCenter')}
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/about"
                   className="block text-sm text-muted-foreground hover:text-foreground"
                 >
                   {t('aboutUs')}
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/terms"
                   className="block text-sm text-muted-foreground hover:text-foreground"
                 >
                   {t('termsOfService')}
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/privacy"
                   className="block text-sm text-muted-foreground hover:text-foreground"
                 >
                   {t('privacyPolicy')}
-                </a>
+                </Link>
               </div>
             </div>
 

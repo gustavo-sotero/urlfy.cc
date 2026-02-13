@@ -7,6 +7,6 @@ export const Preview = {
   clicks: '{count} clicks',
   createdAt: 'Created on {date}',
   accessLink: 'Access Link',
-  passwordProtected:
+  passwordProtectedWarning:
     'This link is password protected. You will need to enter it to access.'
 } as const;

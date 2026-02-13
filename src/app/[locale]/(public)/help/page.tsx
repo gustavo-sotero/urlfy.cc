@@ -214,7 +214,9 @@ export default async function HelpPage(): Promise<JSX.Element> {
                     </p>
                   </div>
                   <Button asChild variant="outline" className="w-full">
-                    <a href="/contact">{t('contactSection.sendMessage')}</a>
+                    <Link href="/contact">
+                      {t('contactSection.sendMessage')}
+                    </Link>
                   </Button>
                 </CardContent>
               </Card>
