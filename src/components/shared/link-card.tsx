@@ -11,6 +11,7 @@ import {
   MousePointer,
   Trash
 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -30,6 +31,10 @@ interface Props {
 }
 
 export function LinkCard({ link, onDelete }: Props) {
+  const t = useTranslations('Dashboard.linkCard');
+  const locale = useLocale();
+  const intlLocale = locale === 'pt-br' ? 'pt-BR' : locale;
+
   const isExpired = link.expiresAt && new Date(link.expiresAt) < new Date();
   const isMaxed = link.maxClicks !== null && link.clicksCount >= link.maxClicks;
 
@@ -68,7 +73,7 @@ export function LinkCard({ link, onDelete }: Props) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Opções do link">
+              <Button variant="ghost" size="icon" aria-label={t('options')}>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -76,13 +81,13 @@ export function LinkCard({ link, onDelete }: Props) {
               <DropdownMenuItem asChild>
                 <Link href={`/dashboard/links/${link.id}`}>
                   <BarChart2 className="mr-2 h-4 w-4" />
-                  Analytics
+                  {t('viewAnalytics')}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/dashboard/links/${link.id}/edit`}>
                   <Edit className="mr-2 h-4 w-4" />
-                  Editar
+                  {t('edit')}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
@@ -92,7 +97,7 @@ export function LinkCard({ link, onDelete }: Props) {
                   rel="noopener noreferrer"
                 >
                   <ExternalLink className="mr-2 h-4 w-4" />
-                  Abrir
+                  {t('open')}
                 </a>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -100,7 +105,7 @@ export function LinkCard({ link, onDelete }: Props) {
                 className="text-destructive"
               >
                 <Trash className="mr-2 h-4 w-4" />
-                Deletar
+                {t('delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -108,9 +113,9 @@ export function LinkCard({ link, onDelete }: Props) {
 
         {/* Status badges */}
         <div className="flex flex-wrap items-center gap-2">
-          {!link.isActive && <Badge variant="secondary">Inativo</Badge>}
-          {isExpired && <Badge variant="destructive">Expirado</Badge>}
-          {isMaxed && <Badge variant="destructive">Limite atingido</Badge>}
+          {!link.isActive && <Badge variant="secondary">{t('inactive')}</Badge>}
+          {isExpired && <Badge variant="destructive">{t('expired')}</Badge>}
+          {isMaxed && <Badge variant="destructive">{t('limitReached')}</Badge>}
           {link.tags?.map((tag) => (
             <Badge key={tag} variant="outline">
               {tag}
@@ -122,17 +127,21 @@ export function LinkCard({ link, onDelete }: Props) {
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <MousePointer className="h-3 w-3" />
-            <span>{link.clicksCount} cliques</span>
+            <span>
+              {link.clicksCount} {t('clicks')}
+            </span>
           </div>
           {link.expiresAt && (
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
               <span>
-                Expira em {new Date(link.expiresAt).toLocaleDateString('pt-BR')}
+                {t('expiresIn', {
+                  date: new Date(link.expiresAt).toLocaleDateString(intlLocale)
+                })}
               </span>
             </div>
           )}
-          {link.maxClicks && <span>Limite: {link.maxClicks}</span>}
+          {link.maxClicks && <span>{t('limit', { max: link.maxClicks })}</span>}
         </div>
       </div>
     </Card>

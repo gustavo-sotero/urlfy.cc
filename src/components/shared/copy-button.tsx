@@ -1,24 +1,30 @@
 // src/components/shared/copy-button.tsx
 'use client';
 
-import { Check, Copy } from 'lucide-react';
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Check, Copy } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 
 interface CopyButtonProps {
   text: string;
   className?: string;
   variant?: 'default' | 'ghost' | 'outline';
   size?: 'default' | 'sm' | 'lg' | 'icon';
+  copiedLabel?: string;
+  copyLabel?: string;
 }
 
 export function CopyButton({
   text,
   className,
   variant = 'ghost',
-  size = 'icon'
+  size = 'icon',
+  copiedLabel,
+  copyLabel
 }: CopyButtonProps) {
+  const t = useTranslations('Common');
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -37,7 +43,9 @@ export function CopyButton({
       size={size}
       onClick={handleCopy}
       className={cn(className)}
-      aria-label={copied ? 'Copiado!' : 'Copiar'}
+      aria-label={
+        copied ? (copiedLabel ?? t('copied')) : (copyLabel ?? t('copy'))
+      }
     >
       {copied ? (
         <Check className="h-4 w-4 text-green-500" />

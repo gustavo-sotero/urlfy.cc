@@ -3,6 +3,7 @@
 
 import { ArrowLeft, Edit, ExternalLink, Trash } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { AnalyticsDashboardSkeleton } from '@/components/charts/analytics-skeleton';
 import { ClicksChart } from '@/components/charts/clicks-chart';
 import { CountriesChart } from '@/components/charts/countries-chart';
@@ -29,13 +30,16 @@ export default function LinkDetailPage() {
   const params = useParams();
   const router = useRouter();
   const linkId = params.id as string;
+  const t = useTranslations('Dashboard.linkDetail');
+  const locale = useLocale();
+  const intlLocale = locale === 'pt-br' ? 'pt-BR' : locale;
 
   const { data: link, isLoading, isError, error, refetch } = useLink(linkId);
   const { daily, breakdown, summary } = useLinkAnalytics(linkId);
   const deleteLink = useDeleteLink();
 
   const handleDelete = async () => {
-    if (!confirm('Tem certeza que deseja deletar este link?')) return;
+    if (!confirm(t('deleteConfirm'))) return;
 
     try {
       await deleteLink.mutateAsync(linkId);
@@ -58,7 +62,7 @@ export default function LinkDetailPage() {
       <QueryError
         error={error as Error}
         onRetry={() => refetch()}
-        title="Erro ao carregar link"
+        title={t('loadError')}
       />
     );
   }
@@ -70,16 +74,13 @@ export default function LinkDetailPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" asChild>
-              <Link
-                href="/dashboard/links"
-                aria-label="Voltar para lista de links"
-              >
+              <Link href="/dashboard/links" aria-label={t('backAriaLabel')}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
             <div>
               <h2 className="text-3xl font-bold tracking-tight">
-                Detalhes do Link
+                {t('title')}
               </h2>
               <p className="text-muted-foreground">{link.shortCode}</p>
             </div>
@@ -89,12 +90,12 @@ export default function LinkDetailPage() {
             <Button variant="outline" asChild>
               <Link href={`/dashboard/links/${linkId}/edit`}>
                 <Edit className="mr-2 h-4 w-4" />
-                Editar
+                {t('edit')}
               </Link>
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
               <Trash className="mr-2 h-4 w-4" />
-              Deletar
+              {t('delete')}
             </Button>
           </div>
         </div>
@@ -102,12 +103,12 @@ export default function LinkDetailPage() {
         {/* Link Info Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Informações do Link</CardTitle>
+            <CardTitle>{t('linkInfo')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="text-sm font-medium text-muted-foreground">
-                Link Curto
+                {t('shortLink')}
               </div>
               <div className="flex items-center gap-2">
                 <code className="flex-1 rounded bg-muted px-3 py-2 font-mono text-sm">
@@ -119,7 +120,7 @@ export default function LinkDetailPage() {
                     href={link.shortUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="Abrir link em nova aba"
+                    aria-label={t('openNewTab')}
                   >
                     <ExternalLink className="h-4 w-4" />
                   </a>
@@ -129,7 +130,7 @@ export default function LinkDetailPage() {
 
             <div className="space-y-2">
               <div className="text-sm font-medium text-muted-foreground">
-                URL Original
+                {t('originalUrl')}
               </div>
               <div className="flex items-center gap-2">
                 <code className="flex-1 truncate rounded bg-muted px-3 py-2 font-mono text-sm">
@@ -142,20 +143,20 @@ export default function LinkDetailPage() {
             <div className="flex gap-4">
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
-                  Status
+                  {t('status')}
                 </div>
                 <Badge variant={link.isActive ? 'default' : 'secondary'}>
-                  {link.isActive ? 'Ativo' : 'Inativo'}
+                  {link.isActive ? t('active') : t('inactive')}
                 </Badge>
               </div>
 
               {link.expiresAt && (
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">
-                    Expira em
+                    {t('expiresAt')}
                   </div>
                   <div className="text-sm">
-                    {new Date(link.expiresAt).toLocaleDateString('pt-BR')}
+                    {new Date(link.expiresAt).toLocaleDateString(intlLocale)}
                   </div>
                 </div>
               )}
@@ -163,7 +164,7 @@ export default function LinkDetailPage() {
               {link.maxClicks && (
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">
-                    Limite de Cliques
+                    {t('clickLimit')}
                   </div>
                   <div className="text-sm">
                     {link.clicksCount} / {link.maxClicks}
@@ -179,7 +180,7 @@ export default function LinkDetailPage() {
           <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Total de Cliques</CardDescription>
+                <CardDescription>{t('totalClicks')}</CardDescription>
                 <CardTitle className="text-3xl">
                   {summary.data.totalClicks}
                 </CardTitle>
@@ -188,7 +189,7 @@ export default function LinkDetailPage() {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Visitantes Únicos</CardDescription>
+                <CardDescription>{t('uniqueVisitors')}</CardDescription>
                 <CardTitle className="text-3xl">
                   {summary.data.uniqueVisitors}
                 </CardTitle>
@@ -197,7 +198,7 @@ export default function LinkDetailPage() {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Taxa de Conversão</CardDescription>
+                <CardDescription>{t('conversionRate')}</CardDescription>
                 <CardTitle className="text-3xl">
                   {summary.data.totalClicks > 0
                     ? (
@@ -213,7 +214,7 @@ export default function LinkDetailPage() {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Média de Cliques/Dia</CardDescription>
+                <CardDescription>{t('avgClicksPerDay')}</CardDescription>
                 <CardTitle className="text-3xl">
                   {summary.data.avgClicksPerDay}
                 </CardTitle>
@@ -228,8 +229,8 @@ export default function LinkDetailPage() {
           {daily.data && (
             <Card>
               <CardHeader>
-                <CardTitle>Cliques ao Longo do Tempo</CardTitle>
-                <CardDescription>Últimos 30 dias</CardDescription>
+                <CardTitle>{t('clicksOverTime')}</CardTitle>
+                <CardDescription>{t('last30Days')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ClicksChart data={daily.data} />
@@ -242,8 +243,8 @@ export default function LinkDetailPage() {
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Países</CardTitle>
-                  <CardDescription>Top países por cliques</CardDescription>
+                  <CardTitle>{t('countries')}</CardTitle>
+                  <CardDescription>{t('topCountriesByClicks')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <CountriesChart data={breakdown.data.countries} />
@@ -252,10 +253,8 @@ export default function LinkDetailPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Dispositivos</CardTitle>
-                  <CardDescription>
-                    Distribuição por tipo de dispositivo
-                  </CardDescription>
+                  <CardTitle>{t('devices')}</CardTitle>
+                  <CardDescription>{t('deviceDistribution')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <DevicesChart data={breakdown.data.devices} />
@@ -264,8 +263,8 @@ export default function LinkDetailPage() {
 
               <Card className="md:col-span-2">
                 <CardHeader>
-                  <CardTitle>Fontes de Tráfego</CardTitle>
-                  <CardDescription>De onde vêm seus visitantes</CardDescription>
+                  <CardTitle>{t('trafficSources')}</CardTitle>
+                  <CardDescription>{t('trafficSourcesDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ReferrersChart data={breakdown.data.referrers} />

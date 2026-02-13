@@ -9,18 +9,20 @@ import {
   Shield
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Links', href: '/dashboard/links', icon: LinkIcon },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Configurações', href: '/dashboard/settings', icon: Settings }
+const navigationItems = [
+  { key: 'dashboard' as const, href: '/dashboard', icon: Home },
+  { key: 'links' as const, href: '/dashboard/links', icon: LinkIcon },
+  { key: 'analytics' as const, href: '/dashboard/analytics', icon: BarChart3 },
+  { key: 'settings' as const, href: '/dashboard/settings', icon: Settings }
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const t = useTranslations('Dashboard.sidebar');
 
   return (
     <aside className="flex w-64 flex-col border-r bg-card">
@@ -31,11 +33,11 @@ export function Sidebar() {
         </Link>
       </div>
       <nav className="flex-1 space-y-1 p-4">
-        {navigation.map((item) => {
+        {navigationItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
-              key={item.name}
+              key={item.key}
               href={item.href}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
@@ -45,7 +47,7 @@ export function Sidebar() {
               )}
             >
               <item.icon className="h-5 w-5" />
-              <span>{item.name}</span>
+              <span>{t(item.key)}</span>
             </Link>
           );
         })}

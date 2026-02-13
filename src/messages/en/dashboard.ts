@@ -45,7 +45,61 @@ export const Dashboard = {
     qrCode: 'QR Code',
     expired: 'Expired',
     inactive: 'Inactive',
-    passwordProtected: 'Password Protected'
+    passwordProtected: 'Password Protected',
+    options: 'Link options',
+    open: 'Open',
+    limitReached: 'Limit reached',
+    expiresIn: 'Expires on {date}',
+    limit: 'Limit: {max}'
+  },
+
+  sidebar: {
+    dashboard: 'Dashboard',
+    links: 'Links',
+    analytics: 'Analytics',
+    settings: 'Settings'
+  },
+
+  linkDetail: {
+    title: 'Link Details',
+    edit: 'Edit',
+    delete: 'Delete',
+    deleteConfirm: 'Are you sure you want to delete this link?',
+    linkInfo: 'Link Information',
+    shortLink: 'Short Link',
+    originalUrl: 'Original URL',
+    status: 'Status',
+    active: 'Active',
+    inactive: 'Inactive',
+    expiresAt: 'Expires on',
+    clickLimit: 'Click Limit',
+    totalClicks: 'Total Clicks',
+    uniqueVisitors: 'Unique Visitors',
+    conversionRate: 'Conversion Rate',
+    avgClicksPerDay: 'Avg Clicks/Day',
+    clicksOverTime: 'Clicks Over Time',
+    last30Days: 'Last 30 days',
+    countries: 'Countries',
+    topCountriesByClicks: 'Top countries by clicks',
+    devices: 'Devices',
+    deviceDistribution: 'Distribution by device type',
+    trafficSources: 'Traffic Sources',
+    trafficSourcesDesc: 'Where your visitors come from',
+    openNewTab: 'Open link in new tab',
+    backAriaLabel: 'Back to links list',
+    loadError: 'Error loading link'
+  },
+
+  verification: {
+    title: 'Email verification pending',
+    description:
+      'Please verify your email address to get full access to the platform. You will not be able to create links until you confirm your email.',
+    sending: 'Sending...',
+    sent: 'Email sent!',
+    resend: 'Resend email',
+    checkInbox: 'Check your inbox and spam folder.',
+    errorEmail: 'Could not get user email.',
+    errorResend: 'Failed to resend email. Please try again.'
   },
 
   pagination: {

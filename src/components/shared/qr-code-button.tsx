@@ -3,6 +3,7 @@
 
 import { QrCode } from 'lucide-react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,6 +36,7 @@ export function QRCodeButton({
   size = 'sm'
 }: Props) {
   const shortCode = code || shortCodeProp;
+  const t = useTranslations('QRCode');
   const [qrSize, setQrSize] = useState('300');
   const [qrFormat, setQrFormat] = useState<'png' | 'svg'>('png');
   const [isOpen, setIsOpen] = useState(false);
@@ -57,23 +59,21 @@ export function QRCodeButton({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant={variant} size={size} aria-label="Gerar QR Code">
+        <Button variant={variant} size={size} aria-label={t('ariaLabel')}>
           <QrCode className="h-4 w-4" />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>QR Code</DialogTitle>
-          <DialogDescription>
-            Personalize e faça o download do QR Code do seu link
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           {/* QR Code Preview */}
           <div className="flex justify-center rounded-lg border bg-muted p-6">
             <Image
               src={qrUrl}
-              alt={`QR Code para ${shortCode}`}
+              alt={t('altText', { code: shortCode })}
               width={Number.parseInt(qrSize, 10)}
               height={Number.parseInt(qrSize, 10)}
               className="max-w-full"
@@ -85,7 +85,7 @@ export function QRCodeButton({
           <div className="grid gap-4">
             <div className="space-y-2">
               <label htmlFor="qr-size" className="text-sm font-medium">
-                Tamanho
+                {t('sizeLabel')}
               </label>
               <Select value={qrSize} onValueChange={setQrSize}>
                 <SelectTrigger id="qr-size">
@@ -102,7 +102,7 @@ export function QRCodeButton({
 
             <div className="space-y-2">
               <label htmlFor="qr-format" className="text-sm font-medium">
-                Formato
+                {t('formatLabel')}
               </label>
               <Select
                 value={qrFormat}
@@ -122,10 +122,10 @@ export function QRCodeButton({
           {/* Actions */}
           <div className="flex gap-2">
             <Button onClick={handleDownload} className="flex-1">
-              Download
+              {t('download')}
             </Button>
             <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Fechar
+              {t('close')}
             </Button>
           </div>
         </div>

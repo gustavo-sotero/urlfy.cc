@@ -25,7 +25,10 @@ export const Analytics = {
     deviceBreakdown: 'Distribuição por Dispositivo',
     topBrowsers: 'Principais Navegadores',
     topReferrers: 'Principais Referências',
-    trafficSources: 'Origem do Tráfego'
+    trafficSources: 'Origem do Tráfego',
+    clicks: 'Cliques',
+    uniqueVisitors: 'Visitantes Únicos',
+    clicksChartAriaLabel: 'Gráfico de cliques ao longo do tempo'
   },
 
   devices: {

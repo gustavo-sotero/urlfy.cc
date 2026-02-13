@@ -7,10 +7,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { BarChart3, Github, Info, Rocket, Shield, Zap } from 'lucide-react';
-import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
-import type { JSX } from 'react';
 import { LinkForm } from '@/components/forms/link-form';
 import { HeroActions } from '@/components/home/hero-actions';
 import { RevealSection } from '@/components/shared/reveal-section';
@@ -24,6 +20,10 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
+import { BarChart3, Github, Info, Rocket, Shield, Zap } from 'lucide-react';
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+import type { JSX } from 'react';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('Hero');
@@ -42,6 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LandingPage(): Promise<JSX.Element> {
   const tHero = await getTranslations('Hero');
   const tFeatures = await getTranslations('Features');
+  const tLinkForm = await getTranslations('LinkForm');
   return (
     <div className="scroll-smooth">
       {/* Project Disclaimer */}
@@ -85,7 +86,7 @@ export default async function LandingPage(): Promise<JSX.Element> {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Gratuito e sem necessidade de cadastro
+              {tLinkForm('guest.freeNoSignup')}
             </p>
           </div>
         </section>
@@ -136,62 +137,42 @@ export default async function LandingPage(): Promise<JSX.Element> {
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-3xl space-y-8 text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Nossa Missão
+                {tHero('mission.title')}
               </h2>
               <div className="space-y-4 text-lg text-muted-foreground">
                 <p>
-                  O{' '}
                   <span className="font-semibold text-foreground">
                     urlfy.cc
                   </span>{' '}
-                  nasceu com a missão de tornar a web mais simples e acessível.
-                  Acreditamos que compartilhar conteúdo online deve ser rápido,
-                  seguro e sem complicações.
+                  {tHero('mission.p1')}
                 </p>
-                <p>
-                  Combinamos tecnologia de ponta com design intuitivo para
-                  oferecer a melhor experiência em encurtamento de URLs. Seja
-                  você um criador de conteúdo, profissional de marketing ou
-                  apenas alguém que quer compartilhar um link, estamos aqui para
-                  ajudar.
-                </p>
+                <p>{tHero('mission.p2')}</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* About Section */}
-        <section id="about" className="border-t bg-muted/30 py-20">
+        {/* Project Section */}
+        <section className="border-t bg-muted/30 py-20">
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-3xl space-y-8 text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Sobre o Projeto
+                {tHero('aboutProject.title')}
               </h2>
               <div className="space-y-4 text-lg text-muted-foreground">
                 <p>
-                  O{' '}
                   <span className="font-semibold text-foreground">
                     urlfy.cc
                   </span>{' '}
-                  é um projeto de portfólio e estudo de caso sobre arquitetura
-                  de software moderna. Desenvolvido com foco em performance,
-                  type-safety e boas práticas de engenharia.
+                  {tHero('aboutProject.p1')}
                 </p>
-                <p>
-                  Combinando tecnologias de ponta como{' '}
-                  <strong className="text-foreground">Bun</strong>,{' '}
-                  <strong className="text-foreground">Next.js</strong> e{' '}
-                  <strong className="text-foreground">ElysiaJS</strong>, este
-                  projeto demonstra competências técnicas em arquitetura
-                  full-stack, otimização de performance e infraestrutura
-                  containerizada.
-                </p>
+                <p>{tHero('aboutProject.p2')}</p>
               </div>
               <div className="flex justify-center gap-4">
                 <Button asChild>
                   <Link href="/project">
                     <Rocket className="mr-2 h-4 w-4" />
-                    Detalhes Técnicos
+                    {tHero('aboutProject.technicalDetails')}
                   </Link>
                 </Button>
               </div>
@@ -207,20 +188,17 @@ export default async function LandingPage(): Promise<JSX.Element> {
             <div className="mx-auto max-w-5xl">
               <div className="text-center space-y-4 mb-12">
                 <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                  Conheça o Desenvolvedor
+                  {tHero('developer.title')}
                 </h2>
               </div>
               <Card className="max-w-2xl mx-auto">
                 <CardHeader className="text-center">
                   <CardTitle className="text-2xl">Gustavo Sotero</CardTitle>
-                  <CardDescription>Full-Stack Developer</CardDescription>
+                  <CardDescription>{tHero('developer.role')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <p className="text-center text-muted-foreground">
-                    Desenvolvedor especializado em arquitetura de sistemas de
-                    alta performance, TypeScript e infraestrutura moderna. Este
-                    projeto representa uma demonstração prática de competências
-                    técnicas em engenharia de software.
+                    {tHero('developer.description')}
                   </p>
                   <div className="flex flex-wrap justify-center gap-4">
                     <Button asChild variant="default">
@@ -230,7 +208,7 @@ export default async function LandingPage(): Promise<JSX.Element> {
                         rel="noopener noreferrer"
                       >
                         <Rocket className="mr-2 h-4 w-4" />
-                        Portfólio
+                        {tHero('developer.portfolio')}
                       </a>
                     </Button>
                     <Button asChild variant="outline">
@@ -256,10 +234,9 @@ export default async function LandingPage(): Promise<JSX.Element> {
         <section className="border-t py-20">
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-2xl space-y-6 text-center">
-              <h2 className="text-3xl font-bold">Pronto para mais recursos?</h2>
+              <h2 className="text-3xl font-bold">{tHero('cta.title')}</h2>
               <p className="text-muted-foreground">
-                Crie uma conta gratuita e tenha acesso a links personalizados,
-                analytics detalhados e muito mais.
+                {tHero('cta.description')}
               </p>
               <HeroActions />
             </div>

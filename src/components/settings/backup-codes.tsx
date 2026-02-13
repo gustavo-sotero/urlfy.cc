@@ -15,6 +15,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CheckCircle2, Copy, Download, Eye, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -48,12 +49,14 @@ import { authClient } from '@/lib/auth.client';
 // TYPES & SCHEMAS
 // ═══════════════════════════════════════════════════════════════════
 
-const passwordSchema = z.object({
-  password: z.string().min(1, 'Senha é obrigatória'),
-  totpCode: z.string().length(6, 'Código deve ter 6 dígitos')
-});
+function createPasswordSchema(passwordMsg: string, codeMsg: string) {
+  return z.object({
+    password: z.string().min(1, passwordMsg),
+    totpCode: z.string().length(6, codeMsg)
+  });
+}
 
-type PasswordFormData = z.infer<typeof passwordSchema>;
+type PasswordFormData = z.infer<ReturnType<typeof createPasswordSchema>>;
 
 interface BackupCodesProps {
   asDialog?: boolean;
@@ -66,11 +69,17 @@ type ViewState = 'password' | 'codes';
 // ═══════════════════════════════════════════════════════════════════
 
 export function BackupCodes({ asDialog = true }: BackupCodesProps) {
+  const t = useTranslations('TwoFactor.backupCodes');
   const [open, setOpen] = useState(false);
   const [viewState, setViewState] = useState<ViewState>('password');
   const [isLoading, setIsLoading] = useState(false);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
+
+  const passwordSchema = createPasswordSchema(
+    t('errors.passwordRequired'),
+    t('errors.code6digits')
+  );
 
   const passwordForm = useForm<PasswordFormData>({
     resolver: zodResolver(passwordSchema),
@@ -90,7 +99,7 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
       });
 
       if (!verifyResult.data) {
-        toast.error('Código de autenticação inválido');
+        toast.error(t('errors.invalidAuth'));
         return;
       }
 
@@ -104,14 +113,12 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
         setBackupCodes(result.data.backupCodes);
         setViewState('codes');
       } else {
-        toast.error('Não foi possível gerar novos códigos de backup');
+        toast.error(t('errors.generateFailed'));
       }
     } catch (error) {
       console.error('Generate backup codes error:', error);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Código de autenticação ou senha incorretos'
+        error instanceof Error ? error.message : t('errors.authFailed')
       );
     } finally {
       setIsLoading(false);
@@ -122,10 +129,10 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
     try {
       await navigator.clipboard.writeText(backupCodes.join('\n'));
       setCopied(true);
-      toast.success('Códigos copiados para a área de transferência');
+      toast.success(t('success.codesCopied'));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Erro ao copiar códigos');
+      toast.error(t('errors.copyError'));
     }
   };
 
@@ -139,7 +146,7 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success('Códigos baixados');
+    toast.success(t('success.codesDownloaded'));
   };
 
   const handleClose = () => {
@@ -163,11 +170,8 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
       {viewState === 'password' && (
         <>
           <DialogHeader>
-            <DialogTitle>Gerar Novos Códigos de Backup</DialogTitle>
-            <DialogDescription>
-              Por segurança, confirme sua senha e o código do autenticador.
-              Novos códigos serão gerados e os antigos serão invalidados.
-            </DialogDescription>
+            <DialogTitle>{t('generateTitle')}</DialogTitle>
+            <DialogDescription>{t('generateDescription')}</DialogDescription>
           </DialogHeader>
 
           <form
@@ -176,14 +180,14 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
           >
             <AccessibleFormField
               id="password"
-              label="Senha"
+              label={t('passwordLabel')}
               required
               error={passwordForm.formState.errors.password?.message}
             >
               <Input
                 id="password"
                 type="password"
-                placeholder="Digite sua senha"
+                placeholder={t('passwordPlaceholder')}
                 {...passwordForm.register('password')}
                 disabled={isLoading}
                 autoComplete="current-password"
@@ -192,7 +196,7 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
 
             <AccessibleFormField
               id="totpCode"
-              label="Código do Autenticador"
+              label={t('authCodeLabel')}
               required
               error={passwordForm.formState.errors.totpCode?.message}
             >
@@ -214,12 +218,12 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Gerando...
+                    {t('generating')}
                   </>
                 ) : (
                   <>
                     <Eye className="mr-2 h-4 w-4" />
-                    Gerar Novos Códigos
+                    {t('generateButton')}
                   </>
                 )}
               </Button>
@@ -232,11 +236,8 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
       {viewState === 'codes' && (
         <>
           <DialogHeader>
-            <DialogTitle>Códigos de Backup</DialogTitle>
-            <DialogDescription>
-              Guarde estes códigos em um lugar seguro. Cada código pode ser
-              usado apenas uma vez para recuperar o acesso à sua conta.
-            </DialogDescription>
+            <DialogTitle>{t('codesTitle')}</DialogTitle>
+            <DialogDescription>{t('codesDescription')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -258,12 +259,12 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
                 {copied ? (
                   <>
                     <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Copiado!
+                    {t('copied')}
                   </>
                 ) : (
                   <>
                     <Copy className="mr-2 h-4 w-4" />
-                    Copiar
+                    {t('copy')}
                   </>
                 )}
               </Button>
@@ -273,14 +274,13 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
                 className="flex-1"
               >
                 <Download className="mr-2 h-4 w-4" />
-                Baixar
+                {t('download')}
               </Button>
             </div>
 
             <div className="rounded-md bg-amber-50 dark:bg-amber-900/20 p-3">
               <p className="text-sm text-amber-800 dark:text-amber-200">
-                ⚠️ Seus códigos antigos foram invalidados. Salve estes novos
-                códigos em um lugar seguro.
+                {t('warning')}
               </p>
             </div>
 
@@ -289,7 +289,7 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
               variant="secondary"
               className="w-full"
             >
-              Fechar
+              {t('close')}
             </Button>
           </div>
         </>
@@ -303,7 +303,7 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
         <DialogTrigger asChild>
           <Button variant="outline">
             <Eye className="mr-2 h-4 w-4" />
-            Gerar Novos Códigos
+            {t('generateNew')}
           </Button>
         </DialogTrigger>
         <DialogContent className="max-w-md">{content}</DialogContent>
@@ -333,13 +333,14 @@ export function DisableTwoFactor({
   isAdmin = false,
   onSuccess
 }: DisableTwoFactorProps) {
+  const t = useTranslations('TwoFactor.disable');
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState('');
 
   const handleDisable = async () => {
     if (!password) {
-      toast.error('Senha é obrigatória');
+      toast.error(t('errors.passwordRequired'));
       return;
     }
 
@@ -349,17 +350,13 @@ export function DisableTwoFactor({
         password
       });
 
-      toast.success('2FA desativado com sucesso');
+      toast.success(t('success'));
       setOpen(false);
       setPassword('');
       onSuccess();
     } catch (error) {
       console.error('Disable 2FA error:', error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Erro ao desativar 2FA. Verifique sua senha.'
-      );
+      toast.error(error instanceof Error ? error.message : t('errors.failed'));
     } finally {
       setIsLoading(false);
     }
@@ -371,34 +368,27 @@ export function DisableTwoFactor({
         <Button
           variant="destructive"
           disabled={isAdmin}
-          title={
-            isAdmin
-              ? 'Administradores devem manter 2FA ativado por segurança'
-              : undefined
-          }
+          title={isAdmin ? t('adminWarning') : undefined}
         >
-          Desativar 2FA
+          {t('button')}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            Desativar Autenticação de Dois Fatores?
-          </AlertDialogTitle>
+          <AlertDialogTitle>{t('dialogTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
-            Isso tornará sua conta menos segura. Você precisará apenas da senha
-            para fazer login.
+            {t('dialogDescription')}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="space-y-2">
           <label htmlFor="disable-password" className="text-sm font-medium">
-            Confirme sua senha
+            {t('confirmPassword')}
           </label>
           <Input
             id="disable-password"
             type="password"
-            placeholder="Digite sua senha"
+            placeholder={t('passwordPlaceholder')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
@@ -407,7 +397,7 @@ export function DisableTwoFactor({
         </div>
 
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDisable}
             disabled={isLoading || !password}
@@ -416,10 +406,10 @@ export function DisableTwoFactor({
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Desativando...
+                {t('disabling')}
               </>
             ) : (
-              'Desativar 2FA'
+              t('disableButton')
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

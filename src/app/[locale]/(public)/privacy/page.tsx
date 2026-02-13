@@ -8,319 +8,299 @@
  */
 
 import type { Metadata } from 'next';
+import { getLocale, getTranslations } from 'next-intl/server';
 import type { JSX } from 'react';
 import { RevealSection } from '@/components/shared/reveal-section';
 
-export const metadata: Metadata = {
-  title: 'Política de Privacidade - urlfy.cc',
-  description:
-    'Política de privacidade e proteção de dados do urlfy.cc - LGPD compliant',
-  robots: {
-    index: true,
-    follow: true
-  }
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('Privacy');
+  return {
+    title: t('metaTitle'),
+    description: t('metaDescription'),
+    robots: {
+      index: true,
+      follow: true
+    }
+  };
+}
 
-export default function PrivacyPage(): JSX.Element {
+export default async function PrivacyPage(): Promise<JSX.Element> {
+  const t = await getTranslations('Privacy');
+  const locale = await getLocale();
+  const intlLocale = locale === 'pt-br' ? 'pt-BR' : locale;
+
   return (
     <div className="container mx-auto max-w-4xl px-4 py-16 scroll-smooth">
       <RevealSection>
         <article className="prose prose-slate dark:prose-invert max-w-none">
-          <h1 className="text-4xl font-bold tracking-tight">
-            Política de Privacidade
-          </h1>
+          <h1 className="text-4xl font-bold tracking-tight">{t('title')}</h1>
 
           <p className="text-muted-foreground">
-            Última atualização:{' '}
-            {new Date().toLocaleDateString('pt-BR', {
+            {t('lastUpdated')}:{' '}
+            {new Date().toLocaleDateString(intlLocale, {
               year: 'numeric',
               month: 'long',
               day: 'numeric'
             })}
           </p>
 
+          {/* Section 1 - Introduction */}
           <section className="mt-8">
-            <h2 className="text-2xl font-semibold mt-8 mb-4">1. Introdução</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">
+              {t('sections.s1.title')}
+            </h2>
             <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg mb-4">
               <p className="font-semibold text-foreground">
-                📚 Contexto: Projeto pessoal de pesquisa e desenvolvimento
+                {t('sections.s1.warningTitle')}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                O urlfy.cc é um{' '}
-                <strong>projeto de portfólio e demonstração técnica</strong>,
-                não um produto comercial. Os dados coletados são utilizados
-                exclusivamente para demonstração das funcionalidades de
-                analytics e para aprendizado sobre compliance (LGPD/GDPR).
+                {t('sections.s1.warningContent')}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                <strong>Importante:</strong> Por se tratar de um ambiente de
-                demonstração, dados podem ser periodicamente apagados ou
-                modificados sem aviso prévio. Não recomendamos o uso deste
-                serviço para links críticos de negócio.
+                <strong>{t('sections.s1.warningNote')}</strong>
               </p>
             </div>
-            <p>
-              O urlfy.cc ("nós", "nosso" ou "Serviço") respeita sua privacidade
-              e está comprometido em proteger seus dados pessoais. Esta Política
-              de Privacidade explica como coletamos, usamos, armazenamos e
-              protegemos suas informações em conformidade com a Lei Geral de
-              Proteção de Dados (LGPD) e regulamentações internacionais como
-              GDPR.
-            </p>
+            <p>{t('sections.s1.content')}</p>
           </section>
 
+          {/* Section 2 - Data We Collect */}
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mt-8 mb-4">
-              2. Dados que Coletamos
+              {t('sections.s2.title')}
             </h2>
 
             <h3 className="text-xl font-semibold mt-6 mb-3">
-              2.1 Informações de Conta
+              {t('sections.s2.sub1Title')}
             </h3>
-            <p>Quando você cria uma conta, coletamos:</p>
+            <p>{t('sections.s2.sub1Intro')}</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>Nome e endereço de e-mail</li>
-              <li>Senha (armazenada com criptografia bcrypt)</li>
-              <li>Informações de perfil OAuth (se usar login social)</li>
+              <li>{t('sections.s2.sub1Items.i1')}</li>
+              <li>{t('sections.s2.sub1Items.i2')}</li>
+              <li>{t('sections.s2.sub1Items.i3')}</li>
             </ul>
 
             <h3 className="text-xl font-semibold mt-6 mb-3">
-              2.2 Dados de Analytics
+              {t('sections.s2.sub2Title')}
             </h3>
-            <p>Para fornecer estatísticas sobre seus links, coletamos:</p>
+            <p>{t('sections.s2.sub2Intro')}</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>
-                Endereço IP (anonimizado através de hash SHA-256 imediato)
-              </li>
-              <li>País e cidade (através de geolocalização offline)</li>
-              <li>Navegador, sistema operacional e tipo de dispositivo</li>
-              <li>URL de referência (origem do clique)</li>
-              <li>Timestamp do acesso</li>
+              <li>{t('sections.s2.sub2Items.i1')}</li>
+              <li>{t('sections.s2.sub2Items.i2')}</li>
+              <li>{t('sections.s2.sub2Items.i3')}</li>
+              <li>{t('sections.s2.sub2Items.i4')}</li>
+              <li>{t('sections.s2.sub2Items.i5')}</li>
             </ul>
             <p className="mt-4">
-              <strong className="text-foreground">Importante:</strong> Nunca
-              armazenamos seu endereço IP em texto claro. Ele é convertido em um
-              hash irreversível imediatamente após a coleta.
+              <strong className="text-foreground">
+                {t('sections.s2.sub2Note')}
+              </strong>
             </p>
 
-            <h3 className="text-xl font-semibold mt-6 mb-3">2.3 Cookies</h3>
-            <p>Utilizamos cookies para:</p>
+            <h3 className="text-xl font-semibold mt-6 mb-3">
+              {t('sections.s2.sub3Title')}
+            </h3>
+            <p>{t('sections.s2.sub3Intro')}</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>Manter sua sessão ativa (cookies essenciais)</li>
-              <li>Lembrar suas preferências de tema</li>
-              <li>Proteger contra CSRF (cookies de segurança)</li>
+              <li>{t('sections.s2.sub3Items.i1')}</li>
+              <li>{t('sections.s2.sub3Items.i2')}</li>
+              <li>{t('sections.s2.sub3Items.i3')}</li>
             </ul>
           </section>
 
+          {/* Section 3 - How We Use Data */}
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mt-8 mb-4">
-              3. Como Usamos Seus Dados
+              {t('sections.s3.title')}
             </h2>
-            <p>Utilizamos seus dados para:</p>
+            <p>{t('sections.s3.intro')}</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>Fornecer e manter o Serviço</li>
-              <li>Gerar estatísticas e analytics sobre seus links</li>
-              <li>Autenticar e gerenciar sua conta</li>
-              <li>Enviar notificações importantes sobre o Serviço</li>
-              <li>Detectar e prevenir fraudes e abusos</li>
-              <li>Cumprir obrigações legais</li>
+              <li>{t('sections.s3.items.i1')}</li>
+              <li>{t('sections.s3.items.i2')}</li>
+              <li>{t('sections.s3.items.i3')}</li>
+              <li>{t('sections.s3.items.i4')}</li>
+              <li>{t('sections.s3.items.i5')}</li>
+              <li>{t('sections.s3.items.i6')}</li>
             </ul>
             <p className="mt-4 text-sm text-muted-foreground">
-              <strong>Contexto de Pesquisa:</strong> Os dados coletados também
-              são utilizados para demonstrar competências técnicas em
-              implementação de sistemas de analytics com privacidade (IP
-              hashing, anonimização, LGPD compliance).
+              <strong>{t('sections.s3.note')}</strong>
             </p>
           </section>
 
+          {/* Section 4 - Legal Basis */}
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mt-8 mb-4">
-              4. Base Legal (LGPD)
+              {t('sections.s4.title')}
             </h2>
-            <p>Processamos seus dados com base em:</p>
+            <p>{t('sections.s4.intro')}</p>
             <ul className="list-disc pl-6 space-y-2">
               <li>
-                <strong>Consentimento:</strong> Quando você cria uma conta ou
-                aceita cookies
+                <strong>{t('sections.s4.items.i1Heading')}</strong>{' '}
+                {t('sections.s4.items.i1')}
               </li>
               <li>
-                <strong>Execução de contrato:</strong> Para fornecer o Serviço
-                solicitado
+                <strong>{t('sections.s4.items.i2Heading')}</strong>{' '}
+                {t('sections.s4.items.i2')}
               </li>
               <li>
-                <strong>Legítimo interesse:</strong> Para segurança, prevenção
-                de fraude e melhorias do Serviço
+                <strong>{t('sections.s4.items.i3Heading')}</strong>{' '}
+                {t('sections.s4.items.i3')}
               </li>
               <li>
-                <strong>Obrigação legal:</strong> Quando exigido por lei
+                <strong>{t('sections.s4.items.i4Heading')}</strong>{' '}
+                {t('sections.s4.items.i4')}
               </li>
             </ul>
           </section>
 
+          {/* Section 5 - Data Sharing */}
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mt-8 mb-4">
-              5. Compartilhamento de Dados
+              {t('sections.s5.title')}
             </h2>
-            <p>
-              Não vendemos seus dados pessoais. Podemos compartilhar dados
-              apenas com:
-            </p>
+            <p>{t('sections.s5.intro')}</p>
             <ul className="list-disc pl-6 space-y-2">
               <li>
-                <strong>Provedores de serviço:</strong> Empresas que nos ajudam
-                a operar o Serviço (hospedagem, email)
+                <strong>{t('sections.s5.items.i1Heading')}</strong>{' '}
+                {t('sections.s5.items.i1')}
               </li>
               <li>
-                <strong>Autoridades legais:</strong> Quando exigido por lei ou
-                para proteger direitos legais
+                <strong>{t('sections.s5.items.i2Heading')}</strong>{' '}
+                {t('sections.s5.items.i2')}
               </li>
             </ul>
           </section>
 
+          {/* Section 6 - Data Retention */}
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mt-8 mb-4">
-              6. Retenção de Dados
+              {t('sections.s6.title')}
             </h2>
-            <p>Mantemos seus dados pelo seguinte período:</p>
+            <p>{t('sections.s6.intro')}</p>
             <ul className="list-disc pl-6 space-y-2">
               <li>
-                <strong>Dados de conta:</strong> Enquanto sua conta estiver
-                ativa
+                <strong>{t('sections.s6.items.i1Heading')}</strong>{' '}
+                {t('sections.s6.items.i1')}
               </li>
               <li>
-                <strong>Analytics brutos:</strong> 90 dias (depois apenas dados
-                agregados)
+                <strong>{t('sections.s6.items.i2Heading')}</strong>{' '}
+                {t('sections.s6.items.i2')}
               </li>
               <li>
-                <strong>Backups:</strong> Até 30 dias após exclusão
+                <strong>{t('sections.s6.items.i3Heading')}</strong>{' '}
+                {t('sections.s6.items.i3')}
               </li>
             </ul>
             <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
               <p className="font-semibold text-foreground text-sm">
-                ⚠️ Aviso: Ambiente de Demonstração
+                {t('sections.s6.warningTitle')}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Como este é um projeto pessoal de pesquisa e desenvolvimento,
-                dados podem ser apagados periodicamente (incluindo antes dos
-                períodos descritos acima) para demonstrações, testes ou
-                manutenção. Recomendamos não armazenar links críticos ou dados
-                importantes neste serviço.
+                {t('sections.s6.warningContent')}
               </p>
             </div>
           </section>
 
+          {/* Section 7 - Your Rights */}
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mt-8 mb-4">
-              7. Seus Direitos (LGPD/GDPR)
+              {t('sections.s7.title')}
             </h2>
-            <p>Você tem o direito de:</p>
+            <p>{t('sections.s7.intro')}</p>
             <ul className="list-disc pl-6 space-y-2">
               <li>
-                <strong>Acesso:</strong> Solicitar uma cópia de todos os seus
-                dados
+                <strong>{t('sections.s7.items.i1Heading')}</strong>{' '}
+                {t('sections.s7.items.i1')}
               </li>
               <li>
-                <strong>Retificação:</strong> Corrigir dados incorretos ou
-                incompletos
+                <strong>{t('sections.s7.items.i2Heading')}</strong>{' '}
+                {t('sections.s7.items.i2')}
               </li>
               <li>
-                <strong>Exclusão:</strong> Solicitar a remoção de seus dados
+                <strong>{t('sections.s7.items.i3Heading')}</strong>{' '}
+                {t('sections.s7.items.i3')}
               </li>
               <li>
-                <strong>Portabilidade:</strong> Receber seus dados em formato
-                estruturado
+                <strong>{t('sections.s7.items.i4Heading')}</strong>{' '}
+                {t('sections.s7.items.i4')}
               </li>
               <li>
-                <strong>Revogação de consentimento:</strong> Retirar
-                consentimento a qualquer momento
+                <strong>{t('sections.s7.items.i5Heading')}</strong>{' '}
+                {t('sections.s7.items.i5')}
               </li>
               <li>
-                <strong>Oposição:</strong> Opor-se ao processamento de seus
-                dados
+                <strong>{t('sections.s7.items.i6Heading')}</strong>{' '}
+                {t('sections.s7.items.i6')}
               </li>
             </ul>
             <p className="mt-4">
-              Para exercer esses direitos, acesse as configurações da sua conta
-              ou entre em contato através da{' '}
+              {t('sections.s7.contactNote')}{' '}
               <a href="/contact" className="text-primary hover:underline">
-                nossa página de contato
+                {t('sections.s7.contactLink')}
               </a>
-              . Responderemos em até 72 horas conforme exigido pela LGPD.
+              {t('sections.s7.contactSuffix')}
             </p>
           </section>
 
+          {/* Section 8 - Security */}
           <section className="mt-8">
-            <h2 className="text-2xl font-semibold mt-8 mb-4">8. Segurança</h2>
-            <p>
-              Implementamos medidas técnicas e organizacionais para proteger
-              seus dados:
-            </p>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">
+              {t('sections.s8.title')}
+            </h2>
+            <p>{t('sections.s8.intro')}</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>Criptografia TLS/SSL em todas as conexões</li>
-              <li>Senhas armazenadas com bcrypt (hashing seguro)</li>
-              <li>Anonimização imediata de endereços IP</li>
-              <li>Backups criptografados</li>
-              <li>Controles de acesso rigorosos</li>
-              <li>Monitoramento contínuo de segurança</li>
+              <li>{t('sections.s8.items.i1')}</li>
+              <li>{t('sections.s8.items.i2')}</li>
+              <li>{t('sections.s8.items.i3')}</li>
+              <li>{t('sections.s8.items.i4')}</li>
+              <li>{t('sections.s8.items.i5')}</li>
+              <li>{t('sections.s8.items.i6')}</li>
             </ul>
           </section>
 
+          {/* Section 9 - International Transfers */}
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mt-8 mb-4">
-              9. Transferências Internacionais
+              {t('sections.s9.title')}
             </h2>
-            <p>
-              Seus dados são armazenados em servidores localizados no Brasil.
-              Caso seja necessário transferir dados internacionalmente,
-              garantimos proteções adequadas conforme exigido pela LGPD.
-            </p>
+            <p>{t('sections.s9.content')}</p>
           </section>
 
+          {/* Section 10 - Minors */}
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mt-8 mb-4">
-              10. Menores de Idade
+              {t('sections.s10.title')}
             </h2>
-            <p>
-              O Serviço não é direcionado a menores de 18 anos. Não coletamos
-              intencionalmente dados de menores. Se tomarmos conhecimento de
-              tais dados, os excluiremos imediatamente.
-            </p>
+            <p>{t('sections.s10.content')}</p>
           </section>
 
+          {/* Section 11 - Policy Changes */}
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mt-8 mb-4">
-              11. Alterações nesta Política
+              {t('sections.s11.title')}
             </h2>
-            <p>
-              Podemos atualizar esta Política periodicamente. Notificaremos
-              sobre mudanças significativas através do Serviço ou por e-mail.
-              Recomendamos revisar esta Política regularmente.
-            </p>
+            <p>{t('sections.s11.content')}</p>
           </section>
 
+          {/* Section 12 - Contact */}
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mt-8 mb-4">
-              12. Contato e DPO
+              {t('sections.s12.title')}
             </h2>
             <p>
-              Para questões sobre privacidade ou para exercer seus direitos,
-              entre em contato através da{' '}
+              {t('sections.s12.content')}{' '}
               <a href="/contact" className="text-primary hover:underline">
-                nossa página de contato
+                {t('sections.s12.contactLink')}
               </a>
               .
             </p>
           </section>
 
+          {/* Section 13 - Supervisory Authority */}
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mt-8 mb-4">
-              13. Autoridade de Supervisão
+              {t('sections.s13.title')}
             </h2>
-            <p>
-              Se não estivermos satisfeitos com nossa resposta, você tem o
-              direito de apresentar uma reclamação à Autoridade Nacional de
-              Proteção de Dados (ANPD) no Brasil.
-            </p>
+            <p>{t('sections.s13.content')}</p>
           </section>
         </article>
       </RevealSection>

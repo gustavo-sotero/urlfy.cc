@@ -3,6 +3,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Check, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -11,19 +12,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCreateLink } from '@/lib/hooks/use-links';
 
-const schema = z.object({
-  url: z.url('URL inválida')
-});
-
-type FormData = z.infer<typeof schema>;
-
 interface Props {
   variant: 'landing' | 'dashboard';
 }
 
 export function LinkForm({ variant: _variant }: Props) {
+  const t = useTranslations('LinkForm.guest');
   const [result, setResult] = useState<{ shortUrl: string } | null>(null);
   const createLink = useCreateLink();
+
+  const schema = z.object({
+    url: z.url(t('invalidUrl'))
+  });
+
+  type FormData = z.infer<typeof schema>;
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -46,7 +48,7 @@ export function LinkForm({ variant: _variant }: Props) {
       <div className="flex flex-col gap-4 rounded-lg border bg-card p-6">
         <div className="flex items-center gap-2 text-green-600">
           <Check className="h-5 w-5" />
-          <span className="font-medium">Link criado com sucesso!</span>
+          <span className="font-medium">{t('successMessage')}</span>
         </div>
         <div className="flex items-center gap-2">
           <Input
@@ -64,7 +66,7 @@ export function LinkForm({ variant: _variant }: Props) {
             form.reset();
           }}
         >
-          Criar outro link
+          {t('createAnother')}
         </Button>
       </div>
     );
@@ -79,7 +81,7 @@ export function LinkForm({ variant: _variant }: Props) {
         <Input
           {...form.register('url')}
           type="url"
-          placeholder="Cole sua URL aqui..."
+          placeholder={t('placeholder')}
           className="h-12"
           disabled={createLink.isPending}
           aria-invalid={!!form.formState.errors.url}
@@ -100,12 +102,12 @@ export function LinkForm({ variant: _variant }: Props) {
         {createLink.isPending ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Criando...
+            {t('creating')}
           </>
         ) : (
           <>
             <LinkIcon className="mr-2 h-4 w-4" />
-            Encurtar
+            {t('shorten')}
           </>
         )}
       </Button>

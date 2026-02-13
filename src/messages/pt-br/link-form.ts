@@ -156,5 +156,16 @@ export const LinkForm = {
     created: 'Link criado com sucesso!',
     updated: 'Link atualizado com sucesso!',
     copied: 'Link copiado para a área de transferência!'
+  },
+
+  // Guest/landing form
+  guest: {
+    placeholder: 'Cole sua URL aqui...',
+    shorten: 'Encurtar',
+    creating: 'Criando...',
+    successMessage: 'Link criado com sucesso!',
+    createAnother: 'Criar outro link',
+    invalidUrl: 'URL inválida',
+    freeNoSignup: 'Gratuito e sem necessidade de cadastro'
   }
 } as const;

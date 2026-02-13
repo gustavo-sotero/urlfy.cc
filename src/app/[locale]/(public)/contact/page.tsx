@@ -1,26 +1,29 @@
 import { Github, Linkedin, MessageCircle } from 'lucide-react';
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { ContactForm } from '@/components/forms/contact-form';
 import { RevealSection } from '@/components/shared/reveal-section';
 
-export const metadata: Metadata = {
-  title: 'Contato',
-  description:
-    'Entre em contato com a equipe urlfy.cc. Estamos aqui para ajudar!'
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('Contact');
+  return {
+    title: t('metaTitle'),
+    description: t('metaDescription')
+  };
+}
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const t = await getTranslations('Contact');
+
   return (
     <div className="container mx-auto max-w-4xl px-4 py-12 scroll-smooth">
       {/* Header */}
       <RevealSection>
         <div className="mb-12 text-center">
           <h1 className="mb-4 text-4xl font-bold tracking-tight">
-            Entre em Contato
+            {t('title')}
           </h1>
-          <p className="text-lg text-muted-foreground">
-            Tem alguma dúvida ou sugestão? Adoraríamos ouvir você.
-          </p>
+          <p className="text-lg text-muted-foreground">{t('subtitle')}</p>
         </div>
       </RevealSection>
 
@@ -30,7 +33,7 @@ export default function ContactPage() {
           <div className="lg:col-span-2">
             <div className="rounded-lg border bg-card p-6 shadow-sm">
               <h2 className="mb-6 text-2xl font-semibold">
-                Envie-nos uma mensagem
+                {t('sendUsMessage')}
               </h2>
               <ContactForm />
             </div>
@@ -40,7 +43,7 @@ export default function ContactPage() {
           <div className="space-y-6">
             {/* Social Links */}
             <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <h3 className="mb-4 font-semibold">Conecte-se conosco</h3>
+              <h3 className="mb-4 font-semibold">{t('connectWithUs')}</h3>
               <div className="space-y-3">
                 <a
                   href="https://github.com/yourusername/urlfy.cc"
@@ -74,31 +77,31 @@ export default function ContactPage() {
 
             {/* FAQ Link */}
             <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <h3 className="mb-2 font-semibold">Links Rápidos</h3>
+              <h3 className="mb-2 font-semibold">{t('quickLinks')}</h3>
               <div className="space-y-2">
                 <a
                   href="/help"
                   className="block text-sm text-muted-foreground hover:text-foreground"
                 >
-                  Central de Ajuda
+                  {t('helpCenter')}
                 </a>
                 <a
                   href="/about"
                   className="block text-sm text-muted-foreground hover:text-foreground"
                 >
-                  Sobre Nós
+                  {t('aboutUs')}
                 </a>
                 <a
                   href="/terms"
                   className="block text-sm text-muted-foreground hover:text-foreground"
                 >
-                  Termos de Serviço
+                  {t('termsOfService')}
                 </a>
                 <a
                   href="/privacy"
                   className="block text-sm text-muted-foreground hover:text-foreground"
                 >
-                  Política de Privacidade
+                  {t('privacyPolicy')}
                 </a>
               </div>
             </div>
@@ -106,7 +109,7 @@ export default function ContactPage() {
             {/* Response Time Notice */}
             <div className="rounded-lg border bg-muted/50 p-6">
               <p className="text-sm text-muted-foreground">
-                Normalmente respondemos em até 24-48 horas durante dias úteis.
+                {t('responseTime')}
               </p>
             </div>
           </div>

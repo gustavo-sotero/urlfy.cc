@@ -30,8 +30,13 @@ export default async function RootLayout({
   const headersList = await headers();
   const nonce = headersList.get('x-csp-nonce') ?? '';
 
+  // Detect locale from URL path for html lang attribute
+  const url =
+    headersList.get('x-url') || headersList.get('x-invoke-path') || '';
+  const lang = url.includes('/pt-br') ? 'pt-BR' : 'en';
+
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang={lang} suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

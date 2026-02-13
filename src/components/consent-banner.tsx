@@ -1,19 +1,32 @@
 /**
  * Consent Banner Component
  * LGPD/GDPR compliant cookie and analytics consent banner
+ *
+ * NOTE: This component is rendered inside <Providers> (root layout),
+ * which is OUTSIDE <NextIntlClientProvider>. Therefore we cannot use
+ * useTranslations(). Instead we import message objects directly and
+ * detect the locale from the URL pathname.
  */
 
 'use client';
 
 import { X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Consent as ConsentEN } from '@/messages/en/consent';
+import { Consent as ConsentPTBR } from '@/messages/pt-br/consent';
 
 interface ConsentPreferences {
   analytics: boolean;
   marketing: boolean;
   timestamp: string;
 }
+
+const translations = {
+  en: ConsentEN,
+  'pt-br': ConsentPTBR
+} as const;
 
 /**
  * Consent Banner Component
@@ -22,6 +35,12 @@ interface ConsentPreferences {
 export function ConsentBanner() {
   const [showBanner, setShowBanner] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const pathname = usePathname();
+  const t = useMemo(() => {
+    const locale = pathname?.startsWith('/pt-br') ? 'pt-br' : 'en';
+    return translations[locale];
+  }, [pathname]);
 
   useEffect(() => {
     // Check if consent was already given
@@ -101,20 +120,18 @@ export function ConsentBanner() {
               id="consent-title"
               className="mb-2 text-lg font-semibold text-foreground"
             >
-              Preferências de Privacidade
+              {t.title}
             </h3>
             <p
               id="consent-description"
               className="mb-4 text-sm text-muted-foreground"
             >
-              Usamos cookies e rastreamento para melhorar sua experiência. Você
-              pode aceitar tudo, rejeitar tudo ou personalizar suas
-              preferências. Leia nossa{' '}
+              {t.description}{' '}
               <a
                 href="/privacy"
                 className="text-primary underline hover:text-primary/80"
               >
-                política de privacidade
+                {t.privacyPolicy}
               </a>
               .
             </p>
@@ -128,25 +145,25 @@ export function ConsentBanner() {
                   className="h-4 w-4"
                   aria-describedby="essential-hint"
                 />
-                <span>Cookies Essenciais (obrigatório)</span>
+                <span>{t.essential}</span>
               </label>
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   defaultChecked
                   className="h-4 w-4"
-                  aria-label="Analytics anônimo"
+                  aria-label={t.analytics}
                 />
-                <span>Analytics (anônimo)</span>
+                <span>{t.analytics}</span>
               </label>
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   defaultChecked
                   className="h-4 w-4"
-                  aria-label="Marketing"
+                  aria-label={t.marketing}
                 />
-                <span>Marketing</span>
+                <span>{t.marketing}</span>
               </label>
             </div>
           </div>
@@ -155,7 +172,7 @@ export function ConsentBanner() {
             type="button"
             onClick={() => setShowBanner(false)}
             className="shrink-0 text-muted-foreground hover:text-foreground"
-            aria-label="Fechar banner de consentimento"
+            aria-label={t.closeAriaLabel}
           >
             <X className="h-5 w-5" />
           </button>
@@ -167,7 +184,7 @@ export function ConsentBanner() {
             onClick={handleOpenSettings}
             disabled={isLoading}
           >
-            Personalizar
+            {t.customize}
           </Button>
 
           <Button
@@ -175,11 +192,11 @@ export function ConsentBanner() {
             onClick={handleRejectAll}
             disabled={isLoading}
           >
-            Rejeitar Tudo
+            {t.rejectAll}
           </Button>
 
           <Button onClick={handleAcceptAll} disabled={isLoading}>
-            {isLoading ? 'Salvando...' : 'Aceitar Tudo'}
+            {isLoading ? t.saving : t.acceptAll}
           </Button>
         </div>
       </div>

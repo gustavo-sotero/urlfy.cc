@@ -8,6 +8,7 @@
 
 import { Mail } from 'lucide-react';
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import type { JSX } from 'react';
 import { RevealSection } from '@/components/shared/reveal-section';
 import {
@@ -20,247 +21,170 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
 
-export const metadata: Metadata = {
-  title: 'Ajuda e Suporte - urlfy.cc',
-  description: 'Perguntas frequentes e documentação de ajuda do urlfy.cc',
-  robots: {
-    index: true,
-    follow: true
-  }
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('Help');
+  return {
+    title: t('metaTitle'),
+    description: t('metaDescription'),
+    robots: {
+      index: true,
+      follow: true
+    }
+  };
+}
 
-export default function HelpPage(): JSX.Element {
+export default async function HelpPage(): Promise<JSX.Element> {
+  const t = await getTranslations('Help');
+
   return (
     <div className="container mx-auto max-w-4xl px-4 py-16 scroll-smooth">
       <div className="space-y-8">
         <RevealSection>
           <div className="space-y-4 text-center">
-            <h1 className="text-4xl font-bold tracking-tight">
-              Como podemos ajudar?
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Encontre respostas para as perguntas mais comuns sobre o urlfy.cc
-            </p>
+            <h1 className="text-4xl font-bold tracking-tight">{t('title')}</h1>
+            <p className="text-lg text-muted-foreground">{t('subtitle')}</p>
           </div>
         </RevealSection>
 
         {/* FAQ Section */}
         <RevealSection delay={200}>
           <section className="mt-12">
-            <h2 className="mb-6 text-2xl font-semibold">
-              Perguntas Frequentes
-            </h2>
+            <h2 className="mb-6 text-2xl font-semibold">{t('faqTitle')}</h2>
 
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="item-1">
-                <AccordionTrigger>
-                  Como criar um link encurtado?
-                </AccordionTrigger>
+                <AccordionTrigger>{t('faq.q1.question')}</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2 text-muted-foreground">
-                    <p>Criar um link encurtado é muito simples:</p>
+                    <p>{t('faq.q1.intro')}</p>
                     <ol className="list-decimal pl-6 space-y-2">
-                      <li>
-                        Cole sua URL longa no campo de entrada na página inicial
-                      </li>
-                      <li>Clique no botão "Encurtar"</li>
-                      <li>Seu link curto será gerado instantaneamente</li>
-                      <li>Copie e compartilhe onde quiser!</li>
+                      <li>{t('faq.q1.steps.s1')}</li>
+                      <li>{t('faq.q1.steps.s2')}</li>
+                      <li>{t('faq.q1.steps.s3')}</li>
+                      <li>{t('faq.q1.steps.s4')}</li>
                     </ol>
-                    <p className="mt-4">
-                      Não é necessário criar uma conta para usar o serviço
-                      básico.
-                    </p>
+                    <p className="mt-4">{t('faq.q1.note')}</p>
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-2">
-                <AccordionTrigger>
-                  Posso personalizar meu link curto?
-                </AccordionTrigger>
+                <AccordionTrigger>{t('faq.q2.question')}</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2 text-muted-foreground">
-                    <p>
-                      Sim! Usuários com conta podem criar aliases customizados.
-                      Por exemplo, em vez de{' '}
-                      <code className="text-foreground">urlfy.cc/abc123</code>,
-                      você pode criar{' '}
-                      <code className="text-foreground">
-                        urlfy.cc/minha-oferta
-                      </code>
-                      .
-                    </p>
-                    <p className="mt-2">
-                      Para isso, basta criar uma conta gratuita e usar o campo
-                      "Alias customizado" ao criar um link.
-                    </p>
+                    <p>{t('faq.q2.content')}</p>
+                    <p className="mt-2">{t('faq.q2.tip')}</p>
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-3">
-                <AccordionTrigger>
-                  Como acompanhar as estatísticas dos meus links?
-                </AccordionTrigger>
+                <AccordionTrigger>{t('faq.q3.question')}</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2 text-muted-foreground">
-                    <p>
-                      Para acessar analytics detalhados, você precisa estar
-                      logado:
-                    </p>
+                    <p>{t('faq.q3.intro')}</p>
                     <ol className="list-decimal pl-6 space-y-2">
-                      <li>Faça login na sua conta</li>
-                      <li>Acesse o Dashboard</li>
-                      <li>
-                        Clique em qualquer link para ver suas estatísticas
-                      </li>
+                      <li>{t('faq.q3.steps.s1')}</li>
+                      <li>{t('faq.q3.steps.s2')}</li>
+                      <li>{t('faq.q3.steps.s3')}</li>
                     </ol>
-                    <p className="mt-4">
-                      Você verá informações como número de cliques, países de
-                      origem, dispositivos utilizados e muito mais.
-                    </p>
+                    <p className="mt-4">{t('faq.q3.note')}</p>
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-4">
-                <AccordionTrigger>
-                  Posso proteger um link com senha?
-                </AccordionTrigger>
+                <AccordionTrigger>{t('faq.q4.question')}</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2 text-muted-foreground">
-                    <p>
-                      Sim, usuários com conta Creator ou Business podem
-                      adicionar proteção por senha aos seus links. Quando alguém
-                      tentar acessar o link, será solicitada a senha antes do
-                      redirecionamento.
-                    </p>
-                    <p className="mt-2">
-                      Isso é útil para compartilhar conteúdo sensível ou
-                      restrito com grupos específicos de pessoas.
-                    </p>
+                    <p>{t('faq.q4.content')}</p>
+                    <p className="mt-2">{t('faq.q4.tip')}</p>
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-5">
-                <AccordionTrigger>Os links expiram?</AccordionTrigger>
+                <AccordionTrigger>{t('faq.q5.question')}</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2 text-muted-foreground">
-                    <p>
-                      Por padrão, links gratuitos não expiram. No entanto,
-                      usuários com conta podem definir uma data de expiração
-                      automática ou um limite de cliques.
-                    </p>
-                    <p className="mt-2">
-                      Após a expiração, o link deixará de funcionar e mostrará
-                      uma mensagem informando que expirou.
-                    </p>
+                    <p>{t('faq.q5.content')}</p>
+                    <p className="mt-2">{t('faq.q5.note')}</p>
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-6">
-                <AccordionTrigger>
-                  Como gerar um QR Code do meu link?
-                </AccordionTrigger>
+                <AccordionTrigger>{t('faq.q6.question')}</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2 text-muted-foreground">
-                    <p>
-                      Todo link criado no urlfy.cc pode gerar um QR Code
-                      automaticamente:
-                    </p>
+                    <p>{t('faq.q6.intro')}</p>
                     <ol className="list-decimal pl-6 space-y-2">
-                      <li>Acesse o dashboard e clique no link desejado</li>
-                      <li>Clique no botão "Gerar QR Code"</li>
-                      <li>Escolha o formato (PNG ou SVG) e o tamanho</li>
-                      <li>Faça o download e use onde quiser!</li>
+                      <li>{t('faq.q6.steps.s1')}</li>
+                      <li>{t('faq.q6.steps.s2')}</li>
+                      <li>{t('faq.q6.steps.s3')}</li>
+                      <li>{t('faq.q6.steps.s4')}</li>
                     </ol>
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-7">
-                <AccordionTrigger>Meus dados estão seguros?</AccordionTrigger>
+                <AccordionTrigger>{t('faq.q7.question')}</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2 text-muted-foreground">
-                    <p>Sim! Levamos a segurança e privacidade muito a sério:</p>
+                    <p>{t('faq.q7.intro')}</p>
                     <ul className="list-disc pl-6 space-y-2">
-                      <li>Todas as conexões são criptografadas com TLS/SSL</li>
-                      <li>Senhas são armazenadas com hash bcrypt</li>
-                      <li>Endereços IP são anonimizados imediatamente</li>
-                      <li>Somos 100% conformes com LGPD e GDPR</li>
+                      <li>{t('faq.q7.items.i1')}</li>
+                      <li>{t('faq.q7.items.i2')}</li>
+                      <li>{t('faq.q7.items.i3')}</li>
+                      <li>{t('faq.q7.items.i4')}</li>
                     </ul>
                     <p className="mt-4">
-                      Leia nossa{' '}
+                      {t('faq.q7.linkText')}{' '}
                       <Link
                         href="/privacy"
                         className="text-primary hover:underline"
                       >
-                        Política de Privacidade
+                        {t('faq.q7.privacyLink')}
                       </Link>{' '}
-                      para mais detalhes.
+                      {t('faq.q7.linkSuffix')}
                     </p>
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-8">
-                <AccordionTrigger>
-                  Qual a diferença entre os planos?
-                </AccordionTrigger>
+                <AccordionTrigger>{t('faq.q8.question')}</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2 text-muted-foreground">
                     <p className="text-sm text-muted-foreground">
-                      <strong>Nota:</strong> Como este é um projeto pessoal de
-                      pesquisa e desenvolvimento e de portfólio, não há planos
-                      comerciais. O serviço é gratuito para fins de demonstração
-                      e teste de funcionalidades.
+                      <strong>{t('faq.q8.content')}</strong>
                     </p>
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-9">
-                <AccordionTrigger>Posso deletar meus dados?</AccordionTrigger>
+                <AccordionTrigger>{t('faq.q9.question')}</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2 text-muted-foreground">
-                    <p>
-                      Sim, você tem controle total sobre seus dados. Você pode:
-                    </p>
+                    <p>{t('faq.q9.intro')}</p>
                     <ul className="list-disc pl-6 space-y-2">
-                      <li>Deletar links individuais a qualquer momento</li>
-                      <li>Exportar todos os seus dados em formato JSON</li>
-                      <li>
-                        Solicitar a exclusão completa da conta e dados
-                        associados
-                      </li>
+                      <li>{t('faq.q9.items.i1')}</li>
+                      <li>{t('faq.q9.items.i2')}</li>
+                      <li>{t('faq.q9.items.i3')}</li>
                     </ul>
-                    <p className="mt-4">
-                      Processamos solicitações de exclusão em até 72 horas,
-                      conforme a LGPD.
-                    </p>
+                    <p className="mt-4">{t('faq.q9.note')}</p>
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-10">
-                <AccordionTrigger>
-                  Existe uma API para integração?
-                </AccordionTrigger>
+                <AccordionTrigger>{t('faq.q10.question')}</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2 text-muted-foreground">
-                    <p>
-                      Sim! Usuários do plano Business têm acesso à nossa API
-                      REST completa, permitindo criar, gerenciar e analisar
-                      links programaticamente.
-                    </p>
-                    <p className="mt-2">
-                      A documentação da API está disponível em{' '}
-                      <code className="text-foreground">api.urlfy.cc/docs</code>{' '}
-                      após a criação da sua chave de API no dashboard.
-                    </p>
+                    <p>{t('faq.q10.content')}</p>
+                    <p className="mt-2">{t('faq.q10.tip')}</p>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -272,7 +196,7 @@ export default function HelpPage(): JSX.Element {
         <RevealSection delay={400}>
           <section className="mt-16">
             <h2 className="mb-6 text-2xl font-semibold">
-              Ainda precisa de ajuda?
+              {t('contactSection.title')}
             </h2>
 
             <div className="flex justify-center">
@@ -282,14 +206,15 @@ export default function HelpPage(): JSX.Element {
                     <Mail className="h-6 w-6 text-primary" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="font-semibold">Formulário de Contato</h3>
+                    <h3 className="font-semibold">
+                      {t('contactSection.cardTitle')}
+                    </h3>
                     <p className="text-sm text-muted-foreground">
-                      Entre em contato conosco e responderemos em até 24-48
-                      horas.
+                      {t('contactSection.cardDescription')}
                     </p>
                   </div>
                   <Button asChild variant="outline" className="w-full">
-                    <a href="/contact">Enviar mensagem</a>
+                    <a href="/contact">{t('contactSection.sendMessage')}</a>
                   </Button>
                 </CardContent>
               </Card>

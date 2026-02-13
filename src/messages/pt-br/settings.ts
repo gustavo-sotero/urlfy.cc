@@ -67,5 +67,67 @@ export const Settings = {
     error: 'Erro ao salvar configurações',
     profileError: 'Erro ao atualizar perfil',
     nameRequired: 'Nome é obrigatório'
+  },
+
+  apiKeysManager: {
+    title: 'Chaves de API',
+    description: 'Use chaves de API para acessar seus links programaticamente',
+    documentation: 'Documentação',
+    keysCount: '{count} chave(s) criada(s)',
+    generateNew: 'Gerar nova chave',
+    never: 'Nunca',
+    empty: {
+      title: 'Nenhuma chave de API criada ainda',
+      description: 'Crie sua primeira chave para começar a usar a API'
+    },
+    table: {
+      name: 'Nome',
+      key: 'Chave',
+      status: 'Status',
+      createdAt: 'Criada em',
+      lastUsed: 'Último uso',
+      actions: 'Ações',
+      noName: 'Sem nome'
+    },
+    status: {
+      active: 'Ativa',
+      expired: 'Expirada',
+      revoked: 'Revogada',
+      quotaExceeded: 'Quota Excedida',
+      unknown: 'Desconhecido'
+    },
+    revoke: {
+      title: 'Revogar Chave de API?',
+      description:
+        'Esta ação não pode ser desfeita. A chave {name} será permanentemente revogada e não poderá mais ser usada.',
+      cancel: 'Cancelar',
+      confirm: 'Revogar'
+    },
+    create: {
+      title: 'Criar Nova Chave de API',
+      description:
+        'Dê um nome descritivo para identificar esta chave facilmente.',
+      nameLabel: 'Nome da chave',
+      namePlaceholder: 'Ex: Meu App Pessoal',
+      cancel: 'Cancelar',
+      submit: 'Criar Chave'
+    },
+    validation: {
+      nameMin: 'Nome deve ter no mínimo 3 caracteres',
+      nameMax: 'Nome deve ter no máximo 50 caracteres'
+    },
+    success: {
+      created: 'Chave Criada com Sucesso!',
+      copyNow: 'Copie sua chave agora!',
+      oneTimeWarning:
+        'Esta chave será exibida apenas uma vez. Armazene-a em um local seguro.',
+      keyLabel: 'Sua chave de API',
+      done: 'Concluído',
+      copied: 'Copiado para a área de transferência!'
+    },
+    errors: {
+      copyError: 'Erro ao copiar',
+      copyFallback: 'Use Ctrl+C para copiar manualmente'
+    }
   }
 } as const;

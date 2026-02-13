@@ -24,5 +24,15 @@ export const Common = {
   search: 'Buscar',
   filter: 'Filtrar',
   clear: 'Limpar',
-  apply: 'Aplicar'
+  apply: 'Aplicar',
+  retry: 'Tentar novamente',
+  copied: 'Copiado!',
+  copy: 'Copiar',
+  skipToContent: 'Pular para o conteúdo principal',
+  somethingWentWrong: 'Algo deu errado',
+  unexpectedError: 'Ocorreu um erro inesperado',
+  errorLoading: 'Erro ao carregar dados',
+  backToHome: 'Voltar para o início',
+  close: 'Fechar',
+  download: 'Download'
 } as const;

@@ -14,6 +14,32 @@ import Link from 'next/link';
 import { type JSX, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
+const texts = {
+  en: {
+    title: 'Something went wrong',
+    description:
+      'An unexpected error occurred. Our team has been notified and is working to fix it.',
+    retry: 'Try again',
+    home: 'Back to home',
+    errorId: 'Error ID:',
+    details: 'Error details (development only)'
+  },
+  'pt-br': {
+    title: 'Algo deu errado',
+    description:
+      'Ocorreu um erro inesperado. Nossa equipe foi notificada e está trabalhando para resolver o problema.',
+    retry: 'Tentar novamente',
+    home: 'Voltar para o início',
+    errorId: 'ID do erro:',
+    details: 'Detalhes do erro (apenas em desenvolvimento)'
+  }
+} as const;
+
+function getLocaleFromPath(): 'en' | 'pt-br' {
+  if (typeof window === 'undefined') return 'en';
+  return window.location.pathname.startsWith('/pt-br') ? 'pt-br' : 'en';
+}
+
 interface ErrorPageProps {
   error: Error & { digest?: string };
   reset: () => void;
@@ -23,9 +49,9 @@ export default function ErrorPage({
   error,
   reset
 }: ErrorPageProps): JSX.Element {
+  const t = texts[getLocaleFromPath()];
+
   useEffect(() => {
-    // Log the error to console for development/debugging
-    // In production, this could be sent to error tracking service (e.g., Sentry, SigNoz)
     console.error('Root error boundary caught:', {
       message: error.message,
       digest: error.digest,
@@ -41,33 +67,32 @@ export default function ErrorPage({
 
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-          Algo deu errado
+          {t.title}
         </h1>
         <p className="text-lg text-muted-foreground max-w-md">
-          Ocorreu um erro inesperado. Nossa equipe foi notificada e está
-          trabalhando para resolver o problema.
+          {t.description}
         </p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
         <Button onClick={reset} size="lg">
-          Tentar novamente
+          {t.retry}
         </Button>
         <Button asChild variant="outline" size="lg">
-          <Link href="/">Voltar para o início</Link>
+          <Link href="/">{t.home}</Link>
         </Button>
       </div>
 
       {error.digest && (
         <p className="mt-8 text-sm text-muted-foreground">
-          ID do erro: <span className="font-mono">{error.digest}</span>
+          {t.errorId} <span className="font-mono">{error.digest}</span>
         </p>
       )}
 
       {process.env.NODE_ENV === 'development' && (
         <details className="mt-4 max-w-2xl text-left">
           <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
-            Detalhes do erro (apenas em desenvolvimento)
+            {t.details}
           </summary>
           <pre className="mt-2 overflow-auto rounded-lg bg-muted p-4 text-xs">
             <code>{error.message}</code>

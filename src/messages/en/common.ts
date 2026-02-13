@@ -24,5 +24,15 @@ export const Common = {
   search: 'Search',
   filter: 'Filter',
   clear: 'Clear',
-  apply: 'Apply'
+  apply: 'Apply',
+  retry: 'Try again',
+  copied: 'Copied!',
+  copy: 'Copy',
+  skipToContent: 'Skip to main content',
+  somethingWentWrong: 'Something went wrong',
+  unexpectedError: 'An unexpected error occurred',
+  errorLoading: 'Error loading data',
+  backToHome: 'Back to home',
+  close: 'Close',
+  download: 'Download'
 } as const;

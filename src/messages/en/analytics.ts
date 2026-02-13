@@ -25,7 +25,10 @@ export const Analytics = {
     deviceBreakdown: 'Device Breakdown',
     topBrowsers: 'Top Browsers',
     topReferrers: 'Top Referrers',
-    trafficSources: 'Traffic Sources'
+    trafficSources: 'Traffic Sources',
+    clicks: 'Clicks',
+    uniqueVisitors: 'Unique Visitors',
+    clicksChartAriaLabel: 'Chart showing clicks over time'
   },
 
   devices: {

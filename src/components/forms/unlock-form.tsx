@@ -4,6 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Unlock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -12,20 +13,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { verifyLinkPassword } from '@/lib/api-client';
 
-const schema = z.object({
-  password: z.string().min(1, 'Senha é obrigatória')
-});
+function createSchema(passwordMsg: string) {
+  return z.object({
+    password: z.string().min(1, passwordMsg)
+  });
+}
 
-type FormData = z.infer<typeof schema>;
+type FormData = z.infer<ReturnType<typeof createSchema>>;
 
 interface Props {
   code: string;
 }
 
 export function UnlockForm({ code }: Props) {
+  const t = useTranslations('Unlock');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  const schema = createSchema(t('errors.passwordRequired'));
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -43,7 +49,7 @@ export function UnlockForm({ code }: Props) {
       // Redirect to the link
       router.push(result.redirectUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Senha incorreta');
+      setError(err instanceof Error ? err.message : t('errors.wrongPassword'));
     } finally {
       setIsLoading(false);
     }
@@ -52,12 +58,12 @@ export function UnlockForm({ code }: Props) {
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="password">Senha</Label>
+        <Label htmlFor="password">{t('passwordLabel')}</Label>
         <Input
           id="password"
           type="password"
           {...form.register('password')}
-          placeholder="Digite a senha"
+          placeholder={t('passwordPlaceholder')}
           disabled={isLoading}
           aria-invalid={!!form.formState.errors.password || !!error}
           aria-describedby={
@@ -82,12 +88,12 @@ export function UnlockForm({ code }: Props) {
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Verificando...
+            {t('verifying')}
           </>
         ) : (
           <>
             <Unlock className="mr-2 h-4 w-4" />
-            Desbloquear
+            {t('unlock')}
           </>
         )}
       </Button>

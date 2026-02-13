@@ -19,6 +19,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CheckCircle2, Copy, Download, Loader2, Shield } from 'lucide-react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import qrcode from 'qrcode';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -44,16 +45,18 @@ import {
 import { authClient } from '@/lib/auth.client';
 
 // ═══════════════════════════════════════════════════════════════════
-// TYPES & SCHEMAS
+// TYPES
 // ═══════════════════════════════════════════════════════════════════
 
 type SetupStep = 'password' | 'qr' | 'verify' | 'backup';
 
-const passwordSchema = z.object({
-  password: z.string().min(1, 'Senha é obrigatória')
-});
+type PasswordFormData = z.infer<ReturnType<typeof createPasswordSchema>>;
 
-type PasswordFormData = z.infer<typeof passwordSchema>;
+function createPasswordSchema(errorMsg: string) {
+  return z.object({
+    password: z.string().min(1, errorMsg)
+  });
+}
 
 interface TwoFactorSetupProps {
   onSuccess: () => void;
@@ -67,6 +70,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
   const [open, setOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<SetupStep>('password');
   const [isLoading, setIsLoading] = useState(false);
+  const t = useTranslations('TwoFactor.setup');
 
   // Step state
   const [totpSecret, setTotpSecret] = useState<string>('');
@@ -75,6 +79,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [copiedBackup, setCopiedBackup] = useState(false);
 
+  const passwordSchema = createPasswordSchema(t('errors.passwordRequired'));
   const passwordForm = useForm<PasswordFormData>({
     resolver: zodResolver(passwordSchema),
     defaultValues: { password: '' }
@@ -92,7 +97,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
       });
 
       if (!result.data?.totpURI) {
-        toast.error('Erro ao inicializar 2FA. Tente novamente.');
+        toast.error(t('errors.init'));
         return;
       }
 
@@ -117,9 +122,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
     } catch (error) {
       console.error('2FA enable error:', error);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Senha incorreta ou erro ao configurar 2FA'
+        error instanceof Error ? error.message : t('errors.password')
       );
     } finally {
       setIsLoading(false);
@@ -132,7 +135,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
 
   const handleVerifyCode = async () => {
     if (verificationCode.length !== 6) {
-      toast.error('Digite o código de 6 dígitos');
+      toast.error(t('errors.code6digits'));
       return;
     }
 
@@ -143,7 +146,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
       });
 
       if (!result.data) {
-        toast.error('Código inválido. Tente novamente.');
+        toast.error(t('errors.invalidCode'));
         setVerificationCode('');
         return;
       }
@@ -154,16 +157,17 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
         setCurrentStep('backup');
       } else {
         // Success but no backup codes (shouldn't happen)
-        toast.success('2FA ativado com sucesso!', {
-          description:
-            'Aguarde até 30 segundos para acessar áreas de admin devido ao cache de sessão.'
+        toast.success(t('success.activated'), {
+          description: t('success.adminNote')
         });
         handleClose();
         onSuccess();
       }
     } catch (error) {
       console.error('2FA verify error:', error);
-      toast.error(error instanceof Error ? error.message : 'Código inválido');
+      toast.error(
+        error instanceof Error ? error.message : t('errors.invalidCode')
+      );
       setVerificationCode('');
     } finally {
       setIsLoading(false);
@@ -178,10 +182,10 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
     try {
       await navigator.clipboard.writeText(backupCodes.join('\n'));
       setCopiedBackup(true);
-      toast.success('Códigos copiados para a área de transferência');
+      toast.success(t('success.codesCopied'));
       setTimeout(() => setCopiedBackup(false), 2000);
     } catch {
-      toast.error('Erro ao copiar códigos');
+      toast.error(t('errors.copyError'));
     }
   };
 
@@ -195,13 +199,12 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success('Códigos baixados');
+    toast.success(t('success.codesDownloaded'));
   };
 
   const handleFinishSetup = () => {
-    toast.success('2FA ativado com sucesso!', {
-      description:
-        'Aguarde até 30 segundos para acessar áreas de admin devido ao cache de sessão.'
+    toast.success(t('success.activated'), {
+      description: t('success.adminNote')
     });
     handleClose();
     onSuccess();
@@ -250,7 +253,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
         });
 
         if (!result.data) {
-          toast.error('Código inválido. Tente novamente.');
+          toast.error(t('errors.invalidCode'));
           setVerificationCode('');
           return;
         }
@@ -261,13 +264,15 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
           setCurrentStep('backup');
         } else {
           // Success but no backup codes (shouldn't happen)
-          toast.success('2FA ativado com sucesso!');
+          toast.success(t('success.activated'));
           handleClose();
           onSuccess();
         }
       } catch (error) {
         console.error('2FA verify error:', error);
-        toast.error(error instanceof Error ? error.message : 'Código inválido');
+        toast.error(
+          error instanceof Error ? error.message : t('errors.invalidCode')
+        );
         setVerificationCode('');
       } finally {
         setIsLoading(false);
@@ -277,7 +282,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
     if (verificationCode.length === 6 && currentStep === 'verify') {
       void verifyCode();
     }
-  }, [verificationCode, currentStep, backupCodes, onSuccess, handleClose]);
+  }, [verificationCode, currentStep, backupCodes, onSuccess, handleClose, t]);
 
   // ═══════════════════════════════════════════════════════════════════
   // RENDER
@@ -288,7 +293,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
       <DialogTrigger asChild>
         <Button variant="default" className="w-full sm:w-auto">
           <Shield className="mr-2 h-4 w-4" />
-          Ativar Autenticação de Dois Fatores
+          {t('enableButton')}
         </Button>
       </DialogTrigger>
 
@@ -300,10 +305,8 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
         {currentStep === 'password' && (
           <>
             <DialogHeader>
-              <DialogTitle>Ativar 2FA</DialogTitle>
-              <DialogDescription>
-                Para começar, confirme sua senha atual
-              </DialogDescription>
+              <DialogTitle>{t('dialogTitle')}</DialogTitle>
+              <DialogDescription>{t('dialogDescription')}</DialogDescription>
             </DialogHeader>
 
             <form
@@ -312,14 +315,14 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
             >
               <AccessibleFormField
                 id="password"
-                label="Senha"
+                label={t('passwordLabel')}
                 required
                 error={passwordForm.formState.errors.password?.message}
               >
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Digite sua senha"
+                  placeholder={t('passwordPlaceholder')}
                   {...passwordForm.register('password')}
                   disabled={isLoading}
                   autoComplete="current-password"
@@ -331,10 +334,10 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Verificando...
+                      {t('verifying')}
                     </>
                   ) : (
-                    'Continuar'
+                    t('continue')
                   )}
                 </Button>
               </DialogFooter>
@@ -346,11 +349,8 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
         {currentStep === 'qr' && (
           <>
             <DialogHeader>
-              <DialogTitle>Escaneie o QR Code</DialogTitle>
-              <DialogDescription>
-                Use um aplicativo autenticador como Google Authenticator ou
-                Authy
-              </DialogDescription>
+              <DialogTitle>{t('scanQrCode')}</DialogTitle>
+              <DialogDescription>{t('scanDescription')}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
@@ -359,7 +359,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
                 {qrCodeDataURL ? (
                   <Image
                     src={qrCodeDataURL}
-                    alt="QR Code para configuração do 2FA"
+                    alt={t('qrAlt')}
                     width={256}
                     height={256}
                     className="w-64 h-64"
@@ -375,9 +375,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
               {/* Manual Secret */}
               {totpSecret && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">
-                    Ou insira manualmente o código:
-                  </p>
+                  <p className="text-sm font-medium">{t('manualCode')}</p>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 rounded bg-muted px-3 py-2 text-sm font-mono">
                       {totpSecret}
@@ -387,7 +385,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
                       size="sm"
                       onClick={() => {
                         navigator.clipboard.writeText(totpSecret);
-                        toast.success('Código copiado');
+                        toast.success(t('codeCopied'));
                       }}
                     >
                       <Copy className="h-4 w-4" />
@@ -400,7 +398,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
                 onClick={() => setCurrentStep('verify')}
                 className="w-full"
               >
-                Próximo
+                {t('next')}
               </Button>
             </div>
           </>
@@ -410,10 +408,8 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
         {currentStep === 'verify' && (
           <>
             <DialogHeader>
-              <DialogTitle>Verifique o Código</DialogTitle>
-              <DialogDescription>
-                Digite o código de 6 dígitos do seu aplicativo autenticador
-              </DialogDescription>
+              <DialogTitle>{t('verifyTitle')}</DialogTitle>
+              <DialogDescription>{t('verifyDescription')}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
@@ -438,7 +434,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
               {isLoading && (
                 <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Verificando código...</span>
+                  <span>{t('verifyingCode')}</span>
                 </div>
               )}
 
@@ -448,14 +444,14 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
                   onClick={() => setCurrentStep('qr')}
                   className="flex-1"
                 >
-                  Voltar
+                  {t('back')}
                 </Button>
                 <Button
                   onClick={handleVerifyCode}
                   disabled={verificationCode.length !== 6 || isLoading}
                   className="flex-1"
                 >
-                  Verificar
+                  {t('verify')}
                 </Button>
               </div>
             </div>
@@ -468,12 +464,9 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
-                2FA Ativado!
+                {t('activatedTitle')}
               </DialogTitle>
-              <DialogDescription>
-                Guarde estes códigos de backup em um lugar seguro. Cada código
-                pode ser usado apenas uma vez.
-              </DialogDescription>
+              <DialogDescription>{t('activatedDescription')}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
@@ -499,12 +492,12 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
                   {copiedBackup ? (
                     <>
                       <CheckCircle2 className="mr-2 h-4 w-4" />
-                      Copiado!
+                      {t('copied')}
                     </>
                   ) : (
                     <>
                       <Copy className="mr-2 h-4 w-4" />
-                      Copiar
+                      {t('copy')}
                     </>
                   )}
                 </Button>
@@ -514,19 +507,18 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
                   className="flex-1"
                 >
                   <Download className="mr-2 h-4 w-4" />
-                  Baixar
+                  {t('download')}
                 </Button>
               </div>
 
               <div className="rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-3">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  ⚠️ Estes códigos não serão exibidos novamente. Certifique-se de
-                  salvá-los antes de continuar.
+                  {t('warning')}
                 </p>
               </div>
 
               <Button onClick={handleFinishSetup} className="w-full">
-                Concluir
+                {t('finish')}
               </Button>
             </div>
           </>

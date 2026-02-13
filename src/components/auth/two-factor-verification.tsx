@@ -14,6 +14,7 @@
 'use client';
 
 import { KeyRound, Loader2, Shield } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,7 @@ export function TwoFactorVerification({
   const [inputMode, setInputMode] = useState<InputMode>('totp');
   const [totpCode, setTotpCode] = useState('');
   const [backupCode, setBackupCode] = useState('');
+  const t = useTranslations('TwoFactor.verification');
 
   // ═══════════════════════════════════════════════════════════════════
   // HANDLERS
@@ -59,7 +61,7 @@ export function TwoFactorVerification({
   const handleBackupSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!backupCode.trim()) {
-      toast.error('Digite um código de backup');
+      toast.error(t('enterBackupCode'));
       return;
     }
     await onVerify(backupCode.trim());
@@ -92,11 +94,9 @@ export function TwoFactorVerification({
             <Shield className="h-6 w-6 text-primary" />
           </div>
         </div>
-        <h2 className="text-2xl font-semibold">Autenticação de Dois Fatores</h2>
+        <h2 className="text-2xl font-semibold">{t('heading')}</h2>
         <p className="text-muted-foreground text-sm">
-          {inputMode === 'totp'
-            ? 'Digite o código de 6 dígitos do seu aplicativo autenticador'
-            : 'Digite um dos seus códigos de backup'}
+          {inputMode === 'totp' ? t('totpDescription') : t('backupDescription')}
         </p>
       </div>
 
@@ -126,7 +126,7 @@ export function TwoFactorVerification({
             {isLoading && (
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Verificando código...</span>
+                <span>{t('verifyingCode')}</span>
               </div>
             )}
           </div>
@@ -134,11 +134,11 @@ export function TwoFactorVerification({
           /* Backup Code Input */
           <form onSubmit={handleBackupSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="backup-code">Código de Backup</Label>
+              <Label htmlFor="backup-code">{t('backupCodeLabel')}</Label>
               <Input
                 id="backup-code"
                 type="text"
-                placeholder="xxxx-xxxx-xxxx"
+                placeholder={t('backupPlaceholder')}
                 value={backupCode}
                 onChange={(e) => setBackupCode(e.target.value)}
                 disabled={isLoading}
@@ -155,12 +155,12 @@ export function TwoFactorVerification({
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Verificando...
+                  {t('verifying')}
                 </>
               ) : (
                 <>
                   <KeyRound className="mr-2 h-4 w-4" />
-                  Verificar Código de Backup
+                  {t('verifyBackupCode')}
                 </>
               )}
             </Button>
@@ -185,9 +185,7 @@ export function TwoFactorVerification({
             disabled={isLoading}
             className="text-sm text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {inputMode === 'totp'
-              ? 'Usar código de backup'
-              : 'Usar aplicativo autenticador'}
+            {inputMode === 'totp' ? t('useBackupCode') : t('useAuthenticator')}
           </button>
         </div>
 
@@ -200,7 +198,7 @@ export function TwoFactorVerification({
               disabled={isLoading}
               className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              ← Voltar ao login
+              {t('backToLogin')}
             </button>
           </div>
         )}

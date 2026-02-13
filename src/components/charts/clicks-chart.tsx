@@ -1,6 +1,7 @@
 // src/components/charts/clicks-chart.tsx
 'use client';
 
+import { useLocale, useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 import {
   CartesianGrid,
@@ -19,6 +20,10 @@ interface Props {
 }
 
 export function ClicksChart({ data }: Props) {
+  const t = useTranslations('Analytics.charts');
+  const locale = useLocale();
+  const intlLocale = locale === 'pt-br' ? 'pt-BR' : locale;
+
   // Memoize chart data to prevent unnecessary recalculations
   const chartData = useMemo(() => {
     if (!data) return [];
@@ -27,20 +32,20 @@ export function ClicksChart({ data }: Props) {
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
     return sorted.map((item) => ({
-      date: new Date(item.date).toLocaleDateString('pt-BR', {
+      date: new Date(item.date).toLocaleDateString(intlLocale, {
         month: 'short',
         day: 'numeric'
       }),
-      Cliques: item.clicks,
-      'Visitantes Únicos': item.uniqueVisitors
+      clicks: item.clicks,
+      uniqueVisitors: item.uniqueVisitors
     }));
-  }, [data]);
+  }, [data, intlLocale]);
 
   return (
     <div
       className="h-[300px] w-full"
       role="img"
-      aria-label="Gráfico de cliques ao longo do tempo"
+      aria-label={t('clicksChartAriaLabel')}
     >
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
@@ -64,7 +69,8 @@ export function ClicksChart({ data }: Props) {
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
           <Line
             type="monotone"
-            dataKey="Cliques"
+            dataKey="clicks"
+            name={t('clicks')}
             stroke="hsl(var(--primary))"
             strokeWidth={2}
             dot={{ r: 3 }}
@@ -72,7 +78,8 @@ export function ClicksChart({ data }: Props) {
           />
           <Line
             type="monotone"
-            dataKey="Visitantes Únicos"
+            dataKey="uniqueVisitors"
+            name={t('uniqueVisitors')}
             stroke="hsl(var(--chart-2))"
             strokeWidth={2}
             dot={{ r: 3 }}
