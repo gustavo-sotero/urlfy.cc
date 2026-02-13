@@ -7,7 +7,21 @@ import { addCORSHeaders, corsMiddleware } from '@/server/middleware/cors';
 import { rateLimit } from '@/server/middleware/rate-limit';
 import { MetricsService } from '@/server/services/metrics.service';
 
+let serverInitPromise: Promise<void> | null = null;
+
+async function ensureServerInitialized() {
+  if (serverInitPromise) {
+    await serverInitPromise;
+    return;
+  }
+
+  serverInitPromise = import('@/server/init').then(() => undefined);
+  await serverInitPromise;
+}
+
 async function handle(request: NextRequest): Promise<Response> {
+  await ensureServerInitialized();
+
   // Track request for RPS metrics (fire-and-forget, non-blocking)
   MetricsService.trackRequest().catch(() => {
     // Silently ignore tracking errors - metrics should never break requests
