@@ -12,21 +12,24 @@ let dbInstance: DrizzleDatabase | null = null;
 let sqlConnection: SQL | null = null;
 let connectionError: Error | null = null;
 
-export function getDatabase(): DrizzleDatabase {
-  if (connectionError) {
-    throw connectionError;
-  }
+// Connection configuration (computed lazily on first getDatabase() call)
+let connectionConfig: {
+  connUrlPrefer: string;
+  connUrlDisable: string;
+  urlHasSSL: boolean;
+  max: number;
+  idleTimeout: number;
+  connectionTimeout: number;
+} | null = null;
 
-  if (dbInstance) return dbInstance;
+function getConnectionConfig() {
+  if (connectionConfig) return connectionConfig;
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    connectionError = new Error('DATABASE_URL environment variable is not set');
-    throw connectionError;
+    throw new Error('DATABASE_URL environment variable is not set');
   }
 
-  // Default to sslmode=prefer when the URL doesn't specify it.
-  // This lets managed PostgreSQL (that requires TLS) work out of the box.
   const urlHasSSL = databaseUrl.includes('sslmode=');
   const connUrlPrefer = urlHasSSL
     ? databaseUrl
@@ -35,50 +38,127 @@ export function getDatabase(): DrizzleDatabase {
     ? databaseUrl
     : `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=disable`;
 
+  const max = Number.parseInt(process.env.DB_POOL_MAX || '20', 10);
+  const idleTimeout = Number.parseInt(
+    process.env.DB_POOL_IDLE_TIMEOUT || '30',
+    10
+  );
+  const connectionTimeout = Number.parseInt(
+    process.env.DB_POOL_CONNECTION_TIMEOUT || '10',
+    10
+  );
+
+  connectionConfig = {
+    connUrlPrefer,
+    connUrlDisable,
+    urlHasSSL,
+    max,
+    idleTimeout,
+    connectionTimeout
+  };
+  return connectionConfig;
+}
+
+function createSqlConnection(url: string): SQL {
+  const { max, idleTimeout, connectionTimeout } = getConnectionConfig();
+  return new SQL({ url, max, idleTimeout, connectionTimeout });
+}
+
+export function getDatabase(): DrizzleDatabase {
+  if (connectionError) {
+    throw connectionError;
+  }
+
+  if (dbInstance) return dbInstance;
+
   try {
-    const max = Number.parseInt(process.env.DB_POOL_MAX || '20', 10);
-    const idleTimeout = Number.parseInt(
-      process.env.DB_POOL_IDLE_TIMEOUT || '30',
-      10
-    );
-    const connectionTimeout = Number.parseInt(
-      process.env.DB_POOL_CONNECTION_TIMEOUT || '10',
-      10
-    );
-
-    const connect = (url: string) =>
-      new SQL({
-        url,
-        max,
-        idleTimeout,
-        connectionTimeout
-      });
-
-    // Use native Bun SQL (PostgreSQL, MySQL or SQLite)
-    try {
-      sqlConnection = connect(connUrlPrefer);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      const shouldRetryPlain =
-        !urlHasSSL && message.toLowerCase().includes('timeout');
-      if (!shouldRetryPlain) throw err;
-
-      console.warn(
-        '⚠️ DB connect timeout with sslmode=prefer (auto). Retrying with sslmode=disable...'
-      );
-      sqlConnection = connect(connUrlDisable);
-    }
+    const { connUrlPrefer } = getConnectionConfig();
+    sqlConnection = createSqlConnection(connUrlPrefer);
     dbInstance = drizzle(sqlConnection, { schema });
-
-    console.log('✅ Database connection established (Bun SQL)');
+    // NOTE: Connection is lazy — no actual TCP/TLS happens here.
+    // Call initDatabase() to eagerly test connectivity and handle SSL fallback.
     return dbInstance;
   } catch (error) {
     connectionError =
       error instanceof Error
         ? error
-        : new Error('Failed to connect to database');
-    console.error('❌ Failed to connect to database:', error);
+        : new Error('Failed to create database instance');
+    console.error('❌ Failed to create database instance:', error);
     throw connectionError;
+  }
+}
+
+/**
+ * Eagerly tests database connectivity and handles SSL fallback.
+ *
+ * Bun SQL connections are lazy — `new SQL(...)` never opens a socket.
+ * This function forces an actual connection by running `SELECT 1` and,
+ * if the URL didn't include an explicit `sslmode=`, retries with
+ * `sslmode=disable` when the TLS negotiation times out.
+ *
+ * Must be called during server startup (before serving requests).
+ * Matches the proven pattern from docker/db-check.ts.
+ */
+export async function initDatabase(): Promise<void> {
+  // Ensure lazy instances are created
+  getDatabase();
+
+  if (!sqlConnection) {
+    throw new Error('SQL connection not initialized after getDatabase()');
+  }
+
+  const config = getConnectionConfig();
+
+  try {
+    // Force actual connection — this is where TLS negotiation happens
+    await sqlConnection.unsafe('SELECT 1');
+    console.log('✅ Database connection established (Bun SQL)');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+
+    // Only retry with sslmode=disable if:
+    // 1. sslmode was auto-added (not user-specified in DATABASE_URL)
+    // 2. The error is a connection timeout (TLS negotiation hang)
+    const isTimeout = message.toLowerCase().includes('timeout');
+    const shouldRetryPlain = !config.urlHasSSL && isTimeout;
+
+    if (!shouldRetryPlain) {
+      connectionError = err instanceof Error ? err : new Error(message);
+      throw connectionError;
+    }
+
+    console.warn(
+      `⚠️  sslmode=prefer timed out (${message}). Re-connecting with sslmode=disable...`
+    );
+
+    // Close the broken connection to prevent leaked sockets
+    try {
+      await sqlConnection.close({ timeout: 0 });
+    } catch {
+      // Ignore close errors — connection is already broken
+    }
+
+    // Create new connection with sslmode=disable
+    const newSql = createSqlConnection(config.connUrlDisable);
+
+    try {
+      await newSql.unsafe('SELECT 1');
+    } catch (retryErr) {
+      // Both sslmode=prefer AND sslmode=disable failed — fatal
+      connectionError =
+        retryErr instanceof Error
+          ? retryErr
+          : new Error('Failed to connect with sslmode=disable');
+      throw connectionError;
+    }
+
+    // Replace global singletons
+    sqlConnection = newSql;
+    dbInstance = drizzle(sqlConnection, { schema });
+
+    console.log(
+      '✅ Database connection established (Bun SQL, sslmode=disable)'
+    );
   }
 }
 
@@ -133,9 +213,14 @@ export async function checkDatabaseHealth(): Promise<{
 export async function closeDatabase(): Promise<void> {
   if (sqlConnection) {
     console.log('Closing database connection...');
-    // Bun SQL doesn't have explicit close method, connection is managed by runtime
+    try {
+      await sqlConnection.close({ timeout: 5 });
+    } catch {
+      // Ignore close errors during shutdown
+    }
     dbInstance = null;
     sqlConnection = null;
-    console.log('Database connection reference cleared');
+    connectionConfig = null;
+    console.log('Database connection closed');
   }
 }

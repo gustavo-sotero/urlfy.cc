@@ -2,7 +2,7 @@
 // NOTE: Worker processes (Redis Streams) are started separately via `bun run src/workers.ts`
 // This keeps the Next.js app process lightweight and allows independent worker scaling.
 
-import { closeDatabase } from '@/db';
+import { closeDatabase, initDatabase } from '@/db';
 import { validateEnv } from '@/lib/env';
 import { closeRedis } from '@/server/lib/redis';
 import { initTelemetry } from '@/server/lib/telemetry';
@@ -23,6 +23,18 @@ if (
 
   // Initialize telemetry
   initTelemetry();
+
+  // Eagerly test database connectivity and handle SSL fallback.
+  // This MUST complete before the server accepts requests.
+  try {
+    await initDatabase();
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    // Don't process.exit() — let the app start degraded.
+    // Health checks will report database as unhealthy.
+    // The connectionError cached in src/db/index.ts ensures all
+    // subsequent DB queries fail fast instead of hanging for 10s each.
+  }
 
   // Setup graceful shutdown handlers
   setupGracefulShutdown();
