@@ -1,6 +1,6 @@
-import { trace } from '@opentelemetry/api';
 import { createLogger, recordRedirectMetrics } from '@/server/lib/telemetry';
 import type { RedirectError, RedirectResult } from '@/types/redirect.types';
+import { trace } from '@opentelemetry/api';
 import { cacheService } from '../cache.service';
 import * as Fetcher from './fetcher';
 import { buildFinalUrl } from './url-builder';
@@ -72,7 +72,7 @@ export class RedirectService {
             return { success: false, error: 'NOT_FOUND' as RedirectError };
           }
 
-          // 3. Validações de status
+          // 3. Status validations
           const validation = validateLink(link, bypassPassword);
           if (!validation.valid) {
             span.setStatus({ code: 1, message: validation.error });

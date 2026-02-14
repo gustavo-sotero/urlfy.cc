@@ -8,13 +8,13 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { jwtPlugin } from '@/server/config/plugins';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth } from '@/server/middleware/auth.middleware';
 import * as qrService from '@/server/services/qr.service';
 import { validateUrlSafe } from '@/server/services/url-validator';
+import { Elysia, t } from 'elysia';
 import { LinkPasswordService } from './link-password.service';
 import {
   LinkCodeParam,
@@ -24,6 +24,7 @@ import {
   VerifyPasswordBody
 } from './links.schema';
 import { LinkService } from './links.service';
+import { getBaseUrl } from './services/format-link';
 
 // ═══════════════════════════════════════════════════════════════════
 // PUBLIC ROUTES (guest allowed)
@@ -137,9 +138,7 @@ export const publicLinksController = new Elysia()
       });
 
       // Return URL for redirect
-      const shortUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://urlfy.cc'}/${
-        params.code
-      }`;
+      const shortUrl = `${getBaseUrl()}/${params.code}`;
       return {
         success: true as const,
         data: {
@@ -195,9 +194,7 @@ export const publicLinksController = new Elysia()
       );
       const format = qrService.validateQRFormat(query.format || 'png');
 
-      const shortUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://urlfy.cc'}/${
-        params.code
-      }`;
+      const shortUrl = `${getBaseUrl()}/${params.code}`;
       const qrCode = await qrService.generateQRCode(
         shortUrl,
         params.code,

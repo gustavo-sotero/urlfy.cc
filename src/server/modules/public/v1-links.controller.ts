@@ -9,8 +9,8 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { Scopes } from '@/server/config/scopes';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import {
   ErrorRef,
   PaginatedResponse,
@@ -26,6 +26,7 @@ import {
 } from '@/server/modules/links';
 import { LinkLifecycleService } from '@/server/modules/links/link-lifecycle.service';
 import { LinkService } from '@/server/modules/links/links.service';
+import { Elysia, t } from 'elysia';
 
 /**
  * Helper type for context with API key
@@ -190,18 +191,11 @@ const readOperations = new Elysia({ name: 'V1Links.Read' })
   // Get Single Link
   .get(
     '/:id',
-    async ({ params, apiKey, set }) => {
+    async ({ params, apiKey }) => {
       const link = await LinkService.getLinkById(params.id, apiKey?.userId);
 
       if (!link) {
-        set.status = 404;
-        return {
-          success: false as const,
-          error: {
-            code: 'LINK_NOT_FOUND',
-            message: 'Link not found'
-          }
-        };
+        throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
       }
 
       return {
@@ -292,19 +286,12 @@ const analyticsOperations = new Elysia({ name: 'V1Links.Analytics' })
   // Get Link Stats
   .get(
     '/:id/stats',
-    async ({ params, apiKey, set }) => {
+    async ({ params, apiKey }) => {
       // First verify the link belongs to the user
       const link = await LinkService.getLinkById(params.id, apiKey?.userId);
 
       if (!link) {
-        set.status = 404;
-        return {
-          success: false as const,
-          error: {
-            code: 'LINK_NOT_FOUND',
-            message: 'Link not found'
-          }
-        };
+        throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
       }
 
       return {

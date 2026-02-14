@@ -4,7 +4,7 @@ import type { Link, LinkResponse } from '@/types/links.types';
  * Get the base URL for short links.
  * Uses a function to avoid caching the env value at import time.
  */
-function getBaseUrl(): string {
+export function getBaseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || 'https://urlfy.cc';
 }
 

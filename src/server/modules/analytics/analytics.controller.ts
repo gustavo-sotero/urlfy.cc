@@ -8,11 +8,11 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { requireUserId } from '@/server/lib/require-user-id';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
 import {
   ANALYTICS_BREAKDOWN_EXAMPLE,
   ANALYTICS_SUMMARY_EXAMPLE,
@@ -61,20 +61,16 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/all/summary',
-    async ({ user, query, set }) => {
+    async ({ user, query }) => {
       const days = parseDays(query.days);
       const userId = requireUserId(user);
       const summary = await AnalyticsService.getAllLinksSummary(userId, days);
 
       if (!summary) {
-        set.status = 404;
-        return {
-          success: false as const,
-          error: {
-            code: 'NO_DATA',
-            message: 'No analytics data available'
-          }
-        };
+        throw new AppError(
+          ErrorCode.RESOURCE_NOT_FOUND,
+          'No analytics data available'
+        );
       }
 
       return {
@@ -186,19 +182,15 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/:linkId/summary',
-    async ({ params, query, set }) => {
+    async ({ params, query }) => {
       const days = parseDays(query.days);
       const summary = await AnalyticsService.getSummary(params.linkId, days);
 
       if (!summary) {
-        set.status = 404;
-        return {
-          success: false as const,
-          error: {
-            code: 'LINK_NOT_FOUND',
-            message: 'Link not found or no data'
-          }
-        };
+        throw new AppError(
+          ErrorCode.LINK_NOT_FOUND,
+          'Link not found or no data'
+        );
       }
 
       return {
