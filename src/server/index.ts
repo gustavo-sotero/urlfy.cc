@@ -7,11 +7,11 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { auth } from '@/lib/auth';
 import { openapi } from '@elysiajs/openapi';
 import { opentelemetry } from '@elysiajs/opentelemetry';
 import { Elysia } from 'elysia';
 import type { OpenAPIV3 } from 'openapi-types';
-import { auth } from '@/lib/auth';
 // Plugins
 import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
 import { isAppError } from '@/server/lib/error-handler';
@@ -37,17 +37,13 @@ import {
 import { ApiKeysModel, apiKeysController } from '@/server/modules/api-keys';
 import { AuthModels, authController } from '@/server/modules/auth';
 import { contactController } from '@/server/modules/contact';
-import {
-  healthController,
-  InternalModel,
-  internalController
-} from '@/server/modules/internal';
+import { InternalModel, healthController } from '@/server/modules/internal';
 import { LinksModel, linksController } from '@/server/modules/links';
 import { publicApiV1 } from '@/server/modules/public';
 import {
+  UsersModel,
   consentController,
   meController,
-  UsersModel,
   usersController
 } from '@/server/modules/users';
 
@@ -313,7 +309,6 @@ export const api = new Elysia({ prefix: '/api' })
       .use(contactController)
       .use(linksController)
       .use(analyticsController)
-      .use(internalController)
       .use(adminController)
       .use(adminMessagesController)
       .use(adminQueuesController)

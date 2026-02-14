@@ -8,13 +8,14 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { timingSafeEqual } from 'node:crypto';
-import { Elysia, t } from 'elysia';
 import { jwtPlugin } from '@/server/config/plugins';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { RATE_LIMIT_CONFIGS, rateLimiter } from '@/server/lib/rate-limiter';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { MetricsService } from '@/server/services/metrics.service';
 import { redirectService } from '@/server/services/redirect.service';
+import { Elysia, t } from 'elysia';
+import { timingSafeEqual } from 'node:crypto';
 import {
   InternalAcceptedResponse,
   InternalAnalyticsEventBody,
@@ -60,14 +61,10 @@ export const internalController = new Elysia({ prefix: '/internal' })
     '/analytics',
     async ({ body, request, set }) => {
       if (!verifyInternalRequest(request)) {
-        set.status = 401;
-        return {
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Invalid or missing internal API secret'
-          }
-        };
+        throw new AppError(
+          ErrorCode.UNAUTHORIZED,
+          'Invalid or missing internal API secret'
+        );
       }
 
       await RedisStream.add(STREAM_NAMES.analyticsClicks, {
@@ -123,14 +120,10 @@ export const internalController = new Elysia({ prefix: '/internal' })
     async ({ params, body, request, jwt, set }) => {
       // 1. Verify internal API secret
       if (!verifyInternalRequest(request)) {
-        set.status = 401;
-        return {
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Invalid or missing internal API secret'
-          }
-        };
+        throw new AppError(
+          ErrorCode.UNAUTHORIZED,
+          'Invalid or missing internal API secret'
+        );
       }
 
       // 2. Track request for RPS metrics (non-blocking)
@@ -159,7 +152,6 @@ export const internalController = new Elysia({ prefix: '/internal' })
           );
 
           if (!ipLimit.allowed) {
-            set.status = 429;
             set.headers['Retry-After'] = String(ipLimit.retryAfter ?? 60);
             set.headers['X-RateLimit-Limit'] = String(
               redirectConfig.perIP.points
@@ -169,14 +161,11 @@ export const internalController = new Elysia({ prefix: '/internal' })
               Math.floor(ipLimit.resetTime / 1000)
             );
 
-            return {
-              success: false,
-              error: {
-                code: 'RATE_LIMITED',
-                message: 'Too many requests. Please try again later.'
-              },
-              retryAfter: ipLimit.retryAfter
-            };
+            throw new AppError(
+              ErrorCode.RATE_LIMITED,
+              'Too many requests. Please try again later.',
+              { retryAfter: ipLimit.retryAfter }
+            );
           }
         }
 
@@ -188,7 +177,6 @@ export const internalController = new Elysia({ prefix: '/internal' })
           );
 
           if (!linkLimit.allowed) {
-            set.status = 429;
             set.headers['Retry-After'] = String(linkLimit.retryAfter ?? 60);
             set.headers['X-RateLimit-Limit'] = String(
               redirectConfig.perLink.points
@@ -198,14 +186,11 @@ export const internalController = new Elysia({ prefix: '/internal' })
               Math.floor(linkLimit.resetTime / 1000)
             );
 
-            return {
-              success: false,
-              error: {
-                code: 'RATE_LIMITED',
-                message: 'Too many requests. Please try again later.'
-              },
-              retryAfter: linkLimit.retryAfter
-            };
+            throw new AppError(
+              ErrorCode.RATE_LIMITED,
+              'Too many requests. Please try again later.',
+              { retryAfter: linkLimit.retryAfter }
+            );
           }
         }
       }

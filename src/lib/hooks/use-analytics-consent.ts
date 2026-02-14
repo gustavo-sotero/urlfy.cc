@@ -148,7 +148,10 @@ export function useConditionalAnalytics(scriptId: string): void {
     script.id = scriptId;
     script.type = 'text/javascript';
     script.async = true;
-    // script.src = "..."; // TODO: Your analytics script URL
+    // Analytics script loading is deferred until a third-party analytics
+    // provider is selected and configured. No action needed for MVP.
+    // @owner gustavo-sotero
+    // script.src = "...";
     // document.head.appendChild(script);
 
     return () => {

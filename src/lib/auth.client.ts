@@ -51,8 +51,8 @@ export const twoFactor = authClient.twoFactor;
 // Access via authClient.admin methods
 export const admin = authClient.admin;
 
-// Note: API key management is done via custom REST endpoints at /api/auth/api-keys
-// Use fetch() or a REST client to interact with these endpoints
+// Note: API key management is done via custom REST endpoints at /api/keys
+// Use the api-keys module client (src/lib/api/api-keys.ts) to interact with these endpoints
 
 // Re-export the entire client for direct access to all methods
 export default authClient;

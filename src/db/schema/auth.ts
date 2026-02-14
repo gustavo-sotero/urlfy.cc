@@ -200,5 +200,9 @@ export type TwoFactor = typeof twoFactor.$inferSelect;
 export type ApiKey = typeof apikey.$inferSelect;
 export type NewApiKey = typeof apikey.$inferInsert;
 
-// Alias for consistency with PascalCase naming convention
+/**
+ * Alias for camelCase consistency in application code.
+ * Better-Auth convention uses lowercase `apikey` for the table name.
+ * All application code should import `apiKey` (this alias), not `apikey`.
+ */
 export const apiKey = apikey;

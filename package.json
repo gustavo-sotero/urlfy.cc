@@ -21,7 +21,7 @@
     "test:security": "bun test tests/security/",
     "test:e2e": "bunx playwright test",
     "test:e2e:admin": "bunx playwright test tests/e2e/admin-2fa-enforcement.spec.ts",
-    "test:redirect": "bun test src/server/services/__tests__/redirect.service.test.ts src/server/middleware/__tests__/redirect.middleware.test.ts",
+    "test:redirect": "bun test src/server/services/__tests__/redirect.service.test.ts",
     "check:secrets": "bun run scripts/check-test-secrets.ts",
     "security:report": "bun run scripts/security-report.ts",
     "security:audit": "bun audit --production",

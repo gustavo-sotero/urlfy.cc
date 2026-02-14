@@ -21,9 +21,9 @@ if (
   // Validate environment first
   try {
     validateEnv();
-    console.log('✅ Environment variables validated');
+    logger.info('Environment variables validated');
   } catch (_error) {
-    console.error('❌ Environment validation failed');
+    logger.error('Environment validation failed');
     process.exit(1);
   }
 
