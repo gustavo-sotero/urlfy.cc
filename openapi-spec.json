@@ -2847,7 +2847,6 @@
         "type": "object",
         "required": [
           "shortCode",
-          "originalUrl",
           "metaTitle",
           "metaDescription",
           "metaImage",
@@ -2856,7 +2855,10 @@
         ],
         "properties": {
           "shortCode": { "type": "string" },
-          "originalUrl": { "type": "string" },
+          "originalUrl": {
+            "nullable": true,
+            "anyOf": [{ "type": "string" }, { "type": "null" }]
+          },
           "metaTitle": {
             "nullable": true,
             "anyOf": [{ "type": "string" }, { "type": "null" }]
@@ -8150,4 +8152,3 @@
     }
   }
 }
-

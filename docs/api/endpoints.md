@@ -214,10 +214,10 @@ Content-Type: application/json
 ### Preview de Link
 
 ```http
-GET /api/links/:code/preview
+GET /api/links/by-code/:code/preview
 ```
 
-**Response:**
+**Response (link sem senha):**
 
 ```json
 {
@@ -230,6 +230,22 @@ GET /api/links/:code/preview
     "metaImage": null,
     "createdAt": "2026-01-06T12:00:00Z",
     "isPasswordProtected": false
+  }
+}
+```
+
+**Response (link protegido por senha):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "shortCode": "xyz789",
+    "metaTitle": null,
+    "metaDescription": null,
+    "metaImage": null,
+    "createdAt": "2026-01-06T12:00:00Z",
+    "isPasswordProtected": true
   }
 }
 ```
@@ -658,4 +674,3 @@ Link: </api/v2/links>; rel="successor-version"
 1. **Anúncio:** 90 dias antes
 2. **Período de transição:** Mínimo 6 meses
 3. **Remoção:** Retorna `410 Gone`
-

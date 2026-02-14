@@ -59,9 +59,10 @@ const allWorkers = [
 async function main() {
   try {
     validateEnv();
-  } catch (_error) {
-    // Logger not yet initialized — console is correct here
-    console.error('[workers] Environment validation failed');
+  } catch (error) {
+    logger.error('[workers] Environment validation failed', {
+      error: error instanceof Error ? error.message : String(error)
+    });
     process.exit(1);
   }
 

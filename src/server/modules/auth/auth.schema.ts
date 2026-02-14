@@ -275,12 +275,12 @@ export type SessionListResponseType = Static<typeof SessionListResponse>;
 // ═══════════════════════════════════════════════════════════════════
 
 export const AuthModels = new Elysia({ name: 'auth.model' }).model({
-  'auth.apikey.permissions': ApiKeyPermissions,
-  'auth.apikey.create': ApiKeyCreateBody,
-  'auth.apikey.update': ApiKeyUpdateBody,
-  'auth.apikey.param': ApiKeyIdParam,
-  'auth.apikey.response': ApiKeyResponse,
-  'auth.apikey.create.response': ApiKeyCreateResponse,
+  'auth.apiKey.permissions': ApiKeyPermissions,
+  'auth.apiKey.create': ApiKeyCreateBody,
+  'auth.apiKey.update': ApiKeyUpdateBody,
+  'auth.apiKey.param': ApiKeyIdParam,
+  'auth.apiKey.response': ApiKeyResponse,
+  'auth.apiKey.create.response': ApiKeyCreateResponse,
   'auth.session.response': SessionResponse,
   'auth.session.list.response': SessionListResponse,
   'auth.session.param': SessionIdParam,

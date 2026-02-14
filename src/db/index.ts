@@ -21,6 +21,27 @@ let connectionConfig: {
   connectionTimeout: number;
 } | null = null;
 
+function writeBootstrapLog(
+  level: 'info' | 'error',
+  message: string,
+  context?: Record<string, unknown>
+): void {
+  const line = JSON.stringify({
+    level,
+    logger: 'db-bootstrap',
+    message,
+    timestamp: new Date().toISOString(),
+    ...context
+  });
+
+  if (level === 'error') {
+    process.stderr.write(`${line}\n`);
+    return;
+  }
+
+  process.stdout.write(`${line}\n`);
+}
+
 function getConnectionConfig() {
   if (connectionConfig) return connectionConfig;
 
@@ -88,8 +109,9 @@ export function getDatabase(): DrizzleDatabase {
       error instanceof Error
         ? error
         : new Error('Failed to create database instance');
-    // console is intentional — DB module initializes before telemetry
-    console.error('[db] Failed to create database instance:', error);
+    writeBootstrapLog('error', 'Failed to create database instance', {
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw connectionError;
   }
 }
@@ -114,8 +136,7 @@ export async function initDatabase(): Promise<void> {
     // Force actual connection — Bun SQL is lazy, so this is where the
     // first TCP/TLS handshake happens.
     await sqlConnection.unsafe('SELECT 1');
-    // console is intentional — DB module initializes before telemetry
-    console.log('[db] Database connection established (Bun SQL)');
+    writeBootstrapLog('info', 'Database connection established (Bun SQL)');
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     connectionError = err instanceof Error ? err : new Error(message);
@@ -173,7 +194,7 @@ export async function checkDatabaseHealth(): Promise<{
 // Graceful shutdown
 export async function closeDatabase(): Promise<void> {
   if (sqlConnection) {
-    console.log('Closing database connection...');
+    writeBootstrapLog('info', 'Closing database connection');
     try {
       await sqlConnection.close({ timeout: 5 });
     } catch {
@@ -183,6 +204,6 @@ export async function closeDatabase(): Promise<void> {
     sqlConnection = null;
     connectionConfig = null;
     connectionError = null;
-    console.log('Database connection closed');
+    writeBootstrapLog('info', 'Database connection closed');
   }
 }

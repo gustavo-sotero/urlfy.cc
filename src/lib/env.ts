@@ -164,9 +164,25 @@ export function validateEnv(): Env {
     return env;
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Environment validation failed:');
+      process.stderr.write(
+        `${JSON.stringify({
+          level: 'error',
+          logger: 'env',
+          message: 'Environment validation failed',
+          timestamp: new Date().toISOString()
+        })}\n`
+      );
       for (const issue of error.issues) {
-        console.error(`  - ${issue.path.join('.')}: ${issue.message}`);
+        process.stderr.write(
+          `${JSON.stringify({
+            level: 'error',
+            logger: 'env',
+            message: 'Invalid environment variable',
+            field: issue.path.join('.'),
+            reason: issue.message,
+            timestamp: new Date().toISOString()
+          })}\n`
+        );
       }
       throw new Error('Invalid environment variables');
     }
