@@ -8,24 +8,26 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import type { AuditAction } from '@/db/schema/audit';
 import {
   PaginatedResponse,
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
+import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth/require-admin';
 import {
   AdminModels,
   AuditLogQuery
 } from '@/server/modules/admin/admin.schema';
 import { auditLogService } from '@/server/services/audit.service';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin-audit-controller');
 
 export const auditController = new Elysia({ prefix: '/audit' })
   .use(requireAdmin)
+  .use(adminRateLimits.general)
   // Inject shared models for type inference and OpenAPI docs
   .use(AdminModels)
 

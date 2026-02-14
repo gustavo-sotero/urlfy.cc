@@ -6,15 +6,16 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { createLogger } from '@/server/lib/telemetry';
+import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
 import {
   MessageListQuery,
   MessageUpdateBody
 } from '@/server/modules/contact/contact.schema';
 import { ContactService } from '@/server/modules/contact/contact.service';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin-messages-controller');
 
@@ -26,6 +27,7 @@ export const adminMessagesController = new Elysia({
   prefix: '/admin/messages'
 })
   .use(requireAdmin)
+  .use(adminRateLimits.general)
   .get(
     '/',
     async ({ query }) => {

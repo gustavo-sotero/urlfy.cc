@@ -19,6 +19,16 @@ export interface LogContext {
 
 export type Logger = ReturnType<typeof createLogger>;
 
+function writeLine(stream: 'stdout' | 'stderr', payload: unknown) {
+  const line = `${JSON.stringify(payload)}\n`;
+  if (stream === 'stderr') {
+    process.stderr.write(line);
+    return;
+  }
+
+  process.stdout.write(line);
+}
+
 function normalizeAttributeValue(
   value: unknown
 ): string | number | boolean | string[] | number[] | boolean[] | undefined {
@@ -112,7 +122,8 @@ export function createLogger(name: string) {
       });
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
-        console.error('[Telemetry] Failed to emit log record', {
+        writeLine('stderr', {
+          event: 'failed-to-emit-log-record',
           error: error instanceof Error ? error.message : String(error),
           logger: name,
           level,
@@ -123,7 +134,7 @@ export function createLogger(name: string) {
 
     // Console log in development
     if (process.env.NODE_ENV === 'development') {
-      console.log(JSON.stringify(logRecord, null, 2));
+      writeLine('stdout', logRecord);
     }
   };
 

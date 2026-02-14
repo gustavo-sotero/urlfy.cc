@@ -1,6 +1,6 @@
+import { trace } from '@opentelemetry/api';
 import { createLogger, recordRedirectMetrics } from '@/server/lib/telemetry';
 import type { RedirectError, RedirectResult } from '@/types/redirect.types';
-import { trace } from '@opentelemetry/api';
 import { cacheService } from '../cache.service';
 import * as Fetcher from './fetcher';
 import { buildFinalUrl } from './url-builder';

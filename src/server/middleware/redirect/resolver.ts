@@ -11,6 +11,27 @@ import type { RedirectContext, ResolveResult } from './types';
 
 const logger = createLogger('redirect-resolver');
 
+const REDIRECT_ERROR_CODES = new Set([
+  'NOT_FOUND',
+  'PASSWORD_REQUIRED',
+  'EXPIRED',
+  'BANNED',
+  'INACTIVE',
+  'MAX_CLICKS',
+  'REDIRECT_LOOP',
+  'RATE_LIMITED',
+  'INVALID_HOST',
+  'INTERNAL_ERROR',
+  'RESOLVE_FAILED',
+  'UNKNOWN_ERROR'
+]);
+
+function toRedirectErrorCode(input: string): ResolveResult['error'] {
+  return REDIRECT_ERROR_CODES.has(input)
+    ? (input as ResolveResult['error'])
+    : 'RESOLVE_FAILED';
+}
+
 /**
  * Get the internal API base URL
  * Uses INTERNAL_API_URL env or falls back to localhost
@@ -64,18 +85,28 @@ export async function resolveLink(
     });
 
     if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: 'UNKNOWN_ERROR' }));
+      const payload = (await response.json().catch(() => null)) as {
+        error?:
+          | string
+          | {
+              code?: string;
+              message?: string;
+            };
+      } | null;
 
       const retryAfterHeader = response.headers.get('Retry-After');
       const retryAfter = retryAfterHeader
         ? Number.parseInt(retryAfterHeader, 10)
         : undefined;
 
+      const errorCode =
+        typeof payload?.error === 'string'
+          ? payload.error
+          : payload?.error?.code || 'RESOLVE_FAILED';
+
       return {
         success: false,
-        error: error.error || 'RESOLVE_FAILED',
+        error: toRedirectErrorCode(errorCode),
         retryAfter
       };
     }

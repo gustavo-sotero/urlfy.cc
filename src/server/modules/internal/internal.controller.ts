@@ -8,13 +8,16 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { timingSafeEqual } from 'node:crypto';
-import { Elysia, t } from 'elysia';
 import { jwtPlugin } from '@/server/config/plugins';
 import { RATE_LIMIT_CONFIGS, rateLimiter } from '@/server/lib/rate-limiter';
+import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { MetricsService } from '@/server/services/metrics.service';
 import { redirectService } from '@/server/services/redirect.service';
+import { Elysia, t } from 'elysia';
+import { timingSafeEqual } from 'node:crypto';
 import {
+  InternalAcceptedResponse,
+  InternalAnalyticsEventBody,
   InternalModel,
   ResolveCodeParam,
   ResolveErrorResponse,
@@ -51,6 +54,68 @@ export const internalController = new Elysia({ prefix: '/internal' })
   .use(InternalModel)
 
   // ─────────────────────────────────────────────────────────────────
+  // POST /internal/analytics - Enqueue click event for async processing
+  // ─────────────────────────────────────────────────────────────────
+  .post(
+    '/analytics',
+    async ({ body, request, set }) => {
+      if (!verifyInternalRequest(request)) {
+        set.status = 401;
+        return {
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Invalid or missing internal API secret'
+          }
+        };
+      }
+
+      await RedisStream.add(STREAM_NAMES.analyticsClicks, {
+        linkId: body.linkId,
+        shortCode: body.shortCode,
+        ip: body.ip,
+        userAgent: body.userAgent,
+        referer: body.referer ?? '',
+        utmSource: body.utmSource ?? '',
+        utmMedium: body.utmMedium ?? '',
+        utmCampaign: body.utmCampaign ?? '',
+        utmContent: body.utmContent ?? '',
+        utmTerm: body.utmTerm ?? '',
+        timestamp: body.timestamp
+      });
+
+      set.status = 202;
+
+      return {
+        success: true,
+        data: {
+          enqueued: true
+        }
+      };
+    },
+    {
+      body: InternalAnalyticsEventBody,
+      detail: {
+        tags: ['Internal'],
+        summary: 'Enqueue analytics click event (Internal)',
+        description:
+          'Internal API endpoint called by redirect middleware to enqueue click events for background processing.',
+        security: [{ internalApi: [] }]
+      },
+      response: {
+        202: InternalAcceptedResponse,
+        401: t.Object({
+          success: t.Literal(false),
+          error: t.Object({
+            code: t.Literal('UNAUTHORIZED'),
+            message: t.String()
+          })
+        })
+      }
+    }
+  )
+
+  // ─────────────────────────────────────────────────────────────────
   // POST /internal/resolve/:code - Resolve link for redirect
   // ─────────────────────────────────────────────────────────────────
   .post(
@@ -61,7 +126,10 @@ export const internalController = new Elysia({ prefix: '/internal' })
         set.status = 401;
         return {
           success: false,
-          error: 'UNAUTHORIZED'
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Invalid or missing internal API secret'
+          }
         };
       }
 
@@ -103,7 +171,10 @@ export const internalController = new Elysia({ prefix: '/internal' })
 
             return {
               success: false,
-              error: 'RATE_LIMITED',
+              error: {
+                code: 'RATE_LIMITED',
+                message: 'Too many requests. Please try again later.'
+              },
               retryAfter: ipLimit.retryAfter
             };
           }
@@ -129,7 +200,10 @@ export const internalController = new Elysia({ prefix: '/internal' })
 
             return {
               success: false,
-              error: 'RATE_LIMITED',
+              error: {
+                code: 'RATE_LIMITED',
+                message: 'Too many requests. Please try again later.'
+              },
               retryAfter: linkLimit.retryAfter
             };
           }
@@ -169,7 +243,10 @@ export const internalController = new Elysia({ prefix: '/internal' })
       if (!result.success) {
         return {
           success: false,
-          error: result.error || 'UNKNOWN_ERROR'
+          error: {
+            code: result.error || 'UNKNOWN_ERROR',
+            message: 'Failed to resolve short code'
+          }
         };
       }
 
@@ -201,7 +278,10 @@ export const internalController = new Elysia({ prefix: '/internal' })
         401: t.Object(
           {
             success: t.Literal(false),
-            error: t.Literal('UNAUTHORIZED')
+            error: t.Object({
+              code: t.Literal('UNAUTHORIZED'),
+              message: t.String()
+            })
           },
           {
             description: 'Invalid or missing internal API secret'

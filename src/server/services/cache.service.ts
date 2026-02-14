@@ -101,10 +101,17 @@ export class CacheService {
 
         // Compute remaining TTL from the embedded write timestamp
         // This avoids an extra Redis RTT call to TTL
-        const cachedAt = parsed._cachedAt ?? 0;
-        const elapsed =
-          cachedAt > 0 ? (Date.now() - cachedAt) / 1000 : originalTtl;
-        const remainingTtl = Math.max(0, originalTtl - elapsed);
+        let remainingTtl: number;
+        const cachedAt = parsed._cachedAt;
+
+        if (typeof cachedAt === 'number' && cachedAt > 0) {
+          const elapsed = (Date.now() - cachedAt) / 1000;
+          remainingTtl = Math.max(0, originalTtl - elapsed);
+        } else {
+          // Backward compatibility for entries cached before _cachedAt existed
+          const ttl = await redis.ttl(key);
+          remainingTtl = ttl > 0 ? ttl : originalTtl;
+        }
 
         if (remainingTtl < originalTtl * 0.1 && Math.random() < 0.1) {
           logger.debug('Probabilistic early expiration triggered', {

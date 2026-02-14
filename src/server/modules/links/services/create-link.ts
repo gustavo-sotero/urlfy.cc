@@ -1,11 +1,11 @@
 import { db } from '@/db';
 import { links } from '@/db/schema';
-import { createLinkError } from '@/server/lib/errors';
 import {
   sanitizeMetaTags,
   sanitizeNotes,
   sanitizeTags
 } from '@/server/lib/sanitize';
+import { createLinkAppError } from '@/server/modules/links/link-errors';
 import {
   generateUniqueCode,
   isValidAliasFormat,
@@ -31,21 +31,21 @@ export async function createLink(
   // 1. Validate URL with SSRF protection
   const validation = await validateUrlSafe(input.url);
   if (!validation.valid) {
-    throw createLinkError(validation.error);
+    throw createLinkAppError(validation.error);
   }
 
   // 2. Generate or validate short code
   let shortCode: string;
   if (input.customAlias) {
     if (!userId) {
-      throw createLinkError('AUTH_REQUIRED');
+      throw createLinkAppError('AUTH_REQUIRED');
     }
     if (!isValidAliasFormat(input.customAlias)) {
-      throw createLinkError('INVALID_ALIAS_FORMAT');
+      throw createLinkAppError('INVALID_ALIAS_FORMAT');
     }
     const isValid = await validateCustomAlias(input.customAlias);
     if (!isValid) {
-      throw createLinkError('ALIAS_UNAVAILABLE');
+      throw createLinkAppError('ALIAS_UNAVAILABLE');
     }
     shortCode = input.customAlias;
   } else {
@@ -56,10 +56,10 @@ export async function createLink(
   let passwordHash: string | null = null;
   if (input.password) {
     if (!userId) {
-      throw createLinkError('AUTH_REQUIRED');
+      throw createLinkAppError('AUTH_REQUIRED');
     }
     if (input.password.length < 8) {
-      throw createLinkError('PASSWORD_TOO_WEAK');
+      throw createLinkAppError('PASSWORD_TOO_WEAK');
     }
     passwordHash = await Bun.password.hash(input.password, {
       algorithm: 'argon2id',
@@ -113,7 +113,7 @@ export async function createLink(
     .returning();
 
   if (!link) {
-    throw createLinkError('SHORTCODE_GENERATION_FAILED');
+    throw createLinkAppError('SHORTCODE_GENERATION_FAILED');
   }
 
   return {

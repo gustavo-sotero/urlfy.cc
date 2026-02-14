@@ -6,6 +6,7 @@
  * This module uses Node.js-specific APIs not available in Edge/Middleware.
  */
 
+import { getEnv } from '@/lib/env';
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
@@ -23,7 +24,6 @@ import {
   SEMRESATTRS_SERVICE_NAME,
   SEMRESATTRS_SERVICE_VERSION
 } from '@opentelemetry/semantic-conventions';
-import { getEnv } from '@/lib/env';
 
 // Only enable telemetry diagnostics for actual errors in development
 // INFO level is too verbose and logs stack traces for logger registration
@@ -64,28 +64,51 @@ let telemetryInitialized = false;
 let logProcessorConfigured = false;
 let telemetryShuttingDown = false;
 
+function writeBootstrap(
+  level: 'info' | 'warn' | 'error',
+  message: string,
+  context?: Record<string, unknown>
+) {
+  const line = JSON.stringify({
+    level,
+    message,
+    logger: 'telemetry-bootstrap',
+    timestamp: new Date().toISOString(),
+    ...context
+  });
+
+  if (level === 'error' || level === 'warn') {
+    process.stderr.write(`${line}\n`);
+    return;
+  }
+
+  process.stdout.write(`${line}\n`);
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // INITIALIZATION
 // ═══════════════════════════════════════════════════════════════════
 
 export function initTelemetry() {
   if (telemetryInitialized) {
-    console.log('[Telemetry] Already initialized. Skipping re-initialization.');
+    writeBootstrap('info', 'Telemetry already initialized; skipping');
     return;
   }
 
   const env = getEnv();
 
   if (!env.TELEMETRY_ENABLED) {
-    console.log('[Telemetry] Disabled (TELEMETRY_ENABLED=false)');
+    writeBootstrap('info', 'Telemetry disabled', {
+      reason: 'TELEMETRY_ENABLED=false'
+    });
     telemetryInitialized = true;
     return;
   }
 
   if (!env.OTEL_EXPORTER_OTLP_ENDPOINT) {
-    console.warn(
-      '[Telemetry] Enabled but OTEL_EXPORTER_OTLP_ENDPOINT not set. Skipping initialization.'
-    );
+    writeBootstrap('warn', 'Telemetry enabled but endpoint is missing', {
+      reason: 'OTEL_EXPORTER_OTLP_ENDPOINT not set'
+    });
     telemetryInitialized = true;
     return;
   }
@@ -139,12 +162,10 @@ export function initTelemetry() {
   telemetryInitialized = true;
   telemetryShuttingDown = false;
 
-  console.log(
-    `[Telemetry] Initialized with endpoint: ${env.OTEL_EXPORTER_OTLP_ENDPOINT}`
-  );
-  console.log(
-    `[Telemetry] Service: ${process.env.OTEL_SERVICE_NAME || 'urlfy-api'}`
-  );
+  writeBootstrap('info', 'Telemetry initialized', {
+    endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+    service: process.env.OTEL_SERVICE_NAME || 'urlfy-api'
+  });
 
   const bootstrapLogger = loggerProvider.getLogger('telemetry-bootstrap');
   bootstrapLogger.emit({
@@ -185,9 +206,11 @@ export async function shutdownTelemetry() {
     telemetryInitialized = false;
     telemetryShuttingDown = false;
 
-    console.log('[Telemetry] OpenTelemetry shut down gracefully');
+    writeBootstrap('info', 'Telemetry shut down gracefully');
   } catch (error) {
     telemetryShuttingDown = false;
-    console.error('[Telemetry] Error shutting down OpenTelemetry:', error);
+    writeBootstrap('error', 'Error shutting down telemetry', {
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 }

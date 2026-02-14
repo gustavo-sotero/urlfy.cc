@@ -5,19 +5,15 @@
  * Module: Users
  * Requirements: RF-35 to RF-38
  * Migrated from: src/server/api/users/me.ts
- *
- * Note: All routes use `requireAuth` middleware, which guarantees `user` is non-null.
- * We still guard at runtime to satisfy linting rules and return 401 if missing.
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { desc, eq } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema/audit';
 import { sendEmail } from '@/server/lib/email';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { getRedisClient } from '@/server/lib/redis';
+import { requireUser } from '@/server/lib/require-user';
 import { SuccessResponse } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
@@ -25,16 +21,10 @@ import { UsersModel } from '@/server/modules/users/users.schema';
 import { requestContext } from '@/server/plugins/request-context';
 import { auditLogService } from '@/server/services/audit.service';
 import { gdprService } from '@/server/services/gdpr.service';
+import { desc, eq } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('user-data-controller');
-
-const unauthorizedResponse = {
-  success: false as const,
-  error: {
-    code: 'UNAUTHORIZED',
-    message: 'Authentication required'
-  }
-};
 
 export const meController = new Elysia({ prefix: '/me' })
   .use(requireAuth)
@@ -46,11 +36,8 @@ export const meController = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/',
-    async function getCurrentUser({ user, set }) {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async function getCurrentUser({ user }) {
+      requireUser(user);
 
       return {
         success: true as const,
@@ -86,11 +73,8 @@ export const meController = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/quota',
-    async function getUserQuota({ user, set }) {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async function getUserQuota({ user }) {
+      requireUser(user);
 
       const used = user.linksCount;
       const limit = user.linksQuota;
@@ -126,11 +110,8 @@ export const meController = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/export',
-    async function exportUserData({ user, ip, userAgent, set }) {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async function exportUserData({ user, ip, userAgent }) {
+      requireUser(user);
 
       // Export all user data
       const exportData = await gdprService.exportUserData(user.id);
@@ -192,11 +173,8 @@ export const meController = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .delete(
     '/data',
-    async ({ user, ip, userAgent, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user, ip, userAgent }) => {
+      requireUser(user);
 
       // Check if there's already a pending request
       const existingRequest = await gdprService.getPendingDeletionRequest(
@@ -231,23 +209,21 @@ export const meController = new Elysia({ prefix: '/me' })
         userAgent: userAgent
       });
 
-      try {
-        await sendEmail({
-          to: user.email,
-          subject: 'Solicitação de exclusão de dados - urlfy.cc',
-          template: 'data-deletion-request',
-          data: {
-            name: user.name,
-            requestId: deletionRequest.requestId,
-            deadline: deletionRequest.deadline.toISOString()
-          }
-        });
-      } catch (error) {
+      sendEmail({
+        to: user.email,
+        subject: 'Solicitação de exclusão de dados - urlfy.cc',
+        template: 'data-deletion-request',
+        data: {
+          name: user.name,
+          requestId: deletionRequest.requestId,
+          deadline: deletionRequest.deadline.toISOString()
+        }
+      }).catch((error) => {
         logger.warn('Failed to send data deletion email', {
           userId: user.id,
           error: error instanceof Error ? error.message : String(error)
         });
-      }
+      });
 
       return {
         success: true as const,
@@ -280,11 +256,8 @@ export const meController = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/deletion-request',
-    async ({ user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user }) => {
+      requireUser(user);
 
       const requests = await db
         .select()
@@ -343,11 +316,8 @@ export const consentController = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .post(
     '/consent',
-    async ({ user, body, ip, userAgent, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user, body, ip, userAgent }) => {
+      requireUser(user);
 
       const preferences = {
         analytics: body.analytics,
@@ -409,11 +379,8 @@ export const consentController = new Elysia({ prefix: '/me' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/consent',
-    async ({ user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user }) => {
+      requireUser(user);
 
       const redis = getRedisClient();
 

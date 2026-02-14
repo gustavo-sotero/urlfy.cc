@@ -59,8 +59,13 @@ export const ResolveSuccessResponse = t.Object({
 // Error response schema
 export const ResolveErrorResponse = t.Object({
   success: t.Literal(false),
-  error: t.String({
-    description: 'Error code'
+  error: t.Object({
+    code: t.String({
+      description: 'Error code'
+    }),
+    message: t.String({
+      description: 'Human-readable message'
+    })
   }),
   retryAfter: t.Optional(
     t.Number({
@@ -75,11 +80,41 @@ export const ResolveResponse = t.Union([
   ResolveErrorResponse
 ]);
 
+// Request body schema for analytics ingestion
+export const InternalAnalyticsEventBody = t.Object(
+  {
+    linkId: t.String({ format: 'uuid' }),
+    shortCode: t.String({ minLength: 1, maxLength: 20 }),
+    ip: t.String(),
+    userAgent: t.String(),
+    referer: t.Optional(t.String()),
+    utmSource: t.Optional(t.String()),
+    utmMedium: t.Optional(t.String()),
+    utmCampaign: t.Optional(t.String()),
+    utmContent: t.Optional(t.String()),
+    utmTerm: t.Optional(t.String()),
+    timestamp: t.String({ format: 'date-time' })
+  },
+  {
+    $id: 'InternalAnalyticsEventBody',
+    description: 'Click event payload sent by redirect middleware'
+  }
+);
+
+export const InternalAcceptedResponse = t.Object({
+  success: t.Literal(true),
+  data: t.Object({
+    enqueued: t.Literal(true)
+  })
+});
+
 /**
  * Internal Models - Register schemas for type inference
  */
 export const InternalModel = new Elysia({ name: 'InternalModel' }).model({
   'internal.resolve.request': ResolveRequestBody,
   'internal.resolve.params': ResolveCodeParam,
-  'internal.resolve.response': ResolveResponse
+  'internal.resolve.response': ResolveResponse,
+  'internal.analytics.body': InternalAnalyticsEventBody,
+  'internal.analytics.response': InternalAcceptedResponse
 });

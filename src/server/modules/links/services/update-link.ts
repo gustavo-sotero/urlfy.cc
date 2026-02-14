@@ -1,18 +1,18 @@
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
-import { createLinkError } from '@/server/lib/errors';
 import {
   sanitizeMetaTags,
   sanitizeNotes,
   sanitizeTags
 } from '@/server/lib/sanitize';
+import { createLinkAppError } from '@/server/modules/links/link-errors';
 import { cacheService } from '@/server/services/cache.service';
 import {
   isValidAliasFormat,
   validateCustomAlias
 } from '@/server/services/shortcode.service';
 import type { Link, UpdateLinkInput } from '@/types/links.types';
+import { eq } from 'drizzle-orm';
 import { getLinkById } from './get-link';
 
 /**
@@ -28,13 +28,13 @@ export async function updateLink(
   let newShortCode: string | undefined;
   if (input.customAlias !== undefined) {
     if (!isValidAliasFormat(input.customAlias)) {
-      throw createLinkError('INVALID_ALIAS_FORMAT');
+      throw createLinkAppError('INVALID_ALIAS_FORMAT');
     }
 
     if (input.customAlias !== link.shortCode) {
       const isAvailable = await validateCustomAlias(input.customAlias);
       if (!isAvailable) {
-        throw createLinkError('ALIAS_UNAVAILABLE');
+        throw createLinkAppError('ALIAS_UNAVAILABLE');
       }
       newShortCode = input.customAlias;
     }
@@ -47,7 +47,7 @@ export async function updateLink(
       passwordHash = null; // Remove password
     } else if (input.password) {
       if (input.password.length < 8) {
-        throw createLinkError('PASSWORD_TOO_WEAK');
+        throw createLinkAppError('PASSWORD_TOO_WEAK');
       }
       passwordHash = await Bun.password.hash(input.password, {
         algorithm: 'argon2id',

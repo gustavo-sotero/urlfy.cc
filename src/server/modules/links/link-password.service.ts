@@ -1,4 +1,4 @@
-import { createLinkError } from '@/server/lib/errors';
+import { createLinkAppError } from '@/server/modules/links/link-errors';
 import { LinkService } from './links.service';
 
 export const LinkPasswordService = {
@@ -12,7 +12,7 @@ export const LinkPasswordService = {
     const link = await LinkService.getLinkByCode(code);
 
     if (!link) {
-      throw createLinkError('LINK_NOT_FOUND');
+      throw createLinkAppError('LINK_NOT_FOUND');
     }
 
     if (!link.passwordHash) {

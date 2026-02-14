@@ -1,8 +1,8 @@
-import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
-import { createLinkError } from '@/server/lib/errors';
+import { createLinkAppError } from '@/server/modules/links/link-errors';
 import type { Link } from '@/types/links.types';
+import { and, eq, isNull } from 'drizzle-orm';
 
 /**
  * Busca link por ID (verifica ownership)
@@ -17,7 +17,7 @@ export async function getLinkById(id: string, userId: string): Promise<Link> {
     .limit(1);
 
   if (!link) {
-    throw createLinkError('LINK_NOT_FOUND');
+    throw createLinkAppError('LINK_NOT_FOUND');
   }
 
   return link;
@@ -34,7 +34,7 @@ export async function getLinkByIdUnsafe(id: string): Promise<Link> {
     .limit(1);
 
   if (!link) {
-    throw createLinkError('LINK_NOT_FOUND');
+    throw createLinkAppError('LINK_NOT_FOUND');
   }
 
   return link;
