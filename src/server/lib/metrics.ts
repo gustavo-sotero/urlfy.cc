@@ -1,5 +1,5 @@
-import { createLogger } from '@/server/lib/telemetry';
 import { metrics } from '@opentelemetry/api';
+import { createLogger } from '@/server/lib/telemetry';
 
 const meter = metrics.getMeter('urlfy');
 const logger = createLogger('metrics');

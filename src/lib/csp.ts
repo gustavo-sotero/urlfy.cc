@@ -26,8 +26,12 @@ export function buildCspDirectives({
     "'self'",
     'data:',
     'blob:',
+    'https://*.cloudinary.com',
+    'https://*.imgur.com',
+    'https://*.unsplash.com',
     'https://lh3.googleusercontent.com',
     'https://avatars.githubusercontent.com',
+    'https://*.githubusercontent.com',
     ...extraImgOrigins
   ];
 

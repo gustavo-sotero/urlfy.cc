@@ -7,9 +7,9 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { ResponseModels } from '@/server/lib/response.schema';
 import { beforeAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
+import { ResponseModels } from '@/server/lib/response.schema';
 import {
   createElysiaTestClient,
   type ElysiaTestClient,
