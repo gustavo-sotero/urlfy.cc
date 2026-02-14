@@ -8,11 +8,11 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import { jwtPlugin } from '@/server/config/plugins';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth } from '@/server/middleware/auth.middleware';
-import { Elysia, t } from 'elysia';
 import { LinkPasswordService } from './link-password.service';
 import {
   LinkCodeParam,

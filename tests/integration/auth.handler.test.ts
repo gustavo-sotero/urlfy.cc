@@ -52,7 +52,8 @@ mock.module('@/server/lib/redis', () => ({
     geo: (ip: string) => `geo:${ip}`,
     rateLimit: (key: string) => `rl:${key}`,
     lock: (res: string) => `lock:${res}`,
-    idempotency: (key: string) => `idempotency:${key}`
+    idempotency: (principal: string, route: string, key: string) =>
+      `idempotency:${principal}:${route}:${key}`
   },
   CACHE_TTL: { link: 3600 },
   acquireLock: mock(() => Promise.resolve(true)),

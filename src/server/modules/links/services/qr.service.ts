@@ -1,8 +1,8 @@
 // src/server/modules/links/services/qr.service.ts
 
+import QRCode from 'qrcode';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
-import QRCode from 'qrcode';
 import type { QRFormat, QRSize } from './qr.utils';
 
 export type { QRFormat, QRSize } from './qr.utils';

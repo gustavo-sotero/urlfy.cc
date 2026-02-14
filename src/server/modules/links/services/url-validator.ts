@@ -1,10 +1,10 @@
 // src/server/modules/links/services/url-validator.ts
 
+import { lookup } from 'node:dns/promises';
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { bannedUrls } from '@/db/schema';
 import { createLogger } from '@/server/lib/telemetry';
-import { eq } from 'drizzle-orm';
-import { lookup } from 'node:dns/promises';
 
 const logger = createLogger('url-validator');
 const nodeEnv = process.env.NODE_ENV as string | undefined;

@@ -42,22 +42,7 @@ const createLinkHandler = async ({
   apiKey?: { userId?: string };
 }) => {
   const link = await LinkService.createLink(
-    {
-      url: body.url,
-      customAlias: body.customAlias,
-      expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
-      maxClicks: body.maxClicks,
-      password: body.password,
-      redirectType: body.redirectType,
-      metaTitle: body.metaTitle,
-      metaDescription: body.metaDescription,
-      metaImage: body.metaImage,
-      utmSource: body.utmSource,
-      utmMedium: body.utmMedium,
-      utmCampaign: body.utmCampaign,
-      tags: body.tags,
-      notes: body.notes
-    },
+    body,
     apiKey?.userId,
     'api-key' // IP hash placeholder for API keys
   );

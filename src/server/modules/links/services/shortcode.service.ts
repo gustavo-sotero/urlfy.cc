@@ -1,10 +1,10 @@
 // src/server/modules/links/services/shortcode.service.ts
 
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links, reservedSlugs } from '@/db/schema';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { generateShortCode } from '@/server/lib/nanoid';
-import { eq } from 'drizzle-orm';
 
 const MAX_RETRIES = 5;
 const ALIAS_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$/;

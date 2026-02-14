@@ -16,8 +16,8 @@ process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
 process.env.REDIS_URL = 'redis://localhost:6379';
 process.env.JWT_SECRET = 'test-secret-key-for-testing';
 
-import type { CachedLink } from '@/types/redirect.types';
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CachedLink } from '@/types/redirect.types';
 
 // ═══════════════════════════════════════════════════════════════════
 // Helper function for Bun mock compatibility

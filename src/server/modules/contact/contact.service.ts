@@ -7,6 +7,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { createHash } from 'node:crypto';
 import { count, desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { contactMessage } from '@/db/schema';
@@ -123,14 +124,15 @@ export const ContactService = {
 
     const messageId = crypto.randomUUID();
 
-    // 1. Insert into database
+    // 1. Insert into database (LGPD: hash IP before storage)
+    const ipHash = createHash('sha256').update(ipAddress).digest('hex');
     await db.insert(contactMessage).values({
       id: messageId,
       name: input.name,
       email: input.email,
       subject: input.subject,
       message: input.message,
-      ipAddress,
+      ipAddress: ipHash,
       userAgent: userAgent || null,
       consentGiven: 'yes',
       telegramSent: 'no',

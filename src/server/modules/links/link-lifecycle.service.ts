@@ -1,9 +1,9 @@
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
 import { cacheService } from '@/server/services/cache.service';
 import type { Link } from '@/types/links.types';
-import { and, eq } from 'drizzle-orm';
 import { LinkService } from './links.service';
 import { generateUniqueCode } from './services/shortcode.service';
 
