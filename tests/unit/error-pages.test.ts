@@ -58,7 +58,7 @@ describe('Error Page Structure', () => {
     expect(content).toContain('AccordionItem');
     expect(content).toContain('AccordionTrigger');
     expect(content).toContain('AccordionContent');
-    expect(content).toContain('Como podemos ajudar?');
+    expect(content).toContain("t('faqTitle')");
   });
 });
 
@@ -66,7 +66,7 @@ describe('Error Page Components', () => {
   it('not-found page should have proper Next.js metadata', async () => {
     const content = await Bun.file('src/app/not-found.tsx').text();
 
-    expect(content).toMatch(/title:\s*['"](Página não encontrada|.*404.*)/);
+    expect(content).toMatch(/title:\s*['"](Page not found|.*404.*)/);
     expect(content).toContain('robots:');
     expect(content).toContain('index: false');
   });

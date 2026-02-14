@@ -27,14 +27,8 @@ import { AnalyticsService } from './analytics.service';
  * Validate days parameter and return parsed value
  */
 function parseDays(raw?: string): number {
-  const days = raw ? parseInt(raw, 10) : 30;
-  if (days < 1 || days > 365) {
-    throw new AppError(
-      ErrorCode.VALIDATION_ERROR,
-      'Days must be between 1 and 365'
-    );
-  }
-  return days;
+  const parsed = raw ? Number.parseInt(raw, 10) : 30;
+  return Number.isFinite(parsed) ? parsed : 30;
 }
 
 /**

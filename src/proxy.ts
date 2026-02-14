@@ -18,10 +18,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import createMiddleware from 'next-intl/middleware';
 import { buildCspDirectives } from '@/lib/csp';
 import { handleRedirect } from '@/server/middleware/redirect.middleware';
+import createMiddleware from 'next-intl/middleware';
+import { NextRequest, NextResponse } from 'next/server';
 import { routing } from './i18n/routing';
 
 // Initialize next-intl middleware
@@ -89,6 +89,7 @@ export async function proxy(req: NextRequest) {
   const isProduction = process.env.NODE_ENV === 'production';
   const csp = buildCspDirectives({ nonce, isProduction });
   const requestHeaders = new Headers(req.headers);
+  requestHeaders.delete('x-redirect-depth');
   requestHeaders.set('x-csp-nonce', nonce);
   const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
 

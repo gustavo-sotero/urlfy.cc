@@ -8,6 +8,18 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { db } from '@/db';
+import { analyticsEvents } from '@/db/schema';
+import { links } from '@/db/schema/links';
+import { CACHE_KEYS, CACHE_TTL } from '@/server/lib/cache-keys';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
+import { getRedisClient } from '@/server/lib/redis';
+import { createLogger } from '@/server/lib/telemetry';
+import type {
+  AnalyticsBreakdown,
+  AnalyticsSummary,
+  TimeSeries
+} from '@/types/analytics.types';
 import {
   and,
   countDistinct,
@@ -18,17 +30,6 @@ import {
   lt,
   sql
 } from 'drizzle-orm';
-import { db } from '@/db';
-import { analyticsEvents } from '@/db/schema';
-import { links } from '@/db/schema/links';
-import { CACHE_KEYS, CACHE_TTL } from '@/server/lib/cache-keys';
-import { getRedisClient } from '@/server/lib/redis';
-import { createLogger } from '@/server/lib/telemetry';
-import type {
-  AnalyticsBreakdown,
-  AnalyticsSummary,
-  TimeSeries
-} from '@/types/analytics.types';
 
 const logger = createLogger('analytics-service');
 const redis = getRedisClient();
@@ -114,6 +115,13 @@ interface ReferrerBreakdownItem {
  * Calculate start date from days ago
  */
 function getStartDate(days: number): Date {
+  if (!Number.isFinite(days) || days < 1 || days > 365) {
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      'Days must be between 1 and 365'
+    );
+  }
+
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
   return startDate;

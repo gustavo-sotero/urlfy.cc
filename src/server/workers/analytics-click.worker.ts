@@ -8,6 +8,7 @@
  * - Batch cache increments per link
  */
 
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { analyticsEvents, links } from '@/db/schema';
 import { lookupGeoIP } from '@/server/lib/geoip';
@@ -20,7 +21,6 @@ import { WorkerBase } from '@/server/lib/worker-base';
 import { cacheService, scanKeys } from '@/server/services/cache.service';
 import { parseUserAgent } from '@/server/services/useragent.service';
 import type { EnrichedClickEvent } from '@/types/analytics.types';
-import { eq, sql } from 'drizzle-orm';
 
 /**
  * Stream message shape for click events

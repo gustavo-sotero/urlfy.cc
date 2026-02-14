@@ -79,21 +79,21 @@ abstract class Controller {
 
 ### Services: Pure Business Logic
 
-Use `abstract class` with `static` methods for non-request-dependent logic:
+Use object literals with namespaced methods for non-request-dependent logic:
 
 ```typescript
 // ✅ Service: Pure business logic
-export abstract class LinkService {
-  static async create(input: CreateLinkInput, userId: string): Promise<Link> {
+export const LinkService = {
+  async create(input: CreateLinkInput, userId: string): Promise<Link> {
     // Pure data transformation, no HTTP concerns
     const code = await generateUniqueCode();
     return db.insert(links).values({ ...input, userId, shortCode: code });
-  }
+  },
 
-  static async getById(linkId: string): Promise<Link | null> {
+  async getById(linkId: string): Promise<Link | null> {
     return db.query.links.findFirst({ where: eq(links.id, linkId) });
   }
-}
+};
 ```
 
 **Characteristics:**
@@ -147,12 +147,18 @@ const app = new Elysia()
 ```
 Does it need access to HTTP specifics (headers, cookies, set)?
 ├─ Yes → Use Plugin/Macro
-└─ No  → Use Service (static class)
+└─ No  → Use Service (object literal)
 
 Does it depend on the request context?
 ├─ Yes → Plugin
 └─ No  → Service
 ```
+
+### Service Pattern Decision
+
+We use object literals (`export const XService = { ... }`) for module services.
+This provides namespace-like organization without the overhead of classes.
+Early planning docs referenced "abstract class with static methods", but implementation standardized on object literals for consistency and idiomatic JavaScript/TypeScript.
 
 ---
 

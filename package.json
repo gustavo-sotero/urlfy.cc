@@ -13,7 +13,7 @@
     "lint": "bunx biome check . --write",
     "type-check": "bunx tsc --noEmit",
     "format": "bunx biome format . --write --unsafe",
-    "test": "bun test src/ tests/integration tests/perf tests/security",
+    "test": "bun test src/ tests/unit tests/integration tests/perf tests/security",
     "test:watch": "bun test --watch src/ tests/integration tests/perf tests/security",
     "test:coverage": "bun test --coverage src/ tests/integration tests/perf tests/security",
     "test:unit": "bun test src/ tests/unit/",
