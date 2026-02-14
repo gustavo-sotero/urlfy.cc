@@ -8,8 +8,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import * as api from '@/lib/api';
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import * as api from '@/lib/api-client';
 
 // Mock fetch at the global level
 const mockFetch = mock((_input: RequestInfo | URL, _init?: RequestInit) =>

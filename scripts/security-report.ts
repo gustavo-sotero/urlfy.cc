@@ -306,10 +306,12 @@ async function checkInputValidation(): Promise<SecurityCheck[]> {
 
   for (const { url, name } of maliciousUrls) {
     try {
+      const testClientIp = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
       const res = await fetch(`${BASE_URL}/api/links`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Forwarded-For': testClientIp
         },
         body: JSON.stringify({ url })
       });

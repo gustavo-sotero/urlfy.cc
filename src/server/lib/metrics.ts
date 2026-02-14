@@ -1,6 +1,8 @@
+import { createLogger } from '@/server/lib/telemetry';
 import { metrics } from '@opentelemetry/api';
 
 const meter = metrics.getMeter('urlfy');
+const logger = createLogger('metrics');
 
 // ═══════════════════════════════════════════════════════════════════
 // COUNTERS
@@ -101,10 +103,9 @@ meter
       observableResult.observe(deletionCount, { queue: 'deletion' });
     } catch (error) {
       // Silently fail - don't break metrics collection
-      console.error(
-        'Failed to collect queue metrics:',
-        error instanceof Error ? error.message : String(error)
-      );
+      logger.error('Failed to collect queue metrics', {
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -131,10 +132,9 @@ meter
       observableResult.observe(deletionLength, { queue: 'deletion' });
     } catch (error) {
       // Silently fail - don't break metrics collection
-      console.error(
-        'Failed to collect stream length metrics:',
-        error instanceof Error ? error.message : String(error)
-      );
+      logger.error('Failed to collect stream length metrics', {
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 // ═══════════════════════════════════════════════════════════════════

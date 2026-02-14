@@ -7,8 +7,9 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import type { User } from '@/lib/auth';
+import { getRateLimit } from '@/server/config/rate-limits';
+import { rateLimiter } from '@/server/lib/rate-limiter';
 import {
   ErrorRef,
   PaginatedResponse,
@@ -16,6 +17,7 @@ import {
 } from '@/server/lib/response.schema';
 import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
 import {
   ADMIN_LINK_EXAMPLE,
   ADMIN_STATS_EXAMPLE,
@@ -24,6 +26,57 @@ import {
   GROWTH_STATS_EXAMPLE
 } from './admin.schema';
 import { AdminService } from './admin.service';
+
+const adminUserManagementLimit = getRateLimit('ADMIN_USER_MANAGEMENT');
+const adminUserManagementConfig = {
+  points: adminUserManagementLimit.max,
+  duration: Math.floor(adminUserManagementLimit.windowMs / 1000),
+  failClosed: adminUserManagementLimit.failClosed ?? true
+};
+
+async function enforceUserManagementRateLimit(
+  userId: string,
+  set: {
+    status?: number | string;
+    headers: Record<string, string | number | string[] | undefined>;
+  }
+): Promise<{
+  success: false;
+  error: {
+    code: 'RATE_LIMITED';
+    message: string;
+    retryAfter?: number;
+  };
+} | null> {
+  const result = await rateLimiter.checkTokenLimit(
+    userId,
+    adminUserManagementConfig
+  );
+
+  set.headers['X-RateLimit-Limit'] = String(adminUserManagementConfig.points);
+  set.headers['X-RateLimit-Remaining'] = String(result.remaining);
+  set.headers['X-RateLimit-Reset'] = String(
+    Math.floor(result.resetTime / 1000)
+  );
+
+  if (result.allowed) {
+    return null;
+  }
+
+  if (result.retryAfter) {
+    set.headers['Retry-After'] = String(result.retryAfter);
+  }
+
+  set.status = 429;
+  return {
+    success: false,
+    error: {
+      code: 'RATE_LIMITED',
+      message: 'Too many requests. Please try again later.',
+      retryAfter: result.retryAfter
+    }
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN CONTROLLER
@@ -107,7 +160,16 @@ export const adminController = new Elysia({ prefix: '/admin' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/users',
-    async ({ query }) => {
+    async ({ query, user, set }) => {
+      const adminUser = user as User;
+      const rateLimitError = await enforceUserManagementRateLimit(
+        adminUser.id,
+        set
+      );
+      if (rateLimitError) {
+        return rateLimitError;
+      }
+
       const result = await AdminService.listUsers(query);
 
       return {
@@ -130,6 +192,7 @@ export const adminController = new Elysia({ prefix: '/admin' })
         }),
         401: ErrorRef(401),
         403: ErrorRef(403),
+        429: ErrorRef(429),
         500: ErrorRef(500)
       }
     }
@@ -137,8 +200,15 @@ export const adminController = new Elysia({ prefix: '/admin' })
 
   .patch(
     '/users/:userId',
-    async ({ params, body, user, request }) => {
+    async ({ params, body, user, request, set }) => {
       const adminUser = user as User;
+      const rateLimitError = await enforceUserManagementRateLimit(
+        adminUser.id,
+        set
+      );
+      if (rateLimitError) {
+        return rateLimitError;
+      }
 
       // Extract IP address for audit log
       const ipAddress =
@@ -176,6 +246,7 @@ export const adminController = new Elysia({ prefix: '/admin' })
         401: ErrorRef(401),
         403: ErrorRef(403),
         404: ErrorRef(404),
+        429: ErrorRef(429),
         500: ErrorRef(500)
       }
     }

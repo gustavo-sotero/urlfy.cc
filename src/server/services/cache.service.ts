@@ -108,9 +108,10 @@ export class CacheService {
           const elapsed = (Date.now() - cachedAt) / 1000;
           remainingTtl = Math.max(0, originalTtl - elapsed);
         } else {
-          // Backward compatibility for entries cached before _cachedAt existed
-          const ttl = await redis.ttl(key);
-          remainingTtl = ttl > 0 ? ttl : originalTtl;
+          // Backward compatibility for entries cached before _cachedAt existed.
+          // Avoid extra TTL RTT on hot path: assume full TTL for legacy entries.
+          // Legacy entries will be rewritten with _cachedAt on next cache refresh.
+          remainingTtl = originalTtl;
         }
 
         if (remainingTtl < originalTtl * 0.1 && Math.random() < 0.1) {
