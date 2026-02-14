@@ -31,8 +31,8 @@ export async function invalidateSessionCache(): Promise<void> {
         cookieStore.delete(cookieName);
       }
     }
-  } catch (error) {
-    console.warn('Failed to invalidate session cache:', error);
+  } catch (_error) {
+    // Non-critical — cookie cleanup failure doesn't affect auth
   }
 }
 

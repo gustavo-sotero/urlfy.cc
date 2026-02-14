@@ -1,8 +1,6 @@
 // src/app/(admin)/admin/page.tsx
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
 import { StatsCards } from '@/components/admin';
 import { AnalyticsErrorBoundary } from '@/components/admin/analytics-error-boundary';
 import { GrowthChart } from '@/components/admin/charts/growth-chart';
@@ -10,11 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getAdminStats, getGrowthStats } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 
 export default function AdminDashboard() {
   const [growthRange, setGrowthRange] = useState<'7d' | '30d'>('7d');
 
-  // Query for admin stats
+  // Query for admin stats (adaptive polling: backs off on consecutive errors)
   const {
     data: stats,
     isLoading: statsLoading,
@@ -22,7 +22,16 @@ export default function AdminDashboard() {
   } = useQuery({
     queryKey: ['admin', 'stats'],
     queryFn: getAdminStats,
-    refetchInterval: 30_000 // Refetch every 30 seconds
+    staleTime: 30_000,
+    refetchInterval: (query) => {
+      if (query.state.error) {
+        // Double the interval on each consecutive failure, cap at 2 min
+        const failures = query.state.errorUpdateCount ?? 1;
+        return Math.min(30_000 * 2 ** failures, 120_000);
+      }
+      return 30_000;
+    },
+    refetchIntervalInBackground: false
   });
 
   // Query for growth stats (reactive to range change)
@@ -33,7 +42,15 @@ export default function AdminDashboard() {
   } = useQuery({
     queryKey: ['admin', 'growth', growthRange],
     queryFn: () => getGrowthStats(growthRange),
-    refetchInterval: 60_000 // Refetch every minute
+    staleTime: 60_000,
+    refetchInterval: (query) => {
+      if (query.state.error) {
+        const failures = query.state.errorUpdateCount ?? 1;
+        return Math.min(60_000 * 2 ** failures, 300_000);
+      }
+      return 60_000;
+    },
+    refetchIntervalInBackground: false
   });
 
   return (

@@ -8,13 +8,13 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { jwtPlugin } from '@/server/config/plugins';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth } from '@/server/middleware/auth.middleware';
 import * as qrService from '@/server/services/qr.service';
 import { validateUrlSafe } from '@/server/services/url-validator';
+import { Elysia, t } from 'elysia';
 import { LinkPasswordService } from './link-password.service';
 import {
   LinkCodeParam,
@@ -240,16 +240,19 @@ export const publicLinksController = new Elysia()
         throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
       }
 
+      const isPasswordProtected = !!link.passwordHash;
+
       return {
         success: true as const,
         data: {
           shortCode: link.shortCode,
-          originalUrl: link.originalUrl,
+          // Security: never expose destination URL for password-protected links
+          ...(isPasswordProtected ? {} : { originalUrl: link.originalUrl }),
           metaTitle: link.metaTitle,
           metaDescription: link.metaDescription,
           metaImage: link.metaImage,
           createdAt: link.createdAt.toISOString(),
-          isPasswordProtected: !!link.passwordHash
+          isPasswordProtected
         }
       };
     },

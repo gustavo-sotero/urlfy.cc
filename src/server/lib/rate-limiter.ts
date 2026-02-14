@@ -164,7 +164,94 @@ class RateLimiter {
   private redis = getRedisClient();
 
   /**
-   * Check rate limit using sliding window algorithm
+   * Lua script for atomic sliding-window rate limiting.
+   *
+   * KEYS[1] = sorted set key
+   * ARGV[1] = window start timestamp (ms)
+   * ARGV[2] = current timestamp (ms)
+   * ARGV[3] = max points allowed
+   * ARGV[4] = TTL in seconds
+   * ARGV[5] = unique member value
+   *
+   * Returns: [allowed (0|1), count after operation]
+   */
+  private static readonly SLIDING_WINDOW_LUA = `
+local key = KEYS[1]
+local windowStart = tonumber(ARGV[1])
+local now = tonumber(ARGV[2])
+local maxPoints = tonumber(ARGV[3])
+local ttl = tonumber(ARGV[4])
+local member = ARGV[5]
+
+-- Remove entries outside the sliding window
+redis.call('ZREMRANGEBYSCORE', key, '-inf', windowStart)
+
+-- Count current requests in window
+local count = redis.call('ZCARD', key)
+
+if count < maxPoints then
+  -- Add current request and set expiry
+  redis.call('ZADD', key, now, member)
+  redis.call('EXPIRE', key, ttl)
+  return {1, count + 1}
+end
+
+return {0, count}
+`;
+
+  private scriptSha: string | null = null;
+
+  /**
+   * Load the Lua script into Redis and cache its SHA.
+   * Falls back to EVAL if EVALSHA fails (NOSCRIPT).
+   */
+  private async evalSlidingWindow(
+    redisKey: string,
+    windowStart: number,
+    now: number,
+    maxPoints: number,
+    ttl: number,
+    member: string
+  ): Promise<[number, number]> {
+    const args = [
+      redisKey,
+      String(windowStart),
+      String(now),
+      String(maxPoints),
+      String(ttl),
+      member
+    ];
+
+    // Try EVALSHA first (cached script)
+    if (this.scriptSha) {
+      try {
+        const result = await this.redis.send('EVALSHA', [
+          this.scriptSha,
+          '1',
+          ...args
+        ]);
+        return result as [number, number];
+      } catch (err) {
+        // NOSCRIPT — script not loaded yet, fall through to EVAL
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes('NOSCRIPT')) throw err;
+        this.scriptSha = null;
+      }
+    }
+
+    // Load script and cache SHA
+    const sha = (await this.redis.send('SCRIPT', [
+      'LOAD',
+      RateLimiter.SLIDING_WINDOW_LUA
+    ])) as string;
+    this.scriptSha = sha;
+
+    const result = await this.redis.send('EVALSHA', [sha, '1', ...args]);
+    return result as [number, number];
+  }
+
+  /**
+   * Check rate limit using atomic sliding window Lua script
    */
   async checkLimit(
     key: string,
@@ -176,45 +263,19 @@ class RateLimiter {
     const windowStart = now - config.duration * 1000;
 
     try {
-      // Use ZREMRANGEBYSCORE to remove old entries
-      // Then ZCARD to count current requests
-      // Then ZADD to add new request
-      // Execute sequentially since Bun RedisClient doesn't support pipeline
-
-      // Remove entries outside the sliding window
-      await this.redis.send('ZREMRANGEBYSCORE', [
+      const member = `${now}-${Math.random()}`;
+      const [allowed, count] = await this.evalSlidingWindow(
         redisKey,
-        '-inf',
-        String(windowStart)
-      ]);
-
-      // Count current requests in window
-      const currentCount = (await this.redis.send('ZCARD', [
-        redisKey
-      ])) as number;
-
-      // Check if limit exceeded
-      const count = Number(currentCount) || 0;
-      const allowsRequest = count < config.points;
-
-      if (allowsRequest) {
-        // Add current request
-        await this.redis.send('ZADD', [
-          redisKey,
-          String(now),
-          `${now}-${Math.random()}`
-        ]);
-
-        // Set expiration on the key
-        await this.redis.send('EXPIRE', [redisKey, String(config.duration)]);
-      }
-
-      const remaining = Math.max(
-        0,
-        config.points - count - (allowsRequest ? 1 : 0)
+        windowStart,
+        now,
+        config.points,
+        config.duration,
+        member
       );
 
-      if (!allowsRequest) {
+      const remaining = Math.max(0, config.points - count);
+
+      if (!allowed) {
         logger.warn('Rate limit exceeded', {
           key,
           count,
@@ -223,10 +284,10 @@ class RateLimiter {
       }
 
       return {
-        allowed: allowsRequest,
+        allowed: allowed === 1,
         remaining,
         resetTime: now + config.duration * 1000,
-        retryAfter: allowsRequest ? undefined : config.duration
+        retryAfter: allowed === 1 ? undefined : config.duration
       };
     } catch (error) {
       logger.error('Rate limiter Redis error', {

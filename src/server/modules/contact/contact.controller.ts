@@ -7,10 +7,11 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
+import { getClientIp } from '@/server/lib/ip';
 import { rateLimiter } from '@/server/lib/rate-limiter';
 import { createLogger } from '@/server/lib/telemetry';
+import { Elysia } from 'elysia';
 import { ContactModels } from './contact.schema';
 import { ContactService } from './contact.service';
 
@@ -34,11 +35,8 @@ export const contactController = new Elysia({ prefix: '/contact' })
   .post(
     '/',
     async ({ body, set, request }) => {
-      // 1. Extract IP address
-      const ip =
-        request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-        request.headers.get('x-real-ip') ||
-        'unknown';
+      // 1. Extract IP address using centralized trusted-proxy-aware helper
+      const ip = getClientIp(request);
 
       // 2. Rate limiting (30 requests per hour per IP)
       const rateLimitResult = await rateLimiter.checkIPLimit(
@@ -55,7 +53,6 @@ export const contactController = new Elysia({ prefix: '/contact' })
 
       if (!rateLimitResult.allowed) {
         logger.warn('Rate limit exceeded for contact form', {
-          ip,
           remaining: rateLimitResult.remaining
         });
 
@@ -81,7 +78,6 @@ export const contactController = new Elysia({ prefix: '/contact' })
 
       logger.info('Contact message created', {
         id: result.id,
-        email: body.email,
         telegramSent: result.telegramSent
       });
 

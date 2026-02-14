@@ -8,12 +8,14 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { redis } from '@/server/lib/redis';
+import { requireUser } from '@/server/lib/require-user';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
 import { auditLogService } from '@/server/services/audit.service';
 import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
+import { Elysia, t } from 'elysia';
 import {
   ApiKeyCreateBody,
   ApiKeyIdParam,
@@ -36,14 +38,6 @@ function parsePermissions(
 // ═══════════════════════════════════════════════════════════════════
 // AUTH ROUTES
 // ═══════════════════════════════════════════════════════════════════
-
-const unauthorizedResponse = {
-  success: false as const,
-  error: {
-    code: 'UNAUTHORIZED',
-    message: 'Authentication required'
-  }
-};
 
 const sessionRoutes = new Elysia({ prefix: '/auth' })
   .use(optionalAuth)
@@ -110,11 +104,8 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/two-factor/status',
-    async ({ user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user }) => {
+      requireUser(user);
 
       try {
         const status = await AuthService.getTwoFactorStatus(user.id);
@@ -153,11 +144,10 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/sessions',
-    async ({ user, session, set }) => {
-      if (!user || !session) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user, session }) => {
+      requireUser(user);
+      if (!session)
+        throw new AppError(ErrorCode.UNAUTHORIZED, 'Authentication required');
 
       const sessions = await AuthService.listActiveSessions(user.id);
 
@@ -191,11 +181,8 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
   // ─────────────────────────────────────────────────────────────────
   .delete(
     '/sessions/:sessionId',
-    async ({ params, user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ params, user }) => {
+      requireUser(user);
 
       const revoked = await AuthService.revokeSession(
         params.sessionId,
@@ -240,14 +227,14 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
 
   // ─────────────────────────────────────────────────────────────────
   // DELETE /auth/sessions - Revoke all other sessions
+  // Also aliased as POST /sessions/revoke-others and /sessions/revoke-all
   // ─────────────────────────────────────────────────────────────────
   .delete(
     '/sessions',
-    async ({ user, session, set }) => {
-      if (!user || !session) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user, session }) => {
+      requireUser(user);
+      if (!session)
+        throw new AppError(ErrorCode.UNAUTHORIZED, 'Authentication required');
 
       await AuthService.revokeOtherSessions(user.id, session.id);
 
@@ -273,81 +260,7 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
         401: ErrorRef(401)
       }
     }
-  )
-
-  // ─────────────────────────────────────────────────────────────────
-  // POST /auth/sessions/revoke-others - Revoke all other sessions (alias)
-  // ─────────────────────────────────────────────────────────────────
-  .post(
-    '/sessions/revoke-others',
-    async ({ user, session, set }) => {
-      if (!user || !session) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
-
-      await AuthService.revokeOtherSessions(user.id, session.id);
-
-      return {
-        success: true as const,
-        data: {
-          message: 'All other sessions revoked successfully'
-        }
-      };
-    },
-    {
-      detail: {
-        tags: ['Auth', 'Sessions'],
-        summary: 'Revoke all other sessions',
-        description: 'Logout from all devices except the current one'
-      },
-      response: {
-        200: SuccessResponse(
-          t.Object({
-            message: t.String()
-          })
-        ),
-        401: ErrorRef(401)
-      }
-    }
   );
-
-// ─────────────────────────────────────────────────────────────────
-// POST /auth/sessions/revoke-all - Revoke all other sessions (legacy alias)
-// ─────────────────────────────────────────────────────────────────
-sessionRoutes.post(
-  '/sessions/revoke-all',
-  async ({ user, session, set }) => {
-    if (!user || !session) {
-      set.status = 401;
-      return unauthorizedResponse;
-    }
-
-    await AuthService.revokeOtherSessions(user.id, session.id);
-
-    return {
-      success: true as const,
-      data: {
-        message: 'All other sessions revoked successfully'
-      }
-    };
-  },
-  {
-    detail: {
-      tags: ['Auth', 'Sessions'],
-      summary: 'Revoke all other sessions',
-      description: 'Logout from all devices except the current one'
-    },
-    response: {
-      200: SuccessResponse(
-        t.Object({
-          message: t.String()
-        })
-      ),
-      401: ErrorRef(401)
-    }
-  }
-);
 
 // ═══════════════════════════════════════════════════════════════════
 // API KEYS ROUTES
@@ -362,11 +275,8 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/',
-    async ({ user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user }) => {
+      requireUser(user);
 
       const keys = await AuthService.listApiKeys(user.id);
 
@@ -404,11 +314,8 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/',
-    async ({ user, body, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user, body }) => {
+      requireUser(user);
 
       const rateLimitMax = body.rateLimit ?? 1000;
       const rateLimitTimeWindow = 60 * 60 * 1000; // 1 hour
@@ -466,11 +373,8 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
   // ─────────────────────────────────────────────────────────────────
   .patch(
     '/:keyId',
-    async ({ user, params, body, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user, params, body }) => {
+      requireUser(user);
 
       const updated = await AuthService.updateApiKey(user.id, params.keyId, {
         name: body.name,
@@ -478,13 +382,7 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
       });
 
       if (!updated) {
-        return {
-          success: false as const,
-          error: {
-            code: 'API_KEY_NOT_FOUND',
-            message: 'API key not found'
-          }
-        };
+        throw new AppError(ErrorCode.RESOURCE_NOT_FOUND, 'API key not found');
       }
 
       return {
@@ -526,22 +424,13 @@ const apiKeysRoutes = new Elysia({ prefix: '/auth/api-keys' })
   // ─────────────────────────────────────────────────────────────────
   .delete(
     '/:keyId',
-    async ({ user, params, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user, params }) => {
+      requireUser(user);
 
       const deleted = await AuthService.deleteApiKey(user.id, params.keyId);
 
       if (!deleted) {
-        return {
-          success: false as const,
-          error: {
-            code: 'API_KEY_NOT_FOUND',
-            message: 'API key not found'
-          }
-        };
+        throw new AppError(ErrorCode.RESOURCE_NOT_FOUND, 'API key not found');
       }
 
       // Invalidate rate limit cache

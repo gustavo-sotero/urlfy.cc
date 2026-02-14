@@ -7,13 +7,15 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
+import { requireUser } from '@/server/lib/require-user';
 import {
   ErrorRef,
   ResponseModels,
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
 import {
   API_KEY_CREATED_EXAMPLE,
   API_KEY_LIST_EXAMPLE,
@@ -21,14 +23,6 @@ import {
   ApiKeysModel
 } from './api-keys.schema';
 import { ApiKeysService } from './api-keys.service';
-
-const unauthorizedResponse = {
-  success: false as const,
-  error: {
-    code: 'UNAUTHORIZED',
-    message: 'Authentication required'
-  }
-};
 
 export const apiKeysController = new Elysia({
   prefix: '/keys',
@@ -43,11 +37,8 @@ export const apiKeysController = new Elysia({
   // ─── List Keys ────────────────────────────────────────────────
   .get(
     '/',
-    async ({ user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ user }) => {
+      requireUser(user);
 
       const keys = await ApiKeysService.listByUser(user.id);
 
@@ -86,23 +77,13 @@ export const apiKeysController = new Elysia({
   // ─── Get Single Key ─────────────────────────────────────────────
   .get(
     '/:id',
-    async ({ params, user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ params, user }) => {
+      requireUser(user);
 
       const key = await ApiKeysService.getById(params.id, user.id);
 
       if (!key) {
-        set.status = 404;
-        return {
-          success: false,
-          error: {
-            code: 'KEY_NOT_FOUND',
-            message: 'API key not found'
-          }
-        };
+        throw new AppError(ErrorCode.RESOURCE_NOT_FOUND, 'API key not found');
       }
 
       // Serialize dates to strings
@@ -140,10 +121,7 @@ export const apiKeysController = new Elysia({
   .post(
     '/',
     async ({ body, user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+      requireUser(user);
 
       const createdKey = await ApiKeysService.create(user.id, {
         name: body.name,
@@ -188,11 +166,8 @@ export const apiKeysController = new Elysia({
   // ─── Revoke Key ─────────────────────────────────────────────────
   .post(
     '/:id/revoke',
-    async ({ params, body, user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ params, body, user }) => {
+      requireUser(user);
 
       const success = await ApiKeysService.revoke(
         params.id,
@@ -201,14 +176,10 @@ export const apiKeysController = new Elysia({
       );
 
       if (!success) {
-        set.status = 404;
-        return {
-          success: false,
-          error: {
-            code: 'KEY_NOT_FOUND',
-            message: 'API key not found or already revoked'
-          }
-        };
+        throw new AppError(
+          ErrorCode.RESOURCE_NOT_FOUND,
+          'API key not found or already revoked'
+        );
       }
 
       return {
@@ -244,23 +215,13 @@ export const apiKeysController = new Elysia({
   // ─── Rollover Key ───────────────────────────────────────────────
   .post(
     '/:id/rollover',
-    async ({ params, user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ params, user }) => {
+      requireUser(user);
 
       const newKey = await ApiKeysService.rollover(params.id, user.id);
 
       if (!newKey) {
-        set.status = 404;
-        return {
-          success: false,
-          error: {
-            code: 'KEY_NOT_FOUND',
-            message: 'API key not found'
-          }
-        };
+        throw new AppError(ErrorCode.RESOURCE_NOT_FOUND, 'API key not found');
       }
 
       // Serialize dates to strings
@@ -299,23 +260,13 @@ export const apiKeysController = new Elysia({
   // ─── Delete Key (Hard) ──────────────────────────────────────────
   .delete(
     '/:id',
-    async ({ params, user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return unauthorizedResponse;
-      }
+    async ({ params, user }) => {
+      requireUser(user);
 
       const success = await ApiKeysService.delete(params.id, user.id);
 
       if (!success) {
-        set.status = 404;
-        return {
-          success: false,
-          error: {
-            code: 'KEY_NOT_FOUND',
-            message: 'API key not found'
-          }
-        };
+        throw new AppError(ErrorCode.RESOURCE_NOT_FOUND, 'API key not found');
       }
 
       return {

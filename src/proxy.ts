@@ -18,10 +18,9 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import createMiddleware from 'next-intl/middleware';
 import { buildCspDirectives } from '@/lib/csp';
-import { handleRedirect } from '@/server/middleware/redirect.middleware';
+import createMiddleware from 'next-intl/middleware';
+import { NextRequest, NextResponse } from 'next/server';
 import { routing } from './i18n/routing';
 
 // Initialize next-intl middleware
@@ -40,6 +39,7 @@ const SYSTEM_ROUTES = [
   '/logout', // Logout
   '/settings', // Settings
   '/internal', // Internal routes
+  '/r', // Redirect route handler (hot path)
   '/_next', // Next.js internals
   '/favicon.ico', // Favicon
   '/robots.txt', // Robots
@@ -159,8 +159,12 @@ export async function proxy(req: NextRequest) {
     return applyCspHeaders(response, csp, nonce);
   }
 
-  // Process the redirect through the redirect engine
-  const response = await handleRedirect(requestWithNonce, shortCode);
+  // Process the redirect through the Node.js route handler
+  // (eliminates the previous Edge → internal API HTTP hop)
+  const rewriteUrl = new URL(`/r/${shortCode}${req.nextUrl.search}`, req.url);
+  const response = NextResponse.rewrite(rewriteUrl, {
+    request: { headers: requestHeaders }
+  });
   return applyCspHeaders(response, csp, nonce);
 }
 

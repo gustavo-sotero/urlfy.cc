@@ -1,6 +1,6 @@
 // src/db/schema/links.ts
 
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
   index,
@@ -89,6 +89,15 @@ export const links = pgTable(
       table.isActive,
       table.isBanned,
       table.expiresAt
+    ),
+    // GIN trigram indexes for admin ILIKE search (pg_trgm)
+    index('idx_links_short_code_trgm').using(
+      'gin',
+      sql`${table.shortCode} gin_trgm_ops`
+    ),
+    index('idx_links_original_url_trgm').using(
+      'gin',
+      sql`${table.originalUrl} gin_trgm_ops`
     )
   ]
 );

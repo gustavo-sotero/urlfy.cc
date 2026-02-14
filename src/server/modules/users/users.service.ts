@@ -8,7 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   account as accountTable,
@@ -17,9 +16,10 @@ import {
   twoFactor as twoFactorTable,
   type User,
   user as userTable
-} from '@/db/schema/auth';
+} from '@/db/schema';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { auditLogService } from '@/server/services/audit.service';
+import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 
 /**
  * User Service - Handles user-related operations

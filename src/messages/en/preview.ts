@@ -2,6 +2,8 @@ export const Preview = {
   title: 'Link Preview',
   shortUrl: 'Short URL',
   destination: 'Destination',
+  destinationHidden:
+    'This link is password protected. The destination is hidden until the password is verified.',
   metaTitle: 'Title',
   metaDescription: 'Description',
   clicks: '{count} clicks',

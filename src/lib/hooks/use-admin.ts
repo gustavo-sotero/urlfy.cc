@@ -3,6 +3,8 @@
  * React Query hooks for admin operations
  */
 
+import * as api from '@/lib/api';
+import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
 import {
   type UseMutationOptions,
   type UseQueryOptions,
@@ -10,8 +12,6 @@ import {
   useQuery,
   useQueryClient
 } from '@tanstack/react-query';
-import * as api from '@/lib/api';
-import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
 import { linkKeys } from './use-links';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -60,7 +60,17 @@ export function useQueueStats(autoRefresh = true) {
     queryKey: adminKeys.queues(),
     queryFn: () => api.getQueueStats(),
     staleTime: 5_000,
-    refetchInterval: autoRefresh ? 5_000 : false
+    refetchInterval: autoRefresh
+      ? (query) => {
+          if (query.state.error) {
+            // Exponential backoff: 10s, 20s, 40s, max 60s
+            const failures = query.state.errorUpdateCount ?? 1;
+            return Math.min(10_000 * 2 ** (failures - 1), 60_000);
+          }
+          return 5_000;
+        }
+      : false,
+    refetchIntervalInBackground: false
   });
 }
 

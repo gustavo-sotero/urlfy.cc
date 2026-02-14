@@ -3,6 +3,7 @@ import type { InMemoryValue, ZSetEntry } from './types';
 
 const inMemoryStore = new Map<string, InMemoryValue>();
 const inMemoryZSets = new Map<string, ZSetEntry[]>();
+const inMemorySets = new Map<string, Set<string>>();
 
 function isExpired(entry?: InMemoryValue): boolean {
   if (!entry?.expiresAt) return false;
@@ -30,6 +31,7 @@ function deleteStoreKeys(keys: string[]): number {
   for (const key of keys) {
     if (inMemoryStore.delete(key)) count++;
     if (inMemoryZSets.delete(key)) count++;
+    if (inMemorySets.delete(key)) count++;
   }
   return count;
 }
@@ -122,6 +124,7 @@ export function createInMemoryRedisClient(): RedisClient {
         case 'FLUSHALL':
           inMemoryStore.clear();
           inMemoryZSets.clear();
+          inMemorySets.clear();
           return 'OK';
         case 'ZREMRANGEBYSCORE': {
           const [key, min, max] = args;
@@ -165,6 +168,36 @@ export function createInMemoryRedisClient(): RedisClient {
         }
         case 'PEXPIRE': {
           return client.pexpire(args[0], Number(args[1]));
+        }
+        case 'SADD': {
+          const [key, ...members] = args;
+          let set = inMemorySets.get(key);
+          if (!set) {
+            set = new Set<string>();
+            inMemorySets.set(key, set);
+          }
+          let added = 0;
+          for (const m of members) {
+            if (!set.has(m)) {
+              set.add(m);
+              added++;
+            }
+          }
+          return added;
+        }
+        case 'SMEMBERS': {
+          const set = inMemorySets.get(args[0]);
+          return set ? Array.from(set) : [];
+        }
+        case 'SREM': {
+          const [key, ...members] = args;
+          const set = inMemorySets.get(key);
+          if (!set) return 0;
+          let removed = 0;
+          for (const m of members) {
+            if (set.delete(m)) removed++;
+          }
+          return removed;
         }
         default:
           return null;

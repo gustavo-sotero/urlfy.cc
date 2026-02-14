@@ -48,6 +48,9 @@ export const CACHE_KEYS = {
     to: string
   ) => `analytics:breakdown:${linkId}:${type}:${from}:${to}`,
 
+  /** Set tracking cached analytics keys per link (for deterministic invalidation) */
+  ANALYTICS_KEYS_SET: (linkId: string) => `analytics:keys:${linkId}`,
+
   // ═══════════════════════════════════════════════════════════════════
   // GEOLOCATION CACHE
   // ═══════════════════════════════════════════════════════════════════
@@ -66,8 +69,9 @@ export const CACHE_KEYS = {
   // IDEMPOTENCY
   // ═══════════════════════════════════════════════════════════════════
 
-  /** Idempotency key for safe retries (TTL: 24 horas) */
-  IDEMPOTENCY: (key: string) => `idempotency:${key}`,
+  /** Idempotency key for safe retries — scoped by principal + route (TTL: 24h) */
+  IDEMPOTENCY: (principal: string, route: string, key: string) =>
+    `idempotency:${principal}:${route}:${key}`,
 
   // ═══════════════════════════════════════════════════════════════════
   // DISTRIBUTED LOCKS
@@ -101,6 +105,9 @@ export const CACHE_TTL = {
   ANALYTICS_SUMMARY: 300, // 5 minutes
   ANALYTICS_TIMESERIES: 300, // 5 minutes
   ANALYTICS_BREAKDOWN: 300, // 5 minutes
+
+  /** Analytics key tracking set — outlives individual cache entries */
+  ANALYTICS_KEYS_SET: 360, // 6 minutes (TTL headroom over cached data)
 
   /** GeoIP */
   GEO: 86400, // 24 hours

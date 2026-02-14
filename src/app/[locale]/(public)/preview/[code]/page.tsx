@@ -1,11 +1,11 @@
 // src/app/(public)/preview/[code]/page.tsx
 
-import { BarChart2, Calendar, ExternalLink, Lock } from 'lucide-react';
-import { notFound } from 'next/navigation';
-import { getLocale, getTranslations } from 'next-intl/server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
+import { BarChart2, Calendar, ExternalLink, Lock } from 'lucide-react';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { notFound } from 'next/navigation';
 
 interface Props {
   params: Promise<{ code: string }>;
@@ -66,13 +66,22 @@ export default async function PreviewPage({ params }: Props) {
               <p className="text-lg font-mono">urlfy.cc/{link.shortCode}</p>
             </div>
 
-            {/* Original URL */}
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                {t('destination')}
-              </p>
-              <p className="break-all text-lg">{link.originalUrl}</p>
-            </div>
+            {/* Original URL (hidden for password-protected links) */}
+            {link.isPasswordProtected ? (
+              <div className="rounded-md bg-muted/50 p-4 text-center">
+                <Lock className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {t('destinationHidden')}
+                </p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t('destination')}
+                </p>
+                <p className="break-all text-lg">{link.originalUrl}</p>
+              </div>
+            )}
 
             {/* Meta Information */}
             {link.metaTitle && (

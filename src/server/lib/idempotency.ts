@@ -7,13 +7,31 @@ const logger = createLogger('idempotency');
 const TTL = 86400; // 24 hours
 
 /**
+ * Build a scoped idempotency cache key.
+ * Format: `idempotency:{principal}:{route}:{key}`
+ *
+ * @param key       - Caller-supplied idempotency key
+ * @param principal - User ID, API key ID, or 'guest'
+ * @param route     - Logical route identifier (e.g. 'POST /links')
+ */
+function buildScopedKey(key: string, principal: string, route: string): string {
+  return `idempotency:${principal}:${route}:${key}`;
+}
+
+/**
  * Check whether an idempotency key was already processed
- * @param key - Idempotency key
+ * @param key       - Idempotency key
+ * @param principal - User ID, API key ID, or 'guest'
+ * @param route     - Logical route identifier
  * @returns Previously created resource ID or null
  */
-export async function checkIdempotency(key: string): Promise<string | null> {
+export async function checkIdempotency(
+  key: string,
+  principal: string,
+  route: string
+): Promise<string | null> {
   try {
-    return await redis.get(`idempotency:${key}`);
+    return await redis.get(buildScopedKey(key, principal, route));
   } catch (error) {
     logger.warn('Redis unavailable for idempotency check', {
       error: error instanceof Error ? error.message : String(error)
@@ -24,15 +42,24 @@ export async function checkIdempotency(key: string): Promise<string | null> {
 
 /**
  * Store result of an idempotent operation
- * @param key - Idempotency key
+ * @param key        - Idempotency key
  * @param resourceId - Created resource ID
+ * @param principal  - User ID, API key ID, or 'guest'
+ * @param route      - Logical route identifier
  */
 export async function setIdempotency(
   key: string,
-  resourceId: string
+  resourceId: string,
+  principal: string,
+  route: string
 ): Promise<void> {
   try {
-    await redis.set(`idempotency:${key}`, resourceId, 'EX', TTL);
+    await redis.set(
+      buildScopedKey(key, principal, route),
+      resourceId,
+      'EX',
+      TTL
+    );
   } catch (error) {
     logger.warn('Failed to set idempotency key', {
       error: error instanceof Error ? error.message : String(error)

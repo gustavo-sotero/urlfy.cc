@@ -1,10 +1,10 @@
-import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { apiKey as apiKeyTable } from '@/db/schema/auth';
 import type { User } from '@/lib/auth';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
+import { eq, sql } from 'drizzle-orm';
 
 const logger = createLogger('auth-helpers');
 
@@ -74,7 +74,6 @@ export async function enforceApiKeyRateLimit(
   maxRequests: number,
   timeWindowMs: number
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
-  // Try-catch will handle Redis being unavailable
   const key = `rl:apikey:${apiKeyId}`;
 
   try {
@@ -89,14 +88,21 @@ export async function enforceApiKeyRateLimit(
       const retryAfter = ttl > 0 ? Math.ceil(ttl / 1000) : undefined;
       return { allowed: false, retryAfter };
     }
-  } catch (error) {
-    logger.warn('API key rate limit check failed', {
-      error: error instanceof Error ? error.message : String(error),
-      apiKeyId
-    });
-  }
 
-  return { allowed: true };
+    return { allowed: true };
+  } catch (error) {
+    // FAIL-CLOSED: deny traffic when Redis is unavailable to prevent
+    // unlimited API key usage during outages
+    logger.error(
+      'API key rate limit check failed — denying request (fail-closed)',
+      {
+        error: error instanceof Error ? error.message : String(error),
+        apiKeyId
+      }
+    );
+
+    return { allowed: false, retryAfter: 30 };
+  }
 }
 
 /**

@@ -60,7 +60,8 @@ async function main() {
   try {
     validateEnv();
   } catch (_error) {
-    console.error('❌ Environment validation failed');
+    // Logger not yet initialized — console is correct here
+    console.error('[workers] Environment validation failed');
     process.exit(1);
   }
 

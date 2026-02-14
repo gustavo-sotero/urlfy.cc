@@ -88,7 +88,8 @@ export function getDatabase(): DrizzleDatabase {
       error instanceof Error
         ? error
         : new Error('Failed to create database instance');
-    console.error('❌ Failed to create database instance:', error);
+    // console is intentional — DB module initializes before telemetry
+    console.error('[db] Failed to create database instance:', error);
     throw connectionError;
   }
 }
@@ -113,7 +114,8 @@ export async function initDatabase(): Promise<void> {
     // Force actual connection — Bun SQL is lazy, so this is where the
     // first TCP/TLS handshake happens.
     await sqlConnection.unsafe('SELECT 1');
-    console.log('✅ Database connection established (Bun SQL)');
+    // console is intentional — DB module initializes before telemetry
+    console.log('[db] Database connection established (Bun SQL)');
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     connectionError = err instanceof Error ? err : new Error(message);

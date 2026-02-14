@@ -262,17 +262,30 @@ export type LinkResponseType = Static<typeof LinkResponse>;
 export const LinkPreviewResponse = t.Object(
   {
     shortCode: t.String({ examples: ['abc123'] }),
-    originalUrl: t.String({ examples: ['https://example.com'] }),
+    originalUrl: t.Optional(
+      t.Nullable(
+        t.String({
+          description:
+            'Destination URL. Omitted when link is password-protected.',
+          examples: ['https://example.com']
+        })
+      )
+    ),
     metaTitle: t.Nullable(t.String({ examples: ['Example Domain'] })),
     metaDescription: t.Nullable(
       t.String({ examples: ['This domain is for use in examples.'] })
     ),
     metaImage: t.Nullable(t.String()),
     createdAt: t.String({ examples: ['2026-01-06T12:00:00Z'] }),
-    isPasswordProtected: t.Boolean({ examples: [false] })
+    isPasswordProtected: t.Boolean({
+      description:
+        'When true, originalUrl is omitted and a password is required to access the link.',
+      examples: [false]
+    })
   },
   {
-    description: 'Link preview information for public display',
+    description:
+      'Link preview information for public display. Password-protected links do not expose their destination URL.',
     examples: [
       {
         shortCode: 'abc123',
@@ -282,6 +295,14 @@ export const LinkPreviewResponse = t.Object(
         metaImage: null,
         createdAt: '2026-01-06T12:00:00Z',
         isPasswordProtected: false
+      },
+      {
+        shortCode: 'xyz789',
+        metaTitle: null,
+        metaDescription: null,
+        metaImage: null,
+        createdAt: '2026-01-06T12:00:00Z',
+        isPasswordProtected: true
       }
     ]
   }

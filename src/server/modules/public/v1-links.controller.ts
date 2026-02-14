@@ -9,7 +9,6 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { Scopes } from '@/server/config/scopes';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import {
@@ -23,14 +22,65 @@ import { AnalyticsService } from '@/server/modules/analytics';
 import {
   LINK_RESPONSE_EXAMPLE,
   LINK_STATS_EXAMPLE,
+  type LinkCreateBodyType,
   LinksModel
 } from '@/server/modules/links';
 import { LinkLifecycleService } from '@/server/modules/links/link-lifecycle.service';
 import { LinkService } from '@/server/modules/links/links.service';
+import { Elysia, t } from 'elysia';
 
 /**
  * Helper type for context with API key
  */
+
+// ─── Shared handler for link creation ─────────────────────────────
+const createLinkHandler = async ({
+  body,
+  apiKey
+}: {
+  body: LinkCreateBodyType;
+  apiKey?: { userId?: string };
+}) => {
+  const link = await LinkService.createLink(
+    {
+      url: body.url,
+      customAlias: body.customAlias,
+      expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+      maxClicks: body.maxClicks,
+      password: body.password,
+      redirectType: body.redirectType,
+      metaTitle: body.metaTitle,
+      metaDescription: body.metaDescription,
+      metaImage: body.metaImage,
+      utmSource: body.utmSource,
+      utmMedium: body.utmMedium,
+      utmCampaign: body.utmCampaign,
+      tags: body.tags,
+      notes: body.notes
+    },
+    apiKey?.userId,
+    'api-key' // IP hash placeholder for API keys
+  );
+
+  return {
+    success: true as const,
+    data: LinkService.formatLinkResponse(link)
+  };
+};
+
+const createLinkResponseSchema = {
+  201: SuccessResponse(t.Ref('links.response'), {
+    description: 'Link created successfully',
+    example: LINK_RESPONSE_EXAMPLE
+  }),
+  400: ErrorRef(400),
+  401: ErrorRef(401),
+  403: ErrorRef(403),
+  409: ErrorRef(409),
+  422: ErrorRef(422),
+  429: ErrorRef(429),
+  500: ErrorRef(500)
+};
 
 // ─── Write Operations (links:write) ───────────────────────────────
 const writeOperations = new Elysia({ name: 'V1Links.Write' })
@@ -39,110 +89,26 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
   .use(requireApiKey({ scopes: [Scopes.LINKS_WRITE] }))
 
   // Create Link
-  .post(
-    '/',
-    async ({ body, apiKey }) => {
-      const link = await LinkService.createLink(
-        {
-          url: body.url,
-          customAlias: body.customAlias,
-          expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
-          maxClicks: body.maxClicks,
-          password: body.password,
-          redirectType: body.redirectType,
-          metaTitle: body.metaTitle,
-          metaDescription: body.metaDescription,
-          metaImage: body.metaImage,
-          utmSource: body.utmSource,
-          utmMedium: body.utmMedium,
-          utmCampaign: body.utmCampaign,
-          tags: body.tags,
-          notes: body.notes
-        },
-        apiKey?.userId,
-        'api-key' // IP hash placeholder for API keys
-      );
-
-      return {
-        success: true as const,
-        data: LinkService.formatLinkResponse(link)
-      };
+  .post('/', createLinkHandler, {
+    body: 'links.create',
+    detail: {
+      summary: 'Shorten URL',
+      description: 'Create a new shortened link',
+      security: [{ apiKeyAuth: [] }]
     },
-    {
-      body: 'links.create',
-      detail: {
-        summary: 'Shorten URL',
-        description: 'Create a new shortened link',
-        security: [{ apiKeyAuth: [] }]
-      },
-      response: {
-        201: SuccessResponse(t.Ref('links.response'), {
-          description: 'Link created successfully',
-          example: LINK_RESPONSE_EXAMPLE
-        }),
-        400: ErrorRef(400),
-        401: ErrorRef(401),
-        403: ErrorRef(403),
-        409: ErrorRef(409),
-        422: ErrorRef(422),
-        429: ErrorRef(429),
-        500: ErrorRef(500)
-      }
-    }
-  )
+    response: createLinkResponseSchema
+  })
 
-  // Create Link (Alias)
-  .post(
-    '/shorten',
-    async ({ body, apiKey }) => {
-      const link = await LinkService.createLink(
-        {
-          url: body.url,
-          customAlias: body.customAlias,
-          expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
-          maxClicks: body.maxClicks,
-          password: body.password,
-          redirectType: body.redirectType,
-          metaTitle: body.metaTitle,
-          metaDescription: body.metaDescription,
-          metaImage: body.metaImage,
-          utmSource: body.utmSource,
-          utmMedium: body.utmMedium,
-          utmCampaign: body.utmCampaign,
-          tags: body.tags,
-          notes: body.notes
-        },
-        apiKey?.userId,
-        'api-key' // IP hash placeholder for API keys
-      );
-
-      return {
-        success: true as const,
-        data: LinkService.formatLinkResponse(link)
-      };
+  // Create Link (Alias for convenience)
+  .post('/shorten', createLinkHandler, {
+    body: 'links.create',
+    detail: {
+      summary: 'Shorten URL (Alias)',
+      description: 'Alias for creating a new shortened link',
+      security: [{ apiKeyAuth: [] }]
     },
-    {
-      body: 'links.create',
-      detail: {
-        summary: 'Shorten URL (Alias)',
-        description: 'Alias for creating a new shortened link',
-        security: [{ apiKeyAuth: [] }]
-      },
-      response: {
-        201: SuccessResponse(t.Ref('links.response'), {
-          description: 'Link created successfully',
-          example: LINK_RESPONSE_EXAMPLE
-        }),
-        400: ErrorRef(400),
-        401: ErrorRef(401),
-        403: ErrorRef(403),
-        409: ErrorRef(409),
-        422: ErrorRef(422),
-        429: ErrorRef(429),
-        500: ErrorRef(500)
-      }
-    }
-  )
+    response: createLinkResponseSchema
+  })
 
   // Delete Link
   .delete(

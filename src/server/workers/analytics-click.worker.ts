@@ -8,9 +8,9 @@
  * - Batch cache increments per link
  */
 
-import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { analyticsEvents, links } from '@/db/schema';
+import { CACHE_KEYS } from '@/server/lib/cache-keys';
 import { lookupGeoIP } from '@/server/lib/geoip';
 import { recordMetric } from '@/server/lib/metrics';
 import { hashVisitor } from '@/server/lib/privacy';
@@ -18,9 +18,10 @@ import { getRedisClient } from '@/server/lib/redis';
 import type { StreamMessage } from '@/server/lib/redis-stream';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { WorkerBase } from '@/server/lib/worker-base';
-import { cacheService, scanKeys } from '@/server/services/cache.service';
+import { cacheService } from '@/server/services/cache.service';
 import { parseUserAgent } from '@/server/services/useragent.service';
 import type { EnrichedClickEvent } from '@/types/analytics.types';
+import { eq, sql } from 'drizzle-orm';
 
 /**
  * Stream message shape for click events
@@ -360,19 +361,18 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
 
   /**
    * Invalidate analytics cache for a link
-   * Removes all cached analytics data for the link
+   * Uses a per-link tracking Set instead of SCAN for deterministic O(K) deletion
    */
   private async invalidateAnalyticsCache(linkId: string): Promise<void> {
     const redis = getRedisClient();
-
-    // Pattern to match all analytics cache keys for this link
-    const pattern = `analytics:*:${linkId}:*`;
+    const trackingKey = CACHE_KEYS.ANALYTICS_KEYS_SET(linkId);
 
     try {
-      // Use SCAN instead of blocking KEYS command to avoid Redis latency spikes
-      const keys = await scanKeys(pattern);
+      // Get all tracked cache keys for this link
+      const keys = (await redis.send('SMEMBERS', [trackingKey])) as string[];
       if (keys.length > 0) {
-        await redis.del(...keys);
+        // Delete all cached analytics data + the tracking set itself
+        await redis.del(...keys, trackingKey);
         this.logger.debug(
           '[AnalyticsClickWorker] Invalidated analytics cache',
           {

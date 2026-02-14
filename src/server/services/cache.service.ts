@@ -229,6 +229,38 @@ export class CacheService {
   }
 
   /**
+   * Batch-fetch link state in parallel (1 RTT instead of 3 serial).
+   * Returns 404 / banned / cached-link status for the redirect hot path.
+   */
+  async getLinkState(code: string): Promise<{
+    isNotFound: boolean;
+    isBanned: boolean;
+    link: CachedLink | null;
+  }> {
+    const redis = this.getRedis();
+    const notFoundKey = `${CACHE_PREFIX.LINK_404}${code}`;
+    const bannedKey = `${CACHE_PREFIX.LINK_BANNED}${code}`;
+    const linkKey = `${CACHE_PREFIX.LINK}${code}`;
+
+    const [notFoundExists, bannedExists, linkData] = await Promise.all([
+      redis.send('EXISTS', [notFoundKey]) as Promise<number>,
+      redis.send('EXISTS', [bannedKey]) as Promise<number>,
+      redis.get(linkKey)
+    ]);
+
+    let link: CachedLink | null = null;
+    if (linkData) {
+      link = JSON.parse(linkData) as CachedLink;
+    }
+
+    return {
+      isNotFound: notFoundExists === 1,
+      isBanned: bannedExists === 1,
+      link
+    };
+  }
+
+  /**
    * Invalidate all cache entries related to a link
    */
   async invalidateLink(code: string): Promise<void> {

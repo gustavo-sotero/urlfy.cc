@@ -1,34 +1,37 @@
-/**
- * ═════════════════════════════════════════════════════════════════════
+﻿/**
+ * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
  * AUTH RUNTIME CONFIGURATION
- * ═════════════════════════════════════════════════════════════════════
+ * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
  * Better-Auth configuration for application runtime (uses Bun native drivers)
  *
  * Module: Authentication & Identity (Module 2)
  * Spec: module-02-authentication.md
- * ═════════════════════════════════════════════════════════════════════
+ * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
  */
 
-import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@/db';
 import type { Session as DbSession, User as DbUser } from '@/db/schema/auth';
 import * as schema from '@/db/schema/auth';
+import { createLogger } from '@/server/lib/telemetry';
 import { auditLogService } from '@/server/services/audit.service';
 import { emailService } from '@/server/services/email.service';
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { baseAuthConfig, getPlugins } from './auth.config';
 
-// ═══════════════════════════════════════════════════════════════════
+const logger = createLogger('auth-runtime');
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // RUNTIME-SPECIFIC CONFIGURATION
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Uses shared base config with runtime-specific enhancements
 export const auth = betterAuth({
   // Spread shared configuration
   ...baseAuthConfig,
 
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // DATABASE ADAPTER (Bun SQL for runtime)
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema: {
@@ -41,9 +44,9 @@ export const auth = betterAuth({
     }
   }),
 
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // RUNTIME ENHANCEMENTS: Password Hashing (Bun native)
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   emailAndPassword: {
     ...baseAuthConfig.emailAndPassword,
     password: {
@@ -79,14 +82,14 @@ export const auth = betterAuth({
           expiresInMinutes: 15
         })
         .catch((error) => {
-          console.warn('Failed to send reset password email', error);
+          logger.warn('Failed to send reset password email', { error: error instanceof Error ? error.message : String(error) });
         });
     }
   },
 
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // EMAIL VERIFICATION
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   emailVerification: {
     sendVerificationEmail: async ({
       user,
@@ -102,21 +105,21 @@ export const auth = betterAuth({
           verificationUrl: url
         })
         .catch((error) => {
-          console.warn('Failed to send verification email', error);
+          logger.warn('Failed to send verification email', { error: error instanceof Error ? error.message : String(error) });
         });
     }
   },
 
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // PLUGINS (with conditional admin based on environment)
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   plugins: getPlugins({
     disableAdmin: process.env.NODE_ENV === 'test'
   }),
 
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // CALLBACKS (Audit Logs & Email Notifications)
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   callbacks: {
     onSignIn: async ({
       user,
@@ -138,7 +141,7 @@ export const auth = betterAuth({
           userAgent: session.userAgent ?? undefined
         });
       } catch (error) {
-        console.warn('Failed to log sign-in audit event', error);
+        logger.warn('Failed to log sign-in audit event', { error: error instanceof Error ? error.message : String(error) });
       }
     },
     onSignOut: async ({ session }: { session: DbSession }) => {
@@ -157,7 +160,7 @@ export const auth = betterAuth({
           userAgent: session.userAgent ?? undefined
         });
       } catch (error) {
-        console.warn('Failed to log sign-out audit event', error);
+        logger.warn('Failed to log sign-out audit event', { error: error instanceof Error ? error.message : String(error) });
       }
     },
     onUserCreated: async ({ user }: { user: DbUser }) => {
@@ -170,7 +173,7 @@ export const auth = betterAuth({
           metadata: { email: user.email }
         });
       } catch (error) {
-        console.warn('Failed to log user creation audit event', error);
+        logger.warn('Failed to log user creation audit event', { error: error instanceof Error ? error.message : String(error) });
       }
 
       try {
@@ -181,15 +184,15 @@ export const auth = betterAuth({
           userId: user.id
         });
       } catch (error) {
-        console.warn('Failed to send welcome email', error);
+        logger.warn('Failed to send welcome email', { error: error instanceof Error ? error.message : String(error) });
       }
     }
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 export type Auth = typeof auth;
 export type Session = typeof auth.$Infer.Session.session;
 export type User = typeof auth.$Infer.Session.user;

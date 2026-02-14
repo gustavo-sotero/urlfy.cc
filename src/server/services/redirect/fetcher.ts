@@ -1,5 +1,3 @@
-import { trace } from '@opentelemetry/api';
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import * as schema from '@/db/schema';
 import { CircuitBreaker } from '@/server/lib/circuit-breaker';
@@ -13,7 +11,9 @@ import {
   stampedeLocksWaited
 } from '@/server/lib/telemetry';
 import type { CachedLink } from '@/types/redirect.types';
-import { CACHE_PREFIX, cacheService } from '../cache.service';
+import { trace } from '@opentelemetry/api';
+import { eq } from 'drizzle-orm';
+import { CACHE_PREFIX, CACHE_TTL, cacheService } from '../cache.service';
 
 const { links } = schema;
 
@@ -47,27 +47,26 @@ export async function getLink(code: string): Promise<LinkFetchResult> {
     { attributes: { code } },
     async (span) => {
       try {
-        let cacheHit = false;
+        const cacheHit = false;
+
+        // Parallel cache lookup: 404 + banned + link in 1 RTT
+        const state = await cacheService.getLinkState(code);
+
         // L1: Negative cache check (404)
-        const is404 = await cacheService.isNotFound(code);
-        if (is404) {
+        if (state.isNotFound) {
           logger.debug('Negative cache hit', { code });
           span.setAttribute('cache.type', 'negative');
           span.setAttribute('cache.hit', true);
           recordCacheHit(1, { type: 'negative' });
-          cacheHit = true;
-          return { link: null, cacheHit };
+          return { link: null, cacheHit: true };
         }
 
         // L2: Check banned link cache
-        const isBanned = await cacheService.isBanned(code);
-        if (isBanned) {
+        if (state.isBanned) {
           logger.debug('Banned cache hit', { code });
           span.setAttribute('cache.type', 'banned');
           span.setAttribute('cache.hit', true);
           recordCacheHit(1, { type: 'banned' });
-          // Return a "phantom" link so validateLink returns BANNED
-          cacheHit = true;
           return {
             link: {
               id: 'banned',
@@ -83,19 +82,43 @@ export async function getLink(code: string): Promise<LinkFetchResult> {
               utmMedium: null,
               utmCampaign: null
             },
-            cacheHit
+            cacheHit: true
           };
         }
 
-        // L3: Normal link cache
-        const cached = await cacheService.getLink(code);
-        if (cached) {
-          logger.debug('Link cache hit', { code });
-          span.setAttribute('cache.type', 'link');
-          span.setAttribute('cache.hit', true);
-          recordCacheHit(1, { type: 'link' });
-          cacheHit = true;
-          return { link: cached, cacheHit };
+        // L3: Normal link cache (with probabilistic early expiration)
+        if (state.link) {
+          const parsed = state.link;
+          const originalTtl = CACHE_TTL.LINK;
+          const cachedAt = (parsed as CachedLink & { _cachedAt?: number })
+            ._cachedAt;
+
+          if (typeof cachedAt === 'number' && cachedAt > 0) {
+            const elapsed = (Date.now() - cachedAt) / 1000;
+            const remainingTtl = Math.max(0, originalTtl - elapsed);
+
+            if (remainingTtl < originalTtl * 0.1 && Math.random() < 0.1) {
+              logger.debug('Probabilistic early expiration triggered', {
+                code,
+                remainingTtl: Math.round(remainingTtl),
+                threshold: originalTtl * 0.1
+              });
+              // Fall through to stampede path for refresh
+            } else {
+              logger.debug('Link cache hit', { code });
+              span.setAttribute('cache.type', 'link');
+              span.setAttribute('cache.hit', true);
+              recordCacheHit(1, { type: 'link' });
+              return { link: parsed, cacheHit: true };
+            }
+          } else {
+            // No _cachedAt timestamp — serve normally
+            logger.debug('Link cache hit', { code });
+            span.setAttribute('cache.type', 'link');
+            span.setAttribute('cache.hit', true);
+            recordCacheHit(1, { type: 'link' });
+            return { link: parsed, cacheHit: true };
+          }
         }
 
         // L4: Cache miss - fetch from DB with stampede protection

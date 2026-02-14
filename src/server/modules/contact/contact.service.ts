@@ -7,11 +7,14 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { count, desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { contactMessage } from '@/db/schema';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
+import { createLogger } from '@/server/lib/telemetry';
+import { count, desc, eq } from 'drizzle-orm';
 import type { ContactBodyType, MessageUpdateBodyType } from './contact.schema';
+
+const logger = createLogger('contact-service');
 
 // ═══════════════════════════════════════════════════════════════════
 // TELEGRAM UTILITIES
@@ -150,10 +153,10 @@ export const ContactService = {
           .where(eq(contactMessage.id, messageId));
       } else {
         // Log error but don't fail the request
-        console.error(
-          '[ContactService] Telegram notification failed:',
-          result.error
-        );
+        logger.error('Telegram notification failed', {
+          messageId,
+          error: result.error
+        });
         await db
           .update(contactMessage)
           .set({ telegramError: result.error })

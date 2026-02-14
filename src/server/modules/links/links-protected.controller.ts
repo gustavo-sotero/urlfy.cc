@@ -8,8 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { createHash } from 'node:crypto';
-import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import {
   checkIdempotency,
@@ -24,6 +22,8 @@ import {
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
+import { createHash } from 'node:crypto';
 import { LinkLifecycleService } from './link-lifecycle.service';
 import {
   LinkBulkCreateBody,
@@ -59,6 +59,8 @@ export const createLinkController = new Elysia()
 
       // Check idempotency key
       const idempotencyKey = headers['idempotency-key'];
+      const principal = user?.id ?? 'guest';
+      const idempotencyRoute = 'POST /links';
       if (idempotencyKey) {
         if (!validateIdempotencyKey(idempotencyKey)) {
           throw new AppError(
@@ -67,7 +69,11 @@ export const createLinkController = new Elysia()
           );
         }
 
-        const cached = await checkIdempotency(idempotencyKey);
+        const cached = await checkIdempotency(
+          idempotencyKey,
+          principal,
+          idempotencyRoute
+        );
         if (cached) {
           const link = user
             ? await LinkService.getLinkById(cached, user.id)
@@ -93,7 +99,12 @@ export const createLinkController = new Elysia()
 
       // Store idempotency if provided
       if (idempotencyKey) {
-        await setIdempotency(idempotencyKey, link.id);
+        await setIdempotency(
+          idempotencyKey,
+          link.id,
+          principal,
+          idempotencyRoute
+        );
       }
 
       set.status = 201;
