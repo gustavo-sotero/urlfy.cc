@@ -10,6 +10,8 @@
 import { Elysia, t } from 'elysia';
 import type { User } from '@/lib/auth';
 import { getRateLimit } from '@/server/config/rate-limits';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
+import { getClientIp } from '@/server/lib/ip';
 import { rateLimiter } from '@/server/lib/rate-limiter';
 import {
   ErrorRef,
@@ -40,14 +42,7 @@ async function enforceUserManagementRateLimit(
     status?: number | string;
     headers: Record<string, string | number | string[] | undefined>;
   }
-): Promise<{
-  success: false;
-  error: {
-    code: 'RATE_LIMITED';
-    message: string;
-    retryAfter?: number;
-  };
-} | null> {
+): Promise<void> {
   const result = await rateLimiter.checkTokenLimit(
     userId,
     adminUserManagementConfig
@@ -60,22 +55,18 @@ async function enforceUserManagementRateLimit(
   );
 
   if (result.allowed) {
-    return null;
+    return;
   }
 
   if (result.retryAfter) {
     set.headers['Retry-After'] = String(result.retryAfter);
   }
 
-  set.status = 429;
-  return {
-    success: false,
-    error: {
-      code: 'RATE_LIMITED',
-      message: 'Too many requests. Please try again later.',
-      retryAfter: result.retryAfter
-    }
-  };
+  throw new AppError(
+    ErrorCode.RATE_LIMITED,
+    'Too many requests. Please try again later.',
+    { retryAfter: result.retryAfter }
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -162,13 +153,7 @@ export const adminController = new Elysia({ prefix: '/admin' })
     '/users',
     async ({ query, user, set }) => {
       const adminUser = user as User;
-      const rateLimitError = await enforceUserManagementRateLimit(
-        adminUser.id,
-        set
-      );
-      if (rateLimitError) {
-        return rateLimitError;
-      }
+      await enforceUserManagementRateLimit(adminUser.id, set);
 
       const result = await AdminService.listUsers(query);
 
@@ -202,19 +187,10 @@ export const adminController = new Elysia({ prefix: '/admin' })
     '/users/:userId',
     async ({ params, body, user, request, set }) => {
       const adminUser = user as User;
-      const rateLimitError = await enforceUserManagementRateLimit(
-        adminUser.id,
-        set
-      );
-      if (rateLimitError) {
-        return rateLimitError;
-      }
+      await enforceUserManagementRateLimit(adminUser.id, set);
 
-      // Extract IP address for audit log
-      const ipAddress =
-        request.headers.get('x-forwarded-for')?.split(',')[0] ||
-        request.headers.get('x-real-ip') ||
-        undefined;
+      // Extract IP address for audit log using centralized helper
+      const ipAddress = getClientIp(request);
 
       const updatedUser = await AdminService.updateUserStatus(
         params.userId,
@@ -344,10 +320,8 @@ export const adminController = new Elysia({ prefix: '/admin' })
     async ({ params, body, user, request }) => {
       const adminUser = user as User;
 
-      const ipAddress =
-        request.headers.get('x-forwarded-for')?.split(',')[0] ||
-        request.headers.get('x-real-ip') ||
-        undefined;
+      // Extract IP address for audit log using centralized helper
+      const ipAddress = getClientIp(request);
 
       await AdminService.banLink(
         params.linkId,
@@ -392,10 +366,8 @@ export const adminController = new Elysia({ prefix: '/admin' })
     async ({ params, user, request }) => {
       const adminUser = user as User;
 
-      const ipAddress =
-        request.headers.get('x-forwarded-for')?.split(',')[0] ||
-        request.headers.get('x-real-ip') ||
-        undefined;
+      // Extract IP address for audit log using centralized helper
+      const ipAddress = getClientIp(request);
 
       await AdminService.unbanLink(params.linkId, adminUser.id, ipAddress);
 
