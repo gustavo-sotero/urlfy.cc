@@ -1,5 +1,5 @@
 import type { EmailMessages } from '../types';
-import { EmailLayout } from './EmailLayout';
+import { EmailLayout } from './email-layout';
 
 interface LinkBannedEmailProps {
   firstName: string;

@@ -28,13 +28,13 @@ export async function createLink(
 ): Promise<Link> {
   const linkId = crypto.randomUUID();
 
-  // 1. Validar URL com proteção SSRF
+  // 1. Validate URL with SSRF protection
   const validation = await validateUrlSafe(input.url);
   if (!validation.valid) {
     throw createLinkError(validation.error);
   }
 
-  // 2. Gerar ou validar código
+  // 2. Generate or validate short code
   let shortCode: string;
   if (input.customAlias) {
     if (!userId) {
@@ -52,7 +52,7 @@ export async function createLink(
     shortCode = await generateUniqueCode();
   }
 
-  // 3. Hash senha se fornecida
+  // 3. Hash password if provided
   let passwordHash: string | null = null;
   if (input.password) {
     if (!userId) {
@@ -68,7 +68,7 @@ export async function createLink(
     });
   }
 
-  // 4. Sanitizar meta tags
+  // 4. Sanitize meta tags
   const meta = sanitizeMetaTags({
     title: input.metaTitle,
     description: input.metaDescription,
@@ -78,10 +78,10 @@ export async function createLink(
   const tags = sanitizeTags(input.tags);
   const notes = sanitizeNotes(input.notes);
 
-  // 5. Processar expiração
+  // 5. Process expiration
   const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
 
-  // 6. Criar link
+  // 6. Create link
   const now = new Date();
 
   const [link] = await db

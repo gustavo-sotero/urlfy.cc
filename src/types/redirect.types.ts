@@ -17,6 +17,8 @@ export interface CachedLink {
   utmSource: string | null;
   utmMedium: string | null;
   utmCampaign: string | null;
+  /** Timestamp (ms) when this entry was written to cache. Used to compute remaining TTL client-side. */
+  _cachedAt?: number;
 }
 
 /**

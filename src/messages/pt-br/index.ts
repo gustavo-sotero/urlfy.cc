@@ -1,4 +1,5 @@
 import { About } from './about';
+import { Admin } from './admin';
 import { Analytics } from './analytics';
 import { Auth } from './auth';
 import { Common } from './common';
@@ -23,6 +24,7 @@ import { TwoFactor } from './two-factor';
 import { Unlock } from './unlock';
 
 export const ptMessages = {
+  Admin,
   Common,
   Consent,
   Navigation,

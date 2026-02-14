@@ -6,9 +6,9 @@
  * Request validation logic for redirect middleware
  */
 
-import type { NextRequest } from 'next/server';
 import { getAllowedOrigins } from '@/server/config/cors';
 import { getClientIp } from '@/server/lib/ip';
+import type { NextRequest } from 'next/server';
 import type { ValidationResult } from './types';
 
 /** Maximum redirect depth to prevent loops */
@@ -95,7 +95,15 @@ export function validateRedirectRequest(
   }
 
   // 2. Redirect depth validation
-  const depthHeader = request.headers.get('x-redirect-depth');
+  // Only trust X-Redirect-Depth from internal redirect chains.
+  // External clients can spoof this header to trigger 421 DoS,
+  // so we ignore it unless the request is from our own redirect chain.
+  const internalSecret = request.headers.get('x-internal-api');
+  const hasValidInternalOrigin =
+    internalSecret === process.env.INTERNAL_API_SECRET && !!internalSecret;
+  const depthHeader = hasValidInternalOrigin
+    ? request.headers.get('x-redirect-depth')
+    : null;
   const depth = depthHeader ? Number.parseInt(depthHeader, 10) : 0;
 
   if (depth >= MAX_REDIRECT_DEPTH) {

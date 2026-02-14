@@ -3,10 +3,10 @@
  * Provides introspection into Redis Streams state
  */
 
-import { Elysia, t } from 'elysia';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { createLogger } from '@/server/lib/telemetry';
-import { requireAuth } from '@/server/middleware/auth.middleware';
+import { requireAdmin } from '@/server/middleware/auth/require-admin';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin:queues');
 
@@ -69,21 +69,10 @@ async function getStreamStats(stream: string): Promise<StreamStats> {
  * Admin Queues Controller
  */
 export const adminQueuesController = new Elysia({ prefix: '/admin/queues' })
-  .use(requireAuth)
+  .use(requireAdmin)
   .get(
     '/',
     async ({ user }) => {
-      // Check admin role
-      if (!user || user.role !== 'admin') {
-        return {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Admin access required'
-          }
-        };
-      }
-
       try {
         // Get stats for all streams in parallel
         const streamNames = Object.values(STREAM_NAMES);
@@ -126,17 +115,6 @@ export const adminQueuesController = new Elysia({ prefix: '/admin/queues' })
   .get(
     '/:stream',
     async ({ params, user }) => {
-      // Check admin role
-      if (!user || user.role !== 'admin') {
-        return {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Admin access required'
-          }
-        };
-      }
-
       try {
         const stats = await getStreamStats(params.stream);
 

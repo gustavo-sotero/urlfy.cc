@@ -9,6 +9,52 @@ import { createLogger } from './telemetry';
 
 const logger = createLogger('rate-limiter');
 
+/**
+ * In-memory fallback rate limiter for when Redis is unavailable.
+ * Uses a simple fixed-window counter per key.
+ * Not as accurate as sliding window, but prevents abuse when Redis is down.
+ */
+class InMemoryRateLimiter {
+  private counters = new Map<string, { count: number; resetAt: number }>();
+  private cleanupInterval: ReturnType<typeof setInterval>;
+
+  constructor() {
+    // Periodic cleanup of expired entries every 60s
+    this.cleanupInterval = setInterval(() => this.cleanup(), 60_000);
+  }
+
+  check(key: string, points: number, durationMs: number): { allowed: boolean; count: number } {
+    const now = Date.now();
+    const entry = this.counters.get(key);
+
+    if (!entry || now >= entry.resetAt) {
+      // Window expired or first request — start new window
+      this.counters.set(key, { count: 1, resetAt: now + durationMs });
+      return { allowed: true, count: 1 };
+    }
+
+    entry.count++;
+    const allowed = entry.count <= points;
+    return { allowed, count: entry.count };
+  }
+
+  private cleanup(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.counters) {
+      if (now >= entry.resetAt) {
+        this.counters.delete(key);
+      }
+    }
+  }
+
+  destroy(): void {
+    clearInterval(this.cleanupInterval);
+    this.counters.clear();
+  }
+}
+
+const memoryFallback = new InMemoryRateLimiter();
+
 export interface RateLimitConfig {
   /** Number of allowed requests */
   points: number;
@@ -147,15 +193,32 @@ class RateLimiter {
         retryAfter: allowsRequest ? undefined : config.duration
       };
     } catch (error) {
-      logger.error('Rate limiter error', {
+      logger.error('Rate limiter Redis error, using in-memory fallback', {
         error: error instanceof Error ? error.message : String(error),
         key
       });
-      // Fail open on Redis errors
+
+      // Fall back to in-memory rate limiting instead of failing open
+      const fallback = memoryFallback.check(
+        `${prefix}:${key}`,
+        config.points,
+        config.duration * 1000
+      );
+      const remaining = Math.max(0, config.points - fallback.count);
+
+      if (!fallback.allowed) {
+        logger.warn('Rate limit exceeded (in-memory fallback)', {
+          key,
+          count: fallback.count,
+          limit: config.points
+        });
+      }
+
       return {
-        allowed: true,
-        remaining: config.points,
-        resetTime: now + config.duration * 1000
+        allowed: fallback.allowed,
+        remaining,
+        resetTime: now + config.duration * 1000,
+        retryAfter: fallback.allowed ? undefined : config.duration
       };
     }
   }

@@ -25,7 +25,7 @@ export function buildCspDirectives({
     "default-src 'self'",
     `script-src ${scriptSrc.join(' ')}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://fonts.googleapis.com https://cdn.jsdelivr.net",
-    "img-src 'self' data: https:",
+    "img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
     "font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com",
     "connect-src 'self' https://cdn.jsdelivr.net",
     "frame-ancestors 'none'",

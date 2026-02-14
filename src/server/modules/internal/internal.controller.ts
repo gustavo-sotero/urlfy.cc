@@ -8,11 +8,12 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { jwtPlugin } from '@/server/config/plugins';
 import { RATE_LIMIT_CONFIGS, rateLimiter } from '@/server/lib/rate-limiter';
 import { MetricsService } from '@/server/services/metrics.service';
 import { redirectService } from '@/server/services/redirect.service';
+import { timingSafeEqual } from 'crypto';
+import { Elysia, t } from 'elysia';
 import {
   InternalModel,
   ResolveCodeParam,
@@ -33,8 +34,12 @@ function verifyInternalRequest(request: Request): boolean {
   if (!expectedSecret) {
     throw new Error('INTERNAL_API_SECRET not configured');
   }
+  if (!secret) return false;
 
-  return secret === expectedSecret;
+  const a = Buffer.from(secret);
+  const b = Buffer.from(expectedSecret);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 /**

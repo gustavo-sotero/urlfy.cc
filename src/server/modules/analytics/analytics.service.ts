@@ -4,20 +4,10 @@
  * ═════════════════════════════════════════════════════════════════════
  *
  * Module: Analytics (Feature-based modular architecture)
- * Pattern: Abstract class with static methods (stateless)
+ * Pattern: Stateless object literal (non-request dependent)
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import {
-  and,
-  countDistinct,
-  count as countFn,
-  desc,
-  eq,
-  gte,
-  lt,
-  sql
-} from 'drizzle-orm';
 import { db } from '@/db';
 import { analyticsEvents } from '@/db/schema';
 import { links } from '@/db/schema/links';
@@ -29,6 +19,16 @@ import type {
   AnalyticsSummary,
   TimeSeries
 } from '@/types/analytics.types';
+import {
+  and,
+  countDistinct,
+  count as countFn,
+  desc,
+  eq,
+  gte,
+  lt,
+  sql
+} from 'drizzle-orm';
 
 const logger = createLogger('analytics-service');
 const redis = getRedisClient();
@@ -155,7 +155,7 @@ function calculateGrowth(current: number, previous: number): number {
 /**
  * Analytics Service - Handles analytics-related operations
  *
- * Uses abstract class with static methods per Elysia best practices:
+ * Stateless object literal per Elysia best practices:
  * - No instantiation needed
  * - Clean import namespace (AnalyticsService.getDailyStats)
  * - Stateless methods

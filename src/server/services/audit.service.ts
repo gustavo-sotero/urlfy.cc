@@ -9,14 +9,14 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
+import { db } from '@/db';
 import {
   type AuditAction,
   type AuditLog as AuditLogType,
   auditLog
 } from '@/db/schema/audit';
-import { db } from '@/server/lib/db';
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
 /**
  * Serialized audit log type for API responses

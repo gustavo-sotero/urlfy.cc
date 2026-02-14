@@ -7,9 +7,9 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia } from 'elysia';
 import { rateLimiter } from '@/server/lib/rate-limiter';
 import { createLogger } from '@/server/lib/telemetry';
+import { Elysia } from 'elysia';
 import { ContactModels } from './contact.schema';
 import { ContactService } from './contact.service';
 
@@ -87,36 +87,22 @@ export const contactController = new Elysia({ prefix: '/contact' })
       const userAgent = request.headers.get('user-agent') || undefined;
 
       // 5. Create message
-      try {
-        const result = await ContactService.create(body, ip, userAgent);
+      const result = await ContactService.create(body, ip, userAgent);
 
-        logger.info('Contact message created', {
-          id: result.id,
-          email: body.email,
-          telegramSent: result.telegramSent
-        });
+      logger.info('Contact message created', {
+        id: result.id,
+        email: body.email,
+        telegramSent: result.telegramSent
+      });
 
-        set.status = 201;
-        return {
-          success: true,
+      set.status = 201;
+      return {
+        success: true,
+        data: {
           message:
             'Message received successfully. We will get back to you soon!'
-        };
-      } catch (error) {
-        logger.error('Failed to create contact message', {
-          error: error instanceof Error ? error.message : String(error),
-          email: body.email
-        });
-
-        set.status = 500;
-        return {
-          success: false,
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to send message. Please try again later.'
-          }
-        };
-      }
+        }
+      };
     },
     {
       body: 'contact.create',

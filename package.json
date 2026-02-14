@@ -16,7 +16,7 @@
     "test": "bun test src/ tests/integration tests/perf tests/security",
     "test:watch": "bun test --watch src/ tests/integration tests/perf tests/security",
     "test:coverage": "bun test --coverage src/ tests/integration tests/perf tests/security",
-    "test:unit": "bun test src/",
+    "test:unit": "bun test src/ tests/unit/",
     "test:integration": "bun test tests/integration/",
     "test:security": "bun test tests/security/",
     "test:e2e": "bunx playwright test",

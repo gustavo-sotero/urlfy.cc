@@ -1,6 +1,5 @@
 // src/server/lib/__tests__/privacy.test.ts
 
-import { describe, expect, it } from 'bun:test';
 import {
   getHashesForPeriod,
   getSaltInfo,
@@ -8,6 +7,7 @@ import {
   validateHashForWeek,
   validatePrivacyImplementation
 } from '@/server/lib/privacy';
+import { describe, expect, it } from 'bun:test';
 
 describe('Privacy - IP Anonimization', () => {
   describe('hashVisitor', () => {
@@ -36,8 +36,8 @@ describe('Privacy - IP Anonimization', () => {
     });
 
     it('should generate different hash for different weeks', () => {
-      const week1 = new Date(2026, 0, 5); // Dentro semana 1
-      const week2 = new Date(2026, 0, 12); // Próxima semana
+      const week1 = new Date(2026, 0, 5); // Within week 1
+      const week2 = new Date(2026, 0, 12); // Next week
 
       const hash1 = hashVisitor('192.168.1.1', 'link-id', week1);
       const hash2 = hashVisitor('192.168.1.1', 'link-id', week2);

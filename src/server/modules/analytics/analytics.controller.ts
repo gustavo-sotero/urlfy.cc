@@ -8,11 +8,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
-import { handleLinkError } from '@/server/lib/errors';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
-import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
 import {
   ANALYTICS_BREAKDOWN_EXAMPLE,
   ANALYTICS_SUMMARY_EXAMPLE,
@@ -23,7 +22,33 @@ import {
 } from './analytics.schema';
 import { AnalyticsService } from './analytics.service';
 
-const logger = createLogger('analytics-api');
+/**
+ * Validate days parameter and return parsed value
+ */
+function parseDays(raw?: string): number {
+  const days = raw ? parseInt(raw, 10) : 30;
+  if (days < 1 || days > 365) {
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      'Days must be between 1 and 365'
+    );
+  }
+  return days;
+}
+
+/**
+ * Validate limit parameter and return parsed value
+ */
+function parseLimit(raw?: string, defaultVal = 10): number {
+  const limit = raw ? parseInt(raw, 10) : defaultVal;
+  if (limit < 1 || limit > 100) {
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      'Limit must be between 1 and 100'
+    );
+  }
+  return limit;
+}
 
 /**
  * Analytics API endpoints
@@ -41,63 +66,28 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/all/summary',
-    async function getAllLinksSummary({ user, query, set }) {
-      try {
-        if (!user) {
-          set.status = 401;
-          return {
-            success: false,
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authentication required'
-            }
-          };
-        }
+    async ({ user, query, set }) => {
+      const days = parseDays(query.days);
+      const summary = await AnalyticsService.getAllLinksSummary(
+        user!.id,
+        days
+      );
 
-        const days = query.days ? parseInt(query.days, 10) : 30;
-
-        if (days < 1 || days > 365) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_DAYS_RANGE',
-              message: 'Days must be between 1 and 365'
-            }
-          };
-        }
-
-        const summary = await AnalyticsService.getAllLinksSummary(
-          user.id,
-          days
-        );
-
-        if (!summary) {
-          set.status = 404;
-          return {
-            success: false,
-            error: {
-              code: 'NO_DATA',
-              message: 'No analytics data available'
-            }
-          };
-        }
-
+      if (!summary) {
+        set.status = 404;
         return {
-          success: true as const,
-          data: summary
+          success: false as const,
+          error: {
+            code: 'NO_DATA',
+            message: 'No analytics data available'
+          }
         };
-      } catch (error) {
-        logger.error('[AnalyticsAPI] Error getting all links summary', {
-          error: error instanceof Error ? error.message : String(error),
-          userId:
-            error && typeof error === 'object' && 'userId' in error
-              ? error.userId
-              : undefined
-        });
-
-        return handleLinkError(error);
       }
+
+      return {
+        success: true as const,
+        data: summary
+      };
     },
     {
       query: AnalyticsDaysQuery,
@@ -123,56 +113,21 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/all/daily',
-    async function getAllLinksDaily({ user, query, set }) {
-      try {
-        if (!user) {
-          set.status = 401;
-          return {
-            success: false,
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authentication required'
-            }
-          };
+    async ({ user, query }) => {
+      const days = parseDays(query.days);
+      const dailyStats = await AnalyticsService.getAllLinksDailyStats(
+        user!.id,
+        days
+      );
+
+      return {
+        success: true as const,
+        data: dailyStats,
+        meta: {
+          period: `last_${days}_days`,
+          count: dailyStats.length
         }
-
-        const days = query.days ? parseInt(query.days, 10) : 30;
-
-        if (days < 1 || days > 365) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_DAYS_RANGE',
-              message: 'Days must be between 1 and 365'
-            }
-          };
-        }
-
-        const dailyStats = await AnalyticsService.getAllLinksDailyStats(
-          user.id,
-          days
-        );
-
-        return {
-          success: true as const,
-          data: dailyStats,
-          meta: {
-            period: `last_${days}_days`,
-            count: dailyStats.length
-          }
-        };
-      } catch (error) {
-        logger.error('[AnalyticsAPI] Error getting all links daily stats', {
-          error: error instanceof Error ? error.message : String(error),
-          userId:
-            error && typeof error === 'object' && 'userId' in error
-              ? error.userId
-              : undefined
-        });
-
-        return handleLinkError(error);
-      }
+      };
     },
     {
       query: AnalyticsDaysQuery,
@@ -201,52 +156,17 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/all/breakdown',
-    async ({ user, query, set }) => {
-      try {
-        if (!user) {
-          set.status = 401;
-          return {
-            success: false,
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authentication required'
-            }
-          };
-        }
+    async ({ user, query }) => {
+      const days = parseDays(query.days);
+      const breakdown = await AnalyticsService.getAllLinksBreakdown(
+        user!.id,
+        days
+      );
 
-        const days = query.days ? parseInt(query.days, 10) : 30;
-
-        if (days < 1 || days > 365) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_DAYS_RANGE',
-              message: 'Days must be between 1 and 365'
-            }
-          };
-        }
-
-        const breakdown = await AnalyticsService.getAllLinksBreakdown(
-          user.id,
-          days
-        );
-
-        return {
-          success: true as const,
-          data: breakdown
-        };
-      } catch (error) {
-        logger.error('[AnalyticsAPI] Error getting all links breakdown', {
-          error: error instanceof Error ? error.message : String(error),
-          userId:
-            error && typeof error === 'object' && 'userId' in error
-              ? error.userId
-              : undefined
-        });
-
-        return handleLinkError(error);
-      }
+      return {
+        success: true as const,
+        data: breakdown
+      };
     },
     {
       query: AnalyticsDaysQuery,
@@ -272,45 +192,24 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   .get(
     '/:linkId/summary',
     async ({ params, query, set }) => {
-      try {
-        const days = query.days ? parseInt(query.days, 10) : 30;
+      const days = parseDays(query.days);
+      const summary = await AnalyticsService.getSummary(params.linkId, days);
 
-        if (days < 1 || days > 365) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_DAYS_RANGE',
-              message: 'Days must be between 1 and 365'
-            }
-          };
-        }
-
-        const summary = await AnalyticsService.getSummary(params.linkId, days);
-
-        if (!summary) {
-          set.status = 404;
-          return {
-            success: false,
-            error: {
-              code: 'LINK_NOT_FOUND',
-              message: 'Link not found or no data'
-            }
-          };
-        }
-
+      if (!summary) {
+        set.status = 404;
         return {
-          success: true as const,
-          data: summary
+          success: false as const,
+          error: {
+            code: 'LINK_NOT_FOUND',
+            message: 'Link not found or no data'
+          }
         };
-      } catch (error) {
-        logger.error('[AnalyticsAPI] Error getting summary', {
-          error: error instanceof Error ? error.message : String(error),
-          linkId: params.linkId
-        });
-
-        return handleLinkError(error);
       }
+
+      return {
+        success: true as const,
+        data: summary
+      };
     },
     {
       params: AnalyticsLinkIdParam,
@@ -338,38 +237,17 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/:linkId/breakdown',
-    async ({ params, query, set }) => {
-      try {
-        const days = query.days ? parseInt(query.days, 10) : 30;
+    async ({ params, query }) => {
+      const days = parseDays(query.days);
+      const breakdown = await AnalyticsService.getCompleteBreakdown(
+        params.linkId,
+        days
+      );
 
-        if (days < 1 || days > 365) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_DAYS_RANGE',
-              message: 'Days must be between 1 and 365'
-            }
-          };
-        }
-
-        const breakdown = await AnalyticsService.getCompleteBreakdown(
-          params.linkId,
-          days
-        );
-
-        return {
-          success: true as const,
-          data: breakdown
-        };
-      } catch (error) {
-        logger.error('[AnalyticsAPI] Error getting breakdown', {
-          error: error instanceof Error ? error.message : String(error),
-          linkId: params.linkId
-        });
-
-        return handleLinkError(error);
-      }
+      return {
+        success: true as const,
+        data: breakdown
+      };
     },
     {
       params: AnalyticsLinkIdParam,
@@ -397,42 +275,21 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/:linkId/timeseries',
-    async ({ params, query, set }) => {
-      try {
-        const days = query.days ? parseInt(query.days, 10) : 30;
+    async ({ params, query }) => {
+      const days = parseDays(query.days);
+      const timeSeries = await AnalyticsService.getDailyStats(
+        params.linkId,
+        days
+      );
 
-        if (days < 1 || days > 365) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_DAYS_RANGE',
-              message: 'Days must be between 1 and 365'
-            }
-          };
+      return {
+        success: true as const,
+        data: timeSeries,
+        meta: {
+          period: `last_${days}_days`,
+          count: timeSeries.length
         }
-
-        const timeSeries = await AnalyticsService.getDailyStats(
-          params.linkId,
-          days
-        );
-
-        return {
-          success: true as const,
-          data: timeSeries,
-          meta: {
-            period: `last_${days}_days`,
-            count: timeSeries.length
-          }
-        };
-      } catch (error) {
-        logger.error('[AnalyticsAPI] Error getting timeseries', {
-          error: error instanceof Error ? error.message : String(error),
-          linkId: params.linkId
-        });
-
-        return handleLinkError(error);
-      }
+      };
     },
     {
       params: AnalyticsLinkIdParam,
@@ -463,42 +320,21 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/:linkId/daily',
-    async ({ params, query, set }) => {
-      try {
-        const days = query.days ? parseInt(query.days, 10) : 30;
+    async ({ params, query }) => {
+      const days = parseDays(query.days);
+      const dailyStats = await AnalyticsService.getDailyStats(
+        params.linkId,
+        days
+      );
 
-        if (days < 1 || days > 365) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_DAYS_RANGE',
-              message: 'Days must be between 1 and 365'
-            }
-          };
+      return {
+        success: true as const,
+        data: dailyStats,
+        meta: {
+          period: `last_${days}_days`,
+          count: dailyStats.length
         }
-
-        const dailyStats = await AnalyticsService.getDailyStats(
-          params.linkId,
-          days
-        );
-
-        return {
-          success: true as const,
-          data: dailyStats,
-          meta: {
-            period: `last_${days}_days`,
-            count: dailyStats.length
-          }
-        };
-      } catch (error) {
-        logger.error('[AnalyticsAPI] Error getting daily stats', {
-          error: error instanceof Error ? error.message : String(error),
-          linkId: params.linkId
-        });
-
-        return handleLinkError(error);
-      }
+      };
     },
     {
       params: AnalyticsLinkIdParam,
@@ -529,40 +365,20 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/:linkId/countries',
-    async ({ params, query, set }) => {
-      try {
-        const limit = query.limit ? parseInt(query.limit, 10) : 10;
-        const days = query.days ? parseInt(query.days, 10) : 30;
+    async ({ params, query }) => {
+      const limit = parseLimit(query.limit);
+      const days = parseDays(query.days);
 
-        if (limit < 1 || limit > 100) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_LIMIT',
-              message: 'Limit must be between 1 and 100'
-            }
-          };
-        }
+      const countries = await AnalyticsService.getCountryBreakdown(
+        params.linkId,
+        limit,
+        days
+      );
 
-        const countries = await AnalyticsService.getCountryBreakdown(
-          params.linkId,
-          limit,
-          days
-        );
-
-        return {
-          success: true as const,
-          data: countries
-        };
-      } catch (error) {
-        logger.error('[AnalyticsAPI] Error getting countries', {
-          error: error instanceof Error ? error.message : String(error),
-          linkId: params.linkId
-        });
-
-        return handleLinkError(error);
-      }
+      return {
+        success: true as const,
+        data: countries
+      };
     },
     {
       params: AnalyticsLinkIdParam,
@@ -589,38 +405,17 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/:linkId/devices',
-    async ({ params, query, set }) => {
-      try {
-        const days = query.days ? parseInt(query.days, 10) : 30;
+    async ({ params, query }) => {
+      const days = parseDays(query.days);
+      const devices = await AnalyticsService.getDeviceBreakdown(
+        params.linkId,
+        days
+      );
 
-        if (days < 1 || days > 365) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_DAYS_RANGE',
-              message: 'Days must be between 1 and 365'
-            }
-          };
-        }
-
-        const devices = await AnalyticsService.getDeviceBreakdown(
-          params.linkId,
-          days
-        );
-
-        return {
-          success: true as const,
-          data: devices
-        };
-      } catch (error) {
-        logger.error('[AnalyticsAPI] Error getting devices', {
-          error: error instanceof Error ? error.message : String(error),
-          linkId: params.linkId
-        });
-
-        return handleLinkError(error);
-      }
+      return {
+        success: true as const,
+        data: devices
+      };
     },
     {
       params: AnalyticsLinkIdParam,
@@ -648,40 +443,20 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   // ═══════════════════════════════════════════════════════════════
   .get(
     '/:linkId/browsers',
-    async ({ params, query, set }) => {
-      try {
-        const limit = query.limit ? parseInt(query.limit, 10) : 10;
-        const days = query.days ? parseInt(query.days, 10) : 30;
+    async ({ params, query }) => {
+      const limit = parseLimit(query.limit);
+      const days = parseDays(query.days);
 
-        if (limit < 1 || limit > 100) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_LIMIT',
-              message: 'Limit must be between 1 and 100'
-            }
-          };
-        }
+      const browsers = await AnalyticsService.getBrowserBreakdown(
+        params.linkId,
+        limit,
+        days
+      );
 
-        const browsers = await AnalyticsService.getBrowserBreakdown(
-          params.linkId,
-          limit,
-          days
-        );
-
-        return {
-          success: true as const,
-          data: browsers
-        };
-      } catch (error) {
-        logger.error('[AnalyticsAPI] Error getting browsers', {
-          error: error instanceof Error ? error.message : String(error),
-          linkId: params.linkId
-        });
-
-        return handleLinkError(error);
-      }
+      return {
+        success: true as const,
+        data: browsers
+      };
     },
     {
       params: AnalyticsLinkIdParam,
@@ -709,26 +484,12 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
   .get(
     '/health',
     async () => {
-      try {
-        const health = await AnalyticsService.healthCheck();
+      const health = await AnalyticsService.healthCheck();
 
-        return {
-          success: true as const,
-          data: health
-        };
-      } catch (error) {
-        logger.error('[AnalyticsAPI] Health check failed', {
-          error: error instanceof Error ? error.message : String(error)
-        });
-
-        return {
-          success: false as const,
-          error: {
-            code: 'HEALTH_CHECK_FAILED',
-            message: 'Analytics service health check failed'
-          }
-        };
-      }
+      return {
+        success: true as const,
+        data: health
+      };
     },
     {
       detail: {

@@ -3,12 +3,12 @@
  * Handles data export and deletion requests per GDPR/LGPD regulations
  */
 
-import { and, eq, inArray, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
+import { db } from '@/db';
 import { analyticsEvents, links, user } from '@/db/schema';
 import { type DeletionStatus, dataDeletionRequest } from '@/db/schema/audit';
-import { db } from '@/server/lib/db';
 import { createLogger } from '@/server/lib/telemetry';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
 const logger = createLogger('gdpr');
 
@@ -187,24 +187,28 @@ export class GDPRService {
     try {
       logger.warn('Executing data deletion', { userId });
 
-      // Get all user links
-      const userLinks = await db
-        .select()
-        .from(links)
-        .where(eq(links.userId, userId));
+      // Wrap all deletions in a transaction to prevent partial data removal
+      await db.transaction(async (tx) => {
+        // Get all user links
+        const userLinks = await tx
+          .select({ id: links.id })
+          .from(links)
+          .where(eq(links.userId, userId));
 
-      // Delete analytics events for user's links
-      for (const link of userLinks) {
-        await db
-          .delete(analyticsEvents)
-          .where(eq(analyticsEvents.linkId, link.id));
-      }
+        // Delete analytics events for user's links
+        if (userLinks.length > 0) {
+          const linkIds = userLinks.map((l) => l.id);
+          await tx
+            .delete(analyticsEvents)
+            .where(inArray(analyticsEvents.linkId, linkIds));
+        }
 
-      // Delete user's links
-      await db.delete(links).where(eq(links.userId, userId));
+        // Delete user's links
+        await tx.delete(links).where(eq(links.userId, userId));
 
-      // Delete user account
-      await db.delete(user).where(eq(user.id, userId));
+        // Delete user account
+        await tx.delete(user).where(eq(user.id, userId));
+      });
 
       logger.info('Data deletion completed', { userId });
     } catch (error) {

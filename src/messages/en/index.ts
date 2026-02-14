@@ -1,4 +1,5 @@
 import { About } from './about';
+import { Admin } from './admin';
 import { Analytics } from './analytics';
 import { Auth } from './auth';
 import { Common } from './common';
@@ -33,6 +34,7 @@ export const enMessages = {
   Analytics,
   Settings,
   About,
+  Admin,
   Contact,
   Help,
   Terms,

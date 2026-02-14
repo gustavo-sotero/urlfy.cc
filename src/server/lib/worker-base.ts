@@ -159,40 +159,25 @@ export abstract class WorkerBase<T = Record<string, string>> {
   }
 
   /**
-   * Process a batch of messages
+   * Process a batch of messages with ACK/DLQ handling.
+   * Delegates actual processing to processMessages() which subclasses can override.
    */
   private async processBatch(messages: StreamMessage<T>[]): Promise<void> {
     if (messages.length === 0) return;
 
-    const processedIds: string[] = [];
-    const failedIds: string[] = [];
+    const { processedIds, failedMessages } =
+      await this.processMessages(messages);
 
-    for (const message of messages) {
-      try {
-        await this.processMessage(message.id, message.data);
-        processedIds.push(message.id);
-
-        this.logger.debug('[WorkerBase] Message processed', {
-          id: message.id
-        });
-      } catch (error) {
-        this.logger.error('[WorkerBase] Failed to process message', {
-          id: message.id,
-          error: error instanceof Error ? error.message : String(error)
-        });
-
-        failedIds.push(message.id);
-
-        // Optionally move to DLQ
-        if (this.config.deadLetterStream) {
-          await this.moveToDLQ(message).catch((dlqError) => {
-            this.logger.error('[WorkerBase] Failed to move message to DLQ', {
-              id: message.id,
-              error:
-                dlqError instanceof Error ? dlqError.message : String(dlqError)
-            });
+    // Move failed messages to DLQ
+    for (const message of failedMessages) {
+      if (this.config.deadLetterStream) {
+        await this.moveToDLQ(message).catch((dlqError) => {
+          this.logger.error('[WorkerBase] Failed to move message to DLQ', {
+            id: message.id,
+            error:
+              dlqError instanceof Error ? dlqError.message : String(dlqError)
           });
-        }
+        });
       }
     }
 
@@ -214,6 +199,42 @@ export abstract class WorkerBase<T = Record<string, string>> {
         });
       }
     }
+  }
+
+  /**
+   * Process messages in a batch. Override in subclasses for optimized batch processing.
+   * Default implementation processes messages sequentially via processMessage().
+   *
+   * @returns Object with processed message IDs and failed messages (for DLQ)
+   */
+  protected async processMessages(
+    messages: StreamMessage<T>[]
+  ): Promise<{
+    processedIds: string[];
+    failedMessages: StreamMessage<T>[];
+  }> {
+    const processedIds: string[] = [];
+    const failedMessages: StreamMessage<T>[] = [];
+
+    for (const message of messages) {
+      try {
+        await this.processMessage(message.id, message.data);
+        processedIds.push(message.id);
+
+        this.logger.debug('[WorkerBase] Message processed', {
+          id: message.id
+        });
+      } catch (error) {
+        this.logger.error('[WorkerBase] Failed to process message', {
+          id: message.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
+
+        failedMessages.push(message);
+      }
+    }
+
+    return { processedIds, failedMessages };
   }
 
   /**

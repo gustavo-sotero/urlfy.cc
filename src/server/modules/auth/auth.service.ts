@@ -3,13 +3,12 @@
  * AUTH SERVICE - Business logic for authentication
  * ═════════════════════════════════════════════════════════════════════
  * Module: Authentication & Identity
- * Pattern: Abstract class with static methods (non-request dependent)
+ * Pattern: Stateless object literal (non-request dependent)
  * Spec: module-02-authentication.md
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
+import { db } from '@/db';
 import {
   apiKey as apiKeyTable,
   session as sessionTable,
@@ -17,11 +16,12 @@ import {
   user as userTable
 } from '@/db/schema/auth';
 import { auth } from '@/lib/auth';
-import { db } from '@/server/lib/db';
 import type {
   ApiKeyPermissions,
   NormalizedApiKeyPermissions
 } from '@/types/auth.types';
+import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -43,12 +43,12 @@ interface ApiKeyValidationResult {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// AUTH SERVICE - Abstract class with static methods
+// AUTH SERVICE
 // ═══════════════════════════════════════════════════════════════════
 
 /**
  * AuthService - Handles all authentication-related business logic
- * Uses abstract class with static methods pattern for non-request dependent logic
+ * Stateless object literal — no instantiation needed, clean import namespace
  */
 export const AuthService = {
   // ─────────────────────────────────────────────────────────────────

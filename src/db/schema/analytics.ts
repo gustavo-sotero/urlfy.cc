@@ -9,6 +9,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar
 } from 'drizzle-orm/pg-core';
@@ -74,28 +75,28 @@ export const analyticsEvents = pgTable(
       .defaultNow()
   },
   (table) => ({
-    // Índice primário para queries por link
+    // Primary index for link queries
     idxLinkId: index('idx_analytics_link_id').on(table.linkId),
 
-    // Índice para período e ordenação
+    // Index for time range and ordering
     idxCreatedAt: index('idx_analytics_created_at').on(table.createdAt),
 
-    // Índice composto para filtros comuns
+    // Composite index for common filters
     idxLinkTime: index('idx_analytics_link_time').on(
       table.linkId,
       table.createdAt
     ),
 
-    // Índice para análise por país
+    // Index for country analysis
     idxCountry: index('idx_analytics_country').on(table.country),
 
-    // Índice para filtro de não-bots
+    // Index for non-bot filtering
     idxNotBot: index('idx_analytics_not_bot').on(table.linkId, table.isBot),
 
-    // Índice para referrer
+    // Index for referrer
     idxReferrer: index('idx_analytics_referrer').on(table.referrerDomain),
 
-    // Índice para UTM tracking
+    // Index for UTM tracking
     idxUtm: index('idx_analytics_utm').on(
       table.utmSource,
       table.utmMedium,
@@ -130,17 +131,14 @@ export const linkClicksDaily = pgTable(
       .defaultNow()
   },
   (table) => ({
-    // Primary key: (link_id, date)
-    idxPrimary: index('idx_clicks_daily_primary').on(table.linkId, table.date),
-
-    // Índice para ordenação por data
-    idxDate: index('idx_clicks_daily_date').on(table.date),
-
-    // Índice para listagem por link
-    idxLinkDate: index('idx_clicks_daily_link_date').on(
+    // Unique constraint: enables ON CONFLICT DO UPDATE upserts
+    uniqLinkDate: uniqueIndex('uniq_clicks_daily_link_date').on(
       table.linkId,
       table.date
-    )
+    ),
+
+    // Index for date-based ordering
+    idxDate: index('idx_clicks_daily_date').on(table.date)
   })
 );
 
@@ -162,7 +160,7 @@ export const analyticsCountryBreakdown = pgTable(
     uniqueVisitors: integer('unique_visitors').notNull().default(0)
   },
   (table) => ({
-    idxPrimary: index('idx_breakdown_primary').on(
+    uniqLinkDateCountry: uniqueIndex('uniq_breakdown_link_date_country').on(
       table.linkId,
       table.date,
       table.country
@@ -184,7 +182,7 @@ export const analyticsDeviceBreakdown = pgTable(
     uniqueVisitors: integer('unique_visitors').notNull().default(0)
   },
   (table) => ({
-    idxPrimary: index('idx_device_primary').on(
+    uniqLinkDateDevice: uniqueIndex('uniq_device_link_date_type').on(
       table.linkId,
       table.date,
       table.deviceType
@@ -206,7 +204,7 @@ export const analyticsBrowserBreakdown = pgTable(
     uniqueVisitors: integer('unique_visitors').notNull().default(0)
   },
   (table) => ({
-    idxPrimary: index('idx_browser_primary').on(
+    uniqLinkDateBrowser: uniqueIndex('uniq_browser_link_date_name').on(
       table.linkId,
       table.date,
       table.browser

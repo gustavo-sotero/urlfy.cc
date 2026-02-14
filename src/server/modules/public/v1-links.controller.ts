@@ -9,7 +9,6 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { Scopes } from '@/server/config/scopes';
 import {
   ErrorRef,
@@ -17,7 +16,6 @@ import {
   ResponseModels,
   SuccessResponse
 } from '@/server/lib/response.schema';
-import { createLogger } from '@/server/lib/telemetry';
 import { requireApiKey } from '@/server/middleware/api-key.guard';
 import { AnalyticsService } from '@/server/modules/analytics';
 import {
@@ -27,8 +25,9 @@ import {
 } from '@/server/modules/links';
 import { LinkLifecycleService } from '@/server/modules/links/link-lifecycle.service';
 import { LinkService } from '@/server/modules/links/links.service';
+import { Elysia, t } from 'elysia';
 
-const logger = createLogger('v1-links-controller');
+
 
 /**
  * Helper type for context with API key
@@ -44,51 +43,31 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
   .post(
     '/',
     async ({ body, apiKey }) => {
-      try {
-        const link = await LinkService.createLink(
-          {
-            url: body.url,
-            customAlias: body.customAlias,
-            expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
-            maxClicks: body.maxClicks,
-            password: body.password,
-            redirectType: body.redirectType,
-            metaTitle: body.metaTitle,
-            metaDescription: body.metaDescription,
-            metaImage: body.metaImage,
-            utmSource: body.utmSource,
-            utmMedium: body.utmMedium,
-            utmCampaign: body.utmCampaign,
-            tags: body.tags,
-            notes: body.notes
-          },
-          apiKey?.userId,
-          'api-key' // IP hash placeholder for API keys
-        );
+      const link = await LinkService.createLink(
+        {
+          url: body.url,
+          customAlias: body.customAlias,
+          expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+          maxClicks: body.maxClicks,
+          password: body.password,
+          redirectType: body.redirectType,
+          metaTitle: body.metaTitle,
+          metaDescription: body.metaDescription,
+          metaImage: body.metaImage,
+          utmSource: body.utmSource,
+          utmMedium: body.utmMedium,
+          utmCampaign: body.utmCampaign,
+          tags: body.tags,
+          notes: body.notes
+        },
+        apiKey?.userId,
+        'api-key' // IP hash placeholder for API keys
+      );
 
-        return {
-          success: true as const,
-          data: LinkService.formatLinkResponse(link)
-        };
-      } catch (error) {
-        logger.error('Failed to create link via API', {
-          userId: apiKey?.userId,
-          error: error instanceof Error ? error.message : String(error)
-        });
-
-        if (error instanceof Error && 'code' in error) {
-          const errorWithCode = error as Error & { code: string };
-          return {
-            success: false as const,
-            error: {
-              code: errorWithCode.code,
-              message: error.message
-            }
-          };
-        }
-
-        throw error;
-      }
+      return {
+        success: true as const,
+        data: LinkService.formatLinkResponse(link)
+      };
     },
     {
       body: 'links.create',
@@ -117,51 +96,31 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
   .post(
     '/shorten',
     async ({ body, apiKey }) => {
-      try {
-        const link = await LinkService.createLink(
-          {
-            url: body.url,
-            customAlias: body.customAlias,
-            expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
-            maxClicks: body.maxClicks,
-            password: body.password,
-            redirectType: body.redirectType,
-            metaTitle: body.metaTitle,
-            metaDescription: body.metaDescription,
-            metaImage: body.metaImage,
-            utmSource: body.utmSource,
-            utmMedium: body.utmMedium,
-            utmCampaign: body.utmCampaign,
-            tags: body.tags,
-            notes: body.notes
-          },
-          apiKey?.userId,
-          'api-key' // IP hash placeholder for API keys
-        );
+      const link = await LinkService.createLink(
+        {
+          url: body.url,
+          customAlias: body.customAlias,
+          expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+          maxClicks: body.maxClicks,
+          password: body.password,
+          redirectType: body.redirectType,
+          metaTitle: body.metaTitle,
+          metaDescription: body.metaDescription,
+          metaImage: body.metaImage,
+          utmSource: body.utmSource,
+          utmMedium: body.utmMedium,
+          utmCampaign: body.utmCampaign,
+          tags: body.tags,
+          notes: body.notes
+        },
+        apiKey?.userId,
+        'api-key' // IP hash placeholder for API keys
+      );
 
-        return {
-          success: true as const,
-          data: LinkService.formatLinkResponse(link)
-        };
-      } catch (error) {
-        logger.error('Failed to create link via API', {
-          userId: apiKey?.userId,
-          error: error instanceof Error ? error.message : String(error)
-        });
-
-        if (error instanceof Error && 'code' in error) {
-          const errorWithCode = error as Error & { code: string };
-          return {
-            success: false as const,
-            error: {
-              code: errorWithCode.code,
-              message: error.message
-            }
-          };
-        }
-
-        throw error;
-      }
+      return {
+        success: true as const,
+        data: LinkService.formatLinkResponse(link)
+      };
     },
     {
       body: 'links.create',
@@ -189,26 +148,15 @@ const writeOperations = new Elysia({ name: 'V1Links.Write' })
   // Delete Link
   .delete(
     '/:id',
-    async ({ params, apiKey, set }) => {
-      try {
-        await LinkLifecycleService.softDeleteLink(params.id, apiKey?.userId);
-        return {
-          success: true as const,
-          data: {
-            deleted: true as const,
-            id: params.id
-          }
-        };
-      } catch (_error) {
-        set.status = 404;
-        return {
-          success: false as const,
-          error: {
-            code: 'LINK_NOT_FOUND',
-            message: 'Link not found or already deleted'
-          }
-        };
-      }
+    async ({ params, apiKey }) => {
+      await LinkLifecycleService.softDeleteLink(params.id, apiKey?.userId);
+      return {
+        success: true as const,
+        data: {
+          deleted: true as const,
+          id: params.id
+        }
+      };
     },
     {
       params: t.Object({

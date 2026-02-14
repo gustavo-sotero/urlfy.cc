@@ -11,11 +11,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { desc, eq } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema/audit';
 import { sendEmail } from '@/server/lib/email';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { getRedisClient } from '@/server/lib/redis';
 import { SuccessResponse } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
@@ -24,6 +23,8 @@ import { UsersModel } from '@/server/modules/users/users.schema';
 import { requestContext } from '@/server/plugins/request-context';
 import { auditLogService } from '@/server/services/audit.service';
 import { gdprService } from '@/server/services/gdpr.service';
+import { desc, eq } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('user-data-controller');
 
@@ -131,56 +132,45 @@ export const meController = new Elysia({ prefix: '/me' })
         return unauthorizedResponse;
       }
 
-      try {
-        // Export all user data
-        const exportData = await gdprService.exportUserData(user.id);
+      // Export all user data
+      const exportData = await gdprService.exportUserData(user.id);
 
-        // Log the export action
-        await auditLogService.log({
-          userId: user.id,
-          action: 'export_user_data',
-          entityType: 'user',
-          entityId: user.id,
-          metadata: {
-            exportedAt: new Date().toISOString()
+      // Log the export action
+      await auditLogService.log({
+        userId: user.id,
+        action: 'export_user_data',
+        entityType: 'user',
+        entityId: user.id,
+        metadata: {
+          exportedAt: new Date().toISOString()
+        },
+        ipAddress: ip,
+        userAgent: userAgent
+      });
+
+      return {
+        success: true,
+        data: {
+          user: {
+            id: exportData.user?.id,
+            email: exportData.user?.email,
+            name: exportData.user?.name,
+            createdAt: exportData.user?.createdAt.toISOString(),
+            updatedAt: exportData.user?.updatedAt.toISOString()
           },
-          ipAddress: ip,
-          userAgent: userAgent
-        });
-
-        return {
-          success: true,
-          data: {
-            user: {
-              id: exportData.user?.id,
-              email: exportData.user?.email,
-              name: exportData.user?.name,
-              createdAt: exportData.user?.createdAt.toISOString(),
-              updatedAt: exportData.user?.updatedAt.toISOString()
-            },
-            links: exportData.links.map((link) => ({
-              id: link.id,
-              shortCode: link.shortCode,
-              originalUrl: link.originalUrl,
-              createdAt: link.createdAt.toISOString()
-            })),
-            analyticsOverview: {
-              totalClicks: exportData.analyticsOverview.totalClicks,
-              uniqueVisitors: exportData.analyticsOverview.uniqueVisitors,
-              linksCount: exportData.links.length
-            }
+          links: exportData.links.map((link) => ({
+            id: link.id,
+            shortCode: link.shortCode,
+            originalUrl: link.originalUrl,
+            createdAt: link.createdAt.toISOString()
+          })),
+          analyticsOverview: {
+            totalClicks: exportData.analyticsOverview.totalClicks,
+            uniqueVisitors: exportData.analyticsOverview.uniqueVisitors,
+            linksCount: exportData.links.length
           }
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: {
-            code: 'EXPORT_FAILED',
-            message: error instanceof Error ? error.message : 'Export failed'
-          }
-        };
-      }
+        }
+      };
     },
     {
       detail: {
@@ -208,81 +198,62 @@ export const meController = new Elysia({ prefix: '/me' })
         return unauthorizedResponse;
       }
 
-      try {
-        // Check if there's already a pending request
-        const existingRequest = await gdprService.getPendingDeletionRequest(
-          user.id
-        );
+      // Check if there's already a pending request
+      const existingRequest = await gdprService.getPendingDeletionRequest(
+        user.id
+      );
 
-        if (existingRequest) {
-          set.status = 409;
-          return {
-            success: false,
-            error: {
-              code: 'REQUEST_ALREADY_EXISTS',
-              message: 'You already have a pending deletion request',
-              details: {
-                requestId: existingRequest.requestId,
-                requestedAt: existingRequest.requestedAt.toISOString(),
-                deadline: existingRequest.deadline.toISOString()
-              }
-            }
-          };
-        }
-
-        const deletionRequest = await gdprService.scheduleDataDeletion(user.id);
-
-        // Log the deletion request
-        await auditLogService.log({
-          userId: user.id,
-          action: 'request_data_deletion',
-          entityType: 'user',
-          entityId: user.id,
-          metadata: {
-            requestId: deletionRequest.requestId,
-            deadlineAt: deletionRequest.deadline.toISOString()
-          },
-          ipAddress: ip,
-          userAgent: userAgent
+      if (existingRequest) {
+        throw new AppError(ErrorCode.DUPLICATE_ENTRY, 'You already have a pending deletion request', {
+          requestId: existingRequest.requestId,
+          requestedAt: existingRequest.requestedAt.toISOString(),
+          deadline: existingRequest.deadline.toISOString()
         });
-
-        try {
-          await sendEmail({
-            to: user.email,
-            subject: 'Solicitação de exclusão de dados - urlfy.cc',
-            template: 'data-deletion-request',
-            data: {
-              name: user.name,
-              requestId: deletionRequest.requestId,
-              deadline: deletionRequest.deadline.toISOString()
-            }
-          });
-        } catch (error) {
-          logger.warn('Failed to send data deletion email', {
-            userId: user.id,
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
-
-        return {
-          success: true as const,
-          data: {
-            requestId: deletionRequest.requestId,
-            deadline: deletionRequest.deadline.toISOString(),
-            message:
-              'Your data deletion request has been received. Your data will be permanently deleted within 72 hours.'
-          }
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false as const,
-          error: {
-            code: 'REQUEST_FAILED',
-            message: error instanceof Error ? error.message : 'Request failed'
-          }
-        };
       }
+
+      const deletionRequest = await gdprService.scheduleDataDeletion(user.id);
+
+      // Log the deletion request
+      await auditLogService.log({
+        userId: user.id,
+        action: 'request_data_deletion',
+        entityType: 'user',
+        entityId: user.id,
+        metadata: {
+          requestId: deletionRequest.requestId,
+          deadlineAt: deletionRequest.deadline.toISOString()
+        },
+        ipAddress: ip,
+        userAgent: userAgent
+      });
+
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: 'Solicitação de exclusão de dados - urlfy.cc',
+          template: 'data-deletion-request',
+          data: {
+            name: user.name,
+            requestId: deletionRequest.requestId,
+            deadline: deletionRequest.deadline.toISOString()
+          }
+        });
+      } catch (error) {
+        logger.warn('Failed to send data deletion email', {
+          userId: user.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+
+      return {
+        success: true as const,
+        data: {
+          requestId: deletionRequest.requestId,
+          deadline: deletionRequest.deadline.toISOString(),
+          message:
+            'Your data deletion request has been received. Your data will be permanently deleted within 72 hours.'
+        }
+      };
     },
     {
       detail: {
@@ -374,72 +345,43 @@ export const consentController = new Elysia({ prefix: '/me' })
         return unauthorizedResponse;
       }
 
-      try {
-        // Validate body
-        if (
-          typeof body.analytics !== 'boolean' ||
-          typeof body.marketing !== 'boolean'
-        ) {
-          set.status = 400;
-          return {
-            success: false,
-            error: {
-              code: 'INVALID_BODY',
-              message: 'analytics and marketing must be boolean values'
-            }
-          };
+      const preferences = {
+        analytics: body.analytics,
+        marketing: body.marketing,
+        timestamp: body.timestamp || new Date().toISOString()
+      };
+
+      // Store in Redis with user-specific key for quick access
+      const redis = getRedisClient();
+
+      await redis.set(
+        `consent:${user.id}`,
+        JSON.stringify(preferences),
+        'EX',
+        86400 * 365 // 1 year expiry
+      );
+
+      // Log the consent update
+      await auditLogService.log({
+        userId: user.id,
+        action: 'user_login', // Using existing action type
+        entityType: 'consent',
+        entityId: user.id,
+        metadata: {
+          action: 'consent_updated',
+          preferences
+        },
+        ipAddress: ip,
+        userAgent: userAgent
+      });
+
+      return {
+        success: true as const,
+        data: {
+          message: 'Consent preferences saved',
+          preferences
         }
-
-        const preferences = {
-          analytics: body.analytics,
-          marketing: body.marketing,
-          timestamp: body.timestamp || new Date().toISOString()
-        };
-
-        // Store in Redis with user-specific key for quick access
-        const redis = getRedisClient();
-
-        await redis.set(
-          `consent:${user.id}`,
-          JSON.stringify(preferences),
-          'EX',
-          86400 * 365 // 1 year expiry
-        );
-
-        // Log the consent update
-        await auditLogService.log({
-          userId: user.id,
-          action: 'user_login', // Using existing action type
-          entityType: 'consent',
-          entityId: user.id,
-          metadata: {
-            action: 'consent_updated',
-            preferences
-          },
-          ipAddress: ip,
-          userAgent: userAgent
-        });
-
-        return {
-          success: true as const,
-          data: {
-            message: 'Consent preferences saved',
-            preferences
-          }
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false as const,
-          error: {
-            code: 'SAVE_FAILED',
-            message:
-              error instanceof Error
-                ? error.message
-                : 'Failed to save consent preferences'
-          }
-        };
-      }
+      };
     },
     {
       detail: {
@@ -469,35 +411,21 @@ export const consentController = new Elysia({ prefix: '/me' })
         return unauthorizedResponse;
       }
 
-      try {
-        const redis = getRedisClient();
+      const redis = getRedisClient();
 
-        const stored = await redis.get(`consent:${user.id}`);
+      const stored = await redis.get(`consent:${user.id}`);
 
-        if (!stored) {
-          return {
-            success: true,
-            data: null
-          };
-        }
-
+      if (!stored) {
         return {
-          success: true as const,
-          data: JSON.parse(stored)
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false as const,
-          error: {
-            code: 'FETCH_FAILED',
-            message:
-              error instanceof Error
-                ? error.message
-                : 'Failed to fetch consent preferences'
-          }
+          success: true,
+          data: null
         };
       }
+
+      return {
+        success: true as const,
+        data: JSON.parse(stored)
+      };
     },
     {
       detail: {

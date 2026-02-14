@@ -155,7 +155,7 @@ export class CircuitBreaker {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CIRCUIT BREAKERS PARA SERVIÇOS
+// SERVICE CIRCUIT BREAKERS
 // ═══════════════════════════════════════════════════════════════════
 
 export const dbCircuitBreaker = new CircuitBreaker({

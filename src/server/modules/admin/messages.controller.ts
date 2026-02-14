@@ -6,7 +6,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
 import {
@@ -14,6 +14,7 @@ import {
   MessageUpdateBody
 } from '@/server/modules/contact/contact.schema';
 import { ContactService } from '@/server/modules/contact/contact.service';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin-messages-controller');
 
@@ -28,21 +29,13 @@ export const adminMessagesController = new Elysia({
   .get(
     '/',
     async ({ query }) => {
-      try {
-        const result = await ContactService.list(query);
+      const result = await ContactService.list(query);
 
-        return {
-          success: true,
-          data: result.data,
-          meta: result.meta
-        };
-      } catch (error) {
-        logger.error('Failed to list messages', {
-          error: error instanceof Error ? error.message : String(error)
-        });
-
-        throw error;
-      }
+      return {
+        success: true,
+        data: result.data,
+        meta: result.meta
+      };
     },
     {
       query: MessageListQuery,
@@ -55,33 +48,17 @@ export const adminMessagesController = new Elysia({
   )
   .get(
     '/:id',
-    async ({ params, set }) => {
-      try {
-        const message = await ContactService.getById(params.id);
+    async ({ params }) => {
+      const message = await ContactService.getById(params.id);
 
-        if (!message) {
-          set.status = 404;
-          return {
-            success: false,
-            error: {
-              code: 'NOT_FOUND',
-              message: 'Message not found'
-            }
-          };
-        }
-
-        return {
-          success: true,
-          data: message
-        };
-      } catch (error) {
-        logger.error('Failed to get message', {
-          error: error instanceof Error ? error.message : String(error),
-          messageId: params.id
-        });
-
-        throw error;
+      if (!message) {
+        throw new AppError(ErrorCode.RESOURCE_NOT_FOUND, 'Message not found');
       }
+
+      return {
+        success: true,
+        data: message
+      };
     },
     {
       params: t.Object({
@@ -96,34 +73,20 @@ export const adminMessagesController = new Elysia({
   )
   .patch(
     '/:id',
-    async ({ params, body, set }) => {
-      try {
-        await ContactService.updateStatus(params.id, body);
+    async ({ params, body }) => {
+      await ContactService.updateStatus(params.id, body);
 
-        logger.info('Message status updated', {
-          messageId: params.id,
-          newStatus: body.status
-        });
+      logger.info('Message status updated', {
+        messageId: params.id,
+        newStatus: body.status
+      });
 
-        return {
-          success: true,
+      return {
+        success: true as const,
+        data: {
           message: 'Status updated successfully'
-        };
-      } catch (error) {
-        logger.error('Failed to update message status', {
-          error: error instanceof Error ? error.message : String(error),
-          messageId: params.id
-        });
-
-        set.status = 500;
-        return {
-          success: false,
-          error: {
-            code: 'UPDATE_FAILED',
-            message: 'Failed to update message status'
-          }
-        };
-      }
+        }
+      };
     },
     {
       params: t.Object({
@@ -140,29 +103,13 @@ export const adminMessagesController = new Elysia({
   .delete(
     '/:id',
     async ({ params, set }) => {
-      try {
-        await ContactService.delete(params.id);
+      await ContactService.delete(params.id);
 
-        logger.info('Message deleted', {
-          messageId: params.id
-        });
+      logger.info('Message deleted', {
+        messageId: params.id
+      });
 
-        set.status = 204;
-      } catch (error) {
-        logger.error('Failed to delete message', {
-          error: error instanceof Error ? error.message : String(error),
-          messageId: params.id
-        });
-
-        set.status = 500;
-        return {
-          success: false,
-          error: {
-            code: 'DELETE_FAILED',
-            message: 'Failed to delete message'
-          }
-        };
-      }
+      set.status = 204;
     },
     {
       params: t.Object({

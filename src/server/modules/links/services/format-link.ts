@@ -1,6 +1,6 @@
 import type { Link, LinkResponse } from '@/types/links.types';
 
-const BASE_URL = process.env.PUBLIC_APP_URL || 'https://urlfy.cc';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://urlfy.cc';
 
 /**
  * Formata link para resposta da API

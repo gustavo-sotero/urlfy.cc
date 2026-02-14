@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto';
+import { getEnv } from '@/lib/env';
 import { Reader } from '@maxmind/geoip2-node';
 import type ReaderModel from '@maxmind/geoip2-node/dist/src/readerModel';
-import { getEnv } from '@/lib/env';
+import { createHash } from 'node:crypto';
 import { CACHE_KEYS, CACHE_TTL, redis } from './redis';
 import { createLogger } from './telemetry';
 
@@ -29,11 +29,11 @@ export async function getGeoIPReader(): Promise<ReaderModel | null> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// INTERFACE DE RESULTADO
+// RESULT INTERFACE
 // ═══════════════════════════════════════════════════════════════════
 
 export interface GeoLocation {
-  country: string | null; // Código ISO (BR, US, etc)
+  country: string | null; // ISO code (BR, US, etc.)
   city: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -41,7 +41,7 @@ export interface GeoLocation {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// LOOKUP COM CACHE
+// CACHED LOOKUP
 // ═══════════════════════════════════════════════════════════════════
 
 export async function lookupGeoIP(ip: string): Promise<GeoLocation> {
@@ -86,7 +86,7 @@ export async function lookupGeoIP(ip: string): Promise<GeoLocation> {
       timezone: cityData.location?.timeZone || null
     };
 
-    // Cacheia resultado
+    // Cache result
     await redis.setex(cacheKey, CACHE_TTL.GEO, JSON.stringify(location));
 
     return location;
@@ -119,11 +119,11 @@ function isPrivateIP(ip: string): boolean {
 }
 
 function getIPPrefix(ip: string): string {
-  // IPv4: retorna /24 (xxx.xxx.xxx)
+  // IPv4: return /24 prefix (xxx.xxx.xxx)
   if (ip.includes('.')) {
     return ip.split('.').slice(0, 3).join('.');
   }
-  // IPv6: retorna /48 (simplificado)
+  // IPv6: return /48 prefix (simplified)
   return ip.split(':').slice(0, 3).join(':');
 }
 
@@ -131,7 +131,7 @@ function anonymizeIP(ip: string): string {
   return createHash('sha256').update(ip).digest('hex').slice(0, 16);
 }
 
-// Salt rotativo semanal para hash de visitantes
+// Weekly rotating salt for visitor hash
 export function getWeeklySalt(): string {
   const now = new Date();
   const year = now.getFullYear();

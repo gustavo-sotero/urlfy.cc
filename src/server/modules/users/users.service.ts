@@ -4,11 +4,11 @@
  * ═════════════════════════════════════════════════════════════════════
  *
  * Module: Users (Feature-based modular architecture)
- * Pattern: Abstract class with static methods (stateless)
+ * Pattern: Stateless object literal (non-request dependent)
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { db } from '@/db';
 import {
   account as accountTable,
   apiKey as apiKeyTable,
@@ -17,14 +17,14 @@ import {
   type User,
   user as userTable
 } from '@/db/schema/auth';
-import { db } from '@/server/lib/db';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { auditLogService } from '@/server/services/audit.service';
+import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 
 /**
  * User Service - Handles user-related operations
  *
- * Uses abstract class with static methods per Elysia best practices:
+ * Stateless object literal per Elysia best practices:
  * - No instantiation needed
  * - Clean import namespace (UserService.create)
  * - Stateless methods

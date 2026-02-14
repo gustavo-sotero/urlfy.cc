@@ -1,8 +1,8 @@
-import { and, eq, gt, isNull, or } from 'drizzle-orm';
-import { Elysia } from 'elysia';
+import { db } from '@/db';
 import { apiKey as apiKeyTable, user as userTable } from '@/db/schema/auth';
 import type { User } from '@/lib/auth';
-import { db } from '@/server/lib/db';
+import { and, eq, gt, isNull, or } from 'drizzle-orm';
+import { Elysia } from 'elysia';
 import {
   enforceApiKeyRateLimit,
   hashApiKey,

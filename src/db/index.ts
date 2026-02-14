@@ -1,4 +1,4 @@
-// Bun SQL nativo para PostgreSQL
+// Native Bun SQL for PostgreSQL
 import { SQL } from 'bun';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';

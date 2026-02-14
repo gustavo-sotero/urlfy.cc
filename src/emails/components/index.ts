@@ -1,7 +1,8 @@
-export { DataDeletionConfirmationEmail } from './DataDeletionConfirmationEmail';
-export { EmailLayout } from './EmailLayout';
-export { EmailVerificationEmail } from './EmailVerificationEmail';
-export { LinkBannedEmail } from './LinkBannedEmail';
-export { PasswordResetEmail } from './PasswordResetEmail';
-export { QuotaWarningEmail } from './QuotaWarningEmail';
-export { WelcomeEmail } from './WelcomeEmail';
+export { DataDeletionConfirmationEmail } from './data-deletion-confirmation-email';
+export { EmailLayout } from './email-layout';
+export { EmailVerificationEmail } from './email-verification-email';
+export { LinkBannedEmail } from './link-banned-email';
+export { PasswordResetEmail } from './password-reset-email';
+export { QuotaWarningEmail } from './quota-warning-email';
+export { WelcomeEmail } from './welcome-email';
+

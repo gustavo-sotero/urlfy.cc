@@ -1,4 +1,3 @@
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import { createLinkError } from '@/server/lib/errors';
@@ -7,12 +6,13 @@ import {
   sanitizeNotes,
   sanitizeTags
 } from '@/server/lib/sanitize';
+import { cacheService } from '@/server/services/cache.service';
 import {
   isValidAliasFormat,
   validateCustomAlias
 } from '@/server/services/shortcode.service';
 import type { Link, UpdateLinkInput } from '@/types/links.types';
-import { LinkCacheService } from '../link-cache.service';
+import { eq } from 'drizzle-orm';
 import { getLinkById } from './get-link';
 
 /**
@@ -103,10 +103,10 @@ export async function updateLink(
     .returning();
 
   if (newShortCode && newShortCode !== link.shortCode) {
-    await LinkCacheService.invalidateLinkCache(link.shortCode, 'delete');
-    await LinkCacheService.invalidateLinkCache(newShortCode, 'update');
+    await cacheService.invalidateAndMarkDeleted(link.shortCode);
+    await cacheService.invalidateLink(newShortCode);
   } else {
-    await LinkCacheService.invalidateLinkCache(link.shortCode, 'update');
+    await cacheService.invalidateLink(link.shortCode);
   }
 
   return updated;

@@ -245,6 +245,37 @@ App → Redis Stream → Worker → PostgreSQL
 - Redis indisponível → Bypass para PostgreSQL + alerta
 - GeoIP indisponível → `country: "unknown"`
 
+### Connection Pooling (PgBouncer)
+
+When scaling beyond a single application instance, PostgreSQL's default `max_connections` (typically 100) can be exhausted quickly. Each app process opens up to `pool.max` (default 20) connections, so 5 processes = 100 connections.
+
+**Recommendation for production:** Add PgBouncer as a connection pooler between the application and PostgreSQL.
+
+```yaml
+# Example PgBouncer service for docker-compose
+pgbouncer:
+  image: edoburu/pgbouncer:1.23.1-p2
+  environment:
+    DATABASE_URL: postgres://urlfy:${DB_PASSWORD}@postgres:5432/urlfy
+    POOL_MODE: transaction
+    MAX_CLIENT_CONN: 200
+    DEFAULT_POOL_SIZE: 20
+    MIN_POOL_SIZE: 5
+    RESERVE_POOL_SIZE: 5
+  ports:
+    - '127.0.0.1:6432:6432'
+  depends_on:
+    postgres:
+      condition: service_healthy
+```
+
+Key settings:
+- **`POOL_MODE: transaction`** — connections are returned to the pool after each transaction (best for Drizzle ORM)
+- **`DEFAULT_POOL_SIZE: 20`** — max connections to PostgreSQL per pool
+- **`MAX_CLIENT_CONN: 200`** — max client connections PgBouncer accepts
+
+After adding PgBouncer, update `DATABASE_URL` to point to PgBouncer (port 6432) instead of PostgreSQL directly.
+
 ## Observability (SigNoz)
 
 ### Integração OpenTelemetry

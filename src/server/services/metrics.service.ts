@@ -21,7 +21,7 @@ const CALC_INTERVAL_SECONDS = 60;
 /**
  * MetricsService - Tracks request metrics for observability
  *
- * Pattern: Abstract class with static methods (non-request dependent)
+ * Pattern: Stateless object literal (non-request dependent)
  * Per ElysiaJS best practices for stateless services.
  *
  * @see https://elysiajs.com/essential/best-practice.html#service-pattern

@@ -1,20 +1,26 @@
 /**
  * Analytics Click Worker - Redis Streams Implementation
  * Processes click events from analytics:clicks stream
+ *
+ * Uses batch processing to reduce DB operations:
+ * - Bulk INSERT for analytics events (1 query per batch)
+ * - Single UPDATE per unique link (instead of per-event)
+ * - Batch cache increments per link
  */
 
-import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { analyticsEvents, links } from '@/db/schema';
 import { lookupGeoIP } from '@/server/lib/geoip';
 import { recordMetric } from '@/server/lib/metrics';
 import { hashVisitor } from '@/server/lib/privacy';
 import { getRedisClient } from '@/server/lib/redis';
+import type { StreamMessage } from '@/server/lib/redis-stream';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { WorkerBase } from '@/server/lib/worker-base';
-import { cacheService } from '@/server/services/cache.service';
+import { cacheService, scanKeys } from '@/server/services/cache.service';
 import { parseUserAgent } from '@/server/services/useragent.service';
 import type { EnrichedClickEvent } from '@/types/analytics.types';
+import { eq, sql } from 'drizzle-orm';
 
 /**
  * Stream message shape for click events
@@ -52,97 +58,243 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
   }
 
   /**
-   * Process a single click event
+   * Process a single click event (used by fallback sequential path)
    */
   protected async processMessage(
     id: string,
     payload: ClickEventStream
   ): Promise<void> {
-    const startTime = Date.now();
+    const enriched = await this.enrichClickEvent(payload);
 
-    try {
-      // Enrich click event with GeoIP and User-Agent data
-      const enriched = await this.enrichClickEvent(payload);
+    await db.insert(analyticsEvents).values(
+      this.mapEnrichedToRow(enriched)
+    );
 
-      // Insert into database
-      await db.insert(analyticsEvents).values({
-        linkId: enriched.linkId,
-        visitorHash: enriched.visitorHash,
-        country: enriched.country ?? undefined,
-        city: enriched.city ?? undefined,
-        latitude:
-          enriched.latitude != null
-            ? Math.round(enriched.latitude * 1000)
-            : undefined,
-        longitude:
-          enriched.longitude != null
-            ? Math.round(enriched.longitude * 1000)
-            : undefined,
-        browser: enriched.browser ?? undefined,
-        browserVersion: enriched.browserVersion ?? undefined,
-        os: enriched.os ?? undefined,
-        osVersion: enriched.osVersion ?? undefined,
-        deviceType: enriched.deviceType ?? undefined,
-        referrer: enriched.referer ?? undefined,
-        referrerDomain: enriched.referrerDomain ?? undefined,
-        utmSource: enriched.utmSource ?? undefined,
-        utmMedium: enriched.utmMedium ?? undefined,
-        utmCampaign: enriched.utmCampaign ?? undefined,
-        utmContent: enriched.utmContent ?? undefined,
-        utmTerm: enriched.utmTerm ?? undefined,
-        isBot: enriched.isBot,
-        createdAt:
+    await db
+      .update(links)
+      .set({
+        clicksCount: sql`${links.clicksCount} + 1`,
+        lastClickedAt:
           typeof enriched.timestamp === 'string'
             ? new Date(enriched.timestamp)
             : enriched.timestamp
-      });
+      })
+      .where(eq(links.id, enriched.linkId));
 
-      // Update clicks count in links table
-      await db
-        .update(links)
-        .set({
-          clicksCount: sql`${links.clicksCount} + 1`,
-          lastClickedAt:
-            typeof enriched.timestamp === 'string'
-              ? new Date(enriched.timestamp)
-              : enriched.timestamp
-        })
-        .where(eq(links.id, enriched.linkId));
+    if (enriched.shortCode) {
+      await cacheService.incrementClicksCount(enriched.shortCode);
+    }
 
-      // Update cache counter
-      if (enriched.shortCode) {
-        await cacheService.incrementClicksCount(enriched.shortCode);
+    this.invalidateAnalyticsCache(enriched.linkId).catch((err) => {
+      this.logger.warn(
+        '[AnalyticsClickWorker] Failed to invalidate analytics cache',
+        {
+          linkId: enriched.linkId,
+          error: err instanceof Error ? err.message : String(err)
+        }
+      );
+    });
+
+    recordMetric('analytics_job_processed', 1, {
+      isBot: enriched.isBot ? 'true' : 'false'
+    });
+  }
+
+  /**
+   * Batch-optimized message processing.
+   * - Enriches all events in parallel
+   * - Bulk INSERTs analytics rows (1 query)
+   * - Single UPDATE per unique link
+   * - Single cache increment per unique link
+   *
+   * Falls back to sequential processing if bulk operation fails.
+   */
+  protected override async processMessages(
+    messages: StreamMessage<ClickEventStream>[]
+  ): Promise<{
+    processedIds: string[];
+    failedMessages: StreamMessage<ClickEventStream>[];
+  }> {
+    if (messages.length <= 1) {
+      // No benefit from batching a single message
+      return super.processMessages(messages);
+    }
+
+    const startTime = Date.now();
+    const processedIds: string[] = [];
+    const failedMessages: StreamMessage<ClickEventStream>[] = [];
+
+    // Step 1: Enrich all events in parallel
+    const enrichResults = await Promise.allSettled(
+      messages.map(async (msg) => ({
+        message: msg,
+        enriched: await this.enrichClickEvent(msg.data)
+      }))
+    );
+
+    const enrichedEvents: {
+      message: StreamMessage<ClickEventStream>;
+      enriched: EnrichedClickEvent;
+    }[] = [];
+
+    for (let i = 0; i < enrichResults.length; i++) {
+      const result = enrichResults[i];
+      if (result.status === 'fulfilled') {
+        enrichedEvents.push(result.value);
+      } else {
+        failedMessages.push(messages[i]);
+        this.logger.error('[AnalyticsClickWorker] Failed to enrich event', {
+          messageId: messages[i].id,
+          error:
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason)
+        });
+      }
+    }
+
+    if (enrichedEvents.length === 0) {
+      return { processedIds, failedMessages };
+    }
+
+    try {
+      // Step 2: Bulk INSERT all analytics events in a single query
+      await db.insert(analyticsEvents).values(
+        enrichedEvents.map(({ enriched }) => this.mapEnrichedToRow(enriched))
+      );
+
+      // Step 3: Group by linkId for batched link updates
+      const linkClickCounts = new Map<
+        string,
+        { count: number; lastClickedAt: Date; shortCode?: string }
+      >();
+
+      for (const { enriched } of enrichedEvents) {
+        const timestamp =
+          typeof enriched.timestamp === 'string'
+            ? new Date(enriched.timestamp)
+            : enriched.timestamp;
+        const existing = linkClickCounts.get(enriched.linkId);
+
+        if (existing) {
+          existing.count++;
+          if (timestamp > existing.lastClickedAt) {
+            existing.lastClickedAt = timestamp;
+          }
+        } else {
+          linkClickCounts.set(enriched.linkId, {
+            count: 1,
+            lastClickedAt: timestamp,
+            shortCode: enriched.shortCode || undefined
+          });
+        }
       }
 
-      // Invalidate analytics cache for this link (fire-and-forget)
-      this.invalidateAnalyticsCache(enriched.linkId).catch((err) => {
-        this.logger.warn(
-          '[AnalyticsClickWorker] Failed to invalidate analytics cache',
-          {
-            linkId: enriched.linkId,
-            error: err instanceof Error ? err.message : String(err)
-          }
-        );
-      });
+      // Step 4: Single UPDATE per unique link (N queries instead of batchSize)
+      await Promise.all(
+        Array.from(linkClickCounts.entries()).map(
+          ([linkId, { count, lastClickedAt }]) =>
+            db
+              .update(links)
+              .set({
+                clicksCount: sql`${links.clicksCount} + ${count}`,
+                lastClickedAt
+              })
+              .where(eq(links.id, linkId))
+        )
+      );
+
+      // Step 5: Single cache increment per unique link
+      await Promise.all(
+        Array.from(linkClickCounts.values()).map(({ count, shortCode }) =>
+          shortCode
+            ? cacheService.incrementClicksCount(shortCode, count)
+            : Promise.resolve(null)
+        )
+      );
+
+      // Step 6: Invalidate analytics cache for affected links (fire-and-forget)
+      for (const linkId of linkClickCounts.keys()) {
+        this.invalidateAnalyticsCache(linkId).catch((err) => {
+          this.logger.warn(
+            '[AnalyticsClickWorker] Failed to invalidate analytics cache',
+            {
+              linkId,
+              error: err instanceof Error ? err.message : String(err)
+            }
+          );
+        });
+      }
+
+      // All enriched events processed successfully
+      for (const { message } of enrichedEvents) {
+        processedIds.push(message.id);
+      }
 
       const duration = Date.now() - startTime;
-      recordMetric('analytics_job_processed', 1, {
+      const botCount = enrichedEvents.filter(
+        ({ enriched }) => enriched.isBot
+      ).length;
+
+      recordMetric('analytics_batch_processed', enrichedEvents.length, {
         duration: String(duration),
-        isBot: enriched.isBot ? 'true' : 'false'
+        botCount: String(botCount),
+        uniqueLinks: String(linkClickCounts.size)
       });
 
-      this.logger.debug('[AnalyticsClickWorker] Event processed', {
-        messageId: id,
-        linkId: enriched.linkId,
+      this.logger.debug('[AnalyticsClickWorker] Batch processed', {
+        total: enrichedEvents.length,
+        uniqueLinks: linkClickCounts.size,
         duration
       });
     } catch (error) {
-      this.logger.error('[AnalyticsClickWorker] Failed to process event', {
-        messageId: id,
-        error: error instanceof Error ? error.message : String(error)
-      });
-      throw error; // Re-throw to trigger DLQ logic in base class
+      // If bulk operation fails, fall back to sequential processing
+      this.logger.warn(
+        '[AnalyticsClickWorker] Batch insert failed, falling back to sequential',
+        { error: error instanceof Error ? error.message : String(error) }
+      );
+
+      return super.processMessages(messages);
     }
+
+    return { processedIds, failedMessages };
+  }
+
+  /**
+   * Map enriched event to analytics_events row values
+   */
+  private mapEnrichedToRow(enriched: EnrichedClickEvent) {
+    return {
+      linkId: enriched.linkId,
+      visitorHash: enriched.visitorHash,
+      country: enriched.country ?? undefined,
+      city: enriched.city ?? undefined,
+      latitude:
+        enriched.latitude != null
+          ? Math.round(enriched.latitude * 1000)
+          : undefined,
+      longitude:
+        enriched.longitude != null
+          ? Math.round(enriched.longitude * 1000)
+          : undefined,
+      browser: enriched.browser ?? undefined,
+      browserVersion: enriched.browserVersion ?? undefined,
+      os: enriched.os ?? undefined,
+      osVersion: enriched.osVersion ?? undefined,
+      deviceType: enriched.deviceType ?? undefined,
+      referrer: enriched.referer ?? undefined,
+      referrerDomain: enriched.referrerDomain ?? undefined,
+      utmSource: enriched.utmSource ?? undefined,
+      utmMedium: enriched.utmMedium ?? undefined,
+      utmCampaign: enriched.utmCampaign ?? undefined,
+      utmContent: enriched.utmContent ?? undefined,
+      utmTerm: enriched.utmTerm ?? undefined,
+      isBot: enriched.isBot,
+      createdAt:
+        typeof enriched.timestamp === 'string'
+          ? new Date(enriched.timestamp)
+          : enriched.timestamp
+    };
   }
 
   /**
@@ -217,7 +369,8 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
     const pattern = `analytics:*:${linkId}:*`;
 
     try {
-      const keys = await redis.keys(pattern);
+      // Use SCAN instead of blocking KEYS command to avoid Redis latency spikes
+      const keys = await scanKeys(pattern);
       if (keys.length > 0) {
         await redis.del(...keys);
         this.logger.debug(

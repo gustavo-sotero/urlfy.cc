@@ -8,24 +8,24 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import type { AuditAction } from '@/db/schema/audit';
 import {
   PaginatedResponse,
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
-import { requireAuth } from '@/server/middleware/auth.middleware';
+import { requireAdmin } from '@/server/middleware/auth/require-admin';
 import {
   AdminModels,
   AuditLogQuery
 } from '@/server/modules/admin/admin.schema';
 import { auditLogService } from '@/server/services/audit.service';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin-audit-controller');
 
 export const auditController = new Elysia({ prefix: '/audit' })
-  .use(requireAuth)
+  .use(requireAdmin)
   // Inject shared models for type inference and OpenAPI docs
   .use(AdminModels)
 
@@ -35,17 +35,6 @@ export const auditController = new Elysia({ prefix: '/audit' })
   .get(
     '/',
     async ({ user, query }) => {
-      // Check admin permission
-      if (user?.role !== 'admin') {
-        return {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Only admins can view audit logs'
-          }
-        };
-      }
-
       try {
         const page = Math.max(1, parseInt(query.page || '1', 10));
         const limit = Math.min(
@@ -158,18 +147,6 @@ export const auditController = new Elysia({ prefix: '/audit' })
   .get(
     '/:id',
     async ({ user, params, set }) => {
-      // Check admin permission
-      if (user?.role !== 'admin') {
-        set.status = 403;
-        return {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Only admins can view audit logs'
-          }
-        };
-      }
-
       try {
         const log = await auditLogService.getById(params.id);
 
@@ -233,18 +210,6 @@ export const auditController = new Elysia({ prefix: '/audit' })
   .get(
     '/entity/:entityType/:entityId',
     async ({ user, params, query, set }) => {
-      // Check admin permission
-      if (user?.role !== 'admin') {
-        set.status = 403;
-        return {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Only admins can view audit logs'
-          }
-        };
-      }
-
       try {
         const limit = Math.min(
           100,
@@ -325,18 +290,6 @@ export const auditController = new Elysia({ prefix: '/audit' })
   .get(
     '/user/:targetUserId',
     async ({ user, params, query, set }) => {
-      // Check admin permission
-      if (user?.role !== 'admin') {
-        set.status = 403;
-        return {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Only admins can view audit logs'
-          }
-        };
-      }
-
       try {
         const limit = Math.min(
           100,
@@ -410,18 +363,6 @@ export const auditController = new Elysia({ prefix: '/audit' })
   .get(
     '/stats/summary',
     async ({ user, set }) => {
-      // Check admin permission
-      if (user?.role !== 'admin') {
-        set.status = 403;
-        return {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Only admins can view audit logs'
-          }
-        };
-      }
-
       try {
         const summary = await auditLogService.getSummary();
 

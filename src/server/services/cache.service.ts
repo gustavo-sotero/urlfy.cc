@@ -34,7 +34,7 @@ export const CACHE_PREFIX = {
  * @param count - Number of keys to scan per iteration (default: 100)
  * @returns Array of matching keys
  */
-async function scanKeys(pattern: string, count = 100): Promise<string[]> {
+export async function scanKeys(pattern: string, count = 100): Promise<string[]> {
   const redis = getRedisClient();
   const keys: string[] = [];
   let cursor = '0';
@@ -93,18 +93,27 @@ export class CacheService {
       // Probabilistic Early Expiration
       // When TTL < 10% of original, 10% chance to force refresh
       if (enableProbabilisticRefresh) {
-        const ttl = await redis.ttl(key);
+        const parsed = JSON.parse(cached) as CachedLink;
         const originalTtl = CACHE_TTL.LINK; // 3600 seconds
 
-        if (ttl > 0 && ttl < originalTtl * 0.1 && Math.random() < 0.1) {
+        // Compute remaining TTL from the embedded write timestamp
+        // This avoids an extra Redis RTT call to TTL
+        const cachedAt = parsed._cachedAt ?? 0;
+        const elapsed = cachedAt > 0 ? (Date.now() - cachedAt) / 1000 : originalTtl;
+        const remainingTtl = Math.max(0, originalTtl - elapsed);
+
+        if (remainingTtl < originalTtl * 0.1 && Math.random() < 0.1) {
           logger.debug('Probabilistic early expiration triggered', {
             code,
-            ttl,
+            remainingTtl: Math.round(remainingTtl),
             threshold: originalTtl * 0.1
           });
           // Return null to force refresh in background
           return null;
         }
+
+        logger.debug('Cache hit', { code, key });
+        return parsed;
       }
 
       logger.debug('Cache hit', { code, key });
@@ -125,7 +134,8 @@ export class CacheService {
     try {
       const redis = this.getRedis();
       const key = `${CACHE_PREFIX.LINK}${code}`;
-      await redis.setex(key, CACHE_TTL.LINK, JSON.stringify(link));
+      const withTimestamp = { ...link, _cachedAt: Date.now() };
+      await redis.setex(key, CACHE_TTL.LINK, JSON.stringify(withTimestamp));
       logger.debug('Link cached', { code, ttl: CACHE_TTL.LINK });
     } catch (error) {
       logger.error('Error setting link in cache', {
@@ -334,43 +344,56 @@ export class CacheService {
   }
 
   /**
-   * Atomically increment click count in cache
-   * Used by click.worker to keep cache in sync with the DB
+   * Lua script that atomically increments clicksCount in a cached link JSON.
+   * Eliminates the GET-modify-SETEX race condition and reduces RTTs from 3 to 1.
+   */
+  private static readonly INCREMENT_CLICKS_LUA = `
+local key = KEYS[1]
+local defaultTtl = tonumber(ARGV[1])
+local amount = tonumber(ARGV[2]) or 1
+local cached = redis.call('GET', key)
+if not cached then return nil end
+local link = cjson.decode(cached)
+link.clicksCount = (link.clicksCount or 0) + amount
+local ttl = redis.call('TTL', key)
+if ttl < 1 then ttl = defaultTtl end
+redis.call('SETEX', key, ttl, cjson.encode(link))
+return link.clicksCount
+`;
+
+  /**
+   * Atomically increment click count in cache using a Lua script.
+   * Used by click.worker to keep cache in sync with the DB.
    *
    * @param code - Short code of the link
+   * @param amount - Number to increment by (default: 1)
    * @returns The new counter value, or null if link is not in cache
    */
-  async incrementClicksCount(code: string): Promise<number | null> {
+  async incrementClicksCount(
+    code: string,
+    amount = 1
+  ): Promise<number | null> {
     try {
       const redis = this.getRedis();
       const key = `${CACHE_PREFIX.LINK}${code}`;
-      const cached = await redis.get(key);
 
-      if (!cached) {
-        // Link is not in cache, nothing to do
+      const result = await redis.send('EVAL', [
+        CacheService.INCREMENT_CLICKS_LUA,
+        '1',
+        key,
+        String(CACHE_TTL.LINK),
+        String(amount)
+      ]);
+
+      if (result === null || result === undefined) {
         logger.debug('Cannot increment clicks - link not in cache', { code });
         return null;
       }
 
-      const link = JSON.parse(cached) as CachedLink;
-      const newClicksCount = (link.clicksCount ?? 0) + 1;
-
-      // Update object with new counter
-      const updatedLink: CachedLink = {
-        ...link,
-        clicksCount: newClicksCount
-      };
-
-      // Preserve remaining TTL
-      const ttl = await redis.ttl(key);
-      const effectiveTtl = ttl > 0 ? ttl : CACHE_TTL.LINK;
-
-      await redis.setex(key, effectiveTtl, JSON.stringify(updatedLink));
-
-      logger.debug('Clicks count incremented in cache', {
+      const newClicksCount = Number(result);
+      logger.debug('Clicks count incremented in cache (atomic)', {
         code,
-        newClicksCount,
-        ttlPreserved: ttl
+        newClicksCount
       });
 
       return newClicksCount;

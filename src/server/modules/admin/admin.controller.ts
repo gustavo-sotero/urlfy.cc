@@ -7,7 +7,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import type { User } from '@/lib/auth';
 import {
   ErrorRef,
@@ -17,6 +16,7 @@ import {
 import { createLogger } from '@/server/lib/telemetry';
 import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
 import {
   ADMIN_LINK_EXAMPLE,
   ADMIN_STATS_EXAMPLE,
@@ -179,69 +179,26 @@ export const adminController = new Elysia({ prefix: '/admin' })
 
   .patch(
     '/users/:userId',
-    async ({ params, body, user, request, set }) => {
+    async ({ params, body, user, request }) => {
       const adminUser = user as User;
 
-      try {
-        // Extract IP address for audit log
-        const ipAddress =
-          request.headers.get('x-forwarded-for')?.split(',')[0] ||
-          request.headers.get('x-real-ip') ||
-          undefined;
+      // Extract IP address for audit log
+      const ipAddress =
+        request.headers.get('x-forwarded-for')?.split(',')[0] ||
+        request.headers.get('x-real-ip') ||
+        undefined;
 
-        const updatedUser = await AdminService.updateUserStatus(
-          params.userId,
-          body,
-          adminUser.id,
-          ipAddress
-        );
+      const updatedUser = await AdminService.updateUserStatus(
+        params.userId,
+        body,
+        adminUser.id,
+        ipAddress
+      );
 
-        return {
-          success: true as const,
-          data: updatedUser
-        };
-      } catch (error) {
-        logger.error('Failed to update user', {
-          error,
-          userId: params.userId,
-          body,
-          adminId: adminUser.id
-        });
-
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-
-        if (errorMessage === 'USER_NOT_FOUND') {
-          set.status = 404;
-          return {
-            success: false as const,
-            error: {
-              code: 'USER_NOT_FOUND',
-              message: 'User not found'
-            }
-          };
-        }
-
-        if (errorMessage === 'CANNOT_BAN_SELF') {
-          set.status = 403;
-          return {
-            success: false as const,
-            error: {
-              code: 'FORBIDDEN',
-              message: 'Cannot ban yourself'
-            }
-          };
-        }
-
-        set.status = 500;
-        return {
-          success: false as const,
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to update user'
-          }
-        };
-      }
+      return {
+        success: true as const,
+        data: updatedUser
+      };
     },
     {
       detail: {
@@ -382,58 +339,27 @@ export const adminController = new Elysia({ prefix: '/admin' })
 
   .patch(
     '/links/:linkId/ban',
-    async ({ params, body, user, request, set }) => {
+    async ({ params, body, user, request }) => {
       const adminUser = user as User;
 
-      try {
-        const ipAddress =
-          request.headers.get('x-forwarded-for')?.split(',')[0] ||
-          request.headers.get('x-real-ip') ||
-          undefined;
+      const ipAddress =
+        request.headers.get('x-forwarded-for')?.split(',')[0] ||
+        request.headers.get('x-real-ip') ||
+        undefined;
 
-        await AdminService.banLink(
-          params.linkId,
-          body.bannedReason || 'Banned by administrator',
-          adminUser.id,
-          ipAddress
-        );
+      await AdminService.banLink(
+        params.linkId,
+        body.bannedReason || 'Banned by administrator',
+        adminUser.id,
+        ipAddress
+      );
 
-        return {
-          success: true as const,
-          data: {
-            message: 'Link banned successfully'
-          }
-        };
-      } catch (error) {
-        logger.error('Failed to ban link', {
-          error,
-          linkId: params.linkId,
-          adminId: adminUser.id
-        });
-
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-
-        if (errorMessage === 'LINK_NOT_FOUND') {
-          set.status = 404;
-          return {
-            success: false as const,
-            error: {
-              code: 'LINK_NOT_FOUND',
-              message: 'Link not found'
-            }
-          };
+      return {
+        success: true as const,
+        data: {
+          message: 'Link banned successfully'
         }
-
-        set.status = 500;
-        return {
-          success: false as const,
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to ban link'
-          }
-        };
-      }
+      };
     },
     {
       detail: {
@@ -461,53 +387,22 @@ export const adminController = new Elysia({ prefix: '/admin' })
 
   .patch(
     '/links/:linkId/unban',
-    async ({ params, user, request, set }) => {
+    async ({ params, user, request }) => {
       const adminUser = user as User;
 
-      try {
-        const ipAddress =
-          request.headers.get('x-forwarded-for')?.split(',')[0] ||
-          request.headers.get('x-real-ip') ||
-          undefined;
+      const ipAddress =
+        request.headers.get('x-forwarded-for')?.split(',')[0] ||
+        request.headers.get('x-real-ip') ||
+        undefined;
 
-        await AdminService.unbanLink(params.linkId, adminUser.id, ipAddress);
+      await AdminService.unbanLink(params.linkId, adminUser.id, ipAddress);
 
-        return {
-          success: true as const,
-          data: {
-            message: 'Link unbanned successfully'
-          }
-        };
-      } catch (error) {
-        logger.error('Failed to unban link', {
-          error,
-          linkId: params.linkId,
-          adminId: adminUser.id
-        });
-
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-
-        if (errorMessage === 'LINK_NOT_FOUND') {
-          set.status = 404;
-          return {
-            success: false as const,
-            error: {
-              code: 'LINK_NOT_FOUND',
-              message: 'Link not found'
-            }
-          };
+      return {
+        success: true as const,
+        data: {
+          message: 'Link unbanned successfully'
         }
-
-        set.status = 500;
-        return {
-          success: false as const,
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to unban link'
-          }
-        };
-      }
+      };
     },
     {
       detail: {

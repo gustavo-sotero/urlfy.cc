@@ -9,28 +9,28 @@ export interface LinkValidationResult {
 }
 
 /**
- * Validações de status do link
+ * Validates link status before redirect.
  *
- * @param link - Link a ser validado
- * @param bypassPassword - Se true, ignora verificação de senha
+ * @param link - Link to validate
+ * @param bypassPassword - If true, skips password verification
  */
 export function validateLink(
   link: CachedLink,
   bypassPassword = false
 ): LinkValidationResult {
-  // 1. Link inativo
+  // 1. Inactive link
   if (!link.isActive) {
     logger.debug('Link is inactive', { linkId: link.id });
     return { valid: false, error: 'INACTIVE' };
   }
 
-  // 2. Link banido
+  // 2. Banned link
   if (link.isBanned) {
     logger.debug('Link is banned', { linkId: link.id });
     return { valid: false, error: 'BANNED' };
   }
 
-  // 3. Link expirado
+  // 3. Expired link
   if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
     logger.debug('Link expired', {
       linkId: link.id,
@@ -39,7 +39,7 @@ export function validateLink(
     return { valid: false, error: 'EXPIRED' };
   }
 
-  // 4. Limite de cliques atingido
+  // 4. Click limit reached
   if (link.maxClicks && link.clicksCount >= link.maxClicks) {
     logger.debug('Max clicks reached', {
       linkId: link.id,
@@ -49,7 +49,7 @@ export function validateLink(
     return { valid: false, error: 'MAX_CLICKS' };
   }
 
-  // 5. Protegido por senha (a menos que bypassPassword seja true)
+  // 5. Password-protected (unless bypassPassword is true)
   if (link.passwordHash && !bypassPassword) {
     logger.debug('Link requires password', { linkId: link.id });
     return { valid: false, error: 'PASSWORD_REQUIRED' };

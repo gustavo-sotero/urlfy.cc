@@ -1,7 +1,8 @@
 // src/components/admin/stats-cards.tsx
 
-import { BarChart2, Link2, MousePointerClick, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarChart2, Link2, MousePointerClick, Users } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface AdminStats {
   totalLinks: number;
@@ -15,11 +16,13 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ stats }: StatsCardsProps) {
+  const t = useTranslations('Admin.stats');
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Links</CardTitle>
+          <CardTitle className="text-sm font-medium">{t('totalLinks')}</CardTitle>
           <Link2 className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -31,7 +34,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Cliques</CardTitle>
+          <CardTitle className="text-sm font-medium">{t('totalClicks')}</CardTitle>
           <MousePointerClick className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -43,7 +46,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Usuários</CardTitle>
+          <CardTitle className="text-sm font-medium">{t('totalUsers')}</CardTitle>
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -56,7 +59,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
-            Links Ativos Hoje
+            {t('activeLinksToday')}
           </CardTitle>
           <BarChart2 className="h-4 w-4 text-muted-foreground" />
         </CardHeader>

@@ -3,17 +3,18 @@
  * ADMIN SERVICE - Business logic for administrative operations
  * ═════════════════════════════════════════════════════════════════════
  * Module: Admin (Module 7)
- * Pattern: Abstract class with static methods (non-request dependent)
+ * Pattern: Stateless object literal (non-request dependent)
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, count, desc, eq, gte, ilike, isNull, or, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import { analyticsEvents, links, user as userTable } from '@/db/schema';
 import { auditLog } from '@/db/schema/audit';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
+import { and, count, desc, eq, gte, ilike, isNull, or, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import type {
   AdminStatsResponseType,
   AdminUserListQueryType,
@@ -24,12 +25,12 @@ import type {
 const logger = createLogger('admin-service');
 
 // ═══════════════════════════════════════════════════════════════════
-// ADMIN SERVICE - Abstract class with static methods
+// ADMIN SERVICE
 // ═══════════════════════════════════════════════════════════════════
 
 /**
  * AdminService - Handles all admin-related business logic
- * Uses abstract class with static methods pattern for non-request dependent logic
+ * Stateless object literal — no instantiation needed, clean import namespace
  */
 export const AdminService = {
   // ─────────────────────────────────────────────────────────────────
@@ -310,7 +311,7 @@ export const AdminService = {
   ): Promise<AdminUserResponseType> {
     // Validate admin is not banning themselves
     if (data.banned === true && userId === adminId) {
-      throw new Error('CANNOT_BAN_SELF');
+      throw new AppError(ErrorCode.FORBIDDEN, 'Cannot ban yourself');
     }
 
     try {
@@ -343,7 +344,7 @@ export const AdminService = {
         const updatedUser = updatedUsers[0];
 
         if (!updatedUser) {
-          throw new Error('USER_NOT_FOUND');
+          throw new AppError(ErrorCode.USER_NOT_FOUND, 'User not found');
         }
 
         // Create audit log entry
@@ -422,7 +423,7 @@ export const AdminService = {
         const updatedLink = updatedLinks[0];
 
         if (!updatedLink) {
-          throw new Error('LINK_NOT_FOUND');
+          throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
         }
 
         // Create audit log
@@ -490,7 +491,7 @@ export const AdminService = {
         const updatedLink = updatedLinks[0];
 
         if (!updatedLink) {
-          throw new Error('LINK_NOT_FOUND');
+          throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
         }
 
         // Create audit log

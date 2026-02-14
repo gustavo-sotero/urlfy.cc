@@ -1,10 +1,10 @@
-import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import { createLinkError } from '@/server/lib/errors';
+import { cacheService } from '@/server/services/cache.service';
 import { generateUniqueCode } from '@/server/services/shortcode.service';
 import type { Link } from '@/types/links.types';
-import { LinkCacheService } from './link-cache.service';
+import { and, eq } from 'drizzle-orm';
 import { LinkService } from './links.service';
 
 export const LinkLifecycleService = {
@@ -19,7 +19,7 @@ export const LinkLifecycleService = {
       .set({ deletedAt: new Date(), isActive: false })
       .where(eq(links.id, id));
 
-    await LinkCacheService.invalidateLinkCache(link.shortCode, 'delete');
+    await cacheService.invalidateAndMarkDeleted(link.shortCode);
   },
 
   /**
@@ -37,7 +37,7 @@ export const LinkLifecycleService = {
     }
 
     if (!link.deletedAt) {
-      return link; // Já está ativo
+      return link; // Already active
     }
 
     const [restored] = await db
@@ -46,7 +46,7 @@ export const LinkLifecycleService = {
       .where(eq(links.id, id))
       .returning();
 
-    await LinkCacheService.invalidateLinkCache(link.shortCode, 'update');
+    await cacheService.invalidateLink(link.shortCode);
 
     return restored;
   },
@@ -95,7 +95,7 @@ export const LinkLifecycleService = {
       .where(eq(links.id, id))
       .returning();
 
-    await LinkCacheService.invalidateLinkCache(link.shortCode, 'update');
+    await cacheService.invalidateLink(link.shortCode);
 
     return updated;
   }
