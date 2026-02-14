@@ -8,7 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   account as accountTable,
@@ -19,7 +18,8 @@ import {
   user as userTable
 } from '@/db/schema';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
-import { auditLogService } from '@/server/services/audit.service';
+import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { usersAuditAdapter } from './adapters/audit-log.adapter';
 
 /**
  * User Service - Handles user-related operations
@@ -230,7 +230,7 @@ export const UserService = {
 
     // Log audit event
     try {
-      await auditLogService.log({
+      await usersAuditAdapter.log({
         userId: adminId,
         action: 'ban_user',
         entityType: 'user',
@@ -263,7 +263,7 @@ export const UserService = {
 
     // Log audit event
     try {
-      await auditLogService.log({
+      await usersAuditAdapter.log({
         userId: adminId,
         action: 'unban_user',
         entityType: 'user',
@@ -296,7 +296,7 @@ export const UserService = {
 
     // Log audit event
     try {
-      await auditLogService.log({
+      await usersAuditAdapter.log({
         userId: adminId,
         action: 'update_user_role',
         entityType: 'user',

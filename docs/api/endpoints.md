@@ -138,6 +138,15 @@ Content-Type: application/json
 Idempotency-Key: idem_<uuid>  # Opcional
 ```
 
+**Semântica de idempotência (escopada):**
+
+- Escopo de chave: `idempotency:{principal}:{route}:{key}`
+- `principal`: usuário autenticado, identidade de API key, ou `guest`
+- `route`: contexto lógico da operação (ex.: `POST /links`)
+- TTL: 24 horas
+- Replays no mesmo escopo retornam o mesmo resultado lógico da primeira execução
+- A mesma `Idempotency-Key` pode ser reutilizada em outro `principal` ou outra `route` sem colisão
+
 **Body (Guest):**
 
 ```json

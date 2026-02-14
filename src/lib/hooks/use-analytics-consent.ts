@@ -151,6 +151,7 @@ export function useConditionalAnalytics(scriptId: string): void {
     // Analytics script loading is deferred until a third-party analytics
     // provider is selected and configured. No action needed for MVP.
     // @owner gustavo-sotero
+    // @tracking TODO-ANALYTICS-PROVIDER-SELECTION (docs/development/todo-registry.md)
     // script.src = "...";
     // document.head.appendChild(script);
 

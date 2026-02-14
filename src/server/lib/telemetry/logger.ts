@@ -115,7 +115,7 @@ const SENSITIVE_FIELDS = new Set([
  * Redact sensitive fields from log context to prevent PII leakage.
  * Only redacts top-level keys to avoid performance overhead of deep traversal.
  */
-function redactContext(ctx: LogContext): LogContext {
+export function redactLogContext(ctx: LogContext): LogContext {
   const redacted: LogContext = {};
   for (const [key, value] of Object.entries(ctx)) {
     if (SENSITIVE_FIELDS.has(key)) {
@@ -132,7 +132,7 @@ export function createLogger(name: string) {
 
   const log = (level: string, message: string, ctx?: LogContext) => {
     // Redact sensitive fields before any logging/emission
-    const safeCtx = ctx ? redactContext(ctx) : ctx;
+    const safeCtx = ctx ? redactLogContext(ctx) : ctx;
 
     // Safely get active span (may not exist in test environment)
     const span =

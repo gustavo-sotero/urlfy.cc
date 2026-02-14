@@ -83,7 +83,32 @@ CREATE INDEX idx_links_expires ON links(expires_at)
 
 -- Busca por tags (GIN para array)
 CREATE INDEX idx_links_tags ON links USING GIN(tags);
+
+-- Fuzzy search admin (`ILIKE %term%`) com pg_trgm
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_links_shortcode_trgm ON links USING GIN (short_code gin_trgm_ops);
+CREATE INDEX idx_links_original_url_trgm ON links USING GIN (original_url gin_trgm_ops);
 ```
+
+### Validação de Plano de Execução (Admin Search)
+
+Use `EXPLAIN (ANALYZE, BUFFERS)` para validar uso de índice em busca fuzzy administrativa:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id, short_code, original_url, created_at
+FROM links
+WHERE deleted_at IS NULL
+  AND (
+    short_code ILIKE '%example%'
+    OR original_url ILIKE '%example%'
+  )
+ORDER BY created_at DESC
+LIMIT 50;
+```
+
+Esperado em datasets realistas: plano com uso de índice `gin_trgm_ops` (ex.: `Bitmap Index Scan`).
+Consultas sem trigramas úteis podem degradar para scan mais amplo; esse caso deve ser monitorado.
 
 ### Notas de Implementação
 

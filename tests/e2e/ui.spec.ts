@@ -230,6 +230,32 @@ if (runE2E) {
         page.getByRole('link', { name: /acessar link/i })
       ).toBeVisible();
     });
+
+    test('should not expose destination for password-protected preview', async ({
+      page
+    }) => {
+      await login(page, 'test@example.com', 'password123');
+
+      const code = `preview-protected-${Date.now()}`;
+      const secretUrl = 'https://example.com/private-destination-e2e';
+
+      await createTestLink(page, {
+        url: secretUrl,
+        password: 'secret-pass',
+        customAlias: code
+      });
+
+      await page.context().clearCookies();
+      await page.goto(`/preview/${code}`);
+
+      await expect(
+        page.getByRole('heading', { name: /preview/i })
+      ).toBeVisible();
+      await expect(page.getByText(secretUrl)).toHaveCount(0);
+      await expect(
+        page.getByRole('link', { name: /acessar link/i })
+      ).toBeVisible();
+    });
   });
 
   test.describe('Admin Panel', () => {

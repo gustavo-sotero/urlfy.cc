@@ -58,6 +58,16 @@ Para links virais, rate limiting por IP bloquearia usuários legítimos. Estrat�
 2. **Por IP:** 100/min (usuário normal não clica 100x/min)
 3. **Fingerprinting:** Hash de `User-Agent + Accept-Language` para detectar bots
 
+### Política de Camadas (Canônica)
+
+Para evitar dupla cobrança de custo no mesmo request path:
+
+- **Camada 1 (Gateway API `/api/*`):** rate limit global para rotas de API.
+- **Camada 2 (Redirect público `/r/:code`):** rate limit dedicado de redirect (`IP + link`) no próprio handler de redirect.
+- **Camada 3 (Guard de abuso por link):** limite por `shortCode` aplicado apenas no fluxo de redirect.
+
+Com isso, o redirect hot-path não passa pelo limiter global de `/api/*`, enquanto rotas administrativas e internas continuam protegidas pela camada de gateway.
+
 ---
 
 ## Validação de URLs

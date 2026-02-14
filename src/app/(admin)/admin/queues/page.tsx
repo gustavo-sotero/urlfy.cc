@@ -5,8 +5,6 @@
 
 'use client';
 
-import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +24,8 @@ import {
 } from '@/components/ui/table';
 import type { StreamStats } from '@/lib/api';
 import { useQueueStats } from '@/lib/hooks';
+import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 
 export default function AdminQueuesPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -251,7 +251,7 @@ export default function AdminQueuesPage() {
       {autoRefresh && (
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-          Auto-refreshing every 5 seconds
+          Auto-refreshing every 15 seconds
         </div>
       )}
     </div>
