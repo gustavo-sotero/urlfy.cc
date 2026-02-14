@@ -3,12 +3,20 @@
  * Handles data export and deletion requests per GDPR/LGPD regulations
  */
 
-import { and, eq, inArray, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { db } from '@/db';
-import { analyticsEvents, links, user } from '@/db/schema';
+import {
+  account,
+  analyticsEvents,
+  apikey,
+  links,
+  session,
+  twoFactor,
+  user
+} from '@/db/schema';
 import { type DeletionStatus, dataDeletionRequest } from '@/db/schema/audit';
 import { createLogger } from '@/server/lib/telemetry';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
 const logger = createLogger('gdpr');
 
@@ -205,6 +213,12 @@ export class GDPRService {
 
         // Delete user's links
         await tx.delete(links).where(eq(links.userId, userId));
+
+        // Delete auth-related records explicitly (defense in depth)
+        await tx.delete(session).where(eq(session.userId, userId));
+        await tx.delete(account).where(eq(account.userId, userId));
+        await tx.delete(twoFactor).where(eq(twoFactor.userId, userId));
+        await tx.delete(apikey).where(eq(apikey.userId, userId));
 
         // Delete user account
         await tx.delete(user).where(eq(user.id, userId));

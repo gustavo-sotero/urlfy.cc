@@ -17,6 +17,20 @@ export function buildCspDirectives({
 }: CspOptions): string {
   const scriptSrc = ["'self'", `'nonce-${nonce}'`, 'https://cdn.jsdelivr.net'];
 
+  const extraImgOrigins = (process.env.NEXT_PUBLIC_CSP_IMG_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const imgSrc = [
+    "'self'",
+    'data:',
+    'blob:',
+    'https://lh3.googleusercontent.com',
+    'https://avatars.githubusercontent.com',
+    ...extraImgOrigins
+  ];
+
   if (!isProduction) {
     scriptSrc.push("'unsafe-eval'");
   }
@@ -25,7 +39,7 @@ export function buildCspDirectives({
     "default-src 'self'",
     `script-src ${scriptSrc.join(' ')}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://fonts.googleapis.com https://cdn.jsdelivr.net",
-    "img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
+    `img-src ${imgSrc.join(' ')}`,
     "font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com",
     "connect-src 'self' https://cdn.jsdelivr.net",
     "frame-ancestors 'none'",

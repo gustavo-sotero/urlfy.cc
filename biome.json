@@ -42,6 +42,14 @@
       },
       "security": {
         "noDangerouslySetInnerHtml": "off"
+      },
+      "correctness": {
+        "noUnusedVariables": {
+          "level": "error",
+          "options": {
+            "ignoreRestSiblings": false
+          }
+        }
       }
     },
     "domains": {

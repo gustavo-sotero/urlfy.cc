@@ -3,10 +3,10 @@
  * Provides introspection into Redis Streams state
  */
 
-import { Elysia, t } from 'elysia';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAdmin } from '@/server/middleware/auth/require-admin';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin:queues');
 
@@ -72,7 +72,7 @@ export const adminQueuesController = new Elysia({ prefix: '/admin/queues' })
   .use(requireAdmin)
   .get(
     '/',
-    async ({ user: _user }) => {
+    async ({ user: _user, set }) => {
       try {
         // Get stats for all streams in parallel
         const streamNames = Object.values(STREAM_NAMES);
@@ -95,6 +95,8 @@ export const adminQueuesController = new Elysia({ prefix: '/admin/queues' })
           error: error instanceof Error ? error.message : String(error)
         });
 
+        set.status = 500;
+
         return {
           success: false,
           error: {
@@ -114,7 +116,7 @@ export const adminQueuesController = new Elysia({ prefix: '/admin/queues' })
   )
   .get(
     '/:stream',
-    async ({ params, user: _user }) => {
+    async ({ params, user: _user, set }) => {
       try {
         const stats = await getStreamStats(params.stream);
 
@@ -129,6 +131,8 @@ export const adminQueuesController = new Elysia({ prefix: '/admin/queues' })
             error: error instanceof Error ? error.message : String(error)
           }
         );
+
+        set.status = 500;
 
         return {
           success: false,

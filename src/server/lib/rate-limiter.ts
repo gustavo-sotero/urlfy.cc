@@ -131,6 +131,16 @@ export const RATE_LIMIT_CONFIGS = {
   },
   'POST /api/auth/sign-up': {
     guest: { points: 3, duration: 3600, failClosed: true } // 3/hour
+  },
+  'POST /api/auth/forgot-password': {
+    guest: { points: 3, duration: 3600, failClosed: true } // 3/hour
+  },
+  'POST /api/auth/verify-email': {
+    guest: { points: 10, duration: 3600, failClosed: true } // 10/hour
+  },
+  'POST /api/auth/api-keys*': {
+    guest: null, // Requires authentication
+    auth: { points: 10, duration: 3600, failClosed: true } // 10/hour
   }
 } as const;
 

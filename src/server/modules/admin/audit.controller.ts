@@ -8,7 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import type { AuditAction } from '@/db/schema/audit';
 import {
   PaginatedResponse,
@@ -21,6 +20,7 @@ import {
   AuditLogQuery
 } from '@/server/modules/admin/admin.schema';
 import { auditLogService } from '@/server/services/audit.service';
+import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin-audit-controller');
 
@@ -34,7 +34,7 @@ export const auditController = new Elysia({ prefix: '/audit' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/',
-    async ({ user, query }) => {
+    async ({ user, query, set }) => {
       try {
         const page = Math.max(1, parseInt(query.page || '1', 10));
         const limit = Math.min(
@@ -115,6 +115,8 @@ export const auditController = new Elysia({ prefix: '/audit' })
           error: error instanceof Error ? error.message : String(error),
           userId: user?.id
         });
+
+        set.status = 500;
 
         return {
           success: false,
@@ -333,7 +335,7 @@ export const auditController = new Elysia({ prefix: '/audit' })
       }
     },
     {
-      params: t.Ref('admin.audit.user!.param'),
+      params: t.Ref('admin.audit.user.param'),
       query: t.Ref('admin.audit.limit.query'),
       detail: {
         tags: ['Admin', 'Audit'],
