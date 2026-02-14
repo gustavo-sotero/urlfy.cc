@@ -1,6 +1,6 @@
-import { trace } from '@opentelemetry/api';
 import { createLogger, recordRedirectMetrics } from '@/server/lib/telemetry';
 import type { RedirectError, RedirectResult } from '@/types/redirect.types';
+import { trace } from '@opentelemetry/api';
 import { cacheService } from '../cache.service';
 import * as Fetcher from './fetcher';
 import { buildFinalUrl } from './url-builder';
@@ -10,18 +10,18 @@ const logger = createLogger('redirect-service');
 const tracer = trace.getTracer('redirect-service');
 
 /**
- * Service responsável pelo redirecionamento de URLs curtas
- * Implementa Cache-Aside pattern com Stampede Protection
- * Agrega functionalidade de fetcher, validator e url-builder
+ * Service responsible for short URL redirection
+ * Implements Cache-Aside pattern with Stampede Protection
+ * Aggregates fetcher, validator and url-builder functionality
  */
 export class RedirectService {
   /**
-   * Resolve um short code para URL de destino com bypass de senha opcional
+   * Resolve a short code to destination URL with optional password bypass
    *
-   * @param code - Código curto do link
-   * @param currentDepth - Profundidade atual de redirects (para prevenir loops)
-   * @param bypassPassword - Se true, ignora validação de senha (usado quando cookie válido)
-   * @returns Resultado com URL de destino ou erro
+   * @param code - Short link code
+   * @param currentDepth - Current redirect depth (prevents loops)
+   * @param bypassPassword - If true, skips password validation (used with valid cookie)
+   * @returns Result with destination URL or error
    */
   async resolve(
     code: string,
@@ -36,7 +36,7 @@ export class RedirectService {
       { attributes: { code, depth: currentDepth } },
       async (span) => {
         try {
-          // 1. Verifica profundidade de redirect
+          // 1. Check redirect depth
           if (currentDepth >= 3) {
             logger.warn('Redirect loop detected', {
               code,
@@ -54,7 +54,7 @@ export class RedirectService {
             return { success: false, error: 'REDIRECT_LOOP' as RedirectError };
           }
 
-          // 2. Busca link (cache-first com fallback) via Fetcher
+          // 2. Fetch link (cache-first with fallback) via Fetcher
           const resolved = await Fetcher.getLink(code);
           const link = resolved.link;
           cacheHit = resolved.cacheHit;
@@ -91,7 +91,7 @@ export class RedirectService {
             };
           }
 
-          // 4. Monta URL final com UTMs
+          // 4. Build final URL with UTMs
           const finalUrl = buildFinalUrl(link);
 
           const latency = performance.now() - startTime;
@@ -158,7 +158,7 @@ export class RedirectService {
   }
 
   /**
-   * Obtém estatísticas de health do redirect service
+   * Get redirect service health stats
    */
   async getHealthStats(): Promise<{
     circuitBreaker: string;

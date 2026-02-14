@@ -4,13 +4,13 @@ import type { CachedLink } from '@/types/redirect.types';
 const logger = createLogger('redirect-url-builder');
 
 /**
- * Monta URL final com parâmetros UTM
+ * Build final URL with UTM parameters
  */
 export function buildFinalUrl(link: CachedLink): string {
   try {
     const url = new URL(link.originalUrl);
 
-    // Adiciona UTMs se configurados
+    // Add UTMs when configured
     if (link.utmSource) {
       url.searchParams.set('utm_source', link.utmSource);
     }
