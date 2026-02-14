@@ -8,6 +8,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { desc, eq } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema';
 import { sendEmail } from '@/server/lib/email';
@@ -19,8 +21,6 @@ import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import { UsersModel } from '@/server/modules/users/users.schema';
 import { requestContext } from '@/server/plugins/request-context';
-import { desc, eq } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
 import { usersAuditAdapter } from './adapters/audit-log.adapter';
 import { usersGdprAdapter } from './adapters/gdpr.adapter';
 

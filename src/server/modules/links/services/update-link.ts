@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import {
@@ -8,7 +9,6 @@ import {
 import { linksCacheAdapter } from '@/server/modules/links/adapters/cache.adapter';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
 import type { Link, UpdateLinkInput } from '@/types/links.types';
-import { eq } from 'drizzle-orm';
 import { getLinkById } from './get-link';
 import { isValidAliasFormat, validateCustomAlias } from './shortcode.service';
 
