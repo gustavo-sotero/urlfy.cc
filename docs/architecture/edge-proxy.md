@@ -21,23 +21,22 @@ The runtime does not support Node.js 'os' module.
 Failed to load external module bun: TypeError: Native module not found: bun
 ```
 
-## Solution: Internal API Pattern
+## Solution: Edge Rewrite + Node Route Handler
 
-We split the redirect flow into two parts:
+The redirect flow is split into two runtime-safe parts:
 
 ### 1. Edge Proxy (`src/proxy.ts`)
 
 - Runs in Edge Runtime environment
 - Handles route matching and basic HTTP logic
-- Makes internal API call to resolve links
-- Returns redirect response
+- Rewrites short-code requests to Node route handler (`/r/:code`)
 
-### 2. Node.js API Route (`src/app/api/internal/resolve/[code]/route.ts`)
+### 2. Node.js Route Handler (`src/app/r/[code]/route.ts`)
 
 - Runs in full Node.js runtime
 - Has access to database, OpenTelemetry, BullMQ
 - Uses existing `redirectService` with all features
-- Protected by `INTERNAL_API_SECRET` header
+- Executes redirect decision directly (no internal HTTP hop)
 
 ## Flow
 
@@ -50,12 +49,12 @@ User Request
 │  (Fast, Global, Limited APIs)       │
 │  - Check redirect depth             │
 │  - Check password cookie            │
-│  - Call internal API ───────────┐   │
+│  - Rewrite to /r/:code ────────┐    │
 └─────────────────────────────────│───┘
                                   │
                                   ▼
 ┌─────────────────────────────────────────┐
-│  Internal API Route                     │
+│  Node Route Handler (/r/:code)          │
 │  (Node.js Runtime, Full Features)       │
 │  - Database access                      │
 │  - Redis cache                          │
@@ -70,37 +69,29 @@ User Request
 
 ## Security
 
-The internal API is protected by:
+The redirect route handler keeps the same validation guarantees without an
+internal API endpoint:
 
-1. **Secret header**: `x-internal-api: ${INTERNAL_API_SECRET}`
-2. **Network isolation**: Not exposed externally in production
-3. **Origin check**: Only accepts requests from same origin
-
-In production, consider:
-
-- Using Vercel's internal networking
-- Setting up firewall rules to block external access to `/api/internal/*`
+1. Redirect depth control (`X-Redirect-Depth`, max 3)
+2. IP/per-link rate limiting
+3. Password-unlock cookie verification before resolving protected links
 
 ## Files
 
-| File                                           | Runtime | Purpose                  |
-| ---------------------------------------------- | ------- | ------------------------ |
-| `src/proxy.ts`                                 | Edge    | Route matching           |
-| `src/server/middleware/redirect.middleware.ts` | Edge    | Redirect logic, API call |
-| `src/server/lib/telemetry.edge.ts`             | Edge    | Lightweight logging      |
-| `src/app/api/internal/resolve/[code]/route.ts` | Node.js | Link resolution          |
-| `src/server/services/redirect.service.ts`      | Node.js | Full redirect service    |
-| `src/server/lib/telemetry.ts`                  | Node.js | OpenTelemetry            |
+| File                                      | Runtime | Purpose                        |
+| ----------------------------------------- | ------- | ------------------------------ |
+| `src/proxy.ts`                            | Edge    | Route matching                 |
+| `src/app/r/[code]/route.ts`               | Node.js | Redirect resolution + response |
+| `src/server/lib/telemetry.edge.ts`        | Edge    | Lightweight logging            |
+| `src/server/services/redirect.service.ts` | Node.js | Full redirect service          |
+| `src/server/lib/telemetry.ts`             | Node.js | OpenTelemetry                  |
 
 ## Performance Considerations
 
 ### Latency Impact
 
-Making an internal API call adds ~1-5ms overhead compared to direct database access. This is acceptable because:
-
-- Edge proxy is globally distributed (low latency to users)
-- Internal API call is within same region/datacenter
-- Total P99 latency still < 300ms (target)
+The `/r/:code` handler removes one internal network hop from the hot path,
+reducing latency and failure surface while preserving redirect semantics.
 
 ### Caching
 
@@ -110,8 +101,8 @@ The redirect service already has Redis caching, so most requests hit cache and a
 
 Track both:
 
-- Edge proxy latency (includes API call)
-- Internal API latency (database + Redis)
+- Edge proxy latency (rewrite path)
+- Redirect handler latency (`/r/:code`, database + Redis)
 
 This helps identify bottlenecks.
 
@@ -135,22 +126,8 @@ Vercel Edge Config stores key-value data globally and is accessible from Middlew
 
 ## Testing
 
-When testing locally:
-
-```bash
-# .env.local
-INTERNAL_API_SECRET=dev-secret-key-for-testing
-```
-
-In production:
-
-```bash
-# Generate secure secret
-openssl rand -hex 32
-
-# Set in environment
-INTERNAL_API_SECRET=<generated-secret>
-```
+Validate redirect flow with integration tests targeting `/r/:code` and
+redirect-service resolution matrix.
 
 ## References
 
