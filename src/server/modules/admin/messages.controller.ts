@@ -6,6 +6,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { createLogger } from '@/server/lib/telemetry';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
@@ -14,7 +15,6 @@ import {
   MessageUpdateBody
 } from '@/server/modules/contact/contact.schema';
 import { ContactService } from '@/server/modules/contact/contact.service';
-import { Elysia, t } from 'elysia';
 
 const logger = createLogger('admin-messages-controller');
 

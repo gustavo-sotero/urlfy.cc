@@ -3,6 +3,8 @@
  * React Query hooks for admin operations
  */
 
+import * as api from '@/lib/api';
+import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
 import {
   type UseMutationOptions,
   type UseQueryOptions,
@@ -10,8 +12,6 @@ import {
   useQuery,
   useQueryClient
 } from '@tanstack/react-query';
-import * as api from '@/lib/api-client';
-import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
 import { linkKeys } from './use-links';
 
 // ═══════════════════════════════════════════════════════════════════

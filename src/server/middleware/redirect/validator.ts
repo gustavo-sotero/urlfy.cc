@@ -6,9 +6,9 @@
  * Request validation logic for redirect middleware
  */
 
+import type { NextRequest } from 'next/server';
 import { getAllowedOrigins } from '@/server/config/cors';
 import { getClientIp } from '@/server/lib/ip';
-import type { NextRequest } from 'next/server';
 import type { ValidationResult } from './types';
 
 /** Maximum redirect depth to prevent loops */

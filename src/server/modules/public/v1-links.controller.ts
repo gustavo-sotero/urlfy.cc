@@ -9,6 +9,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import { Scopes } from '@/server/config/scopes';
 import {
   ErrorRef,
@@ -25,9 +26,6 @@ import {
 } from '@/server/modules/links';
 import { LinkLifecycleService } from '@/server/modules/links/link-lifecycle.service';
 import { LinkService } from '@/server/modules/links/links.service';
-import { Elysia, t } from 'elysia';
-
-
 
 /**
  * Helper type for context with API key

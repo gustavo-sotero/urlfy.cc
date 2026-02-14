@@ -1,9 +1,6 @@
 // src/app/(admin)/admin/users/page.tsx
 'use client';
 
-import { Loader2, MoreHorizontal, Search } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 import { QueryError } from '@/components/query-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,13 +35,16 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import type { UserResponse } from '@/lib/api-client';
+import type { UserResponse } from '@/lib/api';
 import {
   useBanUser,
   useUnbanUser,
   useUpdateUserRole,
   useUsers
 } from '@/lib/hooks/use-admin';
+import { Loader2, MoreHorizontal, Search } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('');

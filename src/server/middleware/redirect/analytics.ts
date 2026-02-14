@@ -6,10 +6,10 @@
  * Click event preparation and dispatch for redirect analytics
  */
 
-import type { NextRequest } from 'next/server';
 import { getClientIp } from '@/server/lib/ip';
 import { createLogger } from '@/server/lib/telemetry.edge';
 import type { ClickEvent } from '@/types/analytics.types';
+import type { NextRequest } from 'next/server';
 
 const logger = createLogger('redirect-analytics');
 
@@ -80,7 +80,7 @@ export async function enqueueClickEvent(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-internal-token': internalToken
+        'x-internal-api': internalToken
       },
       body: JSON.stringify(event)
     }).catch((error) => {

@@ -1,9 +1,15 @@
 import type { Link, LinkResponse } from '@/types/links.types';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://urlfy.cc';
+/**
+ * Get the base URL for short links.
+ * Uses a function to avoid caching the env value at import time.
+ */
+function getBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL || 'https://urlfy.cc';
+}
 
 /**
- * Formata link para resposta da API
+ * Format link for API response
  */
 export function formatLinkResponse(link: Link): LinkResponse {
   const createdAt = link.createdAt
@@ -14,7 +20,7 @@ export function formatLinkResponse(link: Link): LinkResponse {
   return {
     id: link.id,
     shortCode: link.shortCode,
-    shortUrl: `${BASE_URL}/${link.shortCode}`,
+    shortUrl: `${getBaseUrl()}/${link.shortCode}`,
     originalUrl: link.originalUrl,
     redirectType: link.redirectType as 301 | 302,
     clicksCount: link.clicksCount,

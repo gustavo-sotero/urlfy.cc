@@ -18,10 +18,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import createMiddleware from 'next-intl/middleware';
 import { buildCspDirectives } from '@/lib/csp';
 import { handleRedirect } from '@/server/middleware/redirect.middleware';
+import createMiddleware from 'next-intl/middleware';
+import { NextRequest, NextResponse } from 'next/server';
 import { routing } from './i18n/routing';
 
 // Initialize next-intl middleware
@@ -48,7 +48,7 @@ const SYSTEM_ROUTES = [
 ];
 
 /**
- * Configuração do matcher
+ * Matcher configuration
  * Match all paths except static files
  */
 export const config = {

@@ -8,8 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { createHash } from 'node:crypto';
-import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import {
   checkIdempotency,
@@ -17,12 +15,15 @@ import {
   validateIdempotencyKey
 } from '@/server/lib/idempotency';
 import { getClientIp } from '@/server/lib/ip';
+import { requireUserId } from '@/server/lib/require-user-id';
 import {
   ErrorRef,
   PaginatedResponse,
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
+import { createHash } from 'node:crypto';
 import { LinkLifecycleService } from './link-lifecycle.service';
 import {
   LinkBulkCreateBody,
@@ -33,14 +34,6 @@ import {
   LinkUpdateBody
 } from './links.schema';
 import { LinkService } from './links.service';
-
-function requireUserId(user: { id: string } | null | undefined): string {
-  if (!user?.id) {
-    throw new AppError(ErrorCode.UNAUTHORIZED, 'Authentication required');
-  }
-
-  return user.id;
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // CREATE LINK ROUTE (guest or authenticated)

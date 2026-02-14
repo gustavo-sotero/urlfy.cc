@@ -17,22 +17,6 @@
 
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  AlertTriangle,
-  Check,
-  Copy,
-  ExternalLink,
-  Key,
-  Loader2,
-  Plus,
-  Trash2
-} from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,12 +52,28 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Link } from '@/i18n/routing';
-import type { ApiKeyPublic } from '@/lib/api-client';
+import type { ApiKeyPublic } from '@/lib/api';
 import {
   useApiKeys,
   useCreateApiKey,
   useRevokeApiKey
 } from '@/lib/hooks/use-api-keys';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  AlertTriangle,
+  Check,
+  Copy,
+  ExternalLink,
+  Key,
+  Loader2,
+  Plus,
+  Trash2
+} from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES & SCHEMAS

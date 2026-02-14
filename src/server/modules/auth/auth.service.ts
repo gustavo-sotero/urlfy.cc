@@ -8,6 +8,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import {
   apiKey as apiKeyTable,
@@ -20,8 +22,6 @@ import type {
   ApiKeyPermissions,
   NormalizedApiKeyPermissions
 } from '@/types/auth.types';
-import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES

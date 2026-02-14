@@ -1,5 +1,6 @@
 // src/server/lib/__tests__/privacy.test.ts
 
+import { describe, expect, it } from 'bun:test';
 import {
   getHashesForPeriod,
   getSaltInfo,
@@ -7,7 +8,6 @@ import {
   validateHashForWeek,
   validatePrivacyImplementation
 } from '@/server/lib/privacy';
-import { describe, expect, it } from 'bun:test';
 
 describe('Privacy - IP Anonimization', () => {
   describe('hashVisitor', () => {

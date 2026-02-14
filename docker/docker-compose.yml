@@ -1,12 +1,12 @@
 # ═══════════════════════════════════════════════════════════════════
 # LOCAL DEVELOPMENT - docker compose up -d
 # ═══════════════════════════════════════════════════════════════════
-# Sobe PostgreSQL + Redis para desenvolvimento local.
-# A app roda fora do Docker via "bun run dev".
+# Starts PostgreSQL + Redis for local development.
+# The app runs outside Docker via "bun run dev".
 #
-# Produção (Dokploy): PostgreSQL, Redis e SigNoz são serviços
-# separados no Dokploy (templates). Apenas o Dockerfile da app
-# e o geoip-downloader são usados do repositório.
+# Production (Dokploy): PostgreSQL, Redis and SigNoz are separate
+# services in Dokploy (templates). Only the app Dockerfile and
+# geoip-downloader are used from this repository.
 # ═══════════════════════════════════════════════════════════════════
 
 services:
@@ -75,8 +75,12 @@ services:
     entrypoint: []
     command: ['/usr/local/bin/geoip-refresh.sh']
 
-# ═════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════
 # VOLUMES
+# ═════════════════════════════════════════════════════════════════════
+# NOTE: When scaling beyond 2 application processes, add PgBouncer
+# for connection pooling. Current max_connections=20 per process
+# may exhaust PostgreSQL limits. See docs/architecture/overview.md
 # ═════════════════════════════════════════════════════════════════════
 volumes:
   postgres_data:

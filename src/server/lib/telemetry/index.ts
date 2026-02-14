@@ -14,21 +14,20 @@ export { createLogger } from './logger';
 
 // Metrics
 export {
-    cacheHitRate,
-    cacheHits,
-    cacheMisses,
-    circuitBreakerTrips,
-    // Helper functions
-    recordCacheHit,
-    recordCacheMiss,
-    recordRedirectMetrics,
-    redirectErrors,
-    // Counters & histograms
-    redirectLatency,
-    redirectTotal,
-    redisFallbacks,
-    resetCacheMetrics,
-    stampedeLocksAcquired,
-    stampedeLocksWaited
+  cacheHitRate,
+  cacheHits,
+  cacheMisses,
+  circuitBreakerTrips,
+  // Helper functions
+  recordCacheHit,
+  recordCacheMiss,
+  recordRedirectMetrics,
+  redirectErrors,
+  // Counters & histograms
+  redirectLatency,
+  redirectTotal,
+  redisFallbacks,
+  resetCacheMetrics,
+  stampedeLocksAcquired,
+  stampedeLocksWaited
 } from './metrics';
-

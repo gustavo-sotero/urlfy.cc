@@ -3,20 +3,14 @@
  * API Client - Barrel Export
  * Re-exports all API modules for backward compatibility
  *
- * Usage (preferred):
+ * Usage:
  * import { createLink, getLinks } from '@/lib/api';
- *
- * Legacy usage (still supported):
- * import { createLink, getLinks } from '@/lib/api-client';
  */
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN API
 // ═══════════════════════════════════════════════════════════════════
 export {
-  type AdminStats,
-  type AuditLogEntry,
-  type AuditLogsQuery,
   banLink,
   banUser,
   getAdminStats,
@@ -28,54 +22,57 @@ export {
   getUsers,
   listAdminLinks,
   listAdminLinksSSR,
-  type StreamStats,
   searchLinks,
-  type UserResponse,
-  type UsersQuery,
   unbanLink,
   unbanUser,
   updateUser,
-  updateUserRole
+  updateUserRole,
+  type AdminStats,
+  type AuditLogEntry,
+  type AuditLogsQuery,
+  type StreamStats,
+  type UserResponse,
+  type UsersQuery
 } from './admin';
 // ═══════════════════════════════════════════════════════════════════
 // ANALYTICS API
 // ═══════════════════════════════════════════════════════════════════
 export {
-  type AnalyticsOptions,
   getAnalyticsBreakdown,
   getAnalyticsSummary,
-  getDailyStats
+  getDailyStats,
+  type AnalyticsOptions
 } from './analytics';
 // ═══════════════════════════════════════════════════════════════════
 // API KEYS
 // ═══════════════════════════════════════════════════════════════════
 export {
-  type ApiKeyCreated,
-  type ApiKeyPublic,
-  type CreateApiKeyInput,
   createApiKey,
   getApiKeys,
-  revokeApiKey
+  revokeApiKey,
+  type ApiKeyCreated,
+  type ApiKeyPublic,
+  type CreateApiKeyInput
 } from './api-keys';
 // ═══════════════════════════════════════════════════════════════════
 // CLIENT & UTILITIES
 // ═══════════════════════════════════════════════════════════════════
 export {
-  apiClient,
   BASE_URL,
+  apiClient,
   client,
   convertHeadersForApiClient,
   createClientWithHeaders
 } from './client';
 export {
   ApiClientError,
-  type BackendErrorResponse,
-  type BackendSuccessResponse,
   extractArrayData,
   extractErrorInfo,
   handleEden,
-  type TreatyResponse,
-  toQueryParams
+  toQueryParams,
+  type BackendErrorResponse,
+  type BackendSuccessResponse,
+  type TreatyResponse
 } from './error';
 // ═══════════════════════════════════════════════════════════════════
 // LINKS API
@@ -89,22 +86,22 @@ export {
   getLinkStats,
   getLinks,
   getQRCode,
+  restoreLink,
+  updateLink,
+  validateUrl,
+  verifyLinkPassword,
   type LinkPreview,
   type LinkStats,
   type QRCodeOptions,
-  restoreLink,
-  type UrlValidationResult,
-  updateLink,
-  validateUrl,
-  verifyLinkPassword
+  type UrlValidationResult
 } from './links';
 // ═══════════════════════════════════════════════════════════════════
 // USERS API
 // ═══════════════════════════════════════════════════════════════════
 export {
-  type DataDeletionRequest,
   exportUserData,
   getUserQuota,
   requestDataDeletion,
+  type DataDeletionRequest,
   type UserQuota
 } from './users';

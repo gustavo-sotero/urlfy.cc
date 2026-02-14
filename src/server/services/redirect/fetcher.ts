@@ -1,5 +1,3 @@
-import { trace } from '@opentelemetry/api';
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import * as schema from '@/db/schema';
 import { CircuitBreaker } from '@/server/lib/circuit-breaker';
@@ -13,6 +11,8 @@ import {
   stampedeLocksWaited
 } from '@/server/lib/telemetry';
 import type { CachedLink } from '@/types/redirect.types';
+import { trace } from '@opentelemetry/api';
+import { eq } from 'drizzle-orm';
 import { CACHE_PREFIX, cacheService } from '../cache.service';
 
 const { links } = schema;
@@ -38,8 +38,8 @@ export interface LinkFetchResult {
 }
 
 /**
- * Busca link com estratégia Cache-Aside
- * Inclui proteção contra Cache Stampede
+ * Fetch link using a Cache-Aside strategy
+ * Includes Cache Stampede protection
  */
 export async function getLink(code: string): Promise<LinkFetchResult> {
   return tracer.startActiveSpan(
@@ -124,21 +124,21 @@ export async function getLink(code: string): Promise<LinkFetchResult> {
 }
 
 /**
- * Proteção contra Cache Stampede usando Distributed Lock
+ * Cache Stampede protection using Distributed Lock
  *
- * Quando múltiplas requests chegam simultaneamente para um link não cacheado,
- * apenas uma vai buscar no banco enquanto as outras aguardam.
+ * When multiple requests arrive simultaneously for an uncached link,
+ * only one fetches from the database while the others wait.
  */
 async function fetchWithStampedeProtection(
   code: string
 ): Promise<CachedLink | null> {
   const lockKey = `${CACHE_PREFIX.LOCK}${code}`;
 
-  // Tenta adquirir o lock
+  // Tries to acquire the lock
   const acquired = await acquireLock(lockKey, { ttl: LOCK_TTL });
 
   if (acquired) {
-    // Esta request ganhou o lock - busca do banco
+    // This request won the lock - fetch from database
     stampedeLocksAcquired.add(1);
     try {
       logger.debug('Lock acquired, fetching from database', { code });
@@ -181,7 +181,7 @@ async function fetchWithStampedeProtection(
 }
 
 /**
- * Busca no PostgreSQL com Circuit Breaker
+ * Fetch from PostgreSQL with Circuit Breaker
  */
 async function fetchFromDatabase(code: string): Promise<CachedLink | null> {
   return dbCircuitBreaker.execute(async () => {

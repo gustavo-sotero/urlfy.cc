@@ -207,9 +207,7 @@ export abstract class WorkerBase<T = Record<string, string>> {
    *
    * @returns Object with processed message IDs and failed messages (for DLQ)
    */
-  protected async processMessages(
-    messages: StreamMessage<T>[]
-  ): Promise<{
+  protected async processMessages(messages: StreamMessage<T>[]): Promise<{
     processedIds: string[];
     failedMessages: StreamMessage<T>[];
   }> {

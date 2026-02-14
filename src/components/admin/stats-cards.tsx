@@ -1,8 +1,8 @@
 // src/components/admin/stats-cards.tsx
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart2, Link2, MousePointerClick, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface AdminStats {
   totalLinks: number;
@@ -22,7 +22,9 @@ export function StatsCards({ stats }: StatsCardsProps) {
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{t('totalLinks')}</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            {t('totalLinks')}
+          </CardTitle>
           <Link2 className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -34,7 +36,9 @@ export function StatsCards({ stats }: StatsCardsProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{t('totalClicks')}</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            {t('totalClicks')}
+          </CardTitle>
           <MousePointerClick className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -46,7 +50,9 @@ export function StatsCards({ stats }: StatsCardsProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{t('totalUsers')}</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            {t('totalUsers')}
+          </CardTitle>
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>

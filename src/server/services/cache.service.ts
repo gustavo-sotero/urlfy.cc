@@ -34,7 +34,10 @@ export const CACHE_PREFIX = {
  * @param count - Number of keys to scan per iteration (default: 100)
  * @returns Array of matching keys
  */
-export async function scanKeys(pattern: string, count = 100): Promise<string[]> {
+export async function scanKeys(
+  pattern: string,
+  count = 100
+): Promise<string[]> {
   const redis = getRedisClient();
   const keys: string[] = [];
   let cursor = '0';
@@ -99,7 +102,8 @@ export class CacheService {
         // Compute remaining TTL from the embedded write timestamp
         // This avoids an extra Redis RTT call to TTL
         const cachedAt = parsed._cachedAt ?? 0;
-        const elapsed = cachedAt > 0 ? (Date.now() - cachedAt) / 1000 : originalTtl;
+        const elapsed =
+          cachedAt > 0 ? (Date.now() - cachedAt) / 1000 : originalTtl;
         const remainingTtl = Math.max(0, originalTtl - elapsed);
 
         if (remainingTtl < originalTtl * 0.1 && Math.random() < 0.1) {
@@ -369,10 +373,7 @@ return link.clicksCount
    * @param amount - Number to increment by (default: 1)
    * @returns The new counter value, or null if link is not in cache
    */
-  async incrementClicksCount(
-    code: string,
-    amount = 1
-  ): Promise<number | null> {
+  async incrementClicksCount(code: string, amount = 1): Promise<number | null> {
     try {
       const redis = this.getRedis();
       const key = `${CACHE_PREFIX.LINK}${code}`;

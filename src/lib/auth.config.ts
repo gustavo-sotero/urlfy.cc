@@ -2,7 +2,7 @@
  * ═════════════════════════════════════════════════════════════════════
  * BETTER-AUTH SHARED CONFIGURATION
  * ═════════════════════════════════════════════════════════════════════
- * Configuração base compartilhada entre runtime e CLI
+ * Base configuration shared between runtime and CLI
  *
  * Module: Authentication & Identity (Module 2)
  * Spec: module-02-authentication.md

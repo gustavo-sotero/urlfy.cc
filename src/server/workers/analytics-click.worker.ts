@@ -8,6 +8,7 @@
  * - Batch cache increments per link
  */
 
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { analyticsEvents, links } from '@/db/schema';
 import { lookupGeoIP } from '@/server/lib/geoip';
@@ -20,7 +21,6 @@ import { WorkerBase } from '@/server/lib/worker-base';
 import { cacheService, scanKeys } from '@/server/services/cache.service';
 import { parseUserAgent } from '@/server/services/useragent.service';
 import type { EnrichedClickEvent } from '@/types/analytics.types';
-import { eq, sql } from 'drizzle-orm';
 
 /**
  * Stream message shape for click events
@@ -66,9 +66,7 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
   ): Promise<void> {
     const enriched = await this.enrichClickEvent(payload);
 
-    await db.insert(analyticsEvents).values(
-      this.mapEnrichedToRow(enriched)
-    );
+    await db.insert(analyticsEvents).values(this.mapEnrichedToRow(enriched));
 
     await db
       .update(links)
@@ -159,9 +157,11 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
 
     try {
       // Step 2: Bulk INSERT all analytics events in a single query
-      await db.insert(analyticsEvents).values(
-        enrichedEvents.map(({ enriched }) => this.mapEnrichedToRow(enriched))
-      );
+      await db
+        .insert(analyticsEvents)
+        .values(
+          enrichedEvents.map(({ enriched }) => this.mapEnrichedToRow(enriched))
+        );
 
       // Step 3: Group by linkId for batched link updates
       const linkClickCounts = new Map<

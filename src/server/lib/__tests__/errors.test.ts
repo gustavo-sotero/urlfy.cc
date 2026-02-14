@@ -18,7 +18,7 @@ describe('Error Handling', () => {
 
       expect(error.status).toBe(404);
       expect(error.code).toBe('LINK_NOT_FOUND');
-      expect(error.message).toContain('não encontrado');
+      expect(error.message).toContain('not found');
     });
 
     it('should map ALIAS_UNAVAILABLE to 409 ALIAS_TAKEN', () => {

@@ -8,22 +8,14 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
-import { AppError, ErrorCode } from '@/server/lib/error-handler';
+import { requireUserId } from '@/server/lib/require-user-id';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import { AnalyticsService } from '@/server/modules/analytics';
+import { Elysia, t } from 'elysia';
 
 import { LinkIdParam, LinksModel } from './links.schema';
 import { LinkService } from './links.service';
-
-function requireUserId(user: { id: string } | null | undefined): string {
-  if (!user?.id) {
-    throw new AppError(ErrorCode.UNAUTHORIZED, 'Authentication required');
-  }
-
-  return user.id;
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // STATS ROUTES (authenticated)

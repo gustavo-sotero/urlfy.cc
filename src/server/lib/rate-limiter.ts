@@ -23,7 +23,11 @@ class InMemoryRateLimiter {
     this.cleanupInterval = setInterval(() => this.cleanup(), 60_000);
   }
 
-  check(key: string, points: number, durationMs: number): { allowed: boolean; count: number } {
+  check(
+    key: string,
+    points: number,
+    durationMs: number
+  ): { allowed: boolean; count: number } {
     const now = Date.now();
     const entry = this.counters.get(key);
 

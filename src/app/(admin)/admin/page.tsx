@@ -1,15 +1,15 @@
 // src/app/(admin)/admin/page.tsx
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
 import { StatsCards } from '@/components/admin';
 import { AnalyticsErrorBoundary } from '@/components/admin/analytics-error-boundary';
 import { GrowthChart } from '@/components/admin/charts/growth-chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getAdminStats, getGrowthStats } from '@/lib/api-client';
+import { getAdminStats, getGrowthStats } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 
 export default function AdminDashboard() {
   const [growthRange, setGrowthRange] = useState<'7d' | '30d'>('7d');

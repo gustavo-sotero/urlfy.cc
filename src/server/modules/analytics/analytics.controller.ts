@@ -8,10 +8,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import { Elysia, t } from 'elysia';
 import {
   ANALYTICS_BREAKDOWN_EXAMPLE,
   ANALYTICS_SUMMARY_EXAMPLE,
@@ -68,10 +68,7 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
     '/all/summary',
     async ({ user, query, set }) => {
       const days = parseDays(query.days);
-      const summary = await AnalyticsService.getAllLinksSummary(
-        user!.id,
-        days
-      );
+      const summary = await AnalyticsService.getAllLinksSummary(user!.id, days);
 
       if (!summary) {
         set.status = 404;

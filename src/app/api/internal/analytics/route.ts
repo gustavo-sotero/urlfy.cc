@@ -1,8 +1,9 @@
 // src/app/api/internal/analytics/route.ts
 
-import { NextResponse } from 'next/server';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import type { ClickEvent } from '@/types/analytics.types';
+import { timingSafeEqual } from 'crypto';
+import { NextResponse } from 'next/server';
 
 /**
  * Internal API endpoint to enqueue analytics events
@@ -16,11 +17,21 @@ export const runtime = 'nodejs'; // Force Node.js runtime (not Edge)
 export async function POST(request: Request) {
   try {
     // Validate internal token using INTERNAL_ANALYTICS_SECRET (preferred) or INTERNAL_API_SECRET
-    const internalToken = request.headers.get('x-internal-token');
+    const internalToken = request.headers.get('x-internal-api');
     const expectedToken =
       process.env.INTERNAL_ANALYTICS_SECRET || process.env.INTERNAL_API_SECRET;
 
-    if (!internalToken || !expectedToken || internalToken !== expectedToken) {
+    if (!internalToken || !expectedToken) {
+      return NextResponse.json(
+        { error: 'Forbidden - Invalid internal token' },
+        { status: 403 }
+      );
+    }
+
+    // Timing-safe comparison to prevent timing attacks
+    const a = Buffer.from(internalToken);
+    const b = Buffer.from(expectedToken);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
       return NextResponse.json(
         { error: 'Forbidden - Invalid internal token' },
         { status: 403 }

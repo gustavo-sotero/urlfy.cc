@@ -3,13 +3,13 @@
  * Processes cleanup jobs for analytics data retention and partition management
  */
 
+import { inArray, lt } from 'drizzle-orm';
 import { db } from '@/db';
 import { analyticsEvents } from '@/db/schema';
 import { PartitionManager } from '@/db/scripts/partition-manager';
 import { recordMetric } from '@/server/lib/metrics';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { WorkerBase } from '@/server/lib/worker-base';
-import { inArray, lt } from 'drizzle-orm';
 
 const RETENTION_DAYS = 90; // Keep data for 90 days
 const partitionManager = new PartitionManager();

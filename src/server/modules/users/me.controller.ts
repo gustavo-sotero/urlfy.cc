@@ -11,6 +11,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { desc, eq } from 'drizzle-orm';
+import { Elysia, t } from 'elysia';
 import { db } from '@/db';
 import { dataDeletionRequest } from '@/db/schema/audit';
 import { sendEmail } from '@/server/lib/email';
@@ -23,8 +25,6 @@ import { UsersModel } from '@/server/modules/users/users.schema';
 import { requestContext } from '@/server/plugins/request-context';
 import { auditLogService } from '@/server/services/audit.service';
 import { gdprService } from '@/server/services/gdpr.service';
-import { desc, eq } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
 
 const logger = createLogger('user-data-controller');
 
@@ -204,11 +204,15 @@ export const meController = new Elysia({ prefix: '/me' })
       );
 
       if (existingRequest) {
-        throw new AppError(ErrorCode.DUPLICATE_ENTRY, 'You already have a pending deletion request', {
-          requestId: existingRequest.requestId,
-          requestedAt: existingRequest.requestedAt.toISOString(),
-          deadline: existingRequest.deadline.toISOString()
-        });
+        throw new AppError(
+          ErrorCode.DUPLICATE_ENTRY,
+          'You already have a pending deletion request',
+          {
+            requestId: existingRequest.requestId,
+            requestedAt: existingRequest.requestedAt.toISOString(),
+            deadline: existingRequest.deadline.toISOString()
+          }
+        );
       }
 
       const deletionRequest = await gdprService.scheduleDataDeletion(user.id);

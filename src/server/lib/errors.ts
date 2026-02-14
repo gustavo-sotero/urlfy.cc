@@ -46,25 +46,25 @@ const LINK_TO_APP_ERROR_MAP: Record<LinkErrorCode, ErrorCodeType> = {
  */
 function getErrorMessage(code: LinkErrorCode): string {
   const messages: Record<LinkErrorCode, string> = {
-    LINK_NOT_FOUND: 'Link não encontrado',
-    ALIAS_UNAVAILABLE: 'Este alias já está em uso',
-    AUTH_REQUIRED: 'Autenticação necessária para esta ação',
-    INVALID_FORMAT: 'Formato de URL inválido',
-    INVALID_PROTOCOL: 'Protocolo não permitido (use http ou https)',
-    SHORTENER_BLOCKED: 'Não é permitido encurtar outros encurtadores',
-    DOMAIN_BANNED: 'Este domínio foi bloqueado',
-    URL_TOO_LONG: 'URL muito longa (máximo: 2048 caracteres)',
+    LINK_NOT_FOUND: 'Link not found',
+    ALIAS_UNAVAILABLE: 'This alias is already in use',
+    AUTH_REQUIRED: 'Authentication required for this action',
+    INVALID_FORMAT: 'Invalid URL format',
+    INVALID_PROTOCOL: 'Protocol not allowed (use http or https)',
+    SHORTENER_BLOCKED: 'Shortening other URL shorteners is not allowed',
+    DOMAIN_BANNED: 'This domain has been blocked',
+    URL_TOO_LONG: 'URL too long (maximum: 2048 characters)',
     URL_INTERNAL_BLOCKED:
-      'URLs para redes internas ou privadas não são permitidas',
-    URL_RESOLUTION_FAILED: 'Não foi possível resolver o hostname da URL',
-    QUOTA_EXCEEDED: 'Limite de links do seu plano foi atingido',
-    SHORTCODE_GENERATION_FAILED: 'Erro ao gerar código curto',
+      'URLs to internal or private networks are not allowed',
+    URL_RESOLUTION_FAILED: 'Could not resolve the URL hostname',
+    QUOTA_EXCEEDED: 'Your plan link limit has been reached',
+    SHORTCODE_GENERATION_FAILED: 'Failed to generate short code',
     INVALID_ALIAS_FORMAT:
-      'Alias deve ter 3-20 caracteres (alfanuméricos e hífens)',
-    PASSWORD_TOO_WEAK: 'Senha deve ter no mínimo 8 caracteres',
-    LINK_EXPIRED: 'Este link expirou',
-    LINK_BANNED: 'Este link foi banido por violação dos termos de uso',
-    MAX_CLICKS_REACHED: 'Este link atingiu o limite máximo de cliques'
+      'Alias must be 3-20 characters (alphanumeric and hyphens)',
+    PASSWORD_TOO_WEAK: 'Password must be at least 8 characters',
+    LINK_EXPIRED: 'This link has expired',
+    LINK_BANNED: 'This link has been banned for violating the terms of use',
+    MAX_CLICKS_REACHED: 'This link has reached the maximum number of clicks'
   };
   return messages[code];
 }

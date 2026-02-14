@@ -3,6 +3,7 @@
  * React Query hooks for API key management
  */
 
+import * as api from '@/lib/api';
 import {
   type UseMutationOptions,
   type UseQueryOptions,
@@ -10,7 +11,6 @@ import {
   useQuery,
   useQueryClient
 } from '@tanstack/react-query';
-import * as api from '@/lib/api-client';
 
 // ═══════════════════════════════════════════════════════════════════
 // QUERY KEYS
