@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-14T04:31:36.373Z",
+  "generatedAt": "2026-02-14T19:06:30.268Z",
   "baseUrl": "http://localhost:3000",
   "environment": "production",
   "checks": [
@@ -7,7 +7,7 @@
       "category": "Headers",
       "check": "Content-Security-Policy",
       "status": "pass",
-      "details": "default-src 'self'; script-src 'self' 'nonce-jvD9HlSScSQeYAtjnOVGQw==' https://cdn.jsdelivr.net 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.githubusercontent.com; font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com; connect-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+      "details": "default-src 'self'; script-src 'self' 'nonce-Fu5YEwlae9COgoZhMm8txg==' https://cdn.jsdelivr.net 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.cloudinary.com https://*.imgur.com https://*.unsplash.com https://lh3.googleusercontent.com https://avatars.githubusercontent.com https://*.githubusercontent.com; font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com; connect-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     },
     {
       "category": "Headers",
@@ -37,7 +37,7 @@
       "category": "Headers",
       "check": "Permissions-Policy",
       "status": "pass",
-      "details": "camera=(), microphone=(), geolocation=(), payment=()"
+      "details": "camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()"
     },
     {
       "category": "Headers",
@@ -55,7 +55,7 @@
       "category": "Rate Limiting",
       "check": "Rate limit headers present",
       "status": "pass",
-      "details": "Limit: 600, Remaining: 591"
+      "details": "Limit: 600, Remaining: 597"
     },
     {
       "category": "CORS",

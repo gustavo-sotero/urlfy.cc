@@ -4,6 +4,7 @@ import type { InMemoryValue, ZSetEntry } from './types';
 const inMemoryStore = new Map<string, InMemoryValue>();
 const inMemoryZSets = new Map<string, ZSetEntry[]>();
 const inMemorySets = new Map<string, Set<string>>();
+const scriptStore = new Map<string, string>();
 
 function isExpired(entry?: InMemoryValue): boolean {
   if (!entry?.expiresAt) return false;
@@ -125,6 +126,7 @@ export function createInMemoryRedisClient(): RedisClient {
           inMemoryStore.clear();
           inMemoryZSets.clear();
           inMemorySets.clear();
+          scriptStore.clear();
           return 'OK';
         case 'ZREMRANGEBYSCORE': {
           const [key, min, max] = args;
@@ -198,6 +200,55 @@ export function createInMemoryRedisClient(): RedisClient {
             if (set.delete(m)) removed++;
           }
           return removed;
+        }
+        case 'SCRIPT': {
+          // SCRIPT LOAD <script> — simulate returning a SHA hash
+          if (args[0]?.toUpperCase() === 'LOAD') {
+            const script = args[1] ?? '';
+            // Store script and return deterministic SHA
+            const sha = `mock_sha_${Buffer.from(script).toString('base64').slice(0, 16)}`;
+            scriptStore.set(sha, script);
+            return sha;
+          }
+          return null;
+        }
+        case 'EVAL':
+        case 'EVALSHA': {
+          // EVAL/EVALSHA <script_or_sha> <numkeys> <keys...> <args...>
+          const scriptOrSha = args[0];
+          const numKeys = Number.parseInt(args[1], 10);
+          const keys = args.slice(2, 2 + numKeys);
+          const scriptArgs = args.slice(2 + numKeys);
+
+          // For EVALSHA, verify script exists
+          if (cmd === 'EVALSHA' && !scriptStore.has(scriptOrSha)) {
+            throw new Error('NOSCRIPT No matching script');
+          }
+
+          // Execute the sliding-window logic in-memory (matches the Lua script behavior)
+          const key = keys[0];
+          const windowStart = Number(scriptArgs[0]);
+          const now = Number(scriptArgs[1]);
+          const maxPoints = Number(scriptArgs[2]);
+          const member = scriptArgs[4];
+
+          // ZREMRANGEBYSCORE key -inf windowStart
+          const entries = getZSet(key).filter(
+            (entry) => entry.score > windowStart
+          );
+          setZSet(key, entries);
+
+          // ZCARD
+          const count = entries.length;
+
+          if (count < maxPoints) {
+            // ZADD key now member
+            entries.push({ score: now, member });
+            setZSet(key, entries);
+            return [1, count + 1];
+          }
+
+          return [0, count];
         }
         default:
           return null;
