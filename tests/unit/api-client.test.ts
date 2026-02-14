@@ -1,8 +1,8 @@
 // tests/unit/api-client.test.ts
 
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import * as api from '@/lib/api/links';
 import type { LinkResponse } from '@/types/links.types';
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // Mock global fetch
 const mockFetch = mock((_input: RequestInfo | URL, _init?: RequestInit) =>

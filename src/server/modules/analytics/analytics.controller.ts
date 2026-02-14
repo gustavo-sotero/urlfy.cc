@@ -8,11 +8,11 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { requireUserId } from '@/server/lib/require-user-id';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import { Elysia, t } from 'elysia';
 import {
   ANALYTICS_BREAKDOWN_EXAMPLE,
   ANALYTICS_SUMMARY_EXAMPLE,

@@ -8,6 +8,16 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import {
+  and,
+  countDistinct,
+  count as countFn,
+  desc,
+  eq,
+  gte,
+  lt,
+  sql
+} from 'drizzle-orm';
 import { db } from '@/db';
 import { analyticsEvents } from '@/db/schema';
 import { links } from '@/db/schema/links';
@@ -20,16 +30,6 @@ import type {
   AnalyticsSummary,
   TimeSeries
 } from '@/types/analytics.types';
-import {
-  and,
-  countDistinct,
-  count as countFn,
-  desc,
-  eq,
-  gte,
-  lt,
-  sql
-} from 'drizzle-orm';
 
 const logger = createLogger('analytics-service');
 const redis = getRedisClient();

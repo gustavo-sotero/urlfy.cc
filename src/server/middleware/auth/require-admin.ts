@@ -1,9 +1,9 @@
+import { eq } from 'drizzle-orm';
+import { Elysia } from 'elysia';
 import { db } from '@/db';
 import { twoFactor as twoFactorTable } from '@/db/schema/auth';
 import type { Session, User } from '@/lib/auth';
 import { createLogger } from '@/server/lib/telemetry';
-import { eq } from 'drizzle-orm';
-import { Elysia } from 'elysia';
 import { requireAuth } from './require-auth';
 
 const logger = createLogger('require-admin');
