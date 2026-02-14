@@ -5,11 +5,11 @@
  * Always prioritizes user's saved locale preference from database.
  */
 
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { user } from '@/db/schema/auth';
 import { type AppLocale, defaultLocale, isAppLocale } from '@/emails/types';
 import { createLogger } from '@/server/lib/telemetry';
-import { eq } from 'drizzle-orm';
 
 const logger = createLogger('locale');
 

@@ -8,6 +8,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { redis } from '@/server/lib/redis';
 import { requireUser } from '@/server/lib/require-user';
@@ -15,7 +16,6 @@ import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
 import { auditLogService } from '@/server/services/audit.service';
 import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
-import { Elysia, t } from 'elysia';
 import {
   ApiKeyCreateBody,
   ApiKeyIdParam,

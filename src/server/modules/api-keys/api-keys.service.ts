@@ -4,6 +4,8 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
+import { and, desc, eq, isNull } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import { apiKey } from '@/db/schema/auth';
 import { parseScopes, serializeScopes } from '@/server/config/scopes';
@@ -12,8 +14,6 @@ import type {
   ApiKeyPublic,
   CreateApiKeyInput
 } from '@/types/api-keys.types';
-import { and, desc, eq, isNull } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 
 // ─── Key Generation ───────────────────────────────────────────────
 

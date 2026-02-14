@@ -168,13 +168,13 @@ mock.module('@/server/lib/redis', () => ({
   closeRedis: mock(() => Promise.resolve())
 }));
 
+import { and, eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import type { ApiKey } from '@/db/schema/auth';
 import { apiKey, user } from '@/db/schema/auth';
 import { Scopes } from '@/server/config/scopes';
 import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
-import { and, eq } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { requireDatabase } from '../helpers/integration-helper';
 
 // Test user ID
