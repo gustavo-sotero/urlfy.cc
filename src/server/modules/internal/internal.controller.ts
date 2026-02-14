@@ -8,13 +8,13 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { timingSafeEqual } from 'node:crypto';
-import { Elysia, t } from 'elysia';
 import { jwtPlugin } from '@/server/config/plugins';
 import { RATE_LIMIT_CONFIGS, rateLimiter } from '@/server/lib/rate-limiter';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { MetricsService } from '@/server/services/metrics.service';
 import { redirectService } from '@/server/services/redirect.service';
+import { Elysia, t } from 'elysia';
+import { timingSafeEqual } from 'node:crypto';
 import {
   InternalAcceptedResponse,
   InternalAnalyticsEventBody,
@@ -241,10 +241,26 @@ export const internalController = new Elysia({ prefix: '/internal' })
       );
 
       if (!result.success) {
+        // Map redirect error codes to appropriate HTTP status codes
+        const errorStatusMap: Record<string, number> = {
+          NOT_FOUND: 404,
+          EXPIRED: 410,
+          INACTIVE: 410,
+          MAX_CLICKS: 410,
+          BANNED: 451,
+          REDIRECT_LOOP: 421,
+          PASSWORD_REQUIRED: 403,
+          RATE_LIMITED: 429,
+          INTERNAL_ERROR: 500,
+          UNKNOWN_ERROR: 500
+        };
+        const errorCode = result.error || 'UNKNOWN_ERROR';
+        set.status = errorStatusMap[errorCode] ?? 500;
+
         return {
           success: false,
           error: {
-            code: result.error || 'UNKNOWN_ERROR',
+            code: errorCode,
             message: 'Failed to resolve short code'
           }
         };

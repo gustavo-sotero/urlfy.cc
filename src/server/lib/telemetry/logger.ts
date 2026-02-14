@@ -87,10 +87,53 @@ function toOtelAttributes(
   return attributes;
 }
 
+/**
+ * Sensitive field names that should be redacted from log context.
+ * Values are replaced with '[REDACTED]' to prevent PII/secrets leaking
+ * into the observability pipeline.
+ */
+const SENSITIVE_FIELDS = new Set([
+  'password',
+  'passwordHash',
+  'secret',
+  'token',
+  'authorization',
+  'cookie',
+  'email',
+  'ip',
+  'ipAddress',
+  'creditCard',
+  'ssn',
+  'apiKey',
+  'apiSecret',
+  'accessToken',
+  'refreshToken',
+  'keyHash'
+]);
+
+/**
+ * Redact sensitive fields from log context to prevent PII leakage.
+ * Only redacts top-level keys to avoid performance overhead of deep traversal.
+ */
+function redactContext(ctx: LogContext): LogContext {
+  const redacted: LogContext = {};
+  for (const [key, value] of Object.entries(ctx)) {
+    if (SENSITIVE_FIELDS.has(key)) {
+      redacted[key] = '[REDACTED]';
+    } else {
+      redacted[key] = value;
+    }
+  }
+  return redacted;
+}
+
 export function createLogger(name: string) {
   const logger = loggerProvider.getLogger(name);
 
   const log = (level: string, message: string, ctx?: LogContext) => {
+    // Redact sensitive fields before any logging/emission
+    const safeCtx = ctx ? redactContext(ctx) : ctx;
+
     // Safely get active span (may not exist in test environment)
     const span =
       typeof trace?.getActiveSpan === 'function'
@@ -103,7 +146,7 @@ export function createLogger(name: string) {
       message,
       timestamp: new Date().toISOString(),
       logger: name,
-      ...ctx
+      ...safeCtx
     };
 
     if (spanContext) {

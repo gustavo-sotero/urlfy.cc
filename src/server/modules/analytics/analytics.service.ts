@@ -12,14 +12,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { db } from '@/db';
-import { analyticsEvents } from '@/db/schema';
-import { CACHE_KEYS, CACHE_TTL } from '@/server/lib/cache-keys';
-import type {
-  AnalyticsBreakdown,
-  AnalyticsSummary,
-  TimeSeries
-} from '@/types/analytics.types';
 import {
   and,
   countDistinct,
@@ -30,12 +22,19 @@ import {
   lt,
   sql
 } from 'drizzle-orm';
-import { AnalyticsGlobalService } from './analytics-global.service';
+import { db } from '@/db';
+import { analyticsEvents } from '@/db/schema';
+import { CACHE_KEYS, CACHE_TTL } from '@/server/lib/cache-keys';
+import type {
+  AnalyticsBreakdown,
+  AnalyticsSummary,
+  TimeSeries
+} from '@/types/analytics.types';
 import {
   type BrowserBreakdownItem,
+  type CountryBreakdownItem,
   calculateGrowth,
   calculatePercentage,
-  type CountryBreakdownItem,
   type DeviceBreakdownItem,
   getStartDate,
   logger,
@@ -43,6 +42,7 @@ import {
   toNumber,
   withCache
 } from './analytics.helpers';
+import { AnalyticsGlobalService } from './analytics-global.service';
 export const AnalyticsService = {
   /**
    * Get total unique visitors for a link (all time)

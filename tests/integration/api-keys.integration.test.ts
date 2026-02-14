@@ -168,13 +168,13 @@ mock.module('@/server/lib/redis', () => ({
   closeRedis: mock(() => Promise.resolve())
 }));
 
-import { and, eq } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { db } from '@/db';
 import type { ApiKey } from '@/db/schema/auth';
-import { apikey, user } from '@/db/schema/auth';
+import { apiKey, user } from '@/db/schema/auth';
 import { Scopes } from '@/server/config/scopes';
 import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
+import { and, eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { requireDatabase } from '../helpers/integration-helper';
 
 // Test user ID
@@ -186,7 +186,7 @@ const createdKeyIds: string[] = [];
 async function cleanupTestKeys() {
   for (const keyId of createdKeyIds) {
     try {
-      await db.delete(apikey).where(eq(apikey.id, keyId));
+      await db.delete(apiKey).where(eq(apiKey.id, keyId));
     } catch {
       // Ignore cleanup errors
     }
@@ -366,9 +366,9 @@ describe('ApiKeysService', () => {
       createdKeyIds.push(created.id);
 
       await db
-        .update(apikey)
+        .update(apiKey)
         .set({ usageCount: 2 })
-        .where(eq(apikey.id, created.id));
+        .where(eq(apiKey.id, created.id));
 
       const fetched = await ApiKeysService.getById(created.id, TEST_USER_ID);
       expect(fetched?.status).toBe('quota_exceeded');
@@ -425,8 +425,8 @@ describe('ApiKeysService', () => {
       // Verify key is completely gone
       const [dbRecord] = await db
         .select()
-        .from(apikey)
-        .where(eq(apikey.id, created.id))
+        .from(apiKey)
+        .where(eq(apiKey.id, created.id))
         .limit(1);
       expect(dbRecord).toBeUndefined();
     });

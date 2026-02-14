@@ -7,6 +7,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { requireUser } from '@/server/lib/require-user';
 import {
@@ -15,7 +16,6 @@ import {
   SuccessResponse
 } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
-import { Elysia, t } from 'elysia';
 import {
   API_KEY_CREATED_EXAMPLE,
   API_KEY_LIST_EXAMPLE,

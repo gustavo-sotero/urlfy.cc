@@ -9,14 +9,14 @@
  * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
  */
 
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@/db';
 import type { Session as DbSession, User as DbUser } from '@/db/schema/auth';
 import * as schema from '@/db/schema/auth';
 import { createLogger } from '@/server/lib/telemetry';
 import { auditLogService } from '@/server/services/audit.service';
 import { emailService } from '@/server/services/email.service';
-import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { baseAuthConfig, getPlugins } from './auth.config';
 
 const logger = createLogger('auth-runtime');
@@ -82,7 +82,9 @@ export const auth = betterAuth({
           expiresInMinutes: 15
         })
         .catch((error) => {
-          logger.warn('Failed to send reset password email', { error: error instanceof Error ? error.message : String(error) });
+          logger.warn('Failed to send reset password email', {
+            error: error instanceof Error ? error.message : String(error)
+          });
         });
     }
   },
@@ -105,7 +107,9 @@ export const auth = betterAuth({
           verificationUrl: url
         })
         .catch((error) => {
-          logger.warn('Failed to send verification email', { error: error instanceof Error ? error.message : String(error) });
+          logger.warn('Failed to send verification email', {
+            error: error instanceof Error ? error.message : String(error)
+          });
         });
     }
   },
@@ -141,7 +145,9 @@ export const auth = betterAuth({
           userAgent: session.userAgent ?? undefined
         });
       } catch (error) {
-        logger.warn('Failed to log sign-in audit event', { error: error instanceof Error ? error.message : String(error) });
+        logger.warn('Failed to log sign-in audit event', {
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     },
     onSignOut: async ({ session }: { session: DbSession }) => {
@@ -160,7 +166,9 @@ export const auth = betterAuth({
           userAgent: session.userAgent ?? undefined
         });
       } catch (error) {
-        logger.warn('Failed to log sign-out audit event', { error: error instanceof Error ? error.message : String(error) });
+        logger.warn('Failed to log sign-out audit event', {
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     },
     onUserCreated: async ({ user }: { user: DbUser }) => {
@@ -173,7 +181,9 @@ export const auth = betterAuth({
           metadata: { email: user.email }
         });
       } catch (error) {
-        logger.warn('Failed to log user creation audit event', { error: error instanceof Error ? error.message : String(error) });
+        logger.warn('Failed to log user creation audit event', {
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
 
       try {
@@ -184,7 +194,9 @@ export const auth = betterAuth({
           userId: user.id
         });
       } catch (error) {
-        logger.warn('Failed to send welcome email', { error: error instanceof Error ? error.message : String(error) });
+        logger.warn('Failed to send welcome email', {
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     }
   }

@@ -63,6 +63,23 @@ function getAuthToken(request: Request): string | null {
 }
 
 /**
+ * Pre-compiled regex cache for endpoint path patterns.
+ * Avoids re-compiling the same regex on every request.
+ */
+const compiledPatterns = new Map<string, RegExp>();
+
+function getCompiledPattern(pathPattern: string): RegExp {
+  let regex = compiledPatterns.get(pathPattern);
+  if (!regex) {
+    regex = new RegExp(
+      `^${pathPattern.replace(/:[^/]+/g, '[^/]+').replace(/\*/g, '.*')}$`
+    );
+    compiledPatterns.set(pathPattern, regex);
+  }
+  return regex;
+}
+
+/**
  * Get rate limit config for endpoint
  */
 function getRateLimitConfig(
@@ -76,10 +93,8 @@ function getRateLimitConfig(
       const pathPattern = endpoint.split(' ')[1];
       if (!pathPattern) continue;
 
-      // Simple path pattern matching
-      const regex = new RegExp(
-        `^${pathPattern.replace(/:[^/]+/g, '[^/]+').replace(/\*/g, '.*')}$`
-      );
+      // Pre-compiled path pattern matching
+      const regex = getCompiledPattern(pathPattern);
       if (regex.test(path)) {
         const limitConfig = isAuthenticated
           ? (config as { auth?: RateLimitConfig | null }).auth

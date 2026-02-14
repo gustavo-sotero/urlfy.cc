@@ -5,7 +5,7 @@
  */
 
 import { db } from '@/db';
-import { apiKey as apikey } from '@/db/schema/auth';
+import { apiKey } from '@/db/schema/auth';
 import { parseScopes, serializeScopes } from '@/server/config/scopes';
 import type {
   ApiKeyCreated,
@@ -46,7 +46,7 @@ async function generateApiKey(): Promise<{
 // ─── Status Determination ─────────────────────────────────────────
 
 function determineKeyStatus(
-  key: typeof apikey.$inferSelect
+  key: typeof apiKey.$inferSelect
 ): ApiKeyPublic['status'] {
   if (key.revokedAt) return 'revoked';
   if (key.expiresAt && key.expiresAt < new Date()) return 'expired';
@@ -59,7 +59,7 @@ function determineKeyStatus(
 
 // ─── Transform DB Record to Public ────────────────────────────────
 
-function toPublic(key: typeof apikey.$inferSelect): ApiKeyPublic {
+function toPublic(key: typeof apiKey.$inferSelect): ApiKeyPublic {
   return {
     id: key.id,
     name: key.name,
@@ -87,9 +87,9 @@ export const ApiKeysService = {
   async listByUser(userId: string): Promise<ApiKeyPublic[]> {
     const keys = await db
       .select()
-      .from(apikey)
-      .where(and(eq(apikey.userId, userId), isNull(apikey.deletedAt)))
-      .orderBy(desc(apikey.createdAt));
+      .from(apiKey)
+      .where(and(eq(apiKey.userId, userId), isNull(apiKey.deletedAt)))
+      .orderBy(desc(apiKey.createdAt));
 
     return keys.map(toPublic);
   },
@@ -100,12 +100,12 @@ export const ApiKeysService = {
   async getById(keyId: string, userId: string): Promise<ApiKeyPublic | null> {
     const [key] = await db
       .select()
-      .from(apikey)
+      .from(apiKey)
       .where(
         and(
-          eq(apikey.id, keyId),
-          eq(apikey.userId, userId),
-          isNull(apikey.deletedAt)
+          eq(apiKey.id, keyId),
+          eq(apiKey.userId, userId),
+          isNull(apiKey.deletedAt)
         )
       )
       .limit(1);
@@ -125,7 +125,7 @@ export const ApiKeysService = {
     const id = nanoid();
 
     const [created] = await db
-      .insert(apikey)
+      .insert(apiKey)
       .values({
         id,
         userId,
@@ -157,20 +157,20 @@ export const ApiKeysService = {
     reason?: string
   ): Promise<boolean> {
     const [result] = await db
-      .update(apikey)
+      .update(apiKey)
       .set({
         revokedAt: new Date(),
         metadata: reason ? JSON.stringify({ revokeReason: reason }) : undefined
       })
       .where(
         and(
-          eq(apikey.id, keyId),
-          eq(apikey.userId, userId),
-          isNull(apikey.deletedAt),
-          isNull(apikey.revokedAt)
+          eq(apiKey.id, keyId),
+          eq(apiKey.userId, userId),
+          isNull(apiKey.deletedAt),
+          isNull(apiKey.revokedAt)
         )
       )
-      .returning({ id: apikey.id });
+      .returning({ id: apiKey.id });
 
     return !!result;
   },
@@ -180,9 +180,9 @@ export const ApiKeysService = {
    */
   async delete(keyId: string, userId: string): Promise<boolean> {
     const [result] = await db
-      .delete(apikey)
-      .where(and(eq(apikey.id, keyId), eq(apikey.userId, userId)))
-      .returning({ id: apikey.id });
+      .delete(apiKey)
+      .where(and(eq(apiKey.id, keyId), eq(apiKey.userId, userId)))
+      .returning({ id: apiKey.id });
 
     return !!result;
   },
@@ -193,12 +193,12 @@ export const ApiKeysService = {
   async rollover(keyId: string, userId: string): Promise<ApiKeyCreated | null> {
     const [existing] = await db
       .select()
-      .from(apikey)
+      .from(apiKey)
       .where(
         and(
-          eq(apikey.id, keyId),
-          eq(apikey.userId, userId),
-          isNull(apikey.deletedAt)
+          eq(apiKey.id, keyId),
+          eq(apiKey.userId, userId),
+          isNull(apiKey.deletedAt)
         )
       )
       .limit(1);

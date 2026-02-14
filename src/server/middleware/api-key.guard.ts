@@ -6,10 +6,8 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { and, eq, isNull, sql } from 'drizzle-orm';
-import type { Elysia } from 'elysia';
 import { db } from '@/db';
-import { apikey } from '@/db/schema/auth';
+import { apiKey as apiKeyTable } from '@/db/schema/auth';
 import {
   hasScopes,
   parseScopes,
@@ -19,6 +17,8 @@ import {
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { ApiKeyContext, ApiKeyError } from '@/types/api-keys.types';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import type { Elysia } from 'elysia';
 
 const logger = createLogger('api-key-guard');
 
@@ -95,12 +95,12 @@ async function checkRateLimit(
 async function incrementUsage(keyId: string): Promise<void> {
   try {
     await db
-      .update(apikey)
+      .update(apiKeyTable)
       .set({
-        usageCount: sql`${apikey.usageCount} + 1`,
+        usageCount: sql`${apiKeyTable.usageCount} + 1`,
         lastUsedAt: new Date()
       })
-      .where(eq(apikey.id, keyId));
+      .where(eq(apiKeyTable.id, keyId));
   } catch (error) {
     logger.error('Failed to increment API key usage', {
       keyId,
@@ -137,12 +137,12 @@ export function requireApiKey(options: RequireApiKeyOptions) {
       // 3. Query database for key by hash (constant-time lookup)
       const [keyRecord] = await db
         .select()
-        .from(apikey)
+        .from(apiKeyTable)
         .where(
           and(
-            eq(apikey.keyHash, computedHash),
-            isNull(apikey.deletedAt),
-            eq(apikey.enabled, true)
+            eq(apiKeyTable.keyHash, computedHash),
+            isNull(apiKeyTable.deletedAt),
+            eq(apiKeyTable.enabled, true)
           )
         )
         .limit(1);

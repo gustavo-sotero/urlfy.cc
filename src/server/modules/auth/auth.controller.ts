@@ -190,13 +190,10 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
       );
 
       if (!revoked) {
-        return {
-          success: false as const,
-          error: {
-            code: 'SESSION_NOT_FOUND',
-            message: 'Session not found or already revoked'
-          }
-        };
+        throw new AppError(
+          ErrorCode.RESOURCE_NOT_FOUND,
+          'Session not found or already revoked'
+        );
       }
 
       return {
@@ -227,7 +224,6 @@ const sessionRoutes = new Elysia({ prefix: '/auth' })
 
   // ─────────────────────────────────────────────────────────────────
   // DELETE /auth/sessions - Revoke all other sessions
-  // Also aliased as POST /sessions/revoke-others and /sessions/revoke-all
   // ─────────────────────────────────────────────────────────────────
   .delete(
     '/sessions',

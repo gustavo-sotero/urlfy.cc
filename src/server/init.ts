@@ -5,7 +5,13 @@
 import { closeDatabase, initDatabase } from '@/db';
 import { validateEnv } from '@/lib/env';
 import { closeRedis } from '@/server/lib/redis';
-import { initTelemetry, shutdownTelemetry } from '@/server/lib/telemetry';
+import {
+  createLogger,
+  initTelemetry,
+  shutdownTelemetry
+} from '@/server/lib/telemetry';
+
+const logger = createLogger('server-init');
 
 // Only initialize in server environment and skip during build phase
 if (
@@ -29,7 +35,9 @@ if (
   try {
     await initDatabase();
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+    logger.error('Database initialization failed', {
+      error: error instanceof Error ? error.message : String(error)
+    });
     // Don't process.exit() — let the app start degraded.
     // Health checks will report database as unhealthy.
     // The connectionError cached in src/db/index.ts ensures all
@@ -42,16 +50,18 @@ if (
 
 async function setupGracefulShutdown() {
   const shutdown = async (signal: string) => {
-    console.log(`\n${signal} received. Starting graceful shutdown...`);
+    logger.info('Graceful shutdown initiated', { signal });
 
     try {
       // Close connections
       await Promise.all([closeDatabase(), closeRedis(), shutdownTelemetry()]);
 
-      console.log('✅ Graceful shutdown complete');
+      logger.info('Graceful shutdown complete');
       process.exit(0);
     } catch (error) {
-      console.error('❌ Error during shutdown:', error);
+      logger.error('Error during shutdown', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       process.exit(1);
     }
   };

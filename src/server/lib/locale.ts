@@ -5,10 +5,13 @@
  * Always prioritizes user's saved locale preference from database.
  */
 
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { user } from '@/db/schema/auth';
 import { type AppLocale, defaultLocale, isAppLocale } from '@/emails/types';
+import { createLogger } from '@/server/lib/telemetry';
+import { eq } from 'drizzle-orm';
+
+const logger = createLogger('locale');
 
 /**
  * Fetches user's locale from database
@@ -29,7 +32,10 @@ export async function getUserLocale(userId: string): Promise<AppLocale> {
     // Validate and return user's locale, fallback to default if invalid
     return isAppLocale(userLocale) ? userLocale : defaultLocale;
   } catch (error) {
-    console.warn(`Failed to fetch locale for user ${userId}:`, error);
+    logger.warn('Failed to fetch locale for user', {
+      userId,
+      error: error instanceof Error ? error.message : String(error)
+    });
     return defaultLocale;
   }
 }
@@ -66,7 +72,9 @@ export async function getLocaleByEmail(email: string): Promise<AppLocale> {
     const userLocale = result[0]?.locale;
     return isAppLocale(userLocale) ? userLocale : defaultLocale;
   } catch (error) {
-    console.warn(`Failed to fetch locale for email ${email}:`, error);
+    logger.warn('Failed to fetch locale by email', {
+      error: error instanceof Error ? error.message : String(error)
+    });
     return defaultLocale;
   }
 }

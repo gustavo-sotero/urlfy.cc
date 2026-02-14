@@ -7,11 +7,11 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { count, desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { contactMessage } from '@/db/schema';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { createLogger } from '@/server/lib/telemetry';
-import { count, desc, eq } from 'drizzle-orm';
 import type { ContactBodyType, MessageUpdateBodyType } from './contact.schema';
 
 const logger = createLogger('contact-service');

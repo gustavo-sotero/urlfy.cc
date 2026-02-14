@@ -123,10 +123,11 @@ export const CACHE_TTL = {
  * Helper to get TTL by cache key prefix
  */
 export function getTTLForKey(key: string): number {
-  if (key.startsWith('link:')) return CACHE_TTL.LINK;
+   // Order matters: check more specific prefixes BEFORE generic ones
   if (key.startsWith('link:meta:')) return CACHE_TTL.LINK_META;
   if (key.startsWith('link:404:')) return CACHE_TTL.LINK_404;
   if (key.startsWith('link:banned:')) return CACHE_TTL.LINK_BANNED;
+  if (key.startsWith('link:')) return CACHE_TTL.LINK;
   if (key.startsWith('qr:')) return CACHE_TTL.QR_CODE;
   if (key.startsWith('analytics:summary:')) return CACHE_TTL.ANALYTICS_SUMMARY;
   if (key.startsWith('analytics:timeseries:'))

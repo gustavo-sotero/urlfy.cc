@@ -317,7 +317,7 @@ export const api = new Elysia({ prefix: '/api' })
       .use(adminController)
       .use(adminMessagesController)
       .use(adminQueuesController)
-      .group('/admin', (admin) => admin.use(auditController))
+      .use(auditController)
   )
 
   // Public API v1

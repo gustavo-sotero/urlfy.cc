@@ -1,10 +1,10 @@
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { apiKey as apiKeyTable } from '@/db/schema/auth';
 import type { User } from '@/lib/auth';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
-import { eq, sql } from 'drizzle-orm';
 
 const logger = createLogger('auth-helpers');
 

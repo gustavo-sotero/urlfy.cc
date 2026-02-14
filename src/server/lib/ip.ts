@@ -23,20 +23,25 @@ let trustProxyWarningLogged = false;
  * @returns Client IP address as string
  */
 export function getClientIp(request: Request): string {
-  // 1. Cloudflare Connecting IP (most reliable if behind Cloudflare)
-  const cfConnectingIp = request.headers.get('cf-connecting-ip');
-  if (cfConnectingIp) {
-    return cfConnectingIp.trim();
+  const trustProxy = process.env.TRUST_PROXY === 'true';
+
+  // 1. Cloudflare Connecting IP (only trust if behind a trusted proxy)
+  if (trustProxy) {
+    const cfConnectingIp = request.headers.get('cf-connecting-ip');
+    if (cfConnectingIp) {
+      return cfConnectingIp.trim();
+    }
   }
 
-  // 2. X-Real-IP (common in Nginx/proxy configurations)
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp) {
-    return realIp.trim();
+  // 2. X-Real-IP (only trust if behind a trusted proxy)
+  if (trustProxy) {
+    const realIp = request.headers.get('x-real-ip');
+    if (realIp) {
+      return realIp.trim();
+    }
   }
 
   // 3. X-Forwarded-For (only trust if TRUST_PROXY is explicitly enabled)
-  const trustProxy = process.env.TRUST_PROXY === 'true';
   const forwardedFor = request.headers.get('x-forwarded-for');
 
   if (trustProxy && forwardedFor) {
@@ -47,10 +52,16 @@ export function getClientIp(request: Request): string {
     }
   }
 
-  // Log warning if X-Forwarded-For is present but not trusted (once per boot)
-  if (!trustProxy && forwardedFor && !trustProxyWarningLogged) {
+  // Log warning if proxy headers are present but not trusted (once per boot)
+  if (
+    !trustProxy &&
+    (forwardedFor ||
+      request.headers.get('cf-connecting-ip') ||
+      request.headers.get('x-real-ip')) &&
+    !trustProxyWarningLogged
+  ) {
     logger.warn(
-      'X-Forwarded-For header detected but TRUST_PROXY is not enabled. ' +
+      'Proxy headers detected but TRUST_PROXY is not enabled. ' +
         'Set TRUST_PROXY=true if behind a reverse proxy. ' +
         'This warning will only be logged once per server instance.'
     );
