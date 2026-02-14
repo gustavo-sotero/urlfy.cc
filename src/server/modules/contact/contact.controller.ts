@@ -8,6 +8,7 @@
  */
 
 import { Elysia } from 'elysia';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { rateLimiter } from '@/server/lib/rate-limiter';
 import { createLogger } from '@/server/lib/telemetry';
 import { ContactModels } from './contact.schema';
@@ -53,34 +54,23 @@ export const contactController = new Elysia({ prefix: '/contact' })
       );
 
       if (!rateLimitResult.allowed) {
-        set.status = 429;
-        set.headers['Retry-After'] = String(rateLimitResult.retryAfter || 3600);
-
         logger.warn('Rate limit exceeded for contact form', {
           ip,
           remaining: rateLimitResult.remaining
         });
 
-        return {
-          success: false,
-          error: {
-            code: 'RATE_LIMITED',
-            message: 'Too many contact submissions. Please try again later.'
-          }
-        };
+        throw new AppError(
+          ErrorCode.RATE_LIMITED,
+          'Too many contact submissions. Please try again later.'
+        );
       }
 
       // 3. Validate consent
       if (!body.consent) {
-        set.status = 400;
-        return {
-          success: false,
-          error: {
-            code: 'CONSENT_REQUIRED',
-            message:
-              'You must agree to the data storage consent to submit this form.'
-          }
-        };
+        throw new AppError(
+          ErrorCode.VALIDATION_ERROR,
+          'You must agree to the data storage consent to submit this form.'
+        );
       }
 
       // 4. Extract user agent

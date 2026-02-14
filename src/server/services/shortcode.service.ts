@@ -3,6 +3,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links, reservedSlugs } from '@/db/schema';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { generateShortCode } from '../lib/nanoid';
 
 const MAX_RETRIES = 5;
@@ -34,7 +35,10 @@ export async function generateUniqueCode(): Promise<string> {
     if (!reserved) return code;
   }
 
-  throw new Error('SHORTCODE_GENERATION_FAILED');
+  throw new AppError(
+    ErrorCode.INTERNAL_ERROR,
+    'Failed to generate unique short code after maximum retries'
+  );
 }
 
 /**

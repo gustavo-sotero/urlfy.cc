@@ -364,7 +364,7 @@ export const UserService = {
       .limit(1);
 
     if (!user) {
-      throw new Error('User not found');
+      throw new AppError(ErrorCode.USER_NOT_FOUND, 'User not found');
     }
 
     // Get sessions

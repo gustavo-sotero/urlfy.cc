@@ -10,6 +10,7 @@
 import { count, desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { contactMessage } from '@/db/schema';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import type { ContactBodyType, MessageUpdateBodyType } from './contact.schema';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -111,7 +112,10 @@ export const ContactService = {
   ): Promise<{ id: string; telegramSent: boolean }> {
     // Validate consent
     if (!input.consent) {
-      throw new Error('CONSENT_REQUIRED');
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        'You must agree to the data storage consent to submit this form.'
+      );
     }
 
     const messageId = crypto.randomUUID();

@@ -16,6 +16,7 @@ import {
   user
 } from '@/db/schema';
 import { type DeletionStatus, dataDeletionRequest } from '@/db/schema/audit';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { createLogger } from '@/server/lib/telemetry';
 
 const logger = createLogger('gdpr');
@@ -66,7 +67,7 @@ export class GDPRService {
         .limit(1);
 
       if (!userData) {
-        throw new Error('User not found');
+        throw new AppError(ErrorCode.USER_NOT_FOUND, 'User not found');
       }
 
       // Get user's links
