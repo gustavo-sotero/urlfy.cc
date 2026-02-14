@@ -269,12 +269,31 @@ export class CacheService {
   }
 
   /**
+   * Unified invalidation entrypoint for link + QR cache.
+   * Optionally marks link as banned/deleted/not_found after invalidation.
+   */
+  async invalidateLinkAndQR(
+    code: string,
+    reason?: 'ban' | 'deleted' | 'not_found'
+  ): Promise<void> {
+    await this.invalidateLink(code);
+
+    if (reason === 'ban') {
+      await this.setBanned(code);
+      return;
+    }
+
+    if (reason === 'deleted' || reason === 'not_found') {
+      await this.setNotFound(code);
+    }
+  }
+
+  /**
    * Invalidate cache after banning a link
    */
   async invalidateAndBan(code: string): Promise<void> {
     try {
-      await this.invalidateLink(code);
-      await this.setBanned(code);
+      await this.invalidateLinkAndQR(code, 'ban');
       logger.info('Link banned and cache invalidated', { code });
     } catch (error) {
       logger.error('Error in invalidateAndBan', {
@@ -290,8 +309,7 @@ export class CacheService {
    */
   async invalidateAndMarkDeleted(code: string): Promise<void> {
     try {
-      await this.invalidateLink(code);
-      await this.setNotFound(code);
+      await this.invalidateLinkAndQR(code, 'deleted');
       logger.info('Link deleted and cache invalidated', { code });
     } catch (error) {
       logger.error('Error in invalidateAndMarkDeleted', {

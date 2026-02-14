@@ -1,4 +1,3 @@
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import {
@@ -13,6 +12,7 @@ import {
   validateCustomAlias
 } from '@/server/services/shortcode.service';
 import type { Link, UpdateLinkInput } from '@/types/links.types';
+import { eq } from 'drizzle-orm';
 import { getLinkById } from './get-link';
 
 /**
@@ -103,10 +103,10 @@ export async function updateLink(
     .returning();
 
   if (newShortCode && newShortCode !== link.shortCode) {
-    await cacheService.invalidateAndMarkDeleted(link.shortCode);
-    await cacheService.invalidateLink(newShortCode);
+    await cacheService.invalidateLinkAndQR(link.shortCode, 'deleted');
+    await cacheService.invalidateLinkAndQR(newShortCode);
   } else {
-    await cacheService.invalidateLink(link.shortCode);
+    await cacheService.invalidateLinkAndQR(link.shortCode);
   }
 
   return updated;

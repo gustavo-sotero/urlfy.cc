@@ -1,10 +1,10 @@
-import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
 import { cacheService } from '@/server/services/cache.service';
 import { generateUniqueCode } from '@/server/services/shortcode.service';
 import type { Link } from '@/types/links.types';
+import { and, eq } from 'drizzle-orm';
 import { LinkService } from './links.service';
 
 export const LinkLifecycleService = {
@@ -19,7 +19,7 @@ export const LinkLifecycleService = {
       .set({ deletedAt: new Date(), isActive: false })
       .where(eq(links.id, id));
 
-    await cacheService.invalidateAndMarkDeleted(link.shortCode);
+    await cacheService.invalidateLinkAndQR(link.shortCode, 'deleted');
   },
 
   /**
@@ -46,7 +46,7 @@ export const LinkLifecycleService = {
       .where(eq(links.id, id))
       .returning();
 
-    await cacheService.invalidateLink(link.shortCode);
+    await cacheService.invalidateLinkAndQR(link.shortCode);
 
     return restored;
   },
@@ -95,7 +95,7 @@ export const LinkLifecycleService = {
       .where(eq(links.id, id))
       .returning();
 
-    await cacheService.invalidateLink(link.shortCode);
+    await cacheService.invalidateLinkAndQR(link.shortCode);
 
     return updated;
   }

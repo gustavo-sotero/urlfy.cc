@@ -37,6 +37,9 @@ export const RATE_LIMITS = {
   // Authentication
   AUTH_SIGN_IN: { windowMs: 15 * 60 * 1000, max: 5, failClosed: true }, // 5/15min (brute force)
   AUTH_SIGN_UP: { windowMs: 60 * 60 * 1000, max: 3, failClosed: true }, // 3/hour
+  AUTH_FORGOT_PASSWORD: { windowMs: 60 * 60 * 1000, max: 3, failClosed: true }, // 3/hour
+  AUTH_VERIFY_EMAIL: { windowMs: 60 * 60 * 1000, max: 10, failClosed: true }, // 10/hour
+  API_KEY_CREATE: { windowMs: 60 * 60 * 1000, max: 10, failClosed: true }, // 10/hour
 
   // Health Checks
   HEALTH_CHECK: { windowMs: 60 * 1000, max: 600 }, // 600/min
