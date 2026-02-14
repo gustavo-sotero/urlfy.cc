@@ -7,9 +7,17 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { beforeAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test
+} from 'bun:test';
 import { Elysia } from 'elysia';
-import { ResponseModels } from '@/server/lib/response.schema';
+import { ResponseModels } from '../../src/server/lib/response.schema';
 import {
   createElysiaTestClient,
   type ElysiaTestClient,
@@ -17,7 +25,14 @@ import {
   expectTooManyRequests
 } from '../helpers/elysia-test-client';
 
-const checkTokenLimitMock = mock(() =>
+const checkTokenLimitMock = mock<
+  () => Promise<{
+    allowed: boolean;
+    remaining: number;
+    resetTime: number;
+    retryAfter: number | undefined;
+  }>
+>(() =>
   Promise.resolve({
     allowed: true,
     remaining: 19,
@@ -55,7 +70,76 @@ const listUsersMock = mock(() =>
   })
 );
 
+function getMockUserFromHeaders(request: Request) {
+  const userId = request.headers.get('x-test-user-id');
+  if (!userId) return null;
+
+  const emailVerified = request.headers.get('x-test-email-verified') === 'true';
+  const roleHeader = request.headers.get('x-test-user-role');
+  const role = roleHeader === 'admin' ? 'admin' : 'user';
+
+  return {
+    id: userId,
+    email: `${userId}@test.local`,
+    role,
+    emailVerified,
+    name: 'Test User',
+    image: null,
+    twoFactorEnabled: false,
+    linksQuota: 100,
+    linksCount: 0,
+    bannedAt: null,
+    bannedReason: null,
+    deletedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+}
+
 mock.module('@/server/middleware/auth.middleware', () => ({
+  requireAuth: new Elysia({ name: 'require-auth-mock' })
+    .derive({ as: 'scoped' }, ({ request }) => {
+      const user = getMockUserFromHeaders(request);
+
+      if (!user) {
+        return {
+          user: null,
+          session: null,
+          isAuthenticated: false as const,
+          isTestAuth: false as const
+        };
+      }
+
+      return {
+        user,
+        session: { id: 'session-1' },
+        isAuthenticated: true as const,
+        isTestAuth: true as const
+      };
+    })
+    .onBeforeHandle(({ user, set }) => {
+      if (user) return;
+
+      set.status = 401;
+      return {
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required'
+        }
+      };
+    })
+    .as('scoped'),
+  optionalAuth: new Elysia({ name: 'optional-auth-mock' })
+    .derive({ as: 'scoped' }, ({ request }) => {
+      const user = getMockUserFromHeaders(request);
+      return {
+        user,
+        session: user ? { id: 'session-1' } : null,
+        isAuthenticated: !!user
+      };
+    })
+    .as('scoped'),
   requireAdmin: new Elysia({ name: 'require-admin-mock' })
     .derive({ as: 'scoped' }, () => ({
       user: {
@@ -71,7 +155,29 @@ mock.module('@/server/middleware/auth.middleware', () => ({
 }));
 
 mock.module('@/server/lib/rate-limiter', () => ({
+  RATE_LIMIT_CONFIGS: {
+    GET_REDIRECT: {
+      perIP: { points: 100, duration: 60 },
+      perLink: { points: 5000, duration: 60 }
+    }
+  },
   rateLimiter: {
+    checkIPLimit: mock(() =>
+      Promise.resolve({
+        allowed: true,
+        remaining: 99,
+        resetTime: Date.now() + 60_000,
+        retryAfter: undefined
+      })
+    ),
+    checkLinkLimit: mock(() =>
+      Promise.resolve({
+        allowed: true,
+        remaining: 4999,
+        resetTime: Date.now() + 60_000,
+        retryAfter: undefined
+      })
+    ),
     checkTokenLimit: checkTokenLimitMock
   }
 }));
@@ -94,7 +200,7 @@ describe('Admin Endpoints (handler-level)', () => {
 
   beforeAll(async () => {
     const { adminController } = await import(
-      '@/server/modules/admin/admin.controller'
+      '../../src/server/modules/admin/admin.controller'
     );
     const app = new Elysia().use(ResponseModels).use(adminController);
     client = createElysiaTestClient(app);
@@ -110,6 +216,10 @@ describe('Admin Endpoints (handler-level)', () => {
       resetTime: Date.now() + 60_000,
       retryAfter: undefined
     });
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   test('GET /admin/users should return 429 when user-management rate limit is exceeded', async () => {
