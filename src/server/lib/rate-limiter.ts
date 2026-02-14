@@ -121,9 +121,25 @@ export const RATE_LIMIT_CONFIGS = {
     auth: { points: 60, duration: 60 } // 60/min
   },
   // Admin actions
+  'GET /api/admin/*': {
+    guest: null,
+    auth: { points: 30, duration: 60, failClosed: true }
+  },
   'POST /api/admin/*': {
     guest: null, // Not allowed
     auth: { points: 30, duration: 60, failClosed: true } // 30/min
+  },
+  'PATCH /api/admin/*': {
+    guest: null,
+    auth: { points: 30, duration: 60, failClosed: true }
+  },
+  'PUT /api/admin/*': {
+    guest: null,
+    auth: { points: 30, duration: 60, failClosed: true }
+  },
+  'DELETE /api/admin/*': {
+    guest: null,
+    auth: { points: 30, duration: 60, failClosed: true }
   },
   // Auth endpoints
   'POST /api/auth/sign-in': {

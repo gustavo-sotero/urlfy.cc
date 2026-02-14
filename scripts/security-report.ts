@@ -241,16 +241,24 @@ async function checkCORS(): Promise<SecurityCheck[]> {
 async function checkAuthentication(): Promise<SecurityCheck[]> {
   const checks: SecurityCheck[] = [];
 
-  const protectedEndpoints = ['/api/me', '/api/me/export', '/api/admin/audit'];
+  const protectedEndpoints: Array<{
+    endpoint: string;
+    expectedStatuses: number[];
+  }> = [
+    { endpoint: '/api/me', expectedStatuses: [401] },
+    { endpoint: '/api/me/export', expectedStatuses: [401] },
+    { endpoint: '/api/admin/audit', expectedStatuses: [401, 403] }
+  ];
 
-  for (const endpoint of protectedEndpoints) {
+  for (const { endpoint, expectedStatuses } of protectedEndpoints) {
     try {
       const res = await fetch(`${BASE_URL}${endpoint}`);
+      const isExpected = expectedStatuses.includes(res.status);
       checks.push({
         category: 'Authentication',
         check: `Protected: ${endpoint}`,
-        status: res.status === 401 ? 'pass' : 'fail',
-        details: `Status: ${res.status} (expected 401)`
+        status: isExpected ? 'pass' : 'fail',
+        details: `Status: ${res.status} (expected ${expectedStatuses.join(' or ')})`
       });
     } catch (error) {
       checks.push({

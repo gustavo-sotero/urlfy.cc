@@ -35,7 +35,7 @@ function parseDays(raw?: string): number {
   if (!Number.isFinite(parsed)) {
     throw new AppError(
       ErrorCode.VALIDATION_ERROR,
-      'Days must be a valid integer between 1 and 365'
+      'Days must be a valid integer'
     );
   }
 

@@ -9,6 +9,7 @@
  */
 
 import type { AuditAction } from '@/db/schema/audit';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import {
   PaginatedResponse,
   SuccessResponse
@@ -36,98 +37,75 @@ export const auditController = new Elysia({ prefix: '/audit' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/',
-    async ({ user, query, set }) => {
-      try {
-        const page = Math.max(1, parseInt(query.page || '1', 10));
-        const limit = Math.min(
-          100,
-          Math.max(1, parseInt(query.limit || '50', 10))
+    async ({ user, query }) => {
+      const page = Math.max(1, parseInt(query.page || '1', 10));
+      const limit = Math.min(
+        100,
+        Math.max(1, parseInt(query.limit || '50', 10))
+      );
+      const offset = (page - 1) * limit;
+
+      const { logs: allLogs } = await auditLogService.getRecent({
+        action: query.action ? (query.action as AuditAction) : undefined,
+        limit: 10000,
+        offset: 0
+      });
+
+      let filteredLogs = allLogs;
+
+      if (query.entityType) {
+        filteredLogs = filteredLogs.filter(
+          (log) => log.entityType === query.entityType
         );
-        const offset = (page - 1) * limit;
+      }
 
-        // Use service for consistent data fetching
-        const { logs: allLogs } = await auditLogService.getRecent({
-          action: query.action ? (query.action as AuditAction) : undefined,
-          limit: 10000, // Get more for filtering
-          offset: 0
-        });
+      const sortBy = query.sortBy || 'createdAt';
+      const sortOrder =
+        query.sortOrder?.toLowerCase() === 'asc' ? 'asc' : 'desc';
 
-        // Apply additional filters in memory
-        let filteredLogs = allLogs;
+      filteredLogs.sort((a, b) => {
+        let aVal: string | Date;
+        let bVal: string | Date;
 
-        if (query.entityType) {
-          filteredLogs = filteredLogs.filter(
-            (log) => log.entityType === query.entityType
-          );
+        if (sortBy === 'createdAt') {
+          aVal = a.createdAt;
+          bVal = b.createdAt;
+        } else if (sortBy === 'action') {
+          aVal = a.action;
+          bVal = b.action;
+        } else if (sortBy === 'userId') {
+          aVal = a.userId;
+          bVal = b.userId;
+        } else {
+          return 0;
         }
 
-        // Apply sorting
-        const sortBy = query.sortBy || 'createdAt';
-        const sortOrder =
-          query.sortOrder?.toLowerCase() === 'asc' ? 'asc' : 'desc';
+        if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
 
-        filteredLogs.sort((a, b) => {
-          let aVal: string | Date;
-          let bVal: string | Date;
+      const total = filteredLogs.length;
+      const logs = filteredLogs.slice(offset, offset + limit);
 
-          if (sortBy === 'createdAt') {
-            aVal = a.createdAt;
-            bVal = b.createdAt;
-          } else if (sortBy === 'action') {
-            aVal = a.action;
-            bVal = b.action;
-          } else if (sortBy === 'userId') {
-            aVal = a.userId;
-            bVal = b.userId;
-          } else {
-            return 0;
-          }
+      logger.info('Audit logs retrieved', {
+        userId: user?.id,
+        count: logs.length,
+        total,
+        filters: { action: query.action, entityType: query.entityType }
+      });
 
-          if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
-          if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
-          return 0;
-        });
-
-        // Get total count
-        const total = filteredLogs.length;
-
-        // Apply pagination
-        const logs = filteredLogs.slice(offset, offset + limit);
-
-        logger.info('Audit logs retrieved', {
-          userId: user?.id,
-          count: logs.length,
+      return {
+        success: true,
+        data: logs,
+        meta: {
           total,
-          filters: { action: query.action, entityType: query.entityType }
-        });
-
-        return {
-          success: true,
-          data: logs,
-          meta: {
-            total,
-            page,
-            perPage: limit,
-            lastPage: Math.ceil(total / limit),
-            hasMore: offset + limit < total
-          }
-        };
-      } catch (error) {
-        logger.error('Failed to fetch audit logs', {
-          error: error instanceof Error ? error.message : String(error),
-          userId: user?.id
-        });
-
-        set.status = 500;
-
-        return {
-          success: false,
-          error: {
-            code: 'FETCH_FAILED',
-            message: 'Failed to fetch audit logs'
-          }
-        };
-      }
+          page,
+          perPage: limit,
+          lastPage: Math.ceil(total / limit),
+          hasMore: offset + limit < total
+        }
+      };
     },
     {
       query: AuditLogQuery,
@@ -150,46 +128,22 @@ export const auditController = new Elysia({ prefix: '/audit' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/:id',
-    async ({ user, params, set }) => {
-      try {
-        const log = await auditLogService.getById(params.id);
+    async ({ user, params }) => {
+      const log = await auditLogService.getById(params.id);
 
-        if (!log) {
-          set.status = 404;
-          return {
-            success: false,
-            error: {
-              code: 'NOT_FOUND',
-              message: 'Audit log not found'
-            }
-          };
-        }
-
-        logger.info('Audit log retrieved', {
-          userId: user?.id,
-          logId: params.id
-        });
-
-        return {
-          success: true,
-          data: log
-        };
-      } catch (error) {
-        logger.error('Failed to fetch audit log', {
-          error: error instanceof Error ? error.message : String(error),
-          userId: user?.id,
-          logId: params.id
-        });
-
-        set.status = 500;
-        return {
-          success: false,
-          error: {
-            code: 'FETCH_FAILED',
-            message: 'Failed to fetch audit log'
-          }
-        };
+      if (!log) {
+        throw new AppError(ErrorCode.RESOURCE_NOT_FOUND, 'Audit log not found');
       }
+
+      logger.info('Audit log retrieved', {
+        userId: user?.id,
+        logId: params.id
+      });
+
+      return {
+        success: true,
+        data: log
+      };
     },
     {
       params: t.Ref('admin.audit.id.param'),
@@ -213,53 +167,35 @@ export const auditController = new Elysia({ prefix: '/audit' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/entity/:entityType/:entityId',
-    async ({ user, params, query, set }) => {
-      try {
-        const limit = Math.min(
-          100,
-          Math.max(1, parseInt(query.limit || '50', 10))
-        );
+    async ({ user, params, query }) => {
+      const limit = Math.min(
+        100,
+        Math.max(1, parseInt(query.limit || '50', 10))
+      );
 
-        const { logs } = await auditLogService.getByEntity(
-          params.entityType,
-          params.entityId,
-          { limit }
-        );
+      const { logs } = await auditLogService.getByEntity(
+        params.entityType,
+        params.entityId,
+        { limit }
+      );
 
-        logger.info('Entity audit logs retrieved', {
-          userId: user?.id,
-          entityType: params.entityType,
-          entityId: params.entityId,
-          count: logs.length
-        });
+      logger.info('Entity audit logs retrieved', {
+        userId: user?.id,
+        entityType: params.entityType,
+        entityId: params.entityId,
+        count: logs.length
+      });
 
-        return {
-          success: true,
-          data: logs,
-          meta: {
-            count: logs.length,
-            limit,
-            entityType: params.entityType,
-            entityId: params.entityId
-          }
-        };
-      } catch (error) {
-        logger.error('Failed to fetch entity audit logs', {
-          error: error instanceof Error ? error.message : String(error),
-          userId: user?.id,
+      return {
+        success: true,
+        data: logs,
+        meta: {
+          count: logs.length,
+          limit,
           entityType: params.entityType,
           entityId: params.entityId
-        });
-
-        set.status = 500;
-        return {
-          success: false,
-          error: {
-            code: 'FETCH_FAILED',
-            message: 'Failed to fetch entity audit logs'
-          }
-        };
-      }
+        }
+      };
     },
     {
       params: t.Ref('admin.audit.entity.params'),
@@ -293,48 +229,31 @@ export const auditController = new Elysia({ prefix: '/audit' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/user/:targetUserId',
-    async ({ user, params, query, set }) => {
-      try {
-        const limit = Math.min(
-          100,
-          Math.max(1, parseInt(query.limit || '50', 10))
-        );
+    async ({ user, params, query }) => {
+      const limit = Math.min(
+        100,
+        Math.max(1, parseInt(query.limit || '50', 10))
+      );
 
-        const { logs } = await auditLogService.getByUser(params.targetUserId, {
-          limit
-        });
+      const { logs } = await auditLogService.getByUser(params.targetUserId, {
+        limit
+      });
 
-        logger.info('User audit logs retrieved', {
-          userId: user?.id,
-          targetUserId: params.targetUserId,
-          count: logs.length
-        });
+      logger.info('User audit logs retrieved', {
+        userId: user?.id,
+        targetUserId: params.targetUserId,
+        count: logs.length
+      });
 
-        return {
-          success: true,
-          data: logs,
-          meta: {
-            count: logs.length,
-            limit,
-            targetUserId: params.targetUserId
-          }
-        };
-      } catch (error) {
-        logger.error('Failed to fetch user audit logs', {
-          error: error instanceof Error ? error.message : String(error),
-          userId: user?.id,
+      return {
+        success: true,
+        data: logs,
+        meta: {
+          count: logs.length,
+          limit,
           targetUserId: params.targetUserId
-        });
-
-        set.status = 500;
-        return {
-          success: false,
-          error: {
-            code: 'FETCH_FAILED',
-            message: 'Failed to fetch user audit logs'
-          }
-        };
-      }
+        }
+      };
     },
     {
       params: t.Ref('admin.audit.user.param'),
@@ -366,33 +285,17 @@ export const auditController = new Elysia({ prefix: '/audit' })
   // ═══════════════════════════════════════════════════════════════════
   .get(
     '/stats/summary',
-    async ({ user, set }) => {
-      try {
-        const summary = await auditLogService.getSummary();
+    async ({ user }) => {
+      const summary = await auditLogService.getSummary();
 
-        logger.info('Audit logs summary retrieved', {
-          userId: user?.id
-        });
+      logger.info('Audit logs summary retrieved', {
+        userId: user?.id
+      });
 
-        return {
-          success: true,
-          data: summary
-        };
-      } catch (error) {
-        logger.error('Failed to fetch audit logs summary', {
-          error: error instanceof Error ? error.message : String(error),
-          userId: user?.id
-        });
-
-        set.status = 500;
-        return {
-          success: false,
-          error: {
-            code: 'FETCH_FAILED',
-            message: 'Failed to fetch audit logs summary'
-          }
-        };
-      }
+      return {
+        success: true,
+        data: summary
+      };
     },
     {
       detail: {

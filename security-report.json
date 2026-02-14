@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-14T04:03:51.171Z",
+  "generatedAt": "2026-02-14T04:20:12.496Z",
   "baseUrl": "http://localhost:3000",
   "environment": "production",
   "checks": [
@@ -7,7 +7,7 @@
       "category": "Headers",
       "check": "Content-Security-Policy",
       "status": "pass",
-      "details": "default-src 'self'; script-src 'self' 'nonce-+RZT/uH2XK84uPy8kNyt8w==' https://cdn.jsdelivr.net 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.githubusercontent.com; font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com; connect-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+      "details": "default-src 'self'; script-src 'self' 'nonce-T5J5/yaOAV54LXgpFHNw0Q==' https://cdn.jsdelivr.net 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.githubusercontent.com; font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com; connect-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     },
     {
       "category": "Headers",
@@ -85,7 +85,7 @@
       "category": "Authentication",
       "check": "Protected: /api/admin/audit",
       "status": "pass",
-      "details": "Status: 401 (expected 401)"
+      "details": "Status: 403 (expected 401 or 403)"
     },
     {
       "category": "Authentication",

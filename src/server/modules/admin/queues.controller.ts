@@ -74,39 +74,21 @@ export const adminQueuesController = new Elysia({ prefix: '/admin/queues' })
   .use(adminRateLimits.general)
   .get(
     '/',
-    async ({ user: _user, set }) => {
-      try {
-        // Get stats for all streams in parallel
-        const streamNames = Object.values(STREAM_NAMES);
-        const stats = await Promise.all(
-          streamNames.map((stream) => getStreamStats(stream))
-        );
+    async ({ user: _user }) => {
+      const streamNames = Object.values(STREAM_NAMES);
+      const stats = await Promise.all(
+        streamNames.map((stream) => getStreamStats(stream))
+      );
 
-        // Build response object
-        const result: Record<string, StreamStats> = {};
-        for (const stat of stats) {
-          result[stat.name] = stat;
-        }
-
-        return {
-          success: true,
-          data: result
-        };
-      } catch (error) {
-        logger.error('[AdminQueuesController] Failed to get queue stats', {
-          error: error instanceof Error ? error.message : String(error)
-        });
-
-        set.status = 500;
-
-        return {
-          success: false,
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to retrieve queue stats'
-          }
-        };
+      const result: Record<string, StreamStats> = {};
+      for (const stat of stats) {
+        result[stat.name] = stat;
       }
+
+      return {
+        success: true,
+        data: result
+      };
     },
     {
       detail: {
@@ -118,32 +100,13 @@ export const adminQueuesController = new Elysia({ prefix: '/admin/queues' })
   )
   .get(
     '/:stream',
-    async ({ params, user: _user, set }) => {
-      try {
-        const stats = await getStreamStats(params.stream);
+    async ({ params, user: _user }) => {
+      const stats = await getStreamStats(params.stream);
 
-        return {
-          success: true,
-          data: stats
-        };
-      } catch (error) {
-        logger.error(
-          `[AdminQueuesController] Failed to get stats for stream ${params.stream}`,
-          {
-            error: error instanceof Error ? error.message : String(error)
-          }
-        );
-
-        set.status = 500;
-
-        return {
-          success: false,
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to retrieve stream stats'
-          }
-        };
-      }
+      return {
+        success: true,
+        data: stats
+      };
     },
     {
       params: t.Object({
