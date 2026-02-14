@@ -2,8 +2,8 @@
 
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import type { ClickEvent } from '@/types/analytics.types';
-import { timingSafeEqual } from 'crypto';
 import { NextResponse } from 'next/server';
+import { timingSafeEqual } from 'node:crypto';
 
 /**
  * Internal API endpoint to enqueue analytics events

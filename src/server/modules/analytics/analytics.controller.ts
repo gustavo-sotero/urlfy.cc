@@ -8,10 +8,11 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
+import { requireUserId } from '@/server/lib/require-user-id';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { requireAuth } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
 import {
   ANALYTICS_BREAKDOWN_EXAMPLE,
   ANALYTICS_SUMMARY_EXAMPLE,
@@ -68,7 +69,8 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
     '/all/summary',
     async ({ user, query, set }) => {
       const days = parseDays(query.days);
-      const summary = await AnalyticsService.getAllLinksSummary(user!.id, days);
+      const userId = requireUserId(user);
+      const summary = await AnalyticsService.getAllLinksSummary(userId, days);
 
       if (!summary) {
         set.status = 404;
@@ -112,8 +114,9 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
     '/all/daily',
     async ({ user, query }) => {
       const days = parseDays(query.days);
+      const userId = requireUserId(user);
       const dailyStats = await AnalyticsService.getAllLinksDailyStats(
-        user!.id,
+        userId,
         days
       );
 
@@ -155,8 +158,9 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
     '/all/breakdown',
     async ({ user, query }) => {
       const days = parseDays(query.days);
+      const userId = requireUserId(user);
       const breakdown = await AnalyticsService.getAllLinksBreakdown(
-        user!.id,
+        userId,
         days
       );
 

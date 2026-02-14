@@ -1,17 +1,17 @@
 // src/components/forms/unlock-form.tsx
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, Unlock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { verifyLinkPassword } from '@/lib/api';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Unlock } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 
 function createSchema(passwordMsg: string) {
   return z.object({

@@ -3,13 +3,13 @@
  * React Query hooks for analytics data
  */
 
+import { type UseQueryOptions, useQuery } from '@tanstack/react-query';
 import * as api from '@/lib/api';
 import type {
   AnalyticsBreakdown,
   AnalyticsSummary,
   DailyStats
 } from '@/types/analytics.types';
-import { type UseQueryOptions, useQuery } from '@tanstack/react-query';
 
 // ═══════════════════════════════════════════════════════════════════
 // QUERY KEYS

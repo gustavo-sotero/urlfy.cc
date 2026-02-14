@@ -6,10 +6,10 @@
  * Click event preparation and dispatch for redirect analytics
  */
 
+import type { NextRequest } from 'next/server';
 import { getClientIp } from '@/server/lib/ip';
 import { createLogger } from '@/server/lib/telemetry.edge';
 import type { ClickEvent } from '@/types/analytics.types';
-import type { NextRequest } from 'next/server';
 
 const logger = createLogger('redirect-analytics');
 

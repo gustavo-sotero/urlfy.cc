@@ -7,6 +7,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import type { User } from '@/lib/auth';
 import {
   ErrorRef,
@@ -15,7 +16,6 @@ import {
 } from '@/server/lib/response.schema';
 import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
-import { Elysia, t } from 'elysia';
 import {
   ADMIN_LINK_EXAMPLE,
   ADMIN_STATS_EXAMPLE,
