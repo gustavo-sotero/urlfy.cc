@@ -109,9 +109,9 @@ export class CacheService {
           remainingTtl = Math.max(0, originalTtl - elapsed);
         } else {
           // Backward compatibility for entries cached before _cachedAt existed.
-          // Avoid extra TTL RTT on hot path: assume full TTL for legacy entries.
-          // Legacy entries will be rewritten with _cachedAt on next cache refresh.
-          remainingTtl = originalTtl;
+          // During transition, read actual TTL from Redis to preserve correctness.
+          const ttl = await redis.ttl(key);
+          remainingTtl = ttl > 0 ? ttl : originalTtl;
         }
 
         if (remainingTtl < originalTtl * 0.1 && Math.random() < 0.1) {
