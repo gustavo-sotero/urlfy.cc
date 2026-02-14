@@ -6,11 +6,11 @@
  * which injects the `user` object into the context.
  */
 
+import { Elysia } from 'elysia';
 import type { User } from '@/lib/auth';
 import { getRateLimit } from '@/server/config/rate-limits';
 import { rateLimiter } from '@/server/lib/rate-limiter';
 import { createLogger } from '@/server/lib/telemetry';
-import { Elysia } from 'elysia';
 
 const logger = createLogger('admin-rate-limit');
 

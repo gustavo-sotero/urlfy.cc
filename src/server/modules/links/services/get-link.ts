@@ -1,8 +1,8 @@
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
 import type { Link } from '@/types/links.types';
-import { and, eq, isNull } from 'drizzle-orm';
 
 /**
  * Busca link por ID (verifica ownership)
