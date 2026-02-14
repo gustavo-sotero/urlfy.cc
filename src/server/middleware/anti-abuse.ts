@@ -3,7 +3,7 @@
  * Integrates anti-abuse detection into request processing
  */
 
-import { getClientIp } from '@/server/lib/ip';
+import { getClientIp, maskIpForLog } from '@/server/lib/ip';
 import { createLogger } from '@/server/lib/telemetry';
 import { antiAbuseService } from '@/server/services/anti-abuse.service';
 
@@ -27,7 +27,7 @@ export async function antiAbuseMiddleware(
   const isBlocked = await antiAbuseService.isIPBlocked(ip);
 
   if (isBlocked) {
-    logger.warn('Blocked IP attempted request', { ip, path });
+    logger.warn('Blocked IP attempted request', { ip: maskIpForLog(ip), path });
     return new Response(
       JSON.stringify({
         success: false,
@@ -57,12 +57,14 @@ export async function recordLoginFailure(ip: string): Promise<void> {
   try {
     const blocked = await antiAbuseService.recordLoginFailure(ip);
     if (blocked) {
-      logger.warn('IP auto-blocked due to excessive login failures', { ip });
+      logger.warn('IP auto-blocked due to excessive login failures', {
+        ip: maskIpForLog(ip)
+      });
     }
   } catch (error) {
     logger.error('Failed to record login failure', {
       error: error instanceof Error ? error.message : String(error),
-      ip
+      ip: maskIpForLog(ip)
     });
   }
 }
@@ -77,13 +79,16 @@ export async function recordLinkCreation(
   try {
     const anomalous = await antiAbuseService.recordLinkCreation(userId, ip);
     if (anomalous) {
-      logger.warn('Anomalous link creation detected', { userId, ip });
+      logger.warn('Anomalous link creation detected', {
+        userId,
+        ip: maskIpForLog(ip)
+      });
     }
   } catch (error) {
     logger.error('Failed to record link creation', {
       error: error instanceof Error ? error.message : String(error),
       userId,
-      ip
+      ip: maskIpForLog(ip)
     });
   }
 }

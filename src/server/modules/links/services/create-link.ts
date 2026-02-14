@@ -6,13 +6,13 @@ import {
   sanitizeTags
 } from '@/server/lib/sanitize';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
+import type { CreateLinkInput, Link } from '@/types/links.types';
 import {
   generateUniqueCode,
   isValidAliasFormat,
   validateCustomAlias
-} from '@/server/services/shortcode.service';
-import { validateUrlSafe } from '@/server/services/url-validator';
-import type { CreateLinkInput, Link } from '@/types/links.types';
+} from './shortcode.service';
+import { validateUrlSafe } from './url-validator';
 
 /**
  * Creates a new shortened link

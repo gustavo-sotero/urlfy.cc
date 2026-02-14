@@ -11,11 +11,11 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { requireUser } from '@/server/lib/require-user';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
-import { Elysia, t } from 'elysia';
 import { AuthModels, SessionIdParam } from './auth.schema';
 import { AuthService } from './auth.service';
 

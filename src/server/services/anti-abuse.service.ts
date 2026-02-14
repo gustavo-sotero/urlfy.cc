@@ -3,6 +3,7 @@
  * Detects and prevents abuse patterns
  */
 
+import { maskIpForLog } from '@/server/lib/ip';
 import { getRedisClient } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 
@@ -105,11 +106,11 @@ export class AntiAbuseService {
         ttl,
         JSON.stringify({ reason, blockedAt: Date.now() })
       );
-      logger.warn('IP blocked', { ip, reason, ttl });
+      logger.warn('IP blocked', { ip: maskIpForLog(ip), reason, ttl });
     } catch (error) {
       logger.error('Failed to block IP', {
         error: error instanceof Error ? error.message : String(error),
-        ip
+        ip: maskIpForLog(ip)
       });
     }
   }
@@ -125,7 +126,7 @@ export class AntiAbuseService {
     } catch (error) {
       logger.error('Failed to check IP block status', {
         error: error instanceof Error ? error.message : String(error),
-        ip
+        ip: maskIpForLog(ip)
       });
       return false;
     }
@@ -138,7 +139,7 @@ export class AntiAbuseService {
     try {
       const key = `blocked:ip:${ip}`;
       await this.redis.del(key);
-      logger.info('IP unblocked', { ip });
+      logger.info('IP unblocked', { ip: maskIpForLog(ip) });
     } catch (error) {
       logger.error('Failed to unblock IP', {
         error: error instanceof Error ? error.message : String(error),
@@ -211,7 +212,9 @@ export class AntiAbuseService {
       const anomalous = await this.isAnomalous('LOGIN_FAILURES', ip);
 
       if (anomalous) {
-        logger.warn('Excessive login failures detected', { ip });
+        logger.warn('Excessive login failures detected', {
+          ip: maskIpForLog(ip)
+        });
         // Auto-block after anomaly
         await this.blockIP(ip, 'Excessive login failures', 1800); // 30 minutes
         return true;
@@ -221,7 +224,7 @@ export class AntiAbuseService {
     } catch (error) {
       logger.error('Failed to record login failure', {
         error: error instanceof Error ? error.message : String(error),
-        ip
+        ip: maskIpForLog(ip)
       });
       return false;
     }
@@ -242,7 +245,10 @@ export class AntiAbuseService {
       const anomalous = await this.isAnomalous('LINK_CREATION', key);
 
       if (anomalous) {
-        logger.warn('Excessive link creation detected', { userId, ip });
+        logger.warn('Excessive link creation detected', {
+          userId,
+          ip: maskIpForLog(ip)
+        });
         if (!userId) {
           await this.blockIP(ip, 'Excessive link creation', 600); // 10 minutes
         }
@@ -254,7 +260,7 @@ export class AntiAbuseService {
       logger.error('Failed to record link creation', {
         error: error instanceof Error ? error.message : String(error),
         userId,
-        ip
+        ip: maskIpForLog(ip)
       });
       return false;
     }
@@ -308,11 +314,11 @@ export class AntiAbuseService {
         await this.redis.del(redisKey);
       }
 
-      logger.info('IP counters reset', { ip });
+      logger.info('IP counters reset', { ip: maskIpForLog(ip) });
     } catch (error) {
       logger.error('Failed to reset IP counters', {
         error: error instanceof Error ? error.message : String(error),
-        ip
+        ip: maskIpForLog(ip)
       });
     }
   }
@@ -336,7 +342,7 @@ export class AntiAbuseService {
     } catch (error) {
       logger.error('Failed to get abuse report', {
         error: error instanceof Error ? error.message : String(error),
-        ip
+        ip: maskIpForLog(ip)
       });
       return {};
     }

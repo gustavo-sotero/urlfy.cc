@@ -4,6 +4,8 @@
  * to prevent bypasses via IP spoofing
  */
 
+import { createHash } from 'node:crypto';
+
 import { createLogger } from '@/server/lib/telemetry';
 
 const logger = createLogger('ip-extraction');
@@ -134,4 +136,17 @@ export function isPrivateIp(ip: string): boolean {
   ];
 
   return privateRanges.some((pattern) => pattern.test(ip));
+}
+
+/**
+ * Masks an IP address for safe logging (LGPD/GDPR compliant).
+ * Produces a truncated SHA-256 hash that preserves correlation
+ * across log entries without storing the raw IP.
+ *
+ * @param ip - Raw IP address
+ * @returns Masked string like `ip:a1b2c3d4` (8 hex chars)
+ */
+export function maskIpForLog(ip: string): string {
+  const hash = createHash('sha256').update(ip).digest('hex').slice(0, 8);
+  return `ip:${hash}`;
 }

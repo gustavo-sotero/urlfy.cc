@@ -4,6 +4,7 @@
  * Prevents abuse across API endpoints
  */
 
+import { maskIpForLog } from './ip';
 import { getRedisClient } from './redis';
 import { createLogger } from './telemetry';
 
@@ -370,11 +371,11 @@ return {0, count}
     try {
       const key = `blocked:${ip}`;
       await this.redis.setex(key, ttl, '1');
-      logger.warn('IP blocked', { ip, ttl });
+      logger.warn('IP blocked', { ip: maskIpForLog(ip), ttl });
     } catch (error) {
       logger.error('Failed to block IP', {
         error: error instanceof Error ? error.message : String(error),
-        ip
+        ip: maskIpForLog(ip)
       });
     }
   }

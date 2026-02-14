@@ -3,7 +3,7 @@
  * Applies rate limiting based on IP, token, and endpoint
  */
 
-import { getClientIp } from '@/server/lib/ip';
+import { getClientIp, maskIpForLog } from '@/server/lib/ip';
 import { maskValue, sanitizeHeaders } from '@/server/lib/log-sanitizer';
 import {
   RATE_LIMIT_CONFIGS,
@@ -141,7 +141,7 @@ export async function rateLimit(
   // Check if IP is blocked
   const isBlocked = await rateLimiter.isIPBlocked(ip);
   if (isBlocked) {
-    logger.warn('Blocked IP attempted request', { ip, path });
+    logger.warn('Blocked IP attempted request', { ip: maskIpForLog(ip), path });
     return {
       response: new Response(
         JSON.stringify({

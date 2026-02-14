@@ -20,7 +20,6 @@ import { ResponseModels } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { compressionMiddleware } from '@/server/middleware/compression';
 import { cspMiddleware } from '@/server/middleware/csp.middleware';
-import { errorMiddleware } from '@/server/middleware/error.middleware';
 import { securityHeadersMiddleware } from '@/server/middleware/security-headers';
 // Feature-based modules
 import {
@@ -139,9 +138,6 @@ export const api = new Elysia({ prefix: '/api' })
       // No need to pass spanProcessors or exporters - they are inherited
     })
   )
-
-  // Error handling
-  .use(errorMiddleware)
 
   // Core plugins (JWT, CORS, Bearer, Compression, CSP, Security Headers)
   .use(jwtPlugin)

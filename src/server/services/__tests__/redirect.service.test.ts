@@ -16,8 +16,8 @@ process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
 process.env.REDIS_URL = 'redis://localhost:6379';
 process.env.JWT_SECRET = 'test-secret-key-for-testing';
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { CachedLink } from '@/types/redirect.types';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // ═══════════════════════════════════════════════════════════════════
 // Helper function for Bun mock compatibility
@@ -43,7 +43,16 @@ const mockCache = {
   isBanned: mock(() => Promise.resolve(false)),
   setBanned: mock(() => Promise.resolve()),
   invalidateLink: mock(() => Promise.resolve()),
-  getCacheStats: mock(() => Promise.resolve({ hits: 0, misses: 0, hitRate: 0 }))
+  getCacheStats: mock(() =>
+    Promise.resolve({ hits: 0, misses: 0, hitRate: 0 })
+  ),
+  getLinkState: mock(async () => ({
+    isNotFound: false,
+    isBanned: false,
+    link: null as CachedLink | null
+  })),
+  flushLinks: mock(() => Promise.resolve()),
+  invalidateLinkAndQR: mock(() => Promise.resolve())
 };
 
 // Database mock - with configurable limit result for select chain
@@ -103,10 +112,21 @@ const mockTelemetry = {
 // Mock modules BEFORE importing service
 mock.module('@/server/services/cache.service', () => ({
   cacheService: mockCache,
+  CACHE_TTL: {
+    LINK: 3600,
+    LINK_META: 300,
+    NEGATIVE: 300,
+    BANNED: 86400,
+    QR_CODE: 86400,
+    GEO: 86400
+  },
   CACHE_PREFIX: {
     LINK: 'link:',
-    NOT_FOUND: 'link:404:',
-    BANNED: 'link:banned:',
+    LINK_META: 'link:meta:',
+    LINK_404: 'link:404:',
+    LINK_BANNED: 'link:banned:',
+    QR_CODE: 'qr:',
+    GEO: 'geo:',
     LOCK: 'lock:link:'
   }
 }));
@@ -193,10 +213,17 @@ describe('RedirectService', () => {
     mockCache.isNotFound.mockReset();
     mockCache.setNotFound.mockReset();
     mockCache.isBanned.mockReset();
+    mockCache.getLinkState.mockReset();
     mockDb.query.links.findFirst.mockReset();
     mockLimitFn.mockReset();
     // Default: db select returns empty (code available)
     mockResolvedValue(mockLimitFn, []);
+    // Default: getLinkState returns empty (no link, not found, not banned)
+    mockCache.getLinkState.mockImplementation(async () => ({
+      isNotFound: false,
+      isBanned: false,
+      link: null as CachedLink | null
+    }));
   });
 
   describe('resolve()', () => {
@@ -216,14 +243,17 @@ describe('RedirectService', () => {
         utmCampaign: null
       };
 
-      mockResolvedValue(mockCache.getLink, mockLink);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: mockLink
+      }));
 
       const result = await redirectService.resolve('abc123', 0);
 
       expect(result.success).toBe(true);
       expect(result.url).toMatch(/^https:\/\/example\.com\/?$/);
       expect(result.redirectType).toBe(301);
-      expect(mockCache.getLink).toHaveBeenCalledWith('abc123');
     });
 
     it('should return REDIRECT_LOOP when depth >= 3', async () => {
@@ -234,8 +264,11 @@ describe('RedirectService', () => {
     });
 
     it('should return NOT_FOUND when link does not exist', async () => {
-      mockResolvedValue(mockCache.isNotFound, false);
-      mockResolvedValue(mockCache.getLink, null);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: null
+      }));
       mockResolvedValue(mockDb.query.links.findFirst, null);
 
       const result = await redirectService.resolve('nonexistent', 0);
@@ -245,13 +278,16 @@ describe('RedirectService', () => {
     });
 
     it('should return NOT_FOUND from negative cache', async () => {
-      mockResolvedValue(mockCache.isNotFound, true);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: true,
+        isBanned: false,
+        link: null
+      }));
 
       const result = await redirectService.resolve('notfound', 0);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('NOT_FOUND');
-      expect(mockCache.getLink).not.toHaveBeenCalled();
     });
 
     it('should return INACTIVE for inactive link', async () => {
@@ -270,7 +306,11 @@ describe('RedirectService', () => {
         utmCampaign: null
       };
 
-      mockResolvedValue(mockCache.getLink, mockLink);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: mockLink
+      }));
 
       const result = await redirectService.resolve('inactive', 0);
 
@@ -279,7 +319,11 @@ describe('RedirectService', () => {
     });
 
     it('should return BANNED for banned link', async () => {
-      mockResolvedValue(mockCache.isBanned, true);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: true,
+        link: null
+      }));
 
       const result = await redirectService.resolve('banned', 0);
 
@@ -303,7 +347,11 @@ describe('RedirectService', () => {
         utmCampaign: null
       };
 
-      mockResolvedValue(mockCache.getLink, mockLink);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: mockLink
+      }));
 
       const result = await redirectService.resolve('expired', 0);
 
@@ -327,7 +375,11 @@ describe('RedirectService', () => {
         utmCampaign: null
       };
 
-      mockResolvedValue(mockCache.getLink, mockLink);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: mockLink
+      }));
 
       const result = await redirectService.resolve('maxed', 0);
 
@@ -351,7 +403,11 @@ describe('RedirectService', () => {
         utmCampaign: null
       };
 
-      mockResolvedValue(mockCache.getLink, mockLink);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: mockLink
+      }));
 
       const result = await redirectService.resolve('protected', 0);
 
@@ -375,7 +431,11 @@ describe('RedirectService', () => {
         utmCampaign: 'launch'
       };
 
-      mockResolvedValue(mockCache.getLink, mockLink);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: mockLink
+      }));
 
       const result = await redirectService.resolve('with-utm', 0);
 
@@ -401,7 +461,11 @@ describe('RedirectService', () => {
         utmCampaign: null
       };
 
-      mockResolvedValue(mockCache.getLink, mockLink);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: mockLink
+      }));
 
       const result = await redirectService.resolve('with-query', 0);
 
@@ -481,7 +545,11 @@ describe('RedirectService', () => {
         utmCampaign: null
       };
 
-      mockResolvedValue(mockCache.getLink, mockLink);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: mockLink
+      }));
 
       const result = await redirectService.resolve('special', 0);
 
@@ -505,7 +573,11 @@ describe('RedirectService', () => {
         utmCampaign: null
       };
 
-      mockResolvedValue(mockCache.getLink, mockLink);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: mockLink
+      }));
 
       const result = await redirectService.resolve('invalid-url', 0);
 
@@ -529,7 +601,11 @@ describe('RedirectService', () => {
         utmCampaign: null
       };
 
-      mockResolvedValue(mockCache.getLink, mockLink);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: mockLink
+      }));
 
       const result = await redirectService.resolve('almost-maxed', 0);
 
@@ -554,7 +630,11 @@ describe('RedirectService', () => {
         utmCampaign: null
       };
 
-      mockResolvedValue(mockCache.getLink, mockLink);
+      mockCache.getLinkState.mockImplementation(async () => ({
+        isNotFound: false,
+        isBanned: false,
+        link: mockLink
+      }));
 
       const result = await redirectService.resolve('boundary', 0);
 

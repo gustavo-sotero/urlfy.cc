@@ -1,4 +1,3 @@
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import {
@@ -8,12 +7,10 @@ import {
 } from '@/server/lib/sanitize';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
 import { cacheService } from '@/server/services/cache.service';
-import {
-  isValidAliasFormat,
-  validateCustomAlias
-} from '@/server/services/shortcode.service';
 import type { Link, UpdateLinkInput } from '@/types/links.types';
+import { eq } from 'drizzle-orm';
 import { getLinkById } from './get-link';
+import { isValidAliasFormat, validateCustomAlias } from './shortcode.service';
 
 /**
  * Atualiza um link existente
