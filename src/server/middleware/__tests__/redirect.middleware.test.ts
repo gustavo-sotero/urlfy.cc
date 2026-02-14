@@ -212,7 +212,9 @@ describe('redirect.middleware', () => {
       expect(response.status).toBe(302);
     });
 
-    it('should increment redirect depth header', async () => {
+    it('should ignore external X-Redirect-Depth header (anti-spoofing)', async () => {
+      // External requests without valid x-internal-api secret should have
+      // their X-Redirect-Depth header ignored (always treated as depth 0)
       const request = createMockRequest({
         url: 'http://localhost:3000/abc123',
         headers: { 'X-Redirect-Depth': '1' }
@@ -220,7 +222,8 @@ describe('redirect.middleware', () => {
 
       const response = await handleRedirect(request, 'abc123');
 
-      expect(response.headers.get('X-Redirect-Depth')).toBe('2');
+      // Depth starts at 0 (spoofed header ignored) → response is 0+1 = 1
+      expect(response.headers.get('X-Redirect-Depth')).toBe('1');
     });
 
     it('should enqueue analytics event via internal API', async () => {

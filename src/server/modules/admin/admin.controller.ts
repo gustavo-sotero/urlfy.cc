@@ -7,16 +7,15 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import type { User } from '@/lib/auth';
 import {
   ErrorRef,
   PaginatedResponse,
   SuccessResponse
 } from '@/server/lib/response.schema';
-import { createLogger } from '@/server/lib/telemetry';
 import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
+import { Elysia, t } from 'elysia';
 import {
   ADMIN_LINK_EXAMPLE,
   ADMIN_STATS_EXAMPLE,
@@ -25,8 +24,6 @@ import {
   GROWTH_STATS_EXAMPLE
 } from './admin.schema';
 import { AdminService } from './admin.service';
-
-const logger = createLogger('admin-controller');
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN CONTROLLER
@@ -45,26 +42,13 @@ export const adminController = new Elysia({ prefix: '/admin' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/stats',
-    async function getGlobalStats({ set }) {
-      try {
-        const stats = await AdminService.getGlobalStats();
+    async function getGlobalStats() {
+      const stats = await AdminService.getGlobalStats();
 
-        return {
-          success: true as const,
-          data: stats
-        };
-      } catch (error) {
-        logger.error('Failed to get admin stats', { error });
-        set.status = 500;
-
-        return {
-          success: false as const,
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to fetch statistics'
-          }
-        };
-      }
+      return {
+        success: true as const,
+        data: stats
+      };
     },
     {
       detail: {
@@ -89,27 +73,14 @@ export const adminController = new Elysia({ prefix: '/admin' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/stats/growth',
-    async function getGrowthStats({ query, set }) {
-      try {
-        const range = (query.range as '7d' | '30d') || '7d';
-        const stats = await AdminService.getGrowthStats(range);
+    async function getGrowthStats({ query }) {
+      const range = (query.range as '7d' | '30d') || '7d';
+      const stats = await AdminService.getGrowthStats(range);
 
-        return {
-          success: true as const,
-          data: stats
-        };
-      } catch (error) {
-        logger.error('Failed to get growth stats', { error, query });
-        set.status = 500;
-
-        return {
-          success: false as const,
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to fetch growth statistics'
-          }
-        };
-      }
+      return {
+        success: true as const,
+        data: stats
+      };
     },
     {
       detail: {
@@ -136,27 +107,14 @@ export const adminController = new Elysia({ prefix: '/admin' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/users',
-    async ({ query, set }) => {
-      try {
-        const result = await AdminService.listUsers(query);
+    async ({ query }) => {
+      const result = await AdminService.listUsers(query);
 
-        return {
-          success: true as const,
-          data: result.data,
-          meta: result.meta
-        };
-      } catch (error) {
-        logger.error('Failed to list users', { error, query });
-        set.status = 500;
-
-        return {
-          success: false as const,
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to fetch users'
-          }
-        };
-      }
+      return {
+        success: true as const,
+        data: result.data,
+        meta: result.meta
+      };
     },
     {
       detail: {
@@ -228,32 +186,18 @@ export const adminController = new Elysia({ prefix: '/admin' })
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/links',
-    async ({ query, set }) => {
-      try {
-        // Use listLinks for pagination support
-        const result = await AdminService.listLinks({
-          page: query.page,
-          limit: query.limit,
-          search: query.search
-        });
+    async ({ query }) => {
+      const result = await AdminService.listLinks({
+        page: query.page,
+        limit: query.limit,
+        search: query.search
+      });
 
-        return {
-          success: true as const,
-          data: result.data,
-          meta: result.meta
-        };
-      } catch (error) {
-        logger.error('Failed to list links', { error, query });
-        set.status = 500;
-
-        return {
-          success: false as const,
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to list links'
-          }
-        };
-      }
+      return {
+        success: true as const,
+        data: result.data,
+        meta: result.meta
+      };
     },
     {
       detail: {
@@ -284,32 +228,19 @@ export const adminController = new Elysia({ prefix: '/admin' })
 
   .get(
     '/links/search',
-    async ({ query, set }) => {
-      try {
-        const searchQuery = query.q || '';
-        const limit = Math.min(
-          100,
-          Math.max(1, Number.parseInt(query.limit || '50', 10))
-        );
+    async ({ query }) => {
+      const searchQuery = query.q || '';
+      const limit = Math.min(
+        100,
+        Math.max(1, Number.parseInt(query.limit || '50', 10))
+      );
 
-        const results = await AdminService.searchLinks(searchQuery, limit);
+      const results = await AdminService.searchLinks(searchQuery, limit);
 
-        return {
-          success: true as const,
-          data: results
-        };
-      } catch (error) {
-        logger.error('Failed to search links', { error, query });
-        set.status = 500;
-
-        return {
-          success: false as const,
-          error: {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to search links'
-          }
-        };
-      }
+      return {
+        success: true as const,
+        data: results
+      };
     },
     {
       detail: {

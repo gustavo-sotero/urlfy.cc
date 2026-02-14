@@ -1,7 +1,7 @@
 // src/server/services/__tests__/cache.service.test.ts
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { CachedLink } from '@/types/redirect.types';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // Mock telemetry to avoid initialization
 mock.module('@/server/lib/telemetry', () => ({
@@ -257,11 +257,14 @@ describe('CacheService', () => {
       if (!success) return;
 
       const stored = store.get(`${CACHE_PREFIX.LINK}abc123`);
-      expect(stored).toEqual(JSON.stringify(mockLink));
+      // setLink() embeds _cachedAt timestamp for TTL computation (Phase 4.1)
+      const parsed = stored ? JSON.parse(stored as string) : null;
+      expect(parsed).toMatchObject(mockLink);
+      expect(parsed._cachedAt).toBeTypeOf('number');
       expect(mockRedis.setex).toHaveBeenCalledWith(
         `${CACHE_PREFIX.LINK}abc123`,
         CACHE_TTL.LINK,
-        JSON.stringify(mockLink)
+        expect.stringContaining('"_cachedAt"')
       );
     });
   });

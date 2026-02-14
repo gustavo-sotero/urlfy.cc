@@ -234,12 +234,15 @@ export class CacheService {
         redis.del(`${CACHE_PREFIX.LINK_BANNED}${code}`)
       ];
 
-      // Remove related QR codes (pattern delete)
-      const qrPattern = `${CACHE_PREFIX.QR_CODE}${code}:*`;
-      const qrKeys = await scanKeys(qrPattern);
+      // Remove related QR codes using the tracking Set (O(M) vs O(N) SCAN)
+      const qrSetKey = `qr:keys:${code}`;
+      const qrKeys = (await redis.send('SMEMBERS', [qrSetKey])) as string[];
 
       if (qrKeys.length > 0) {
-        commands.push(redis.del(...qrKeys));
+        commands.push(redis.del(...qrKeys, qrSetKey));
+      } else {
+        // Clean up the set key just in case
+        commands.push(redis.del(qrSetKey));
       }
 
       await Promise.all(commands);

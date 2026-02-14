@@ -66,6 +66,12 @@ export interface RateLimitConfig {
   duration: number;
   /** Optional block duration if exceeded (seconds) */
   blockDuration?: number;
+  /**
+   * If true, deny requests when Redis is unavailable instead of falling back
+   * to in-memory rate limiting. Use for security-critical endpoints
+   * (auth, admin) where fail-open could allow brute-force attacks.
+   */
+  failClosed?: boolean;
 }
 
 export interface RateLimitResult {
@@ -117,14 +123,14 @@ export const RATE_LIMIT_CONFIGS = {
   // Admin actions
   'POST /api/admin/*': {
     guest: null, // Not allowed
-    auth: { points: 30, duration: 60 } // 30/min
+    auth: { points: 30, duration: 60, failClosed: true } // 30/min
   },
   // Auth endpoints
   'POST /api/auth/sign-in': {
-    guest: { points: 5, duration: 900 } // 5/15min (brute force protection)
+    guest: { points: 5, duration: 900, failClosed: true } // 5/15min (brute force protection)
   },
   'POST /api/auth/sign-up': {
-    guest: { points: 3, duration: 3600 } // 3/hour
+    guest: { points: 3, duration: 3600, failClosed: true } // 3/hour
   }
 } as const;
 
@@ -197,12 +203,25 @@ class RateLimiter {
         retryAfter: allowsRequest ? undefined : config.duration
       };
     } catch (error) {
-      logger.error('Rate limiter Redis error, using in-memory fallback', {
+      logger.error('Rate limiter Redis error', {
         error: error instanceof Error ? error.message : String(error),
-        key
+        key,
+        failClosed: config.failClosed ?? false
       });
 
-      // Fall back to in-memory rate limiting instead of failing open
+      // For security-critical endpoints (auth, admin), deny requests
+      // when Redis is unavailable to prevent brute-force attacks
+      if (config.failClosed) {
+        logger.warn('Rate limiter fail-closed: denying request', { key });
+        return {
+          allowed: false,
+          remaining: 0,
+          resetTime: now + 60_000,
+          retryAfter: 60
+        };
+      }
+
+      // Fall back to in-memory rate limiting for non-critical endpoints
       const fallback = memoryFallback.check(
         `${prefix}:${key}`,
         config.points,

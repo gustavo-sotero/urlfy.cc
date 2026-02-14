@@ -1,15 +1,18 @@
 // src/server/services/qr.service.ts
 
-import QRCode from 'qrcode';
 import { createLogger } from '@/server/lib/telemetry';
+import QRCode from 'qrcode';
 import { redis } from '../lib/redis';
+import type { QRFormat, QRSize } from './qr.utils';
+
+export type { QRFormat, QRSize } from './qr.utils';
+// Re-export pure utilities so existing consumers keep working
+export { validateQRFormat, validateQRSize } from './qr.utils';
 
 const logger = createLogger('qr-service');
 
-type QRFormat = 'png' | 'svg';
-type QRSize = 100 | 200 | 300 | 500 | 1000;
-
 const CACHE_TTL = 86400; // 24 hours
+const QR_KEYS_SET_PREFIX = 'qr:keys:'; // Tracking set prefix
 
 /**
  * Generate a QR Code for a shortened link
@@ -57,6 +60,8 @@ export async function generateQRCode(
 
     try {
       await redis.set(cacheKey, result, 'EX', CACHE_TTL);
+      // Track the cache key in a Set for efficient invalidation (O(M) vs O(N) SCAN)
+      await redis.send('SADD', [`${QR_KEYS_SET_PREFIX}${code}`, cacheKey]);
     } catch (error) {
       logger.warn('Failed to cache QR SVG', {
         code,
@@ -68,6 +73,8 @@ export async function generateQRCode(
 
     try {
       await redis.set(cacheKey, result.toString('base64'), 'EX', CACHE_TTL);
+      // Track the cache key in a Set for efficient invalidation (O(M) vs O(N) SCAN)
+      await redis.send('SADD', [`${QR_KEYS_SET_PREFIX}${code}`, cacheKey]);
     } catch (error) {
       logger.warn('Failed to cache QR PNG', {
         code,
@@ -87,30 +94,17 @@ export async function generateQRCode(
  */
 export async function invalidateQRCache(code: string): Promise<void> {
   try {
-    // Use SCAN instead of KEYS to avoid blocking Redis
-    const keys: string[] = [];
-    let cursor = '0';
-    const pattern = `qr:${code}:*`;
+    const setKey = `${QR_KEYS_SET_PREFIX}${code}`;
 
-    do {
-      const result = (await redis.send('SCAN', [
-        cursor,
-        'MATCH',
-        pattern,
-        'COUNT',
-        '100'
-      ])) as [string, string[]];
+    // Use the tracking Set for O(M) invalidation instead of O(N) SCAN
+    const qrKeys = (await redis.send('SMEMBERS', [setKey])) as string[];
 
-      cursor = result[0];
-      const batchKeys = result[1];
-
-      if (batchKeys.length > 0) {
-        keys.push(...batchKeys);
-      }
-    } while (cursor !== '0');
-
-    if (keys.length > 0) {
-      await redis.del(...keys);
+    if (qrKeys.length > 0) {
+      // Delete all QR cache keys and the tracking Set itself
+      await redis.del(...qrKeys, setKey);
+    } else {
+      // No tracked keys — clean up the set key just in case
+      await redis.del(setKey);
     }
   } catch (error) {
     logger.warn('Failed to invalidate QR cache', {
@@ -118,31 +112,4 @@ export async function invalidateQRCache(code: string): Promise<void> {
       error: error instanceof Error ? error.message : String(error)
     });
   }
-}
-
-/**
- * Validate QR code size
- * @param size - Requested size
- * @returns Validated size or default
- */
-export function validateQRSize(size: number): QRSize {
-  const validSizes: QRSize[] = [100, 200, 300, 500, 1000];
-
-  if (validSizes.includes(size as QRSize)) {
-    return size as QRSize;
-  }
-
-  // Return the closest valid size
-  return validSizes.reduce((prev, curr) =>
-    Math.abs(curr - size) < Math.abs(prev - size) ? curr : prev
-  );
-}
-
-/**
- * Validate QR code format
- * @param format - Requested format
- * @returns Validated format or default
- */
-export function validateQRFormat(format: string): QRFormat {
-  return format === 'svg' ? 'svg' : 'png';
 }
