@@ -133,12 +133,12 @@ describe('Auth Endpoints (handler-level)', () => {
     });
   });
 
-  describe('POST /api/auth/sessions/revoke-all', () => {
+  describe('DELETE /api/auth/sessions (revoke all other sessions)', () => {
     test('should require authentication', async () => {
-      const response = await client.post<{
+      const response = await client.delete<{
         success: boolean;
         error?: { code: string };
-      }>('/api/auth/sessions/revoke-all');
+      }>('/api/auth/sessions');
 
       expectUnauthorized(response);
     });

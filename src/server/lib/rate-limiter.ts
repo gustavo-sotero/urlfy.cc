@@ -161,8 +161,12 @@ export const RATE_LIMIT_CONFIGS = {
   }
 } as const;
 
-class RateLimiter {
-  private redis = getRedisClient();
+export class RateLimiter {
+  private redis: ReturnType<typeof getRedisClient>;
+
+  constructor(redis?: ReturnType<typeof getRedisClient>) {
+    this.redis = redis ?? getRedisClient();
+  }
 
   /**
    * Lua script for atomic sliding-window rate limiting.

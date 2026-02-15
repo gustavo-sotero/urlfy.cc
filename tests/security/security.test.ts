@@ -3,7 +3,7 @@
  * Comprehensive tests for injection attacks, rate limiting, CORS, and security headers
  */
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // Create a stateful mock Redis client for testing
 const mockStore = new Map<string, { value: string; expiry?: number }>();
@@ -134,16 +134,14 @@ mock.module('@/server/lib/redis', () => ({
 }));
 
 // Dynamic imports after mocking
-const { RATE_LIMIT_CONFIGS, rateLimiter } = await import(
+const { RATE_LIMIT_CONFIGS, RateLimiter } = await import(
   '@/server/lib/rate-limiter'
 );
 
-// Force the imported rateLimiter to use our mockRedis
-// This fixes issues where rateLimiter module was already loaded with a different redis instance
-if (rateLimiter) {
-  const rateLimiterWithRedis = rateLimiter as { redis?: typeof mockRedis };
-  rateLimiterWithRedis.redis = mockRedis;
-}
+// Import full-featured mock redis for rate limiter tests (supports EVAL/EVALSHA/SCRIPT)
+import { createInMemoryRedisClient } from '@/server/lib/redis/redis-mock';
+
+const rateLimiterMockRedis = createInMemoryRedisClient();
 
 const { sanitizeMetaTags, sanitizeTags, sanitizeText } = await import(
   '@/server/lib/sanitize'
@@ -274,9 +272,13 @@ describe('SSRF Prevention', () => {
 // RATE LIMITING TESTS
 // ═══════════════════════════════════════════════════════════════════
 describe('Rate Limiting', () => {
-  beforeEach(() => {
-    // Clear mock store between tests
+  let rl: InstanceType<typeof RateLimiter>;
+
+  beforeEach(async () => {
+    // Clear rate limiter mock store and create fresh instance
+    await rateLimiterMockRedis.send('FLUSHALL', []);
     clearMockStore();
+    rl = new RateLimiter(rateLimiterMockRedis);
   });
 
   it('should track rate limit by IP', async () => {
@@ -287,51 +289,50 @@ describe('Rate Limiting', () => {
     };
 
     // First request should pass
-    // Note: With mocked pipelines that fail open, remaining may equal points
-    let result = await rateLimiter.checkIPLimit(testIP, config);
+    let result = await rl.checkIPLimit(testIP, config);
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBeLessThanOrEqual(config.points);
 
     // Continue until limit
     for (let i = 0; i < config.points - 1; i++) {
-      result = await rateLimiter.checkIPLimit(testIP, config);
+      result = await rl.checkIPLimit(testIP, config);
       if (!result.allowed) break;
     }
 
     // Next should be blocked
-    result = await rateLimiter.checkIPLimit(testIP, config);
-    // Note: due to sliding window, this might not be blocked yet
+    result = await rl.checkIPLimit(testIP, config);
+    // After exhausting all points, remaining should be 0
     expect(result.remaining).toBeGreaterThanOrEqual(0);
 
     // Clean up
-    await rateLimiter.reset(`ip:${testIP}`);
+    await rl.reset(`ip:${testIP}`);
   });
 
   it('should return rate limit headers', async () => {
     const testIP = '192.168.1.101';
     const config = { points: 5, duration: 60 };
 
-    const result = await rateLimiter.checkIPLimit(testIP, config);
+    const result = await rl.checkIPLimit(testIP, config);
 
     expect(result.remaining).toBeGreaterThanOrEqual(0);
     expect(result.resetTime).toBeGreaterThan(Date.now());
     expect(result.allowed).toBe(true);
 
-    await rateLimiter.reset(`ip:${testIP}`);
+    await rl.reset(`ip:${testIP}`);
   });
 
   it('should support IP blocking', async () => {
     const testIP = '192.168.1.102';
 
     // Block IP
-    await rateLimiter.blockIP(testIP, 900);
+    await rl.blockIP(testIP, 900);
 
     // Check if blocked
-    const isBlocked = await rateLimiter.isIPBlocked(testIP);
+    const isBlocked = await rl.isIPBlocked(testIP);
     expect(isBlocked).toBe(true);
 
     // Cleanup
-    await rateLimiter.reset(`blocked:${testIP}`);
+    await rl.reset(`blocked:${testIP}`);
   });
 });
 
@@ -478,9 +479,9 @@ describe('Input Sanitization', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// SSRF PREVENTION TESTS
+// SSRF PREVENTION TESTS (EXTENDED)
 // ═══════════════════════════════════════════════════════════════════
-describe('SSRF Prevention', () => {
+describe('SSRF Prevention (Extended)', () => {
   const ssrfPayloads = [
     'http://localhost:5432/pg',
     'http://127.0.0.1:6379',
@@ -574,15 +575,22 @@ describe('CORS Protection', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// RATE LIMITING TESTS
+// RATE LIMITING TESTS (EXTENDED)
 // ═══════════════════════════════════════════════════════════════════
-describe('Rate Limiting', () => {
+describe('Rate Limiting (Extended)', () => {
+  let rl: InstanceType<typeof RateLimiter>;
+
+  beforeEach(async () => {
+    await rateLimiterMockRedis.send('FLUSHALL', []);
+    rl = new RateLimiter(rateLimiterMockRedis);
+  });
+
   it('should track rate limit state', async () => {
     const ipKey = 'test-ip-123';
     const guestConfig = RATE_LIMIT_CONFIGS['POST /api/links'].guest;
     const config = guestConfig || { points: 10, duration: 3600 };
 
-    const result = await rateLimiter.checkIPLimit(ipKey, config);
+    const result = await rl.checkIPLimit(ipKey, config);
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBeDefined();
     expect(result.resetTime).toBeDefined();
@@ -591,7 +599,7 @@ describe('Rate Limiting', () => {
   it('should return proper rate limit headers', async () => {
     const guestConfig = RATE_LIMIT_CONFIGS['POST /api/links'].guest;
     const config = guestConfig || { points: 10, duration: 3600 };
-    const result = await rateLimiter.checkIPLimit('test-ip', config);
+    const result = await rl.checkIPLimit('test-ip', config);
 
     expect(result.remaining).toBeGreaterThanOrEqual(0);
     expect(result.remaining).toBeLessThanOrEqual(config.points);
@@ -599,7 +607,7 @@ describe('Rate Limiting', () => {
 
   it('should handle link-specific rate limiting', async () => {
     const config = RATE_LIMIT_CONFIGS.GET_REDIRECT.perLink;
-    const result = await rateLimiter.checkLinkLimit('link-id-123', config);
+    const result = await rl.checkLinkLimit('link-id-123', config);
 
     expect(result.allowed).toBe(true);
     expect(result.resetTime).toBeGreaterThan(Date.now());
@@ -607,9 +615,9 @@ describe('Rate Limiting', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// ANTI-ABUSE DETECTION
+// ANTI-ABUSE DETECTION (EXTENDED)
 // ═══════════════════════════════════════════════════════════════════
-describe('Anti-Abuse Detection', () => {
+describe('Anti-Abuse Detection (Extended)', () => {
   it('should detect login failures', async () => {
     const ip = 'test-abuse-ip-001';
 
@@ -643,4 +651,9 @@ describe('Anti-Abuse Detection', () => {
     const isBlocked = await antiAbuseService.isIPBlocked(ip);
     expect(isBlocked).toBe(false);
   });
+});
+
+afterAll(() => {
+  mock.restore();
+  clearMockStore();
 });

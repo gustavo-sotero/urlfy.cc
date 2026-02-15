@@ -18,6 +18,7 @@ import {
 } from 'bun:test';
 import { Elysia } from 'elysia';
 import { ResponseModels } from '../../src/server/lib/response.schema';
+import { errorMiddleware } from '../../src/server/middleware/error.middleware';
 import {
   createElysiaTestClient,
   type ElysiaTestClient,
@@ -154,13 +155,16 @@ mock.module('@/server/middleware/auth.middleware', () => ({
     .as('scoped')
 }));
 
+// Capture real rate-limiter exports BEFORE mocking so other test files
+// that import from this module path still get the real RateLimiter class
+// (mock.module is global and persists across test files in Bun).
+const _realRateLimiterModule = await import('@/server/lib/rate-limiter');
+
 mock.module('@/server/lib/rate-limiter', () => ({
-  RATE_LIMIT_CONFIGS: {
-    GET_REDIRECT: {
-      perIP: { points: 100, duration: 60 },
-      perLink: { points: 5000, duration: 60 }
-    }
-  },
+  // Preserve real exports for cross-file compatibility
+  RateLimiter: _realRateLimiterModule.RateLimiter,
+  RATE_LIMIT_CONFIGS: _realRateLimiterModule.RATE_LIMIT_CONFIGS,
+  // Override singleton with mock for this test's purposes
   rateLimiter: {
     checkIPLimit: mock(() =>
       Promise.resolve({
@@ -202,7 +206,10 @@ describe('Admin Endpoints (handler-level)', () => {
     const { adminController } = await import(
       '../../src/server/modules/admin/admin.controller'
     );
-    const app = new Elysia().use(ResponseModels).use(adminController);
+    const app = new Elysia()
+      .use(errorMiddleware)
+      .use(ResponseModels)
+      .use(adminController);
     client = createElysiaTestClient(app);
   });
 
@@ -232,13 +239,17 @@ describe('Admin Endpoints (handler-level)', () => {
 
     const response = await client.get<{
       success: boolean;
-      error: { code: string; message: string; retryAfter?: number };
+      error: {
+        code: string;
+        message: string;
+        details?: { retryAfter?: number };
+      };
     }>('/admin/users');
 
     expectTooManyRequests(response);
     expect(response.body.success).toBe(false);
     expect(response.body.error.code).toBe('RATE_LIMITED');
-    expect(response.body.error.retryAfter).toBe(60);
+    expect(response.body.error.details?.retryAfter).toBe(60);
     expect(listUsersMock).not.toHaveBeenCalled();
   });
 

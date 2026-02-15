@@ -17,7 +17,16 @@ const createContactMock = mock(() =>
   })
 );
 
+// Capture real rate-limiter exports BEFORE mocking so other test files
+// that import from this module path still get the real RateLimiter class
+// (mock.module is global and persists across test files in Bun).
+const _realRateLimiterModule = await import('@/server/lib/rate-limiter');
+
 mock.module('@/server/lib/rate-limiter', () => ({
+  // Preserve real exports for cross-file compatibility
+  RateLimiter: _realRateLimiterModule.RateLimiter,
+  RATE_LIMIT_CONFIGS: _realRateLimiterModule.RATE_LIMIT_CONFIGS,
+  // Override singleton with mock for this test's purposes
   rateLimiter: {
     checkIPLimit: mock((ip: string) => {
       observedIp = ip;

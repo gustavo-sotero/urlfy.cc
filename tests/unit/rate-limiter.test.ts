@@ -1,5 +1,5 @@
+import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { createInMemoryRedisClient } from '@/server/lib/redis/redis-mock';
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // Create mock redis client that supports EVAL/EVALSHA/SCRIPT
 const mockRedis = createInMemoryRedisClient();
@@ -29,18 +29,13 @@ mock.module('@/server/lib/telemetry', () => ({
 }));
 
 /**
- * Helper: get the rateLimiter singleton and patch its redis to our mock.
- * This is necessary because the singleton may have been initialized with
- * the real Redis client by other tests in the suite.
+ * Helper: create a fresh RateLimiter instance with mock redis injected.
+ * Uses the exported class constructor to avoid cross-file mock contamination
+ * of the singleton that can occur when other test files mock the module.
  */
-async function getRateLimiter() {
-  const mod = await import('@/server/lib/rate-limiter');
-  const rl = mod.rateLimiter;
-  // biome-ignore lint/suspicious/noExplicitAny: force mock redis onto singleton
-  (rl as any).redis = mockRedis;
-  // biome-ignore lint/suspicious/noExplicitAny: reset cached SHA between tests
-  (rl as any).scriptSha = null;
-  return rl;
+async function createTestRateLimiter() {
+  const { RateLimiter } = await import('@/server/lib/rate-limiter');
+  return new RateLimiter(mockRedis);
 }
 
 describe('RateLimiter sliding window (Lua script path)', () => {
@@ -49,7 +44,7 @@ describe('RateLimiter sliding window (Lua script path)', () => {
   });
 
   it('allows requests within the configured limit', async () => {
-    const rl = await getRateLimiter();
+    const rl = await createTestRateLimiter();
     const config = { points: 5, duration: 60 };
     const result = await rl.checkIPLimit('10.0.0.1', config);
 
@@ -58,7 +53,7 @@ describe('RateLimiter sliding window (Lua script path)', () => {
   });
 
   it('tracks request count through sliding window', async () => {
-    const rl = await getRateLimiter();
+    const rl = await createTestRateLimiter();
     const config = { points: 3, duration: 60 };
     const ip = '10.0.0.2';
 
@@ -79,7 +74,7 @@ describe('RateLimiter sliding window (Lua script path)', () => {
   });
 
   it('isolates rate limits by IP', async () => {
-    const rl = await getRateLimiter();
+    const rl = await createTestRateLimiter();
     const config = { points: 2, duration: 60 };
 
     await rl.checkIPLimit('192.168.1.1', config);
@@ -93,7 +88,7 @@ describe('RateLimiter sliding window (Lua script path)', () => {
   });
 
   it('tracks link-level rate limits independently', async () => {
-    const rl = await getRateLimiter();
+    const rl = await createTestRateLimiter();
     const config = { points: 2, duration: 60 };
 
     await rl.checkLinkLimit('link-1', config);
@@ -106,7 +101,7 @@ describe('RateLimiter sliding window (Lua script path)', () => {
   });
 
   it('caches script SHA via EVALSHA after first SCRIPT LOAD', async () => {
-    const rl = await getRateLimiter();
+    const rl = await createTestRateLimiter();
     const config = { points: 10, duration: 60 };
 
     await rl.checkIPLimit('10.0.0.3', config);
@@ -119,7 +114,7 @@ describe('RateLimiter sliding window (Lua script path)', () => {
   });
 
   it('handles NOSCRIPT fallback gracefully', async () => {
-    const rl = await getRateLimiter();
+    const rl = await createTestRateLimiter();
 
     // Set an invalid SHA to trigger NOSCRIPT → SCRIPT LOAD → EVALSHA fallback
     // biome-ignore lint/suspicious/noExplicitAny: simulate NOSCRIPT
@@ -137,7 +132,7 @@ describe('RateLimiter sliding window (Lua script path)', () => {
   });
 
   it('returns correct remaining count', async () => {
-    const rl = await getRateLimiter();
+    const rl = await createTestRateLimiter();
     const config = { points: 5, duration: 60 };
     const ip = '10.0.0.5';
 
@@ -149,43 +144,35 @@ describe('RateLimiter sliding window (Lua script path)', () => {
   });
 
   it('denies requests when failClosed and Redis errors', async () => {
-    const rl = await getRateLimiter();
-
-    // biome-ignore lint/suspicious/noExplicitAny: simulate Redis outage
-    const original = (rl as any).redis;
-    // biome-ignore lint/suspicious/noExplicitAny: simulate Redis outage
-    (rl as any).redis = {
+    const { RateLimiter } = await import('@/server/lib/rate-limiter');
+    const brokenRedis = {
       send: () => {
         throw new Error('Redis connection refused');
       }
-    };
+    } as unknown as typeof mockRedis;
 
+    const rl = new RateLimiter(brokenRedis);
     const config = { points: 10, duration: 60, failClosed: true };
     const result = await rl.checkIPLimit('10.0.0.7', config);
     expect(result.allowed).toBe(false);
     expect(result.retryAfter).toBeDefined();
-
-    // biome-ignore lint/suspicious/noExplicitAny: restore
-    (rl as any).redis = original;
   });
 
   it('falls back to in-memory limiter when Redis errors and not failClosed', async () => {
-    const rl = await getRateLimiter();
-
-    // biome-ignore lint/suspicious/noExplicitAny: simulate Redis outage
-    const original = (rl as any).redis;
-    // biome-ignore lint/suspicious/noExplicitAny: simulate Redis outage
-    (rl as any).redis = {
+    const { RateLimiter } = await import('@/server/lib/rate-limiter');
+    const brokenRedis = {
       send: () => {
         throw new Error('Redis connection refused');
       }
-    };
+    } as unknown as typeof mockRedis;
 
+    const rl = new RateLimiter(brokenRedis);
     const config = { points: 10, duration: 60 };
     const result = await rl.checkIPLimit('10.0.0.8', config);
     expect(result.allowed).toBe(true);
-
-    // biome-ignore lint/suspicious/noExplicitAny: restore
-    (rl as any).redis = original;
   });
+});
+
+afterAll(() => {
+  mock.restore();
 });

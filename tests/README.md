@@ -109,13 +109,11 @@ docker-compose -f docker/docker-compose.dev.yml down
 #### Integration Test Scenarios
 
 1. **End-to-End Redirect Flow**
-
    - First request (cache miss) → PostgreSQL → Cache population
    - Second request (cache hit) → Fast response
    - Validation of cache state
 
 2. **Cache Invalidation**
-
    - Update link → Cache cleared
    - Next request fetches fresh data
 
@@ -278,7 +276,48 @@ mock.module('@/server/lib/redis', () => ({
 // ✅ Do mock: redis, database, external APIs
 ```
 
-### 4. Async Handling
+### 4. Mock Isolation & Determinism
+
+All test files that use `mock.module()` **must** follow these rules to avoid cross-file interference:
+
+- **Reset state in `beforeEach`**: Clear mock stores, call `mockClear()` on spies, and reset any in-memory state (e.g., `FLUSHALL` for Redis mocks).
+- **Restore mocks in `afterAll`**: Always call `mock.restore()` to prevent module-level mock leakage across files.
+- **Create fresh instances per test**: For singleton-based services (e.g., `RateLimiter`), use factory functions that create new instances via dynamic `import()` to avoid stale state.
+- **Guard against mock contamination**: Integration tests that require real DB should verify module authenticity (e.g., checking `typeof db.$with === 'function'`) and skip if another file's mock has leaked.
+
+```typescript
+// ✅ Pattern: proper mock lifecycle
+beforeEach(() => {
+  mockRedis.send('FLUSHALL', []);
+  myMock.mockClear();
+});
+
+afterAll(() => {
+  mock.restore();
+});
+```
+
+### 5. Infrastructure Gating for Integration Tests
+
+Integration tests that require PostgreSQL or Redis **gracefully skip** when infrastructure is unavailable, rather than hard-failing. This behavior is automatic via `tests/helpers/integration-helper.ts`:
+
+```typescript
+const { isDatabaseAvailable, isRedisAvailable } =
+  await import('tests/helpers/integration-helper');
+
+if (!(await isDatabaseAvailable())) {
+  it('should skip tests when database is unavailable', () => {
+    console.warn('⚠️ Skipping: database not available');
+  });
+  return;
+}
+```
+
+**Suites with infra gating**: `admin.integration`, `analytics.integration`, `proxy.integration`, `redirect.integration`, `redirect-comprehensive.integration`, `public-api-v1.handler`, `auth.middleware`.
+
+**Running with full infra**: Start Docker services first (`bun run docker:up`) for complete test execution.
+
+### 6. Async Handling
 
 ```typescript
 // ✅ Good: Proper async/await
@@ -404,4 +443,3 @@ jobs:
 
 **Last Updated**: 2026-01-08  
 **Maintainer**: DevOps Team
-
