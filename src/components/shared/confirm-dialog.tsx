@@ -1,6 +1,8 @@
 // src/components/shared/confirm-dialog.tsx
 'use client';
 
+import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,8 +13,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
-import { Loader2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
 
 interface ConfirmDialogProps {
   open: boolean;
