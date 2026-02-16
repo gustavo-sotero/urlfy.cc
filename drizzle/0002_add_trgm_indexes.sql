@@ -4,8 +4,8 @@
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;--> statement-breakpoint
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS "idx_links_short_code_trgm"
+CREATE INDEX IF NOT EXISTS "idx_links_short_code_trgm"
   ON "links" USING gin ("short_code" gin_trgm_ops);--> statement-breakpoint
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS "idx_links_original_url_trgm"
+CREATE INDEX IF NOT EXISTS "idx_links_original_url_trgm"
   ON "links" USING gin ("original_url" gin_trgm_ops);
