@@ -5,12 +5,12 @@
 
 'use client';
 
-import { Button } from '@/components/ui/button';
-import { Link } from '@/i18n/routing';
 import * as FocusScope from '@radix-ui/react-focus-scope';
 import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Link } from '@/i18n/routing';
 
 interface ConsentPreferences {
   analytics: boolean;
