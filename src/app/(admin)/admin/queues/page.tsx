@@ -5,8 +5,6 @@
 
 'use client';
 
-import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +24,8 @@ import {
 } from '@/components/ui/table';
 import type { StreamStats } from '@/lib/api';
 import { useQueueStats } from '@/lib/hooks';
+import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 
 export default function AdminQueuesPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -155,7 +155,7 @@ export default function AdminQueuesPage() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">

@@ -1,6 +1,9 @@
 import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
+import { getTranslations } from 'next-intl/server';
 
-export default function LinksLoading() {
+export default async function LinksLoading() {
+  const tCommon = await getTranslations('Common');
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -10,7 +13,7 @@ export default function LinksLoading() {
         </div>
         <div className="h-10 w-28 animate-pulse rounded bg-muted" />
       </div>
-      <LinkListSkeleton count={5} />
+      <LinkListSkeleton count={5} ariaLabel={tCommon('loadingLinks')} />
     </div>
   );
 }

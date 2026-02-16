@@ -1,10 +1,6 @@
 // src/app/(dashboard)/links/page.tsx
 'use client';
 
-import { Plus, Search } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { useState } from 'react';
-import { toast } from 'sonner';
 import { QueryError } from '@/components/query-error';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { LinkCard } from '@/components/shared/link-card';
@@ -14,9 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Link } from '@/i18n/routing';
 import { useDebounce } from '@/lib/hooks/use-debounce';
 import { useDeleteLink, useLinks } from '@/lib/hooks/use-links';
+import { Plus, Search } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 export default function LinksPage() {
   const t = useTranslations('Dashboard');
+  const tCommon = useTranslations('Common');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebounce(search, 300);
@@ -88,7 +89,9 @@ export default function LinksPage() {
       </div>
 
       {/* Links List */}
-      {isLoading && <LinkListSkeleton count={5} />}
+      {isLoading && (
+        <LinkListSkeleton count={5} ariaLabel={tCommon('loadingLinks')} />
+      )}
 
       {isError && (
         <QueryError error={error as Error} onRetry={() => refetch()} />

@@ -58,6 +58,16 @@ export interface BackendSuccessResponse<T = unknown> {
   requestId?: string;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object';
+}
+
+function isBackendSuccessResponse(
+  value: unknown
+): value is BackendSuccessResponse<unknown> {
+  return isRecord(value) && typeof value.success === 'boolean';
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // ERROR EXTRACTION
 // ═══════════════════════════════════════════════════════════════════
@@ -159,7 +169,8 @@ export function handleEdenVoid(response: TreatyResponse<unknown>): void {
  * `as T` casts are intentional — they sit at the untyped Eden ↔ typed
  * caller boundary after all runtime guards have passed.
  */
-export function handleEden<T>(response: TreatyResponse<unknown>): T {
+export function handleEden<T>(response: TreatyResponse<unknown>): T;
+export function handleEden(response: TreatyResponse<unknown>): unknown {
   if (response.error) {
     const errorInfo = extractErrorInfo(response.error.value);
 
@@ -188,11 +199,18 @@ export function handleEden<T>(response: TreatyResponse<unknown>): T {
 
   // Eden Treaty returns { data: T } where T is the backend response
   // Backend returns { success: boolean, data: actualData, meta?: ... }
-  const apiResponse = response.data as BackendSuccessResponse | null;
+  const apiResponse = response.data;
 
   // Handle empty responses gracefully (may occur with some endpoints)
   if (!apiResponse) {
     throw new ApiClientError('NO_DATA', 'No data received from server');
+  }
+
+  if (!isBackendSuccessResponse(apiResponse)) {
+    throw new ApiClientError(
+      'INVALID_RESPONSE',
+      'Invalid API response structure'
+    );
   }
 
   // Check for error in response data
@@ -207,13 +225,12 @@ export function handleEden<T>(response: TreatyResponse<unknown>): T {
 
   // For paginated responses, return both data and meta
   if (apiResponse.meta && apiResponse.data !== undefined) {
-    // Runtime shape verified: object has both data and meta
-    return { data: apiResponse.data, meta: apiResponse.meta } as T;
+    return { data: apiResponse.data, meta: apiResponse.meta };
   }
 
   // Return unwrapped data — verified non-null
   if (apiResponse.data !== undefined) {
-    return apiResponse.data as T;
+    return apiResponse.data;
   }
 
   throw new ApiClientError(
@@ -230,16 +247,18 @@ export function handleEden<T>(response: TreatyResponse<unknown>): T {
  * Extracts array data from API response, handling both direct arrays and paginated responses
  * This utility reduces code duplication in analytics endpoints
  */
-export function extractArrayData<T>(result: unknown): T[] {
+function hasArrayData(value: unknown): value is { data: unknown[] } {
+  return isRecord(value) && Array.isArray(value.data);
+}
+
+export function extractArrayData<T>(result: unknown): T[];
+export function extractArrayData(result: unknown): unknown[] {
   if (Array.isArray(result)) {
-    return result as T[];
+    return result;
   }
 
-  if (result && typeof result === 'object' && 'data' in result) {
-    const dataValue = (result as { data: unknown }).data;
-    if (Array.isArray(dataValue)) {
-      return dataValue as T[];
-    }
+  if (hasArrayData(result)) {
+    return result.data;
   }
 
   // Log unexpected structure for debugging (client-side only)

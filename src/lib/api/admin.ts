@@ -9,8 +9,8 @@ import { BASE_URL, client, createClientWithHeaders } from './client';
 import {
   handleEden,
   handleEdenVoid,
-  type TreatyResponse,
-  toQueryParams
+  toQueryParams,
+  type TreatyResponse
 } from './error';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -56,13 +56,66 @@ function mapToLinkResponse(link: AdminLinkRaw): LinkResponse {
 
 type EdenClient = typeof client;
 
-/**
- * Resolve the correct Eden client for CSR (default) or SSR (with headers).
- * Centralises the CSR/SSR branching so every endpoint only needs one function.
- */
-function resolveClient(headers?: HeadersInit): EdenClient {
-  return headers ? createClientWithHeaders(headers) : client;
+interface ListAdminLinksParams {
+  page?: number;
+  limit?: number;
+  search?: string;
 }
+
+/**
+ * Factory for admin API operations.
+ * Creates CSR and SSR variants from the same implementation.
+ */
+export function createAdminApi(apiClient: EdenClient) {
+  return {
+    getAdminStats: async (): Promise<AdminStats> => {
+      const response = await apiClient.api.admin.stats.get();
+      return handleEden(response);
+    },
+
+    getGrowthStats: async (
+      range: '7d' | '30d' = '7d'
+    ): Promise<Array<{ date: string; clicks: number; newUsers: number }>> => {
+      const response = await apiClient.api.admin.stats.growth.get({
+        query: { range }
+      });
+      return handleEden(response);
+    },
+
+    listAdminLinks: async (
+      params?: ListAdminLinksParams
+    ): Promise<PaginatedResponse<LinkResponse>> => {
+      const response = await apiClient.api.admin.links.get({
+        query: {
+          page: params?.page?.toString(),
+          limit: params?.limit?.toString(),
+          search: params?.search
+        }
+      });
+
+      const result = handleEden<{
+        data: Array<AdminLinkRaw>;
+        meta: {
+          total: number;
+          page: number;
+          perPage: number;
+          lastPage: number;
+          hasMore: boolean;
+        };
+      }>(response);
+
+      return {
+        data: result.data.map(mapToLinkResponse),
+        meta: result.meta
+      };
+    }
+  };
+}
+
+export const adminApi = createAdminApi(client);
+
+export const createAdminApiSSR = (headers: HeadersInit) =>
+  createAdminApi(createClientWithHeaders(headers));
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN STATS
@@ -83,8 +136,10 @@ export interface AdminStats {
 export async function getAdminStats(
   headers?: HeadersInit
 ): Promise<AdminStats> {
-  const response = await resolveClient(headers).api.admin.stats.get();
-  return handleEden(response);
+  if (headers) {
+    return createAdminApiSSR(headers).getAdminStats();
+  }
+  return adminApi.getAdminStats();
 }
 
 /** @deprecated Use `getAdminStats(headers)` instead */
@@ -103,10 +158,10 @@ export async function getGrowthStats(
   range: '7d' | '30d' = '7d',
   headers?: HeadersInit
 ): Promise<Array<{ date: string; clicks: number; newUsers: number }>> {
-  const response = await resolveClient(headers).api.admin.stats.growth.get({
-    query: { range }
-  });
-  return handleEden(response);
+  if (headers) {
+    return createAdminApiSSR(headers).getGrowthStats(range);
+  }
+  return adminApi.getGrowthStats(range);
 }
 
 /** @deprecated Use `getGrowthStats(range, headers)` instead */
@@ -152,12 +207,6 @@ export async function searchLinks(query: string): Promise<LinkResponse[]> {
   return result.map(mapToLinkResponse);
 }
 
-interface ListAdminLinksParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-}
-
 /**
  * List links with pagination.
  * Pass `headers` from Next.js server components to forward authentication cookies.
@@ -166,29 +215,10 @@ export async function listAdminLinks(
   params?: ListAdminLinksParams,
   headers?: HeadersInit
 ): Promise<PaginatedResponse<LinkResponse>> {
-  const response = await resolveClient(headers).api.admin.links.get({
-    query: {
-      page: params?.page?.toString(),
-      limit: params?.limit?.toString(),
-      search: params?.search
-    }
-  });
-
-  const result = handleEden<{
-    data: Array<AdminLinkRaw>;
-    meta: {
-      total: number;
-      page: number;
-      perPage: number;
-      lastPage: number;
-      hasMore: boolean;
-    };
-  }>(response);
-
-  return {
-    data: result.data.map(mapToLinkResponse),
-    meta: result.meta
-  };
+  if (headers) {
+    return createAdminApiSSR(headers).listAdminLinks(params);
+  }
+  return adminApi.listAdminLinks(params);
 }
 
 /** @deprecated Use `listAdminLinks(params, headers)` instead */

@@ -4,8 +4,8 @@
  * Type-safe wrapper for API key-related endpoints
  */
 
-import { client } from './client';
-import { handleEden } from './error';
+import { BASE_URL, client } from './client';
+import { ApiClientError, extractErrorInfo, handleEden } from './error';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -77,7 +77,8 @@ export async function getApiKeys(): Promise<{
 export async function createApiKey(
   input: CreateApiKeyInput
 ): Promise<ApiKeyCreated> {
-  // Build payload matching Eden Treaty's expected shape
+  // Eden currently infers multipart-like body types for this endpoint.
+  // We send JSON directly to keep strict typing for the client payload.
   const payload: CreateApiKeyPayload = {
     name: input.name,
     scopes: input.scopes,
@@ -85,12 +86,32 @@ export async function createApiKey(
     ...(input.rateLimit && { rateLimit: input.rateLimit })
   };
 
-  // Eden Treaty currently infers a multipart-like body type for this endpoint,
-  // so we narrow through unknown while keeping a strict local payload type.
-  const response = await client.api.keys.post(
-    payload as unknown as Parameters<typeof client.api.keys.post>[0]
-  );
-  return handleEden<ApiKeyCreated>(response);
+  const response = await fetch(`${BASE_URL}/api/keys`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload)
+  });
+
+  const body = (await response.json()) as unknown;
+
+  if (!response.ok) {
+    const errorInfo = extractErrorInfo(body);
+    throw new ApiClientError(
+      errorInfo.code,
+      errorInfo.message,
+      errorInfo.details,
+      errorInfo.requestId || response.headers.get('x-request-id') || undefined
+    );
+  }
+
+  return handleEden<ApiKeyCreated>({
+    data: body,
+    error: null,
+    response,
+    status: response.status,
+    headers: response.headers
+  });
 }
 
 /**
