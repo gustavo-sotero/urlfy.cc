@@ -6,10 +6,8 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { ApiKeysManager } from '@/components/dashboard/settings/api-keys-manager';
-import {
-  BackupCodes,
-  DisableTwoFactor
-} from '@/components/settings/backup-codes';
+import { BackupCodes } from '@/components/settings/backup-codes';
+import { DisableTwoFactor } from '@/components/settings/disable-two-factor';
 import { TwoFactorSetup } from '@/components/settings/two-factor-setup';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

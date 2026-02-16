@@ -13,25 +13,7 @@
 
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { CheckCircle2, Copy, Download, Eye, Loader2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -44,6 +26,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { authClient } from '@/lib/auth.client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { CheckCircle2, Copy, Download, Eye, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES & SCHEMAS
@@ -243,9 +232,9 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
           <div className="space-y-4">
             {/* Codes Grid */}
             <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-4">
-              {backupCodes.map((code, index) => (
+              {backupCodes.map((code) => (
                 <code
-                  key={index}
+                  key={code}
                   className="rounded bg-background px-2 py-1 text-center text-sm font-mono"
                 >
                   {code}
@@ -312,108 +301,4 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
   }
 
   return content;
-}
-
-/**
- * ═════════════════════════════════════════════════════════════════════
- * TWO-FACTOR DISABLE COMPONENT
- * ═══════════════════════════════════════════════════════════════════
- *
- * Allows users to disable 2FA with password confirmation.
- * Should be blocked for admin users per security requirements.
- * ═══════════════════════════════════════════════════════════════════
- */
-
-interface DisableTwoFactorProps {
-  isAdmin?: boolean;
-  onSuccess: () => void;
-}
-
-export function DisableTwoFactor({
-  isAdmin = false,
-  onSuccess
-}: DisableTwoFactorProps) {
-  const t = useTranslations('TwoFactor.disable');
-  const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [password, setPassword] = useState('');
-
-  const handleDisable = async () => {
-    if (!password) {
-      toast.error(t('errors.passwordRequired'));
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await authClient.twoFactor.disable({
-        password
-      });
-
-      toast.success(t('success'));
-      setOpen(false);
-      setPassword('');
-      onSuccess();
-    } catch (error) {
-      console.error('Disable 2FA error:', error);
-      toast.error(error instanceof Error ? error.message : t('errors.failed'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>
-        <Button
-          variant="destructive"
-          disabled={isAdmin}
-          title={isAdmin ? t('adminWarning') : undefined}
-        >
-          {t('button')}
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{t('dialogTitle')}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t('dialogDescription')}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-
-        <div className="space-y-2">
-          <label htmlFor="disable-password" className="text-sm font-medium">
-            {t('confirmPassword')}
-          </label>
-          <Input
-            id="disable-password"
-            type="password"
-            placeholder={t('passwordPlaceholder')}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isLoading}
-            autoComplete="current-password"
-          />
-        </div>
-
-        <AlertDialogFooter>
-          <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleDisable}
-            disabled={isLoading || !password}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t('disabling')}
-              </>
-            ) : (
-              t('disableButton')
-            )}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
 }

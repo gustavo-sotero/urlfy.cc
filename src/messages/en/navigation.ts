@@ -4,5 +4,6 @@ export const Navigation = {
   docs: 'Documentation',
   github: 'GitHub',
   getStarted: 'Get Started',
-  project: 'The Project'
+  project: 'The Project',
+  closeMenu: 'Close menu'
 } as const;

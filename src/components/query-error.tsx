@@ -1,8 +1,11 @@
+'use client';
+
 // src/components/query-error.tsx
 
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { sanitizeErrorMessage } from '@/lib/utils/error';
 
 interface QueryErrorProps {
   error: Error;
@@ -27,7 +30,9 @@ export function QueryError({
       <AlertCircle className="h-10 w-10 text-destructive" />
       <div className="space-y-1">
         <h3 className="font-semibold">{title ?? t('errorLoading')}</h3>
-        <p className="text-sm text-muted-foreground">{error.message}</p>
+        <p className="text-sm text-muted-foreground">
+          {sanitizeErrorMessage(error.message, t('unexpectedError'))}
+        </p>
       </div>
       {onRetry && (
         <Button onClick={onRetry} variant="outline" size="sm">

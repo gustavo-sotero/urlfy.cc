@@ -27,6 +27,49 @@ import {
 import { Link } from '@/i18n/routing';
 import { useAuthState } from '@/lib/session-provider';
 
+// ═══════════════════════════════════════════════════════════════════
+// NAV LINK ITEM
+// ═══════════════════════════════════════════════════════════════════
+
+interface NavLinkItemProps {
+  href: string;
+  label: string;
+  external?: boolean;
+  className?: string;
+  onClick?: () => void;
+}
+
+function NavLinkItem({
+  href,
+  label,
+  external,
+  className,
+  onClick
+}: NavLinkItemProps) {
+  if (external) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={onClick}
+        className={className}
+      >
+        {label}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} onClick={onClick} className={className}>
+      {label}
+    </Link>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NAVBAR
+// ═══════════════════════════════════════════════════════════════════
+
 export function Navbar() {
   const { isAuthenticated, isPending } = useAuthState();
   const [isOpen, setIsOpen] = useState(false);
@@ -58,27 +101,15 @@ export function Navbar() {
         <div className="hidden items-center gap-6 md:flex">
           {/* Nav Links */}
           <div className="flex items-center gap-4">
-            {NAV_LINKS.map((link) =>
-              'external' in link && link.external ? (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  {link.label}
-                </a>
-              ) : (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              )
-            )}
+            {NAV_LINKS.map((link) => (
+              <NavLinkItem
+                key={link.href}
+                href={link.href}
+                label={link.label}
+                external={'external' in link ? link.external : undefined}
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              />
+            ))}
           </div>
 
           {/* Auth Section */}
@@ -131,7 +162,11 @@ export function Navbar() {
                   <span className="text-muted-foreground">.cc</span>
                 </Link>
                 <SheetClose asChild>
-                  <Button variant="ghost" size="icon" aria-label="Fechar menu">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t('closeMenu')}
+                  >
                     <X className="h-6 w-6" />
                   </Button>
                 </SheetClose>
@@ -139,29 +174,16 @@ export function Navbar() {
 
               {/* Mobile Nav Links */}
               <nav className="flex flex-col gap-4">
-                {NAV_LINKS.map((link) =>
-                  'external' in link && link.external ? (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setIsOpen(false)}
-                      className="text-lg font-medium transition-colors hover:text-primary"
-                    >
-                      {link.label}
-                    </a>
-                  ) : (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setIsOpen(false)}
-                      className="text-lg font-medium transition-colors hover:text-primary"
-                    >
-                      {link.label}
-                    </Link>
-                  )
-                )}
+                {NAV_LINKS.map((link) => (
+                  <NavLinkItem
+                    key={link.href}
+                    href={link.href}
+                    label={link.label}
+                    external={'external' in link ? link.external : undefined}
+                    onClick={() => setIsOpen(false)}
+                    className="text-lg font-medium transition-colors hover:text-primary"
+                  />
+                ))}
               </nav>
 
               {/* Mobile Auth Section */}

@@ -5,6 +5,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Component, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { sanitizeErrorMessage } from '@/lib/utils/error';
 
 interface Props {
   children: ReactNode;
@@ -40,11 +41,6 @@ class ErrorBoundaryImpl extends Component<
 
     // Send to error tracking service
     if (typeof window !== 'undefined') {
-      // Report to window.reportError if available
-      if (window.reportError) {
-        window.reportError(error);
-      }
-
       // Send to internal monitoring endpoint (fire-and-forget)
       fetch('/api/monitor/log', {
         method: 'POST',
@@ -86,7 +82,10 @@ class ErrorBoundaryImpl extends Component<
               {this.props.messages.somethingWentWrong}
             </h2>
             <p className="text-muted-foreground">
-              {this.state.error?.message ?? this.props.messages.unexpectedError}
+              {sanitizeErrorMessage(
+                this.state.error?.message,
+                this.props.messages.unexpectedError
+              )}
             </p>
           </div>
           <Button onClick={this.handleRetry} variant="outline">

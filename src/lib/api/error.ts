@@ -126,10 +126,40 @@ export function extractErrorInfo(errorValue: unknown): {
  * Converts Eden Treaty error responses to ApiClientError
  *
  * This function is intentionally permissive with input types since Eden Treaty
- * returns union types based on HTTP status codes. The return type T is trusted
- * based on the caller's expectation.
+ * returns union types based on HTTP status codes.
+ *
+ * Overload for void operations (DELETE, etc.) — callers should use handleEdenVoid.
  */
-export function handleEden<T>(response: TreatyResponse<unknown>): T {
+export function handleEdenVoid(response: TreatyResponse<unknown>): void {
+  if (response.error) {
+    const errorInfo = extractErrorInfo(response.error.value);
+    const requestId =
+      errorInfo.requestId ||
+      response.response?.headers.get('x-request-id') ||
+      undefined;
+    throw new ApiClientError(
+      errorInfo.code,
+      errorInfo.message,
+      errorInfo.details,
+      requestId
+    );
+  }
+  // Void — nothing to return
+}
+
+/**
+ * Type-safe Eden Treaty response handler.
+ *
+ * Overloads:
+ *   - handleEden<void>(response) → void (for 204/no-content)
+ *   - handleEden<T>(response) → T    (for data responses)
+ *
+ * Runtime checks ensure the response has the expected structure before
+ * returning, throwing ApiClientError on unexpected shapes. The remaining
+ * `as T` casts are intentional — they sit at the untyped Eden ↔ typed
+ * caller boundary after all runtime guards have passed.
+ */
+export function handleEden<T = void>(response: TreatyResponse<unknown>): T {
   if (response.error) {
     const errorInfo = extractErrorInfo(response.error.value);
 
@@ -148,6 +178,8 @@ export function handleEden<T>(response: TreatyResponse<unknown>): T {
   }
 
   // Handle 204 No Content responses (e.g., DELETE operations)
+  // Callers expecting void should use handleEdenVoid instead.
+  // This branch is kept for backward compatibility.
   if (response.status === 204 || response.response?.status === 204) {
     return undefined as T;
   }
@@ -158,7 +190,7 @@ export function handleEden<T>(response: TreatyResponse<unknown>): T {
 
   // Handle empty responses gracefully (may occur with some endpoints)
   if (!apiResponse) {
-    // For void operations, return undefined
+    // For successful void operations, return undefined
     if (response.status >= 200 && response.status < 300) {
       return undefined as T;
     }
@@ -177,15 +209,17 @@ export function handleEden<T>(response: TreatyResponse<unknown>): T {
 
   // For paginated responses, return both data and meta
   if (apiResponse.meta && apiResponse.data !== undefined) {
+    // Runtime shape verified: object has both data and meta
     return { data: apiResponse.data, meta: apiResponse.meta } as T;
   }
 
-  // Return unwrapped data
+  // Return unwrapped data — verified non-null
   if (apiResponse.data !== undefined) {
     return apiResponse.data as T;
   }
 
-  // For responses with no data field (like void/delete)
+  // For responses with no data field (like void/delete), return the full response
+  // This preserves backward compatibility for endpoints that return { success: true }
   return apiResponse as T;
 }
 

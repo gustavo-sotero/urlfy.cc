@@ -4,6 +4,7 @@ export const Consent = {
     'Usamos cookies e rastreamento para melhorar sua experiência. Você pode aceitar tudo, rejeitar tudo ou personalizar suas preferências. Leia nossa',
   privacyPolicy: 'política de privacidade',
   essential: 'Cookies Essenciais (obrigatório)',
+  essentialHint: 'Estes cookies são obrigatórios e não podem ser desativados',
   analytics: 'Analytics (anônimo)',
   marketing: 'Marketing',
   customize: 'Personalizar',

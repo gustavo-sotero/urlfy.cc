@@ -16,6 +16,9 @@ export function EmailVerificationEmail({
   messages: t,
   locale = 'en'
 }: EmailVerificationEmailProps) {
+  const brandedSegments = t.message.split(/(urlfy\.cc)/g);
+  const segmentOccurrences = new Map<string, number>();
+
   return (
     <EmailLayout previewText={t.previewText} locale={locale}>
       <div>
@@ -50,14 +53,21 @@ export function EmailVerificationEmail({
             lineHeight: '1.6'
           }}
         >
-          {t.message.split('urlfy.cc').map((part, i, arr) => (
-            <span key={i}>
-              {part}
-              {i < arr.length - 1 && (
-                <strong style={{ color: '#6366f1' }}>urlfy.cc</strong>
-              )}
-            </span>
-          ))}
+          {brandedSegments.map((segment) => {
+            const occurrence = (segmentOccurrences.get(segment) ?? 0) + 1;
+            segmentOccurrences.set(segment, occurrence);
+            const key = `${segment}-${occurrence}`;
+
+            if (segment === 'urlfy.cc') {
+              return (
+                <strong key={key} style={{ color: '#6366f1' }}>
+                  {segment}
+                </strong>
+              );
+            }
+
+            return <span key={key}>{segment}</span>;
+          })}
         </p>
 
         <div

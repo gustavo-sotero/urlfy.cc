@@ -5,9 +5,10 @@
 
 'use client';
 
+import * as FocusScope from '@radix-ui/react-focus-scope';
 import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 
@@ -50,10 +51,25 @@ export function ConsentBanner() {
   }, [needsConsent]);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [analyticsChecked, setAnalyticsChecked] = useState(true);
+  const [marketingChecked, setMarketingChecked] = useState(true);
+  const bannerRef = useRef<HTMLDivElement>(null);
   const privacyHref = useMemo(() => ({ pathname: '/privacy' as const }), []);
+
+  // Auto-focus the first interactive element when banner appears
+  useEffect(() => {
+    if (showBanner && bannerRef.current) {
+      const firstFocusable = bannerRef.current.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      firstFocusable?.focus();
+    }
+  }, [showBanner]);
 
   const handleAcceptAll = async (): Promise<void> => {
     setIsLoading(true);
+    setAnalyticsChecked(true);
+    setMarketingChecked(true);
 
     const preferences: ConsentPreferences = {
       analytics: true,
@@ -93,8 +109,19 @@ export function ConsentBanner() {
   };
 
   const handleOpenSettings = (): void => {
-    // Navigate to privacy settings or open a modal
-    // For now, just dismiss
+    // Save current checkbox preferences and dismiss
+    const preferences: ConsentPreferences = {
+      analytics: analyticsChecked,
+      marketing: marketingChecked,
+      timestamp: new Date().toISOString()
+    };
+
+    localStorage.setItem('consent_preferences', JSON.stringify(preferences));
+
+    window.dispatchEvent(
+      new CustomEvent('consent-updated', { detail: preferences })
+    );
+
     setShowBanner(false);
   };
 
@@ -103,99 +130,106 @@ export function ConsentBanner() {
   }
 
   return (
-    <div
-      className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background shadow-lg"
-      role="dialog"
-      aria-labelledby="consent-title"
-      aria-describedby="consent-description"
-    >
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <h3
-              id="consent-title"
-              className="mb-2 text-lg font-semibold text-foreground"
-            >
-              {t('title')}
-            </h3>
-            <p
-              id="consent-description"
-              className="mb-4 text-sm text-muted-foreground"
-            >
-              {t('description')}{' '}
-              <Link
-                href={privacyHref}
-                className="text-primary underline hover:text-primary/80"
+    <FocusScope.Root loop asChild>
+      <div
+        ref={bannerRef}
+        className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background shadow-lg"
+        role="dialog"
+        aria-labelledby="consent-title"
+        aria-describedby="consent-description"
+      >
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3
+                id="consent-title"
+                className="mb-2 text-lg font-semibold text-foreground"
               >
-                {t('privacyPolicy')}
-              </Link>
-              .
-            </p>
+                {t('title')}
+              </h3>
+              <p
+                id="consent-description"
+                className="mb-4 text-sm text-muted-foreground"
+              >
+                {t('description')}{' '}
+                <Link
+                  href={privacyHref}
+                  className="text-primary underline hover:text-primary/80"
+                >
+                  {t('privacyPolicy')}
+                </Link>
+                .
+              </p>
 
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  disabled
-                  className="h-4 w-4"
-                  aria-describedby="essential-hint"
-                />
-                <span>{t('essential')}</span>
-              </label>
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="h-4 w-4"
-                  aria-label={t('analytics')}
-                />
-                <span>{t('analytics')}</span>
-              </label>
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="h-4 w-4"
-                  aria-label={t('marketing')}
-                />
-                <span>{t('marketing')}</span>
-              </label>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    defaultChecked
+                    disabled
+                    className="h-4 w-4"
+                  />
+                  <span>{t('essential')}</span>
+                  <span id="essential-hint" className="sr-only">
+                    {t('essentialHint')}
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={analyticsChecked}
+                    onChange={(e) => setAnalyticsChecked(e.target.checked)}
+                    className="h-4 w-4"
+                    aria-label={t('analytics')}
+                  />
+                  <span>{t('analytics')}</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={marketingChecked}
+                    onChange={(e) => setMarketingChecked(e.target.checked)}
+                    className="h-4 w-4"
+                    aria-label={t('marketing')}
+                  />
+                  <span>{t('marketing')}</span>
+                </label>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowBanner(false)}
+              className="shrink-0 text-muted-foreground hover:text-foreground"
+              aria-label={t('closeAriaLabel')}
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowBanner(false)}
-            className="shrink-0 text-muted-foreground hover:text-foreground"
-            aria-label={t('closeAriaLabel')}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={handleOpenSettings}
+              disabled={isLoading}
+            >
+              {t('customize')}
+            </Button>
 
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <Button
-            variant="outline"
-            onClick={handleOpenSettings}
-            disabled={isLoading}
-          >
-            {t('customize')}
-          </Button>
+            <Button
+              variant="outline"
+              onClick={handleRejectAll}
+              disabled={isLoading}
+            >
+              {t('rejectAll')}
+            </Button>
 
-          <Button
-            variant="outline"
-            onClick={handleRejectAll}
-            disabled={isLoading}
-          >
-            {t('rejectAll')}
-          </Button>
-
-          <Button onClick={handleAcceptAll} disabled={isLoading}>
-            {isLoading ? t('saving') : t('acceptAll')}
-          </Button>
+            <Button onClick={handleAcceptAll} disabled={isLoading}>
+              {isLoading ? t('saving') : t('acceptAll')}
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </FocusScope.Root>
   );
 }

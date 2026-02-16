@@ -23,19 +23,16 @@ import {
 } from '@/components/ui/select';
 
 interface Props {
-  code?: string;
   shortCode?: string;
   variant?: 'default' | 'ghost' | 'outline';
   size?: 'default' | 'sm' | 'lg' | 'icon';
 }
 
 export function QRCodeButton({
-  code,
-  shortCode: shortCodeProp,
+  shortCode,
   variant = 'ghost',
   size = 'sm'
 }: Props) {
-  const shortCode = code || shortCodeProp;
   const t = useTranslations('QRCode');
   const [qrSize, setQrSize] = useState('300');
   const [qrFormat, setQrFormat] = useState<'png' | 'svg'>('png');

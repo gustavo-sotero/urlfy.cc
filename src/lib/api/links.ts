@@ -189,3 +189,19 @@ export async function getLinkStats(id: string): Promise<LinkStats> {
   const response = await client.api.links({ id }).stats.get();
   return handleEden(response);
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD SUMMARY STATS
+// ═══════════════════════════════════════════════════════════════════
+
+export interface DashboardSummary {
+  totalLinks: number;
+  activeLinks: number;
+  totalClicks: number;
+  avgClicksPerLink: number;
+}
+
+export async function getDashboardSummary(): Promise<DashboardSummary> {
+  const response = await client.api.links.summary.get();
+  return handleEden(response);
+}

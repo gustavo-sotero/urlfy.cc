@@ -34,14 +34,14 @@
       "suspicious": {
         "noUnknownAtRules": "off",
         "noDocumentCookie": "off",
-        "noArrayIndexKey": "off"
+        "noArrayIndexKey": "warn"
       },
       "a11y": {
         "useSemanticElements": "off",
-        "useKeyWithClickEvents": "off"
+        "useKeyWithClickEvents": "warn"
       },
       "security": {
-        "noDangerouslySetInnerHtml": "off"
+        "noDangerouslySetInnerHtml": "warn"
       },
       "correctness": {
         "noUnusedVariables": {

@@ -2,7 +2,6 @@
 'use client';
 
 import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { Ban, CheckCircle, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,7 +30,7 @@ export function LinkSearchTable({
     return (
       <div className="rounded-lg border border-dashed p-8 text-center">
         <p className="text-sm text-muted-foreground">
-          Nenhum link encontrado. Tente ajustar sua busca.
+          No links found. Try adjusting your search.
         </p>
       </div>
     );
@@ -42,12 +41,12 @@ export function LinkSearchTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Código</TableHead>
-            <TableHead>URL Original</TableHead>
+            <TableHead>Code</TableHead>
+            <TableHead>Original URL</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Cliques</TableHead>
-            <TableHead>Criado</TableHead>
-            <TableHead className="text-right">Ações</TableHead>
+            <TableHead>Clicks</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -71,11 +70,11 @@ export function LinkSearchTable({
               <TableCell>
                 <div className="flex flex-col gap-1">
                   {link.isBanned ? (
-                    <Badge variant="destructive">Banido</Badge>
+                    <Badge variant="destructive">Banned</Badge>
                   ) : link.isActive ? (
-                    <Badge variant="default">Ativo</Badge>
+                    <Badge variant="default">Active</Badge>
                   ) : (
-                    <Badge variant="secondary">Inativo</Badge>
+                    <Badge variant="secondary">Inactive</Badge>
                   )}
                 </div>
               </TableCell>
@@ -86,8 +85,7 @@ export function LinkSearchTable({
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {formatDistanceToNow(new Date(link.createdAt), {
-                  addSuffix: true,
-                  locale: ptBR
+                  addSuffix: true
                 })}
               </TableCell>
               <TableCell className="text-right">
@@ -98,7 +96,7 @@ export function LinkSearchTable({
                     onClick={() => onUnban(link)}
                   >
                     <CheckCircle className="mr-2 h-4 w-4" />
-                    Reativar
+                    Reactivate
                   </Button>
                 ) : (
                   <Button
@@ -107,7 +105,7 @@ export function LinkSearchTable({
                     onClick={() => onBan(link)}
                   >
                     <Ban className="mr-2 h-4 w-4" />
-                    Banir
+                    Ban
                   </Button>
                 )}
               </TableCell>

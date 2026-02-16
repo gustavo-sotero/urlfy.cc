@@ -28,7 +28,8 @@ export const Analytics = {
     trafficSources: 'Traffic Sources',
     clicks: 'Clicks',
     uniqueVisitors: 'Unique Visitors',
-    clicksChartAriaLabel: 'Chart showing clicks over time'
+    clicksChartAriaLabel: 'Chart showing clicks over time',
+    noData: 'No data available'
   },
 
   devices: {

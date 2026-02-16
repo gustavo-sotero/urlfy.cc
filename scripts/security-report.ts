@@ -53,22 +53,38 @@ const { values } = parseArgs({
 const BASE_URL = values['base-url'] as string;
 const OUTPUT_FILE = values.output as string;
 
-async function checkServerAvailable(): Promise<boolean> {
-  try {
-    const res = await fetch(`${BASE_URL}/api/health`, {
-      signal: AbortSignal.timeout(5000)
-    });
-    return res.ok;
-  } catch {
-    return false;
+const HEALTH_PATH_CANDIDATES = ['/api/health', '/health'] as const;
+
+async function resolveHealthPath(): Promise<string | null> {
+  for (const path of HEALTH_PATH_CANDIDATES) {
+    try {
+      const res = await fetch(`${BASE_URL}${path}`, {
+        signal: AbortSignal.timeout(5000)
+      });
+
+      if (res.ok) {
+        return path;
+      }
+    } catch {
+      // Try next candidate
+    }
   }
+
+  return null;
 }
 
-async function checkSecurityHeaders(): Promise<SecurityCheck[]> {
+async function checkServerAvailable(): Promise<boolean> {
+  const healthPath = await resolveHealthPath();
+  return healthPath !== null;
+}
+
+async function checkSecurityHeaders(
+  healthPath: string
+): Promise<SecurityCheck[]> {
   const checks: SecurityCheck[] = [];
 
   try {
-    const res = await fetch(`${BASE_URL}/api/health`);
+    const res = await fetch(`${BASE_URL}${healthPath}`);
     const headers = res.headers;
 
     // Content-Security-Policy
@@ -154,11 +170,11 @@ async function checkSecurityHeaders(): Promise<SecurityCheck[]> {
   return checks;
 }
 
-async function checkRateLimiting(): Promise<SecurityCheck[]> {
+async function checkRateLimiting(healthPath: string): Promise<SecurityCheck[]> {
   const checks: SecurityCheck[] = [];
 
   try {
-    const res = await fetch(`${BASE_URL}/api/health`);
+    const res = await fetch(`${BASE_URL}${healthPath}`);
 
     const limitHeader =
       res.headers.get('X-RateLimit-Limit') ||
@@ -187,12 +203,12 @@ async function checkRateLimiting(): Promise<SecurityCheck[]> {
   return checks;
 }
 
-async function checkCORS(): Promise<SecurityCheck[]> {
+async function checkCORS(healthPath: string): Promise<SecurityCheck[]> {
   const checks: SecurityCheck[] = [];
 
   try {
     // Test with unauthorized origin
-    const res = await fetch(`${BASE_URL}/api/health`, {
+    const res = await fetch(`${BASE_URL}${healthPath}`, {
       headers: {
         Origin: 'https://evil-site.com'
       }
@@ -342,6 +358,7 @@ async function generateSecurityReport(): Promise<void> {
   console.log('');
 
   // Check server availability
+  const healthPath = await resolveHealthPath();
   const serverAvailable = await checkServerAvailable();
 
   if (!serverAvailable) {
@@ -350,6 +367,9 @@ async function generateSecurityReport(): Promise<void> {
     process.exit(1);
   }
 
+  const resolvedHealthPath = healthPath ?? '/api/health';
+  console.log(`Using health endpoint: ${resolvedHealthPath}`);
+
   console.log('Server is available. Running security checks...');
   console.log('');
 
@@ -357,13 +377,13 @@ async function generateSecurityReport(): Promise<void> {
 
   // Run all checks
   console.log('Checking security headers...');
-  allChecks.push(...(await checkSecurityHeaders()));
+  allChecks.push(...(await checkSecurityHeaders(resolvedHealthPath)));
 
   console.log('Checking rate limiting...');
-  allChecks.push(...(await checkRateLimiting()));
+  allChecks.push(...(await checkRateLimiting(resolvedHealthPath)));
 
   console.log('Checking CORS...');
-  allChecks.push(...(await checkCORS()));
+  allChecks.push(...(await checkCORS(resolvedHealthPath)));
 
   console.log('Checking authentication...');
   allChecks.push(...(await checkAuthentication()));

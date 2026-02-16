@@ -1,6 +1,7 @@
 // src/components/charts/referrers-chart.tsx
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   Bar,
   BarChart,
@@ -23,14 +24,24 @@ interface Props {
 }
 
 export function ReferrersChart({ data }: Props) {
+  const t = useTranslations('Analytics.charts');
+
   // Take top 8 referrers and normalize data structure
   const topReferrers = data.slice(0, 8).map((item) => ({
     referrer: item.referrer || item.domain || 'Direct',
     clicks: item.clicks
   }));
 
+  if (topReferrers.length === 0) {
+    return (
+      <div className="flex h-75 items-center justify-center text-muted-foreground">
+        {t('noData')}
+      </div>
+    );
+  }
+
   return (
-    <div className="h-75">
+    <div className="h-75" role="img" aria-label={t('topReferrers')}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={topReferrers}

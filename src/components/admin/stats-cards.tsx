@@ -1,3 +1,5 @@
+'use client';
+
 // src/components/admin/stats-cards.tsx
 
 import { BarChart2, Link2, MousePointerClick, Users } from 'lucide-react';

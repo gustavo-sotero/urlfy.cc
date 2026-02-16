@@ -44,6 +44,17 @@ export interface CreateApiKeyInput {
   };
 }
 
+type CreateApiKeyPayload = {
+  name: string;
+  scopes: string[];
+  expiresAt?: string;
+  rateLimit?: {
+    enabled: boolean;
+    max: number;
+    windowMs: number;
+  };
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // API KEY OPERATIONS
 // ═══════════════════════════════════════════════════════════════════
@@ -66,30 +77,19 @@ export async function getApiKeys(): Promise<{
 export async function createApiKey(
   input: CreateApiKeyInput
 ): Promise<ApiKeyCreated> {
-  // Prepare payload, filtering out null values for optional fields
-  const payload: {
-    name: string;
-    scopes: string[];
-    expiresAt?: string;
-    rateLimit?: {
-      enabled: boolean;
-      max: number;
-      windowMs: number;
-    };
-  } = {
+  // Build payload matching Eden Treaty's expected shape
+  const payload: CreateApiKeyPayload = {
     name: input.name,
-    scopes: input.scopes
+    scopes: input.scopes,
+    ...(input.expiresAt != null && { expiresAt: input.expiresAt }),
+    ...(input.rateLimit && { rateLimit: input.rateLimit })
   };
 
-  if (input.expiresAt !== null && input.expiresAt !== undefined) {
-    payload.expiresAt = input.expiresAt;
-  }
-
-  if (input.rateLimit) {
-    payload.rateLimit = input.rateLimit;
-  }
-
-  const response = await client.api.keys.post(payload as never);
+  // Eden Treaty currently infers a multipart-like body type for this endpoint,
+  // so we narrow through unknown while keeping a strict local payload type.
+  const response = await client.api.keys.post(
+    payload as unknown as Parameters<typeof client.api.keys.post>[0]
+  );
   return handleEden<ApiKeyCreated>(response);
 }
 

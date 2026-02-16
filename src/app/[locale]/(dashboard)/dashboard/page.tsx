@@ -8,15 +8,22 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { QueryError } from '@/components/query-error';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { LinkCard } from '@/components/shared/link-card';
 import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from '@/i18n/routing';
-import { useDeleteLink, useLinks, useUserQuota } from '@/lib/hooks/use-links';
+import {
+  useDashboardSummary,
+  useDeleteLink,
+  useLinks,
+  useUserQuota
+} from '@/lib/hooks/use-links';
 
 export default function DashboardPage() {
   const t = useTranslations('Dashboard');
@@ -34,29 +41,44 @@ export default function DashboardPage() {
   });
 
   const { data: quotaData, isLoading: quotaLoading } = useUserQuota();
+  const { data: summaryData, isLoading: summaryLoading } =
+    useDashboardSummary();
   const deleteLink = useDeleteLink();
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('links.deleteConfirm'))) {
-      try {
-        await deleteLink.mutateAsync(id);
-        toast.success(t('toasts.deleteSuccess'));
-      } catch (err) {
-        console.error('Failed to delete link:', err);
-        toast.error(t('toasts.deleteError'));
-      }
+    setDeleteTarget(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteLink.mutateAsync(deleteTarget);
+      toast.success(t('toasts.deleteSuccess'));
+    } catch (err) {
+      console.error('Failed to delete link:', err);
+      toast.error(t('toasts.deleteError'));
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
-  // Calculate stats from the links data
-  const totalLinks = linksData?.meta?.total || 0;
-  const totalClicks =
-    linksData?.data?.reduce((sum, link) => sum + link.clicksCount, 0) || 0;
-  const activeLinks =
-    linksData?.data?.filter((link) => link.isActive)?.length || 0;
+  // Stats from dedicated summary endpoint (accurate across all links)
+  const totalLinks = summaryData?.totalLinks || 0;
+  const totalClicks = summaryData?.totalClicks || 0;
+  const activeLinks = summaryData?.activeLinks || 0;
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={t('links.deleteConfirm')}
+        description={t('links.deleteConfirm')}
+        onConfirm={confirmDelete}
+        confirmText={t('linkCard.delete')}
+        loading={deleteLink.isPending}
+      />
       <div>
         <h2 className="text-3xl font-bold tracking-tight">{t('title')}</h2>
         <p className="text-muted-foreground">{t('subtitle')}</p>
@@ -64,7 +86,7 @@ export default function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        {linksLoading || quotaLoading ? (
+        {linksLoading || quotaLoading || summaryLoading ? (
           <StatsCardSkeleton />
         ) : (
           <>

@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Mail, Send } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { sanitizeErrorMessage } from '@/lib/utils/error';
 
 // ═══════════════════════════════════════════════════════════════════
 // COMPONENT
@@ -27,21 +28,24 @@ import { Textarea } from '@/components/ui/textarea';
 
 export function ContactForm() {
   const t = useTranslations('Contact');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const contactFormSchema = z.object({
-    name: z.string().min(2, t('form.validation.nameMin')).max(255),
-    email: z.string().email(t('form.validation.emailInvalid')).max(255),
-    subject: z.string().min(3, t('form.validation.subjectMin')).max(255),
-    message: z
-      .string()
-      .min(10, t('form.validation.messageMin'))
-      .max(5000, t('form.validation.messageMax')),
-    consent: z.boolean().refine((val) => val === true, {
-      message: t('form.validation.consentRequired')
-    })
-  });
+  const contactFormSchema = useMemo(
+    () =>
+      z.object({
+        name: z.string().min(2, t('form.validation.nameMin')).max(255),
+        email: z.string().email(t('form.validation.emailInvalid')).max(255),
+        subject: z.string().min(3, t('form.validation.subjectMin')).max(255),
+        message: z
+          .string()
+          .min(10, t('form.validation.messageMin'))
+          .max(5000, t('form.validation.messageMax')),
+        consent: z.boolean().refine((val) => val === true, {
+          message: t('form.validation.consentRequired')
+        })
+      }),
+    [t]
+  );
 
   type ContactFormData = z.infer<typeof contactFormSchema>;
 
@@ -56,9 +60,9 @@ export function ContactForm() {
     }
   });
 
-  const onSubmit = async (data: ContactFormData) => {
-    setIsSubmitting(true);
+  const { isSubmitting } = form.formState;
 
+  const onSubmit = async (data: ContactFormData) => {
     try {
       const response = await fetch('/api/contact', {
         method: 'POST',
@@ -73,15 +77,19 @@ export function ContactForm() {
       if (!response.ok) {
         if (response.status === 429) {
           toast.error(t('form.toast.rateLimitTitle'), {
-            description:
-              result.error?.message || t('form.toast.rateLimitDescription')
+            description: sanitizeErrorMessage(
+              result.error?.message,
+              t('form.toast.rateLimitDescription')
+            )
           });
           return;
         }
 
         toast.error(t('form.toast.failedTitle'), {
-          description:
-            result.error?.message || t('form.toast.failedDescription')
+          description: sanitizeErrorMessage(
+            result.error?.message,
+            t('form.toast.failedDescription')
+          )
         });
         return;
       }
@@ -96,8 +104,6 @@ export function ContactForm() {
       toast.error(t('form.toast.networkTitle'), {
         description: t('form.toast.networkDescription')
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

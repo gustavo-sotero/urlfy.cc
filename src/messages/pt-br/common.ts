@@ -34,5 +34,13 @@ export const Common = {
   errorLoading: 'Erro ao carregar dados',
   backToHome: 'Voltar para o início',
   close: 'Fechar',
-  download: 'Download'
+  download: 'Download',
+  confirm: 'Confirmar',
+  closeMenu: 'Fechar menu',
+  required: 'obrigatório',
+  passwordProtected: 'Protegido por senha',
+  loadingDashboard: 'Carregando dashboard',
+  loadingLink: 'Carregando link...',
+  loadingLinks: 'Carregando links',
+  noData: 'Sem dados disponíveis'
 } as const;

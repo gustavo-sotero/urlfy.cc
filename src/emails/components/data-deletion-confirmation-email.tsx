@@ -149,8 +149,8 @@ export function DataDeletionConfirmationEmail({
               'Dados de autenticação e perfil',
               'Configurações e preferências',
               'API Keys e tokens de acesso'
-            ].map((item, index) => (
-              <tr key={index}>
+            ].map((item) => (
+              <tr key={item}>
                 <td style={{ paddingBottom: '8px' }}>
                   <p
                     style={{

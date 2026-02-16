@@ -206,8 +206,8 @@ export function LinkBannedEmail({
               'Visitantes verão uma página de erro',
               'As estatísticas foram preservadas',
               'Você pode contestar essa decisão'
-            ].map((item, index) => (
-              <tr key={index}>
+            ].map((item) => (
+              <tr key={item}>
                 <td style={{ paddingBottom: '8px' }}>
                   <p
                     style={{

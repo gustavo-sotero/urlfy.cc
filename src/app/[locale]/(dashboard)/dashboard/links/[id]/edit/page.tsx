@@ -3,7 +3,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { Link } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 import { useLink, useUpdateLink } from '@/lib/hooks/use-links';
 import { removeEmptyFields } from '@/lib/utils';
 import type { UpdateLinkInput } from '@/types/links.types';

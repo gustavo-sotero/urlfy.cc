@@ -1,3 +1,5 @@
+'use client';
+
 // src/lib/hooks/use-api-keys.ts
 /**
  * React Query hooks for API key management

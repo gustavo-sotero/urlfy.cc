@@ -14,6 +14,27 @@ export function WelcomeEmail({
   messages: t,
   locale = 'en'
 }: WelcomeEmailProps) {
+  const brandedSegments = t.welcomeMessage.split(/(urlfy\.cc)/g);
+  const segmentOccurrences = new Map<string, number>();
+
+  const featureItems = [
+    {
+      emoji: '🔗',
+      title: t.createLinks,
+      description: t.createLinksDesc
+    },
+    {
+      emoji: '🎨',
+      title: t.customizeUrls,
+      description: t.customizeUrlsDesc
+    },
+    {
+      emoji: '📊',
+      title: t.trackAnalytics,
+      description: t.trackAnalyticsDesc
+    }
+  ];
+
   return (
     <EmailLayout
       previewText={t.previewText.replace('{firstName}', firstName)}
@@ -40,14 +61,21 @@ export function WelcomeEmail({
             lineHeight: '1.6'
           }}
         >
-          {t.welcomeMessage.split('urlfy.cc').map((part, i, arr) => (
-            <span key={i}>
-              {part}
-              {i < arr.length - 1 && (
-                <strong style={{ color: '#6366f1' }}>urlfy.cc</strong>
-              )}
-            </span>
-          ))}
+          {brandedSegments.map((segment) => {
+            const occurrence = (segmentOccurrences.get(segment) ?? 0) + 1;
+            segmentOccurrences.set(segment, occurrence);
+            const key = `${segment}-${occurrence}`;
+
+            if (segment === 'urlfy.cc') {
+              return (
+                <strong key={key} style={{ color: '#6366f1' }}>
+                  {segment}
+                </strong>
+              );
+            }
+
+            return <span key={key}>{segment}</span>;
+          })}
         </p>
 
         <div
@@ -99,24 +127,8 @@ export function WelcomeEmail({
           style={{ width: '100%', marginBottom: '24px' }}
         >
           <tbody>
-            {[
-              {
-                emoji: '🔗',
-                title: t.createLinks,
-                description: t.createLinksDesc
-              },
-              {
-                emoji: '🎨',
-                title: t.customizeUrls,
-                description: t.customizeUrlsDesc
-              },
-              {
-                emoji: '📊',
-                title: t.trackAnalytics,
-                description: t.trackAnalyticsDesc
-              }
-            ].map((item, index) => (
-              <tr key={index}>
+            {featureItems.map((item) => (
+              <tr key={item.title}>
                 <td
                   style={{
                     width: '40px',

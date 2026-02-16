@@ -34,5 +34,13 @@ export const Common = {
   errorLoading: 'Error loading data',
   backToHome: 'Back to home',
   close: 'Close',
-  download: 'Download'
+  download: 'Download',
+  confirm: 'Confirm',
+  closeMenu: 'Close menu',
+  required: 'required',
+  passwordProtected: 'Password protected',
+  loadingDashboard: 'Loading dashboard',
+  loadingLink: 'Loading link...',
+  loadingLinks: 'Loading links',
+  noData: 'No data available'
 } as const;

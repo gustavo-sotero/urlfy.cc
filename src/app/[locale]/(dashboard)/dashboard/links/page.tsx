@@ -6,42 +6,60 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { QueryError } from '@/components/query-error';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { LinkCard } from '@/components/shared/link-card';
 import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link } from '@/i18n/routing';
+import { useDebounce } from '@/lib/hooks/use-debounce';
 import { useDeleteLink, useLinks } from '@/lib/hooks/use-links';
 
 export default function LinksPage() {
   const t = useTranslations('Dashboard');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const debouncedSearch = useDebounce(search, 300);
 
   const { data, isLoading, isError, error, refetch } = useLinks({
     page,
     perPage: 20,
-    search: search || undefined
+    search: debouncedSearch || undefined
   });
 
   const deleteLink = useDeleteLink();
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('links.deleteConfirm'))) {
-      try {
-        await deleteLink.mutateAsync(id);
-        toast.success(t('toasts.deleteSuccess'));
-      } catch (error) {
-        console.error('Failed to delete link:', error);
-        toast.error(
-          error instanceof Error ? error.message : t('toasts.deleteError')
-        );
-      }
+    setDeleteTarget(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteLink.mutateAsync(deleteTarget);
+      toast.success(t('toasts.deleteSuccess'));
+    } catch (error) {
+      console.error('Failed to delete link:', error);
+      toast.error(
+        error instanceof Error ? error.message : t('toasts.deleteError')
+      );
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={t('links.deleteConfirm')}
+        description={t('links.deleteConfirm')}
+        onConfirm={confirmDelete}
+        confirmText={t('linkCard.delete')}
+        loading={deleteLink.isPending}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

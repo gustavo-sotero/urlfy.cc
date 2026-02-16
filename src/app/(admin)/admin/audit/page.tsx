@@ -2,7 +2,6 @@
 'use client';
 
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { QueryError } from '@/components/query-error';
@@ -53,15 +52,13 @@ export default function AdminAuditPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Logs de Auditoria</h1>
-        <p className="text-muted-foreground">
-          Histórico de ações administrativas
-        </p>
+        <h1 className="text-3xl font-bold">Audit Logs</h1>
+        <p className="text-muted-foreground">Administrative action history</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Filtros</CardTitle>
+          <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
@@ -69,7 +66,7 @@ export default function AdminAuditPage() {
               <PopoverTrigger asChild>
                 <Button variant="outline">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateFrom ? format(dateFrom, 'PPP', { locale: ptBR }) : 'De'}
+                  {dateFrom ? format(dateFrom, 'PPP') : 'From'}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
@@ -85,7 +82,7 @@ export default function AdminAuditPage() {
               <PopoverTrigger asChild>
                 <Button variant="outline">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateTo ? format(dateTo, 'PPP', { locale: ptBR }) : 'Até'}
+                  {dateTo ? format(dateTo, 'PPP') : 'To'}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
@@ -97,14 +94,14 @@ export default function AdminAuditPage() {
               </PopoverContent>
             </Popover>
 
-            <Button onClick={handleFilter}>Filtrar</Button>
+            <Button onClick={handleFilter}>Filter</Button>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Registros de Auditoria</CardTitle>
+          <CardTitle>Audit Records</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -115,18 +112,18 @@ export default function AdminAuditPage() {
             <QueryError
               error={error as Error}
               onRetry={refetch}
-              title="Erro ao carregar logs de auditoria"
+              title="Failed to load audit logs"
             />
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data/Hora</TableHead>
+                    <TableHead>Date/Time</TableHead>
                     <TableHead>Admin</TableHead>
-                    <TableHead>Ação</TableHead>
-                    <TableHead>Entidade</TableHead>
-                    <TableHead>Detalhes</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Entity</TableHead>
+                    <TableHead>Details</TableHead>
                     <TableHead>IP</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -134,7 +131,7 @@ export default function AdminAuditPage() {
                   {data?.data.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center">
-                        Nenhum registro encontrado
+                        No records found
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -170,7 +167,7 @@ export default function AdminAuditPage() {
               {data && data.meta.lastPage > 1 && (
                 <div className="mt-4 flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Página {data.meta.page} de {data.meta.lastPage}
+                    Page {data.meta.page} of {data.meta.lastPage}
                   </p>
                   <div className="flex gap-2">
                     <Button
@@ -179,7 +176,7 @@ export default function AdminAuditPage() {
                       disabled={page === 1}
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                     >
-                      Anterior
+                      Previous
                     </Button>
                     <Button
                       variant="outline"
@@ -187,7 +184,7 @@ export default function AdminAuditPage() {
                       disabled={!data.meta.hasMore}
                       onClick={() => setPage((p) => p + 1)}
                     >
-                      Próxima
+                      Next
                     </Button>
                   </div>
                 </div>

@@ -1,15 +1,17 @@
 // src/app/(admin)/admin/page.tsx
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
 import { StatsCards } from '@/components/admin';
 import { AnalyticsErrorBoundary } from '@/components/admin/analytics-error-boundary';
 import { GrowthChart } from '@/components/admin/charts/growth-chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getAdminStats, getGrowthStats } from '@/lib/api';
+import { type AdminStats, getAdminStats, getGrowthStats } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+
+const STATS_SKELETON_KEYS = ['stat-1', 'stat-2', 'stat-3', 'stat-4'] as const;
 
 export default function AdminDashboard() {
   const [growthRange, setGrowthRange] = useState<'7d' | '30d'>('7d');
@@ -19,9 +21,9 @@ export default function AdminDashboard() {
     data: stats,
     isLoading: statsLoading,
     error: statsError
-  } = useQuery({
+  } = useQuery<AdminStats, Error>({
     queryKey: ['admin', 'stats'],
-    queryFn: getAdminStats,
+    queryFn: () => getAdminStats(),
     staleTime: 30_000,
     refetchInterval: (query) => {
       if (query.state.error) {
@@ -62,8 +64,8 @@ export default function AdminDashboard() {
       {/* Global Stats */}
       {statsLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
+          {STATS_SKELETON_KEYS.map((key) => (
+            <Card key={key}>
               <CardHeader className="pb-2">
                 <Skeleton className="h-4 w-24" />
               </CardHeader>
@@ -77,7 +79,7 @@ export default function AdminDashboard() {
         <Card className="border-destructive">
           <CardContent className="pt-6">
             <p className="text-sm text-destructive">
-              Erro ao carregar estatísticas. Tente novamente.
+              Failed to load statistics. Please try again.
             </p>
           </CardContent>
         </Card>
@@ -86,10 +88,10 @@ export default function AdminDashboard() {
       ) : null}
 
       {/* Growth Analytics */}
-      <AnalyticsErrorBoundary fallbackTitle="Crescimento da Plataforma">
+      <AnalyticsErrorBoundary fallbackTitle="Platform Growth">
         <Card>
           <CardHeader>
-            <CardTitle>Crescimento da Plataforma</CardTitle>
+            <CardTitle>Platform Growth</CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs
@@ -98,8 +100,8 @@ export default function AdminDashboard() {
               className="space-y-4"
             >
               <TabsList>
-                <TabsTrigger value="7d">Últimos 7 dias</TabsTrigger>
-                <TabsTrigger value="30d">Últimos 30 dias</TabsTrigger>
+                <TabsTrigger value="7d">Last 7 days</TabsTrigger>
+                <TabsTrigger value="30d">Last 30 days</TabsTrigger>
               </TabsList>
               <TabsContent value={growthRange}>
                 {growthLoading ? (
@@ -108,13 +110,13 @@ export default function AdminDashboard() {
                   </div>
                 ) : growthError ? (
                   <div className="text-center text-sm text-destructive py-8">
-                    Erro ao carregar dados de crescimento
+                    Failed to load growth data
                   </div>
                 ) : growthStats && growthStats.length > 0 ? (
                   <GrowthChart data={growthStats} />
                 ) : (
                   <div className="text-center text-sm text-muted-foreground py-8">
-                    Nenhum dado disponível
+                    No data available
                   </div>
                 )}
               </TabsContent>
@@ -133,7 +135,7 @@ export default function AdminDashboard() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  Requisições/segundo
+                  Requests/second
                 </span>
                 {statsLoading ? (
                   <Skeleton className="h-5 w-12" />
@@ -149,7 +151,7 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Ações Rápidas</CardTitle>
+            <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -157,13 +159,13 @@ export default function AdminDashboard() {
                 href="/admin/links"
                 className="block rounded-md border p-3 text-sm hover:bg-muted"
               >
-                Gerenciar Links →
+                Manage Links →
               </a>
               <a
                 href="/admin/users"
                 className="block rounded-md border p-3 text-sm hover:bg-muted"
               >
-                Gerenciar Usuários →
+                Manage Users →
               </a>
             </div>
           </CardContent>

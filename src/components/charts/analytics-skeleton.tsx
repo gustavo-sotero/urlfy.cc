@@ -2,6 +2,13 @@
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
+const STATS_SKELETON_KEYS = [
+  'stats-1',
+  'stats-2',
+  'stats-3',
+  'stats-4'
+] as const;
+
 export function ChartSkeleton() {
   return (
     <Card className="p-6" aria-busy="true">
@@ -17,8 +24,8 @@ export function StatsGridSkeleton() {
       role="status"
       aria-label="Carregando estatísticas"
     >
-      {Array.from({ length: 4 }, (_, i) => (
-        <Card key={`stats-${i}`} className="p-6">
+      {STATS_SKELETON_KEYS.map((key) => (
+        <Card key={key} className="p-6">
           <Skeleton className="mb-2 h-4 w-20" />
           <Skeleton className="h-8 w-24" />
         </Card>

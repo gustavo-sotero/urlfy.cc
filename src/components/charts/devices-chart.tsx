@@ -1,6 +1,7 @@
 // src/components/charts/devices-chart.tsx
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 import {
   Cell,
@@ -22,55 +23,67 @@ interface Props {
 }
 
 export function DevicesChart({ data }: Props) {
+  const t = useTranslations('Analytics');
+
+  const deviceLabels = useMemo(
+    () => ({
+      desktop: t('devices.desktop'),
+      mobile: t('devices.mobile'),
+      tablet: t('devices.tablet')
+    }),
+    [t]
+  );
+
   // Memoize chart data transformation
   const chartData = useMemo(
     () =>
       data.map((item) => ({
-        name:
-          item.type === 'desktop'
-            ? 'Desktop'
-            : item.type === 'mobile'
-              ? 'Mobile'
-              : 'Tablet',
+        name: deviceLabels[item.type as keyof typeof deviceLabels] ?? item.type,
         value: item.clicks,
         type: item.type
       })),
-    [data]
+    [data, deviceLabels]
   );
 
   return (
     <div
       className="h-62.5"
       role="img"
-      aria-label="Gráfico de distribuição por dispositivo"
+      aria-label={`${chartData.map((d) => `${d.name}: ${d.value}`).join(', ')}`}
     >
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={({ name, percent }) =>
-              `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
-            }
-            outerRadius={80}
-            fill="hsl(var(--primary))"
-            dataKey="value"
-          >
-            {chartData.map((entry) => (
-              <Cell
-                key={`cell-${entry.type}`}
-                fill={
-                  COLORS[entry.type as keyof typeof COLORS] ?? COLORS.desktop
-                }
-              />
-            ))}
-          </Pie>
-          <Tooltip />
-          <Legend />
-        </PieChart>
-      </ResponsiveContainer>
+      {chartData.length === 0 ? (
+        <div className="flex h-full items-center justify-center text-muted-foreground">
+          {t('charts.noData')}
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={({ name, percent }) =>
+                `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+              }
+              outerRadius={80}
+              fill="hsl(var(--primary))"
+              dataKey="value"
+            >
+              {chartData.map((entry) => (
+                <Cell
+                  key={`cell-${entry.type}`}
+                  fill={
+                    COLORS[entry.type as keyof typeof COLORS] ?? COLORS.desktop
+                  }
+                />
+              ))}
+            </Pie>
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }

@@ -6,7 +6,63 @@
 
 import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
 import { BASE_URL, client, createClientWithHeaders } from './client';
-import { handleEden, type TreatyResponse, toQueryParams } from './error';
+import {
+  handleEden,
+  handleEdenVoid,
+  type TreatyResponse,
+  toQueryParams
+} from './error';
+
+// ═══════════════════════════════════════════════════════════════════
+// SHARED TYPES & HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+/** Raw link shape returned by admin API endpoints */
+interface AdminLinkRaw {
+  id: string;
+  shortCode: string;
+  originalUrl: string;
+  isActive: boolean;
+  isBanned: boolean;
+  createdAt: string;
+  clicksCount: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Transform a raw admin API link into the shared LinkResponse format.
+ * Single source of truth — prevents updatedAt/redirectType bugs.
+ */
+function mapToLinkResponse(link: AdminLinkRaw): LinkResponse {
+  return {
+    id: link.id,
+    shortCode: link.shortCode,
+    shortUrl: `${BASE_URL}/${link.shortCode}`,
+    originalUrl: link.originalUrl,
+    redirectType:
+      typeof link.redirectType === 'number' ? link.redirectType : 302,
+    clicksCount: link.clicksCount,
+    isActive: link.isActive,
+    isBanned: link.isBanned,
+    createdAt: link.createdAt,
+    updatedAt:
+      typeof link.updatedAt === 'string' ? link.updatedAt : link.createdAt
+  } as LinkResponse;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SHARED CLIENT RESOLVER
+// ═══════════════════════════════════════════════════════════════════
+
+type EdenClient = typeof client;
+
+/**
+ * Resolve the correct Eden client for CSR (default) or SSR (with headers).
+ * Centralises the CSR/SSR branching so every endpoint only needs one function.
+ */
+function resolveClient(headers?: HeadersInit): EdenClient {
+  return headers ? createClientWithHeaders(headers) : client;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN STATS
@@ -21,54 +77,43 @@ export interface AdminStats {
 }
 
 /**
- * Get global admin statistics (client-side)
+ * Get global admin statistics.
+ * Pass `headers` from Next.js server components to forward authentication cookies.
  */
-export async function getAdminStats(): Promise<AdminStats> {
-  const response = await client.api.admin.stats.get();
+export async function getAdminStats(
+  headers?: HeadersInit
+): Promise<AdminStats> {
+  const response = await resolveClient(headers).api.admin.stats.get();
   return handleEden(response);
 }
 
-/**
- * Get global admin statistics (server-side with headers)
- * Use this from Next.js server components to forward authentication cookies
- */
-export async function getAdminStatsSSR(
-  headers: HeadersInit
-): Promise<AdminStats> {
-  const serverClient = createClientWithHeaders(headers);
-  const response = await serverClient.api.admin.stats.get();
-  return handleEden(response);
-}
+/** @deprecated Use `getAdminStats(headers)` instead */
+export const getAdminStatsSSR = (headers: HeadersInit) =>
+  getAdminStats(headers);
 
 // ═══════════════════════════════════════════════════════════════════
 // GROWTH STATS
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Get growth statistics for admin dashboard
+ * Get growth statistics for admin dashboard.
+ * Pass `headers` from Next.js server components to forward authentication cookies.
  */
 export async function getGrowthStats(
-  range: '7d' | '30d' = '7d'
+  range: '7d' | '30d' = '7d',
+  headers?: HeadersInit
 ): Promise<Array<{ date: string; clicks: number; newUsers: number }>> {
-  const response = await client.api.admin.stats.growth.get({
+  const response = await resolveClient(headers).api.admin.stats.growth.get({
     query: { range }
   });
   return handleEden(response);
 }
 
-/**
- * Get growth statistics (server-side with headers)
- */
-export async function getGrowthStatsSSR(
+/** @deprecated Use `getGrowthStats(range, headers)` instead */
+export const getGrowthStatsSSR = (
   headers: HeadersInit,
   range: '7d' | '30d' = '7d'
-): Promise<Array<{ date: string; clicks: number; newUsers: number }>> {
-  const serverClient = createClientWithHeaders(headers);
-  const response = await serverClient.api.admin.stats.growth.get({
-    query: { range }
-  });
-  return handleEden(response);
-}
+) => getGrowthStats(range, headers);
 
 // ═══════════════════════════════════════════════════════════════════
 // QUEUE STATS
@@ -102,102 +147,26 @@ export async function searchLinks(query: string): Promise<LinkResponse[]> {
   const response = await client.api.admin.links.search.get({
     query: { q: query }
   });
-  const result =
-    handleEden<
-      Array<{
-        id: string;
-        shortCode: string;
-        originalUrl: string;
-        isActive: boolean;
-        isBanned: boolean;
-        createdAt: string;
-        clicksCount: number;
-      }>
-    >(response);
+  const result = handleEden<Array<AdminLinkRaw>>(response);
 
-  // Transform to LinkResponse format
-  return result.map((link) => ({
-    id: link.id,
-    shortCode: link.shortCode,
-    shortUrl: `${BASE_URL}/${link.shortCode}`,
-    originalUrl: link.originalUrl,
-    redirectType: 302,
-    clicksCount: link.clicksCount,
-    isActive: link.isActive,
-    isBanned: link.isBanned,
-    createdAt: link.createdAt,
-    updatedAt: link.createdAt
-  })) as LinkResponse[];
+  return result.map(mapToLinkResponse);
 }
 
-/**
- * List links with pagination (client-side)
- */
-export async function listAdminLinks(params?: {
+interface ListAdminLinksParams {
   page?: number;
   limit?: number;
   search?: string;
-}): Promise<PaginatedResponse<LinkResponse>> {
-  const response = await client.api.admin.links.get({
-    query: {
-      page: params?.page?.toString(),
-      limit: params?.limit?.toString(),
-      search: params?.search
-    }
-  });
-
-  const result = handleEden<{
-    data: Array<{
-      id: string;
-      shortCode: string;
-      originalUrl: string;
-      isActive: boolean;
-      isBanned: boolean;
-      createdAt: string;
-      clicksCount: number;
-    }>;
-    meta: {
-      total: number;
-      page: number;
-      perPage: number;
-      lastPage: number;
-      hasMore: boolean;
-    };
-  }>(response);
-
-  // Transform to LinkResponse format
-  const data = result.data.map((link) => ({
-    id: link.id,
-    shortCode: link.shortCode,
-    shortUrl: `${BASE_URL}/${link.shortCode}`,
-    originalUrl: link.originalUrl,
-    redirectType: 302,
-    clicksCount: link.clicksCount,
-    isActive: link.isActive,
-    isBanned: link.isBanned,
-    createdAt: link.createdAt,
-    updatedAt: link.createdAt
-  })) as LinkResponse[];
-
-  return {
-    data,
-    meta: result.meta
-  };
 }
 
 /**
- * List links with pagination (server-side with headers)
+ * List links with pagination.
+ * Pass `headers` from Next.js server components to forward authentication cookies.
  */
-export async function listAdminLinksSSR(
-  headers: HeadersInit,
-  params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-  }
+export async function listAdminLinks(
+  params?: ListAdminLinksParams,
+  headers?: HeadersInit
 ): Promise<PaginatedResponse<LinkResponse>> {
-  const serverClient = createClientWithHeaders(headers);
-  const response = await serverClient.api.admin.links.get({
+  const response = await resolveClient(headers).api.admin.links.get({
     query: {
       page: params?.page?.toString(),
       limit: params?.limit?.toString(),
@@ -206,15 +175,7 @@ export async function listAdminLinksSSR(
   });
 
   const result = handleEden<{
-    data: Array<{
-      id: string;
-      shortCode: string;
-      originalUrl: string;
-      isActive: boolean;
-      isBanned: boolean;
-      createdAt: string;
-      clicksCount: number;
-    }>;
+    data: Array<AdminLinkRaw>;
     meta: {
       total: number;
       page: number;
@@ -224,25 +185,17 @@ export async function listAdminLinksSSR(
     };
   }>(response);
 
-  // Transform to LinkResponse format
-  const data = result.data.map((link) => ({
-    id: link.id,
-    shortCode: link.shortCode,
-    shortUrl: `${BASE_URL}/${link.shortCode}`,
-    originalUrl: link.originalUrl,
-    redirectType: 302,
-    clicksCount: link.clicksCount,
-    isActive: link.isActive,
-    isBanned: link.isBanned,
-    createdAt: link.createdAt,
-    updatedAt: link.createdAt
-  })) as LinkResponse[];
-
   return {
-    data,
+    data: result.data.map(mapToLinkResponse),
     meta: result.meta
   };
 }
+
+/** @deprecated Use `listAdminLinks(params, headers)` instead */
+export const listAdminLinksSSR = (
+  headers: HeadersInit,
+  params?: ListAdminLinksParams
+) => listAdminLinks(params, headers);
 
 // ═══════════════════════════════════════════════════════════════════
 // LINK BAN/UNBAN
@@ -396,4 +349,52 @@ export async function getAuditLogs(
   const apiQuery = query ? toQueryParams({ ...query }) : {};
   const response = await client.api.admin.audit.get({ query: apiQuery });
   return handleEden<PaginatedResponse<AuditLogEntry>>(response);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTACT MESSAGES
+// ═══════════════════════════════════════════════════════════════════
+
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: string;
+  telegramSent: string;
+  createdAt: string | null;
+}
+
+export interface ContactMessagesResponse {
+  data: ContactMessage[];
+  meta: {
+    total: number;
+    page: number;
+    perPage: number;
+    totalPages: number;
+  };
+}
+
+export async function getAdminMessages(
+  status?: string
+): Promise<ContactMessagesResponse> {
+  const query = toQueryParams({
+    status: status && status !== 'all' ? status : undefined,
+    perPage: '50'
+  });
+  const response = await client.api.admin.messages.get({ query });
+  return handleEden<ContactMessagesResponse>(response);
+}
+
+export type MessageStatus = 'read' | 'unread' | 'archived';
+
+export async function updateMessageStatus(
+  id: string,
+  status: MessageStatus
+): Promise<void> {
+  const response = await client.api.admin.messages({ id }).patch({
+    status
+  });
+  handleEdenVoid(response);
 }

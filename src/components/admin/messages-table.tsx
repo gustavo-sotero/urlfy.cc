@@ -28,98 +28,42 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-
-// ═══════════════════════════════════════════════════════════════════
-// TYPES
-// ═══════════════════════════════════════════════════════════════════
-
-interface ContactMessage {
-  id: string;
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  status: string;
-  telegramSent: string;
-  createdAt: Date | null;
-}
+import type { ContactMessage, MessageStatus } from '@/lib/api';
+import { useAdminMessages, useUpdateMessageStatus } from '@/lib/hooks';
 
 // ═══════════════════════════════════════════════════════════════════
 // COMPONENT
 // ═══════════════════════════════════════════════════════════════════
 
 export function MessagesTable() {
-  const [messages, setMessages] = useState<ContactMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(
     null
   );
-  const [isUpdating, setIsUpdating] = useState(false);
 
-  // Load messages
-  const loadMessages = async (status: string = 'all') => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `/api/admin/messages?status=${status}&perPage=50`
-      );
-      const result = await response.json();
+  const { data: messagesData, isLoading } = useAdminMessages(statusFilter);
+  const messages = messagesData?.data ?? [];
 
-      if (!response.ok) {
-        throw new Error(result.error?.message || 'Failed to load messages');
-      }
-
-      setMessages(result.data || []);
-    } catch (error) {
-      console.error('Failed to load messages:', error);
-      toast.error('Failed to Load Messages', {
-        description: error instanceof Error ? error.message : 'Unknown error'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Update message status
-  const updateStatus = async (id: string, newStatus: string) => {
-    setIsUpdating(true);
-    try {
-      const response = await fetch(`/api/admin/messages/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update message');
-      }
-
+  const updateStatusMutation = useUpdateMessageStatus({
+    onSuccess: () => {
       toast.success('Status Updated', {
-        description: `Message marked as ${newStatus}`
+        description: 'Message status has been updated'
       });
-
-      // Reload messages
-      await loadMessages(statusFilter);
       setSelectedMessage(null);
-    } catch (error) {
-      console.error('Failed to update status:', error);
+    },
+    onError: (error) => {
       toast.error('Update Failed', {
-        description: error instanceof Error ? error.message : 'Unknown error'
+        description: error.message || 'Unknown error'
       });
-    } finally {
-      setIsUpdating(false);
     }
-  };
-
-  // Load on mount
-  useState(() => {
-    loadMessages();
   });
 
   const handleStatusFilterChange = (value: string) => {
     setStatusFilter(value);
-    loadMessages(value);
+  };
+
+  const handleUpdateStatus = (id: string, newStatus: MessageStatus) => {
+    updateStatusMutation.mutate({ id, status: newStatus });
   };
 
   const getStatusBadge = (status: string) => {
@@ -302,8 +246,10 @@ export function MessagesTable() {
               <div className="flex gap-2 pt-4">
                 {selectedMessage.status !== 'read' && (
                   <Button
-                    onClick={() => updateStatus(selectedMessage.id, 'read')}
-                    disabled={isUpdating}
+                    onClick={() =>
+                      handleUpdateStatus(selectedMessage.id, 'read')
+                    }
+                    disabled={updateStatusMutation.isPending}
                   >
                     Mark as Read
                   </Button>
@@ -311,8 +257,10 @@ export function MessagesTable() {
                 {selectedMessage.status !== 'archived' && (
                   <Button
                     variant="secondary"
-                    onClick={() => updateStatus(selectedMessage.id, 'archived')}
-                    disabled={isUpdating}
+                    onClick={() =>
+                      handleUpdateStatus(selectedMessage.id, 'archived')
+                    }
+                    disabled={updateStatusMutation.isPending}
                   >
                     Archive
                   </Button>
@@ -320,8 +268,10 @@ export function MessagesTable() {
                 {selectedMessage.status === 'archived' && (
                   <Button
                     variant="secondary"
-                    onClick={() => updateStatus(selectedMessage.id, 'unread')}
-                    disabled={isUpdating}
+                    onClick={() =>
+                      handleUpdateStatus(selectedMessage.id, 'unread')
+                    }
+                    disabled={updateStatusMutation.isPending}
                   >
                     Unarchive
                   </Button>

@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Check, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { CopyButton } from '@/components/shared/copy-button';
@@ -12,18 +12,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCreateLink } from '@/lib/hooks/use-links';
 
-interface Props {
-  variant: 'landing' | 'dashboard';
-}
-
-export function LinkForm({ variant: _variant }: Props) {
+export function LinkForm() {
   const t = useTranslations('LinkForm.guest');
   const [result, setResult] = useState<{ shortUrl: string } | null>(null);
   const createLink = useCreateLink();
 
-  const schema = z.object({
-    url: z.url(t('invalidUrl'))
-  });
+  const schema = useMemo(
+    () =>
+      z.object({
+        url: z.url(t('invalidUrl'))
+      }),
+    [t]
+  );
 
   type FormData = z.infer<typeof schema>;
 

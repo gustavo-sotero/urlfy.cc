@@ -1,3 +1,5 @@
+'use client';
+
 // src/components/layout/skip-link.tsx
 import { useTranslations } from 'next-intl';
 

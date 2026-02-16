@@ -1,3 +1,5 @@
+'use client';
+
 // src/lib/hooks/use-admin.ts
 /**
  * React Query hooks for admin operations
@@ -28,7 +30,8 @@ export const adminKeys = {
   auditLogs: (filters: api.AuditLogsQuery) =>
     [...adminKeys.all, 'audit', filters] as const,
   users: (filters: { page?: number; perPage?: number; search?: string }) =>
-    [...adminKeys.all, 'users', filters] as const
+    [...adminKeys.all, 'users', filters] as const,
+  messages: (status?: string) => [...adminKeys.all, 'messages', status] as const
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -230,6 +233,44 @@ export function useUnbanUser(
     mutationFn: (userId: string) => api.unbanUser(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.users({}) });
+    },
+    ...options
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTACT MESSAGES
+// ═══════════════════════════════════════════════════════════════════
+
+export function useAdminMessages(
+  status?: string,
+  options?: Omit<
+    UseQueryOptions<api.ContactMessagesResponse>,
+    'queryKey' | 'queryFn'
+  >
+) {
+  return useQuery({
+    queryKey: adminKeys.messages(status),
+    queryFn: () => api.getAdminMessages(status),
+    staleTime: 30_000,
+    ...options
+  });
+}
+
+export function useUpdateMessageStatus(
+  options?: UseMutationOptions<
+    void,
+    Error,
+    { id: string; status: api.MessageStatus }
+  >
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: api.MessageStatus }) =>
+      api.updateMessageStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.all });
     },
     ...options
   });

@@ -82,7 +82,7 @@ export default async function LandingPage(): Promise<JSX.Element> {
 
             {/* Link Form */}
             <div className="mx-auto max-w-2xl">
-              <LinkForm variant="landing" />
+              <LinkForm />
             </div>
 
             <p className="text-sm text-muted-foreground">

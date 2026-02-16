@@ -3,7 +3,6 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -26,7 +25,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Link } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 import { useCreateLink } from '@/lib/hooks/use-links';
 import {
   parseRedirectType,

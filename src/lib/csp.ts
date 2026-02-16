@@ -42,13 +42,16 @@ export function buildCspDirectives({
   const directives = [
     "default-src 'self'",
     `script-src ${scriptSrc.join(' ')}`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://fonts.googleapis.com https://cdn.jsdelivr.net",
+    // 'unsafe-inline' required for Shadcn/ui and Radix UI which inject inline styles
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
     `img-src ${imgSrc.join(' ')}`,
-    "font-src 'self' data: https://fonts.gstatic.com https://fonts.scalar.com",
+    "font-src 'self' https://fonts.gstatic.com https://fonts.scalar.com",
     "connect-src 'self' https://cdn.jsdelivr.net",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
+    "object-src 'none'",
+    "worker-src 'self'",
     ...(isProduction ? ['upgrade-insecure-requests'] : [])
   ];
 

@@ -2,8 +2,9 @@
 'use client';
 
 import { ArrowLeft, Edit, ExternalLink, Trash } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
+import { useState } from 'react';
 import { AnalyticsDashboardSkeleton } from '@/components/charts/analytics-skeleton';
 import { ClicksChart } from '@/components/charts/clicks-chart';
 import { CountriesChart } from '@/components/charts/countries-chart';
@@ -11,6 +12,7 @@ import { DevicesChart } from '@/components/charts/devices-chart';
 import { ReferrersChart } from '@/components/charts/referrers-chart';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { QueryError } from '@/components/query-error';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { CopyButton } from '@/components/shared/copy-button';
 import { QRCodeButton } from '@/components/shared/qr-code-button';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +24,7 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import { Link } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 import { useLinkAnalytics } from '@/lib/hooks/use-analytics';
 import { useDeleteLink, useLink } from '@/lib/hooks/use-links';
 
@@ -37,12 +39,16 @@ export default function LinkDetailPage() {
   const { data: link, isLoading, isError, error, refetch } = useLink(linkId);
   const { daily, breakdown, summary } = useLinkAnalytics(linkId);
   const deleteLink = useDeleteLink();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleDelete = async () => {
-    if (!confirm(t('deleteConfirm'))) return;
+    setShowDeleteDialog(true);
+  };
 
+  const confirmDelete = async () => {
     try {
       await deleteLink.mutateAsync(linkId);
+      setShowDeleteDialog(false);
       router.push('/dashboard/links?deleted=true');
     } catch (error) {
       console.error('Failed to delete link:', error);
@@ -69,6 +75,15 @@ export default function LinkDetailPage() {
 
   return (
     <ErrorBoundary>
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title={t('deleteConfirm')}
+        description={t('deleteConfirm')}
+        onConfirm={confirmDelete}
+        confirmText={t('delete')}
+        loading={deleteLink.isPending}
+      />
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -86,7 +101,7 @@ export default function LinkDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <QRCodeButton code={link.shortCode} />
+            <QRCodeButton shortCode={link.shortCode} />
             <Button variant="outline" asChild>
               <Link href={`/dashboard/links/${linkId}/edit`}>
                 <Edit className="mr-2 h-4 w-4" />

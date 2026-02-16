@@ -2,9 +2,27 @@
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export function LinkCardSkeleton() {
+function buildSkeletonKeys(count: number): string[] {
+  const keys: string[] = [];
+  let seed = 'a';
+
+  while (keys.length < count) {
+    keys.push(`link-skeleton-${seed}`);
+    seed += 'a';
+  }
+
+  return keys;
+}
+
+interface LinkCardSkeletonProps {
+  ariaLabel?: string;
+}
+
+export function LinkCardSkeleton({
+  ariaLabel = 'Loading link...'
+}: LinkCardSkeletonProps) {
   return (
-    <Card className="p-4" aria-busy="true" aria-label="Carregando link...">
+    <Card className="p-4" aria-busy="true" aria-label={ariaLabel}>
       <div className="space-y-3">
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -32,11 +50,19 @@ export function LinkCardSkeleton() {
   );
 }
 
-export function LinkListSkeleton({ count = 5 }: { count?: number }) {
+export function LinkListSkeleton({
+  count = 5,
+  ariaLabel = 'Loading links'
+}: {
+  count?: number;
+  ariaLabel?: string;
+}) {
+  const keys = buildSkeletonKeys(count);
+
   return (
-    <div className="space-y-4" role="status" aria-label="Carregando links">
-      {Array.from({ length: count }, (_, i) => (
-        <LinkCardSkeleton key={`link-skeleton-${i}`} />
+    <div className="space-y-4" role="status" aria-label={ariaLabel}>
+      {keys.map((key) => (
+        <LinkCardSkeleton key={key} />
       ))}
     </div>
   );

@@ -11,6 +11,9 @@ export function Footer() {
   const tNav = useTranslations('Navigation');
   const tFooter = useTranslations('Footer');
 
+  const linkClass =
+    'text-muted-foreground hover:text-foreground transition-colors';
+
   return (
     <footer className="border-t bg-muted/30">
       <div className="container mx-auto px-4 py-8">
@@ -30,26 +33,17 @@ export function Footer() {
             <h4 className="font-semibold">{tFooter('product')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link
-                  href="/dashboard"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <Link href="/dashboard" className={linkClass}>
                   {t('dashboard')}
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/#features"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <Link href="/#features" className={linkClass}>
                   {tNav('features')}
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/api/docs"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <Link href="/api/docs" className={linkClass}>
                   {tNav('docs')}
                 </Link>
               </li>
@@ -61,34 +55,22 @@ export function Footer() {
             <h4 className="font-semibold">{tFooter('legal')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link
-                  href="/privacy"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <Link href="/privacy" className={linkClass}>
                   {t('privacy')}
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/terms"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <Link href="/terms" className={linkClass}>
                   {t('terms')}
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/help"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <Link href="/help" className={linkClass}>
                   {t('help')}
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/contact"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <Link href="/contact" className={linkClass}>
                   {t('contact')}
                 </Link>
               </li>
@@ -100,10 +82,7 @@ export function Footer() {
             <h4 className="font-semibold">{tFooter('project')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link
-                  href="/project"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <Link href="/project" className={linkClass}>
                   {tFooter('aboutProject')}
                 </Link>
               </li>
@@ -112,7 +91,7 @@ export function Footer() {
                   href="https://github.com/gustavo-sotero/urlfy.cc"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+                  className={`${linkClass} inline-flex items-center gap-1`}
                 >
                   <Github className="h-3 w-3" />
                   {tFooter('repository')}
@@ -123,7 +102,7 @@ export function Footer() {
                   href="https://gustavo-sotero.dev"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+                  className={`${linkClass} inline-flex items-center gap-1`}
                 >
                   <Rocket className="h-3 w-3" />
                   {tFooter('portfolio')}

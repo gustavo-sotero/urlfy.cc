@@ -1,6 +1,7 @@
 // src/components/charts/countries-chart.tsx
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   Bar,
   BarChart,
@@ -34,6 +35,8 @@ interface Props {
 }
 
 export function CountriesChart({ data }: Props) {
+  const t = useTranslations('Analytics.charts');
+
   // Take top 10 countries and normalize data structure
   const topCountries = data.slice(0, 10).map((item) => ({
     country: item.country || item.code || '',
@@ -42,8 +45,16 @@ export function CountriesChart({ data }: Props) {
     clicks: item.clicks
   }));
 
+  if (topCountries.length === 0) {
+    return (
+      <div className="flex h-100 items-center justify-center text-muted-foreground">
+        {t('noData')}
+      </div>
+    );
+  }
+
   return (
-    <div className="h-100">
+    <div className="h-100" role="img" aria-label={t('topCountries')}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={topCountries}

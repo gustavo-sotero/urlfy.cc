@@ -16,6 +16,9 @@ export {
   type AuditLogsQuery,
   banLink,
   banUser,
+  type ContactMessage,
+  type ContactMessagesResponse,
+  getAdminMessages,
   getAdminStats,
   getAdminStatsSSR,
   getAuditLogs,
@@ -25,12 +28,14 @@ export {
   getUsers,
   listAdminLinks,
   listAdminLinksSSR,
+  type MessageStatus,
   type StreamStats,
   searchLinks,
   type UserResponse,
   type UsersQuery,
   unbanLink,
   unbanUser,
+  updateMessageStatus,
   updateUser,
   updateUserRole
 } from './admin';
@@ -71,6 +76,7 @@ export {
   extractArrayData,
   extractErrorInfo,
   handleEden,
+  handleEdenVoid,
   type TreatyResponse,
   toQueryParams
 } from './error';
@@ -79,8 +85,10 @@ export {
 // ═══════════════════════════════════════════════════════════════════
 export {
   createLink,
+  type DashboardSummary,
   deleteLink,
   duplicateLink,
+  getDashboardSummary,
   getLink,
   getLinkPreview,
   getLinkStats,

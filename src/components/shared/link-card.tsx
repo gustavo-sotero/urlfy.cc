@@ -58,7 +58,13 @@ export function LinkCard({ link, onDelete }: Props) {
               </a>
               <CopyButton text={link.shortUrl} />
               {link.isProtected && (
-                <Lock className="h-3 w-3 text-muted-foreground" />
+                <>
+                  <Lock
+                    className="h-3 w-3 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <span className="sr-only">{t('passwordProtected')}</span>
+                </>
               )}
             </div>
             <a

@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
 
 type ConsentStatus = 'granted' | 'denied' | 'unknown';
 
@@ -129,35 +129,4 @@ export function useAnalyticsConsent() {
     denyAll,
     canTrack: consent === 'granted'
   };
-}
-
-/**
- * Load analytics script conditionally based on consent.
- *
- * This is a **legitimate** useEffect — it performs DOM manipulation
- * (injecting a <script> element), which is an external side-effect
- * that cannot be expressed as a pure render-time calculation.
- */
-export function useConditionalAnalytics(scriptId: string): void {
-  const { canTrack } = useAnalyticsConsent();
-
-  useEffect(() => {
-    if (!canTrack) return;
-
-    const script = document.createElement('script');
-    script.id = scriptId;
-    script.type = 'text/javascript';
-    script.async = true;
-    // Analytics script loading is deferred until a third-party analytics
-    // provider is selected and configured. No action needed for MVP.
-    // @owner gustavo-sotero
-    // @tracking TODO-ANALYTICS-PROVIDER-SELECTION (docs/development/todo-registry.md)
-    // script.src = "...";
-    // document.head.appendChild(script);
-
-    return () => {
-      const el = document.getElementById(scriptId);
-      el?.remove();
-    };
-  }, [canTrack, scriptId]);
 }

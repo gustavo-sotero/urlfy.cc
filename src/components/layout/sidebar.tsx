@@ -34,11 +34,14 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 space-y-1 p-4">
         {navigationItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            pathname === item.href ||
+            (item.href !== '/dashboard' && pathname.startsWith(item.href));
           return (
             <Link
               key={item.key}
               href={item.href}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
                 isActive

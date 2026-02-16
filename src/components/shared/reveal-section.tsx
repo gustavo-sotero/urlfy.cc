@@ -35,6 +35,12 @@ export function RevealSection({
     const el = sectionRef.current;
     if (!el) return;
 
+    // Respect user's motion preference
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setState('visible');
+      return;
+    }
+
     const rect = el.getBoundingClientRect();
     const isAboveFold = rect.top < window.innerHeight;
 
@@ -84,9 +90,9 @@ export function RevealSection({
   // hidden       → shifted down + transparent, with transition class for reveal
   const animationClass =
     state === 'hidden'
-      ? 'translate-y-8 opacity-0 transition-all duration-1000 ease-out'
+      ? 'translate-y-8 opacity-0 transition-all duration-1000 ease-out motion-reduce:transition-none motion-reduce:transform-none'
       : state === 'visible'
-        ? 'translate-y-0 opacity-100 transition-all duration-1000 ease-out'
+        ? 'translate-y-0 opacity-100 transition-all duration-1000 ease-out motion-reduce:transition-none'
         : '';
 
   const finalClassName = [animationClass, className].filter(Boolean).join(' ');

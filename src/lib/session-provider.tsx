@@ -72,8 +72,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
   } = useQuery({
     queryKey: SESSION_QUERY_KEY,
     queryFn: fetchSessionData,
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes — re-validate session periodically
+    refetchOnWindowFocus: true,
     retry: false
   });
 

@@ -16,15 +16,6 @@
 
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { CheckCircle2, Copy, Download, Loader2, Shield } from 'lucide-react';
-import Image from 'next/image';
-import { useTranslations } from 'next-intl';
-import qrcode from 'qrcode';
-import { useCallback, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,6 +34,15 @@ import {
   InputOTPSlot
 } from '@/components/ui/input-otp';
 import { authClient } from '@/lib/auth.client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { CheckCircle2, Copy, Download, Loader2, Shield } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import Image from 'next/image';
+import qrcode from 'qrcode';
+import { useCallback, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -439,9 +439,9 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
             <div className="space-y-4">
               {/* Backup Codes Grid */}
               <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-4">
-                {backupCodes.map((code, index) => (
+                {backupCodes.map((code) => (
                   <code
-                    key={index}
+                    key={code}
                     className="rounded bg-background px-2 py-1 text-center text-sm font-mono"
                   >
                     {code}
