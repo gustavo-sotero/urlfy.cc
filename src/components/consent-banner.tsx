@@ -5,12 +5,12 @@
 
 'use client';
 
+import { Button } from '@/components/ui/button';
+import { Link } from '@/i18n/routing';
 import * as FocusScope from '@radix-ui/react-focus-scope';
 import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Link } from '@/i18n/routing';
 
 interface ConsentPreferences {
   analytics: boolean;
@@ -90,6 +90,8 @@ export function ConsentBanner() {
 
   const handleRejectAll = async (): Promise<void> => {
     setIsLoading(true);
+    setAnalyticsChecked(false);
+    setMarketingChecked(false);
 
     const preferences: ConsentPreferences = {
       analytics: false,
@@ -108,8 +110,9 @@ export function ConsentBanner() {
     setIsLoading(false);
   };
 
-  const handleOpenSettings = (): void => {
-    // Save current checkbox preferences and dismiss
+  const handleSavePreferences = async (): Promise<void> => {
+    setIsLoading(true);
+
     const preferences: ConsentPreferences = {
       analytics: analyticsChecked,
       marketing: marketingChecked,
@@ -123,6 +126,7 @@ export function ConsentBanner() {
     );
 
     setShowBanner(false);
+    setIsLoading(false);
   };
 
   if (!showBanner) {
@@ -210,10 +214,10 @@ export function ConsentBanner() {
           <div className="mt-6 flex flex-wrap justify-end gap-3">
             <Button
               variant="outline"
-              onClick={handleOpenSettings}
+              onClick={handleSavePreferences}
               disabled={isLoading}
             >
-              {t('customize')}
+              {isLoading ? t('saving') : t('savePreferences')}
             </Button>
 
             <Button

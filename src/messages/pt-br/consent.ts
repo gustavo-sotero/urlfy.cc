@@ -8,6 +8,7 @@ export const Consent = {
   analytics: 'Analytics (anônimo)',
   marketing: 'Marketing',
   customize: 'Personalizar',
+  savePreferences: 'Salvar preferências',
   rejectAll: 'Rejeitar Tudo',
   acceptAll: 'Aceitar Tudo',
   saving: 'Salvando...',
