@@ -1,6 +1,8 @@
 // src/app/(admin)/admin/page.tsx
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { StatsCards } from '@/components/admin';
 import { AnalyticsErrorBoundary } from '@/components/admin/analytics-error-boundary';
 import { GrowthChart } from '@/components/admin/charts/growth-chart';
@@ -8,8 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { type AdminStats, getAdminStats, getGrowthStats } from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
 
 const STATS_SKELETON_KEYS = ['stat-1', 'stat-2', 'stat-3', 'stat-4'] as const;
 

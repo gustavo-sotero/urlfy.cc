@@ -1,6 +1,9 @@
 // src/app/(admin)/admin/users/page.tsx
 'use client';
 
+import { Loader2, MoreHorizontal, Search } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { QueryError } from '@/components/query-error';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -43,9 +46,6 @@ import {
   useUpdateUserRole,
   useUsers
 } from '@/lib/hooks/use-admin';
-import { Loader2, MoreHorizontal, Search } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 
 export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('');

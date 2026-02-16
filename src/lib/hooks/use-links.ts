@@ -5,14 +5,6 @@
  * React Query hooks for link management
  */
 
-import * as api from '@/lib/api';
-import type {
-  CreateLinkInput,
-  LinkResponse,
-  ListLinksQuery,
-  PaginatedResponse,
-  UpdateLinkInput
-} from '@/types/links.types';
 import {
   type UseMutationOptions,
   type UseQueryOptions,
@@ -21,6 +13,14 @@ import {
   useQueryClient
 } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import * as api from '@/lib/api';
+import type {
+  CreateLinkInput,
+  LinkResponse,
+  ListLinksQuery,
+  PaginatedResponse,
+  UpdateLinkInput
+} from '@/types/links.types';
 
 // ═══════════════════════════════════════════════════════════════════
 // QUERY KEYS
