@@ -42,7 +42,8 @@ export function buildCspDirectives({
   const directives = [
     "default-src 'self'",
     `script-src ${scriptSrc.join(' ')}`,
-    // 'unsafe-inline' required for Shadcn/ui and Radix UI which inject inline styles
+    // 'unsafe-inline' is required for Shadcn/ui + Radix UI inline style injection.
+    // Reference: https://www.radix-ui.com/primitives/docs/overview/styling
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
     `img-src ${imgSrc.join(' ')}`,
     "font-src 'self' https://fonts.gstatic.com https://fonts.scalar.com",
