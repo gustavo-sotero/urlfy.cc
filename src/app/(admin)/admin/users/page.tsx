@@ -1,9 +1,6 @@
 // src/app/(admin)/admin/users/page.tsx
 'use client';
 
-import { Loader2, MoreHorizontal, Search } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 import { QueryError } from '@/components/query-error';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +43,9 @@ import {
   useUpdateUserRole,
   useUsers
 } from '@/lib/hooks/use-admin';
+import { Loader2, MoreHorizontal, Search } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,11 +75,11 @@ export default function AdminUsersPage() {
 
     try {
       await updateRole.mutateAsync({ userId: selectedUser.id, role: newRole });
-      toast.success('Role updated successfully');
+      toast.success('Função atualizada com sucesso');
       setRoleDialogOpen(false);
       setSelectedUser(null);
     } catch {
-      toast.error('Error updating role');
+      toast.error('Erro ao atualizar função');
     }
   };
 
@@ -91,9 +91,9 @@ export default function AdminUsersPage() {
     if (!banTarget) return;
     try {
       await banUser.mutateAsync(banTarget.id);
-      toast.success('User banned successfully');
+      toast.success('Usuário banido com sucesso');
     } catch {
-      toast.error('Error banning user');
+      toast.error('Erro ao banir usuário');
     } finally {
       setBanTarget(null);
     }
@@ -102,9 +102,9 @@ export default function AdminUsersPage() {
   const handleUnban = async (user: UserResponse) => {
     try {
       await unbanUser.mutateAsync(user.id);
-      toast.success('User reactivated successfully');
+      toast.success('Usuário reativado com sucesso');
     } catch {
-      toast.error('Error reactivating user');
+      toast.error('Erro ao reativar usuário');
     }
   };
 
@@ -119,29 +119,29 @@ export default function AdminUsersPage() {
       <ConfirmDialog
         open={banTarget !== null}
         onOpenChange={(open) => !open && setBanTarget(null)}
-        title="Ban User"
-        description={`Are you sure you want to ban ${banTarget?.email}?`}
+        title="Banir usuário"
+        description={`Tem certeza que deseja banir ${banTarget?.email}?`}
         onConfirm={confirmBan}
-        confirmText="Ban User"
+        confirmText="Banir usuário"
         loading={banUser.isPending}
       />
       <div>
-        <h1 className="text-3xl font-bold">User Management</h1>
+        <h1 className="text-3xl font-bold">Gestão de Usuários</h1>
         <p className="text-muted-foreground">
-          Manage users and their permissions
+          Gerencie usuários e suas permissões
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Search Users</CardTitle>
+          <CardTitle>Buscar Usuários</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by email, name or ID..."
+                placeholder="Buscar por e-mail, nome ou ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -154,7 +154,7 @@ export default function AdminUsersPage() {
               ) : (
                 <Search className="mr-2 h-4 w-4" />
               )}
-              Search
+              Buscar
             </Button>
           </div>
         </CardContent>
@@ -162,26 +162,26 @@ export default function AdminUsersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Users</CardTitle>
+          <CardTitle>Usuários</CardTitle>
         </CardHeader>
         <CardContent>
           {isError ? (
             <QueryError
               error={error as Error}
               onRetry={refetch}
-              title="Error loading users"
+              title="Erro ao carregar usuários"
             />
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Role</TableHead>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Função</TableHead>
                     <TableHead>Quota</TableHead>
-                    <TableHead>Created at</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Criado em</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -194,7 +194,7 @@ export default function AdminUsersPage() {
                   ) : data?.data.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8">
-                        No users found
+                        Nenhum usuário encontrado
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -223,7 +223,7 @@ export default function AdminUsersPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                aria-label="User actions"
+                                aria-label="Ações do usuário"
                               >
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
@@ -232,18 +232,18 @@ export default function AdminUsersPage() {
                               <DropdownMenuItem
                                 onClick={() => openRoleDialog(user)}
                               >
-                                Change role
+                                Alterar função
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleBan(user)}
                                 className="text-destructive"
                               >
-                                Ban user
+                                Banir usuário
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleUnban(user)}
                               >
-                                Reactivate user
+                                Reativar usuário
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -263,10 +263,10 @@ export default function AdminUsersPage() {
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                   >
-                    Previous
+                    Anterior
                   </Button>
                   <span className="text-sm text-muted-foreground">
-                    Page {page} of {data.meta.lastPage}
+                    Página {page} de {data.meta.lastPage}
                   </span>
                   <Button
                     variant="outline"
@@ -274,7 +274,7 @@ export default function AdminUsersPage() {
                     onClick={() => setPage((p) => p + 1)}
                     disabled={!data.meta.hasMore}
                   >
-                    Next
+                    Próxima
                   </Button>
                 </div>
               )}
@@ -287,31 +287,31 @@ export default function AdminUsersPage() {
       <Dialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change User Role</DialogTitle>
+            <DialogTitle>Alterar Função do Usuário</DialogTitle>
             <DialogDescription>
-              Changing role of {selectedUser?.email}
+              Alterando função de {selectedUser?.email}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Select value={newRole} onValueChange={setNewRole}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a role" />
+                <SelectValue placeholder="Selecione uma função" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="user">Usuário</SelectItem>
+                <SelectItem value="admin">Administrador</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRoleDialogOpen(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button onClick={handleRoleChange} disabled={updateRole.isPending}>
               {updateRole.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              Save
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>

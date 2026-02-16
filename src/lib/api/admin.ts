@@ -9,8 +9,8 @@ import { BASE_URL, client, createClientWithHeaders } from './client';
 import {
   handleEden,
   handleEdenVoid,
-  type TreatyResponse,
-  toQueryParams
+  toQueryParams,
+  type TreatyResponse
 } from './error';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -209,7 +209,7 @@ export async function banLink(id: string, reason: string): Promise<void> {
     isBanned: true,
     bannedReason: reason
   });
-  handleEden(response);
+  handleEdenVoid(response);
 }
 
 /**
@@ -217,7 +217,7 @@ export async function banLink(id: string, reason: string): Promise<void> {
  */
 export async function unbanLink(id: string): Promise<void> {
   const response = await client.api.admin.links({ linkId: id }).unban.patch();
-  handleEden(response);
+  handleEdenVoid(response);
 }
 
 // ═══════════════════════════════════════════════════════════════════

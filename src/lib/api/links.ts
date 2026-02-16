@@ -16,6 +16,7 @@ import {
   ApiClientError,
   extractErrorInfo,
   handleEden,
+  handleEdenVoid,
   toQueryParams
 } from './error';
 
@@ -69,7 +70,7 @@ export async function updateLink(
 
 export async function deleteLink(id: string): Promise<void> {
   const response = await client.api.links({ id }).delete();
-  return handleEden(response);
+  handleEdenVoid(response);
 }
 
 export async function restoreLink(id: string): Promise<LinkResponse> {

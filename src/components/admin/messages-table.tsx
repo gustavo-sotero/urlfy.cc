@@ -1,9 +1,5 @@
 'use client';
 
-import { format } from 'date-fns';
-import { Check, Eye, Loader2, Mail, MailOpen, X } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,6 +26,10 @@ import {
 } from '@/components/ui/table';
 import type { ContactMessage, MessageStatus } from '@/lib/api';
 import { useAdminMessages, useUpdateMessageStatus } from '@/lib/hooks';
+import { format } from 'date-fns';
+import { Check, Eye, Loader2, Mail, MailOpen, X } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 // ═══════════════════════════════════════════════════════════════════
 // COMPONENT
@@ -46,14 +46,14 @@ export function MessagesTable() {
 
   const updateStatusMutation = useUpdateMessageStatus({
     onSuccess: () => {
-      toast.success('Status Updated', {
-        description: 'Message status has been updated'
+      toast.success('Status atualizado', {
+        description: 'O status da mensagem foi atualizado'
       });
       setSelectedMessage(null);
     },
     onError: (error) => {
-      toast.error('Update Failed', {
-        description: error.message || 'Unknown error'
+      toast.error('Falha na atualização', {
+        description: error.message || 'Erro desconhecido'
       });
     }
   });
@@ -72,18 +72,18 @@ export function MessagesTable() {
         return (
           <Badge variant="default" className="gap-1">
             <Mail className="h-3 w-3" />
-            Unread
+            Não lida
           </Badge>
         );
       case 'read':
         return (
           <Badge variant="secondary" className="gap-1">
             <MailOpen className="h-3 w-3" />
-            Read
+            Lida
           </Badge>
         );
       case 'archived':
-        return <Badge variant="outline">Archived</Badge>;
+        return <Badge variant="outline">Arquivada</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -102,37 +102,37 @@ export function MessagesTable() {
       {/* Filters */}
       <div className="mb-4 flex items-center gap-4">
         <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by status" />
+          <SelectTrigger className="w-45">
+            <SelectValue placeholder="Filtrar por status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Messages</SelectItem>
-            <SelectItem value="unread">Unread</SelectItem>
-            <SelectItem value="read">Read</SelectItem>
-            <SelectItem value="archived">Archived</SelectItem>
+            <SelectItem value="all">Todas</SelectItem>
+            <SelectItem value="unread">Não lidas</SelectItem>
+            <SelectItem value="read">Lidas</SelectItem>
+            <SelectItem value="archived">Arquivadas</SelectItem>
           </SelectContent>
         </Select>
         <div className="text-sm text-muted-foreground">
-          {messages.length} message{messages.length !== 1 ? 's' : ''}
+          {messages.length} mensagem{messages.length !== 1 ? 'ens' : ''}
         </div>
       </div>
 
       {/* Table */}
       {messages.length === 0 ? (
         <div className="py-12 text-center text-muted-foreground">
-          No messages found
+          Nenhuma mensagem encontrada
         </div>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Subject</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Nome</TableHead>
+              <TableHead>E-mail</TableHead>
+              <TableHead>Assunto</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Telegram</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -178,12 +178,12 @@ export function MessagesTable() {
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Message Details</DialogTitle>
+            <DialogTitle>Detalhes da Mensagem</DialogTitle>
             <DialogDescription>
-              Received on{' '}
+              Recebida em{' '}
               {selectedMessage?.createdAt
                 ? format(new Date(selectedMessage.createdAt), 'PPP')
-                : 'Unknown date'}
+                : 'data desconhecida'}
             </DialogDescription>
           </DialogHeader>
 
@@ -192,13 +192,13 @@ export function MessagesTable() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">
-                    Name
+                    Nome
                   </div>
                   <div>{selectedMessage.name}</div>
                 </div>
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">
-                    Email
+                    E-mail
                   </div>
                   <div>{selectedMessage.email}</div>
                 </div>
@@ -206,14 +206,14 @@ export function MessagesTable() {
 
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
-                  Subject
+                  Assunto
                 </div>
                 <div className="font-medium">{selectedMessage.subject}</div>
               </div>
 
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
-                  Message
+                  Mensagem
                 </div>
                 <div className="mt-2 rounded-md border bg-muted/30 p-4">
                   <p className="whitespace-pre-wrap">
@@ -231,13 +231,13 @@ export function MessagesTable() {
                 </div>
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">
-                    Telegram Notification
+                    Notificação do Telegram
                   </div>
                   <div>
                     {selectedMessage.telegramSent === 'yes' ? (
-                      <span className="text-green-600">Sent</span>
+                      <span className="text-green-600">Enviada</span>
                     ) : (
-                      <span className="text-red-600">Failed</span>
+                      <span className="text-red-600">Falhou</span>
                     )}
                   </div>
                 </div>
@@ -251,7 +251,7 @@ export function MessagesTable() {
                     }
                     disabled={updateStatusMutation.isPending}
                   >
-                    Mark as Read
+                    Marcar como lida
                   </Button>
                 )}
                 {selectedMessage.status !== 'archived' && (
@@ -262,7 +262,7 @@ export function MessagesTable() {
                     }
                     disabled={updateStatusMutation.isPending}
                   >
-                    Archive
+                    Arquivar
                   </Button>
                 )}
                 {selectedMessage.status === 'archived' && (
@@ -273,7 +273,7 @@ export function MessagesTable() {
                     }
                     disabled={updateStatusMutation.isPending}
                   >
-                    Unarchive
+                    Desarquivar
                   </Button>
                 )}
               </div>

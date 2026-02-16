@@ -5,8 +5,6 @@
 
 'use client';
 
-import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +24,8 @@ import {
 } from '@/components/ui/table';
 import type { StreamStats } from '@/lib/api';
 import { useQueueStats } from '@/lib/hooks';
+import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 
 export default function AdminQueuesPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -37,7 +37,7 @@ export default function AdminQueuesPage() {
 
     if (pending > 100) {
       return {
-        label: 'High Load',
+        label: 'Alta Carga',
         variant: 'destructive' as const,
         icon: AlertCircle
       };
@@ -45,14 +45,14 @@ export default function AdminQueuesPage() {
 
     if (pending > 10) {
       return {
-        label: 'Active',
+        label: 'Ativo',
         variant: 'default' as const,
         icon: AlertCircle
       };
     }
 
     return {
-      label: 'Healthy',
+      label: 'Saudável',
       variant: 'secondary' as const,
       icon: CheckCircle2
     };
@@ -78,9 +78,11 @@ export default function AdminQueuesPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-100 gap-4">
         <AlertCircle className="h-12 w-12 text-destructive" />
-        <p className="text-lg font-medium">Failed to load queue stats</p>
+        <p className="text-lg font-medium">
+          Falha ao carregar estatísticas das filas
+        </p>
         <p className="text-sm text-muted-foreground">{error.message}</p>
-        <Button onClick={handleRefresh}>Try Again</Button>
+        <Button onClick={handleRefresh}>Tentar novamente</Button>
       </div>
     );
   }
@@ -95,15 +97,15 @@ export default function AdminQueuesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Queue Monitoring
+            Monitoramento de Filas
           </h1>
           <p className="text-muted-foreground mt-1">
-            Real-time Redis Streams health and statistics
+            Saúde e estatísticas em tempo real dos Redis Streams
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={toggleAutoRefresh}>
-            {autoRefresh ? 'Disable' : 'Enable'} Auto-Refresh
+            {autoRefresh ? 'Desativar' : 'Ativar'} atualização automática
           </Button>
           <Button
             variant="outline"
@@ -114,7 +116,7 @@ export default function AdminQueuesPage() {
             <RefreshCw
               className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`}
             />
-            Refresh
+            Atualizar
           </Button>
         </div>
       </div>
@@ -123,7 +125,9 @@ export default function AdminQueuesPage() {
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-medium">Error loading latest data</p>
+            <p className="text-sm font-medium">
+              Erro ao carregar dados mais recentes
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
               {error.message}
             </p>
@@ -136,7 +140,7 @@ export default function AdminQueuesPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">
-              Total Messages
+              Total de Mensagens
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -144,7 +148,7 @@ export default function AdminQueuesPage() {
               {totalLength.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Across {streams.length} streams
+              Em {streams.length} streams
             </p>
           </CardContent>
         </Card>
@@ -158,7 +162,7 @@ export default function AdminQueuesPage() {
               {totalPending.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Messages being processed
+              Mensagens em processamento
             </p>
           </CardContent>
         </Card>
@@ -166,7 +170,7 @@ export default function AdminQueuesPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">
-              Consumer Groups
+              Grupos de Consumidores
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -174,7 +178,7 @@ export default function AdminQueuesPage() {
               {streams.reduce((sum, s) => sum + s.groups, 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Active consumer groups
+              Grupos consumidores ativos
             </p>
           </CardContent>
         </Card>
@@ -183,9 +187,9 @@ export default function AdminQueuesPage() {
       {/* Streams Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Stream Details</CardTitle>
+          <CardTitle>Detalhes dos Streams</CardTitle>
           <CardDescription>
-            Detailed statistics for each Redis Stream
+            Estatísticas detalhadas de cada Redis Stream
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -193,11 +197,13 @@ export default function AdminQueuesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Stream</TableHead>
-                <TableHead className="text-right">Length</TableHead>
-                <TableHead className="text-right">Groups</TableHead>
-                <TableHead className="text-right">Pending</TableHead>
+                <TableHead className="text-right">Tamanho</TableHead>
+                <TableHead className="text-right">Grupos</TableHead>
+                <TableHead className="text-right">Pendentes</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="hidden xl:table-cell">Last ID</TableHead>
+                <TableHead className="hidden xl:table-cell">
+                  Último ID
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -207,7 +213,7 @@ export default function AdminQueuesPage() {
                     colSpan={6}
                     className="text-center text-muted-foreground"
                   >
-                    No streams found
+                    Nenhum stream encontrado
                   </TableCell>
                 </TableRow>
               ) : (
@@ -236,7 +242,7 @@ export default function AdminQueuesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden xl:table-cell font-mono text-xs text-muted-foreground">
-                        {stream.lastGeneratedId || 'N/A'}
+                        {stream.lastGeneratedId || 'N/D'}
                       </TableCell>
                     </TableRow>
                   );
@@ -251,7 +257,7 @@ export default function AdminQueuesPage() {
       {autoRefresh && (
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-          Auto-refreshing every 15 seconds
+          Atualizando automaticamente a cada 15 segundos
         </div>
       )}
     </div>

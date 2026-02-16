@@ -159,7 +159,7 @@ export function handleEdenVoid(response: TreatyResponse<unknown>): void {
  * `as T` casts are intentional — they sit at the untyped Eden ↔ typed
  * caller boundary after all runtime guards have passed.
  */
-export function handleEden<T = void>(response: TreatyResponse<unknown>): T {
+export function handleEden<T>(response: TreatyResponse<unknown>): T {
   if (response.error) {
     const errorInfo = extractErrorInfo(response.error.value);
 
@@ -177,11 +177,13 @@ export function handleEden<T = void>(response: TreatyResponse<unknown>): T {
     );
   }
 
-  // Handle 204 No Content responses (e.g., DELETE operations)
-  // Callers expecting void should use handleEdenVoid instead.
-  // This branch is kept for backward compatibility.
+  // Data handlers should not be used for 204 No Content responses.
+  // Use handleEdenVoid for endpoints that intentionally return no payload.
   if (response.status === 204 || response.response?.status === 204) {
-    return undefined as T;
+    throw new ApiClientError(
+      'NO_CONTENT',
+      'No content response for data handler. Use handleEdenVoid for void endpoints.'
+    );
   }
 
   // Eden Treaty returns { data: T } where T is the backend response
@@ -190,10 +192,6 @@ export function handleEden<T = void>(response: TreatyResponse<unknown>): T {
 
   // Handle empty responses gracefully (may occur with some endpoints)
   if (!apiResponse) {
-    // For successful void operations, return undefined
-    if (response.status >= 200 && response.status < 300) {
-      return undefined as T;
-    }
     throw new ApiClientError('NO_DATA', 'No data received from server');
   }
 
@@ -218,9 +216,10 @@ export function handleEden<T = void>(response: TreatyResponse<unknown>): T {
     return apiResponse.data as T;
   }
 
-  // For responses with no data field (like void/delete), return the full response
-  // This preserves backward compatibility for endpoints that return { success: true }
-  return apiResponse as T;
+  throw new ApiClientError(
+    'NO_DATA',
+    'Response succeeded but did not include a data payload'
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════
