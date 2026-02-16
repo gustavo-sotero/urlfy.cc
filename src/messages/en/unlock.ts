@@ -7,6 +7,7 @@ export const Unlock = {
   unlock: 'Unlock',
   errors: {
     passwordRequired: 'Password is required',
-    wrongPassword: 'Incorrect password'
+    wrongPassword: 'Incorrect password',
+    invalidRedirect: 'Invalid redirect destination'
   }
 } as const;

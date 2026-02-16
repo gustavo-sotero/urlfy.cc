@@ -9,8 +9,8 @@ import { BASE_URL, client, createClientWithHeaders } from './client';
 import {
   handleEden,
   handleEdenVoid,
-  toQueryParams,
-  type TreatyResponse
+  type TreatyResponse,
+  toQueryParams
 } from './error';
 
 // ═══════════════════════════════════════════════════════════════════

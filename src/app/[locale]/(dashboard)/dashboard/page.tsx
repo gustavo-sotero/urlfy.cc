@@ -1,6 +1,15 @@
 // src/app/(dashboard)/dashboard/page.tsx
 'use client';
 
+import {
+  ArrowRight,
+  Link as LinkIcon,
+  MousePointer,
+  TrendingUp
+} from 'lucide-react';
+import { useFormatter, useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { QueryError } from '@/components/query-error';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { LinkCard } from '@/components/shared/link-card';
@@ -15,15 +24,6 @@ import {
   useLinks,
   useUserQuota
 } from '@/lib/hooks/use-links';
-import {
-  ArrowRight,
-  Link as LinkIcon,
-  MousePointer,
-  TrendingUp
-} from 'lucide-react';
-import { useFormatter, useTranslations } from 'next-intl';
-import { useState } from 'react';
-import { toast } from 'sonner';
 
 export default function DashboardPage() {
   const t = useTranslations('Dashboard');

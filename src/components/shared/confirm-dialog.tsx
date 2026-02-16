@@ -1,7 +1,6 @@
 // src/components/shared/confirm-dialog.tsx
 'use client';
 
-import { Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,6 +11,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
+import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -32,14 +33,19 @@ export function ConfirmDialog({
   description,
   onConfirm,
   variant = 'destructive',
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText,
+  cancelText,
   loading = false
 }: ConfirmDialogProps) {
+  const t = useTranslations('Common');
+
   const handleConfirm = async (e: React.MouseEvent) => {
     e.preventDefault();
     await onConfirm();
   };
+
+  const resolvedConfirmText = confirmText ?? t('confirm');
+  const resolvedCancelText = cancelText ?? t('cancel');
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -49,7 +55,9 @@ export function ConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>{cancelText}</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>
+            {resolvedCancelText}
+          </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -60,7 +68,7 @@ export function ConfirmDialog({
             }
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {confirmText}
+            {resolvedConfirmText}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

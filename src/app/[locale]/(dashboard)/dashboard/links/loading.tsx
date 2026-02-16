@@ -1,5 +1,5 @@
-import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
 import { getTranslations } from 'next-intl/server';
+import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
 
 export default async function LinksLoading() {
   const tCommon = await getTranslations('Common');

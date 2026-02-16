@@ -8,11 +8,10 @@ import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link } from '@/i18n/routing';
-import { useDebounce } from '@/lib/hooks/use-debounce';
 import { useDeleteLink, useLinks } from '@/lib/hooks/use-links';
 import { Plus, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useDeferredValue, useState } from 'react';
 import { toast } from 'sonner';
 
 export default function LinksPage() {
@@ -20,12 +19,12 @@ export default function LinksPage() {
   const tCommon = useTranslations('Common');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const debouncedSearch = useDebounce(search, 300);
+  const deferredSearch = useDeferredValue(search);
 
   const { data, isLoading, isError, error, refetch } = useLinks({
     page,
     perPage: 20,
-    search: debouncedSearch || undefined
+    search: deferredSearch || undefined
   });
 
   const deleteLink = useDeleteLink();
