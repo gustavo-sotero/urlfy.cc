@@ -52,7 +52,7 @@ const resource = resourceFromAttributes({
 // LOGGER PROVIDER
 // ═══════════════════════════════════════════════════════════════════
 
-export const loggerProvider = new LoggerProvider({ resource });
+export let loggerProvider = new LoggerProvider({ resource });
 
 // Generic type to allow access to addLogRecordProcessor
 type LoggerProviderWithProcessor = LoggerProvider & {
@@ -130,20 +130,32 @@ export function initTelemetry() {
     url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/logs`
   });
 
-  if (!logProcessorConfigured && 'addLogRecordProcessor' in loggerProvider) {
-    (
-      loggerProvider as unknown as LoggerProviderWithProcessor
-    ).addLogRecordProcessor(
-      new BatchLogRecordProcessor(logExporter, {
-        maxQueueSize: 2048,
-        maxExportBatchSize: 512,
-        scheduledDelayMillis: 1000,
-        exportTimeoutMillis: 10000
-      })
-    );
+  if (!logProcessorConfigured) {
+    const logProcessor = new BatchLogRecordProcessor(logExporter, {
+      maxQueueSize: 2048,
+      maxExportBatchSize: 512,
+      scheduledDelayMillis: 1000,
+      exportTimeoutMillis: 10000
+    });
+
+    if ('addLogRecordProcessor' in loggerProvider) {
+      (
+        loggerProvider as unknown as LoggerProviderWithProcessor
+      ).addLogRecordProcessor(logProcessor);
+    } else {
+      // OTel SDK newer APIs configure processors via constructor.
+      // Recreate provider so logs are always exported.
+      loggerProvider = new LoggerProvider({
+        resource,
+        processors: [logProcessor]
+      });
+    }
 
     logProcessorConfigured = true;
   }
+
+  const metricExportIntervalMillis =
+    process.env.NODE_ENV === 'development' ? 10000 : 60000;
 
   sdk = new NodeSDK({
     resource,
@@ -151,7 +163,7 @@ export function initTelemetry() {
     metricReaders: [
       new PeriodicExportingMetricReader({
         exporter: metricExporter,
-        exportIntervalMillis: 60000 // 1 minute
+        exportIntervalMillis: metricExportIntervalMillis
       })
     ],
     instrumentations: [
