@@ -125,6 +125,19 @@ export function validateEnv(): Env {
 
   try {
     const parsedEnv = envSchema.parse(process.env);
+
+    // Deprecation warning for OTEL_ENABLED
+    if (parsedEnv.OTEL_ENABLED && !parsedEnv.TELEMETRY_ENABLED) {
+      process.stderr.write(
+        `${JSON.stringify({
+          level: 'warn',
+          logger: 'env-validation',
+          message: 'OTEL_ENABLED is deprecated. Use TELEMETRY_ENABLED instead.',
+          timestamp: new Date().toISOString()
+        })}\n`
+      );
+    }
+
     env = {
       ...parsedEnv,
       TELEMETRY_ENABLED:

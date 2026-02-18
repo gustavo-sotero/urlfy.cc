@@ -22,7 +22,8 @@ mock.module('@/server/lib/telemetry', () => ({
     info: () => {},
     warn: () => {},
     error: () => {}
-  })
+  }),
+  configureLogging: async () => {}
 }));
 
 // In-memory Redis mock

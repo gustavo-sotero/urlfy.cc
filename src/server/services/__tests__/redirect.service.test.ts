@@ -98,6 +98,7 @@ const mockTelemetry = {
     warn: mock(() => {}),
     error: mock(() => {})
   })),
+  configureLogging: mock(async () => {}),
   cacheHits: { add: mock(() => {}) },
   cacheMisses: { add: mock(() => {}) },
   recordCacheHit: mock(() => {}),

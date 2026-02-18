@@ -124,6 +124,7 @@ mock.module('@/server/lib/telemetry', () => ({
     error: () => {}
   }),
   initTelemetry: () => {},
+  configureLogging: async () => {},
   shutdownTelemetry: () => Promise.resolve()
 }));
 

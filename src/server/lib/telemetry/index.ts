@@ -7,7 +7,7 @@
  */
 
 // SDK lifecycle
-export { initTelemetry, shutdownTelemetry } from './init';
+export { configureLogging, initTelemetry, shutdownTelemetry } from './init';
 export type { LogContext, Logger } from './logger';
 // Structured logger
 export { createLogger } from './logger';

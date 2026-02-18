@@ -175,6 +175,9 @@ export function createTelemetryMock() {
       warn: mock(() => {}),
       error: mock(() => {})
     })),
+    initTelemetry: mock(() => {}),
+    configureLogging: mock(async () => {}),
+    shutdownTelemetry: mock(async () => {}),
     cacheHits: { add: mock(() => {}) },
     cacheMisses: { add: mock(() => {}) },
     redisFallbacks: { add: mock(() => {}) },

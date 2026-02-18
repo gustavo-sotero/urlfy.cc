@@ -16,7 +16,8 @@ mock.module('@/server/lib/telemetry', () => ({
     warn: () => {},
     error: () => {},
     debug: () => {}
-  })
+  }),
+  configureLogging: async () => {}
 }));
 
 describe('enforceApiKeyRateLimit', () => {

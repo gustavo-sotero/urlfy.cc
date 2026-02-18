@@ -47,7 +47,8 @@ mock.module('@/server/lib/telemetry', () => ({
     warn: () => {},
     error: () => {},
     debug: () => {}
-  })
+  }),
+  configureLogging: async () => {}
 }));
 
 describe('Contact limiter trusted IP resolution (P0-S2)', () => {

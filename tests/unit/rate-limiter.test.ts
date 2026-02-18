@@ -25,7 +25,8 @@ mock.module('@/server/lib/redis/redis', () => ({
 }));
 
 mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => noopLogger
+  createLogger: () => noopLogger,
+  configureLogging: async () => {}
 }));
 
 /**

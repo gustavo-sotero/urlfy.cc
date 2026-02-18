@@ -1,4 +1,6 @@
 // Native Bun SQL for PostgreSQL
+
+import { getLogger as getDrizzleLogger } from '@logtape/drizzle-orm';
 import { SQL } from 'bun';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
@@ -100,7 +102,13 @@ export function getDatabase(): DrizzleDatabase {
   try {
     const { connUrl } = getConnectionConfig();
     sqlConnection = createSqlConnection(connUrl);
-    dbInstance = drizzle(sqlConnection, { schema });
+    dbInstance = drizzle(sqlConnection, {
+      schema,
+      logger: getDrizzleLogger({
+        category: ['urlfy', 'db'],
+        level: 'debug'
+      })
+    });
     // NOTE: Connection is lazy — no actual TCP/TLS happens here.
     // Call initDatabase() to eagerly test connectivity.
     return dbInstance;

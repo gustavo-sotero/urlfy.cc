@@ -54,7 +54,13 @@ const nextConfig: NextConfig = {
     '@opentelemetry/exporter-trace-otlp-http',
     '@opentelemetry/exporter-metrics-otlp-http',
     '@opentelemetry/exporter-logs-otlp-http',
-    '@opentelemetry/auto-instrumentations-node'
+    '@opentelemetry/auto-instrumentations-node',
+    // LogTape
+    '@logtape/logtape',
+    '@logtape/otel',
+    '@logtape/elysia',
+    '@logtape/drizzle-orm',
+    '@logtape/redaction'
   ],
 
   // Explicitly include server-only packages in output file tracing for standalone
@@ -74,7 +80,8 @@ const nextConfig: NextConfig = {
       './node_modules/resend/**/*',
       './node_modules/@react-email/**/*',
       './node_modules/cron/**/*',
-      './node_modules/@opentelemetry/**/*'
+      './node_modules/@opentelemetry/**/*',
+      './node_modules/@logtape/**/*'
     ]
   },
 

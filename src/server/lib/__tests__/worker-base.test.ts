@@ -28,7 +28,8 @@ mock.module('../telemetry', () => ({
     info: () => {},
     warn: () => {},
     error: () => {}
-  })
+  }),
+  configureLogging: async () => {}
 }));
 
 // Test worker implementation

@@ -9,6 +9,7 @@
 
 import { openapi } from '@elysiajs/openapi';
 import { opentelemetry } from '@elysiajs/opentelemetry';
+import { elysiaLogger } from '@logtape/elysia';
 import { Elysia } from 'elysia';
 import type { OpenAPIV3 } from 'openapi-types';
 import { auth } from '@/lib/auth';
@@ -136,6 +137,19 @@ export const api = new Elysia({ prefix: '/api' })
     opentelemetry({
       // Automatically uses the global SDK initialized in src/server/lib/telemetry.ts
       // No need to pass spanProcessors or exporters - they are inherited
+    })
+  )
+
+  // HTTP Request logging via LogTape (@logtape/elysia)
+  .use(
+    elysiaLogger({
+      category: ['urlfy', 'http'],
+      level: 'info',
+      format: 'short',
+      skip: (ctx) =>
+        ctx.path === '/api/health' ||
+        ctx.path === '/api/health/ready' ||
+        ctx.path.startsWith('/api/internal/docs')
     })
   )
 

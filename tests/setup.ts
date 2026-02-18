@@ -75,6 +75,38 @@ for (const secret of requiredSecrets) {
 // Ensure NODE_ENV is set to 'test'
 Object.defineProperty(process.env, 'NODE_ENV', { value: 'test' });
 
+// ═══════════════════════════════════════════════════════════════════
+// LOGTAPE MOCK (prevents configure() errors in tests)
+// ═══════════════════════════════════════════════════════════════════
+import { mock } from 'bun:test';
+
+// Mock LogTape to prevent configure() errors and keep tests silent
+mock.module('@logtape/logtape', () => ({
+  getLogger: () => ({
+    debug: () => {},
+    info: () => {},
+    warning: () => {},
+    error: () => {},
+    fatal: () => {},
+    trace: () => {}
+  }),
+  configure: async () => {},
+  reset: async () => {},
+  getConsoleSink: () => () => {}
+}));
+
+// Mock LogTape integrations that depend on @logtape/logtape
+mock.module('@logtape/otel', () => ({
+  getOpenTelemetrySink: () => () => {}
+}));
+mock.module('@logtape/redaction', () => ({
+  redactByField: (_sink: unknown) => _sink,
+  DEFAULT_REDACT_FIELDS: []
+}));
+mock.module('@logtape/drizzle-orm', () => ({
+  getLogger: () => ({ logQuery: () => {} })
+}));
+
 process.stdout.write(
   `${JSON.stringify({
     level: 'info',

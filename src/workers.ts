@@ -11,6 +11,7 @@
 
 import { validateEnv } from './lib/env';
 import {
+  configureLogging,
   createLogger,
   initTelemetry,
   shutdownTelemetry
@@ -67,6 +68,9 @@ async function main() {
   }
 
   initTelemetry();
+
+  // Configure LogTape logging pipeline (must be after initTelemetry)
+  await configureLogging();
 
   logger.info('🚀 Starting Workers...');
   logger.info('Press Ctrl+C to stop gracefully');

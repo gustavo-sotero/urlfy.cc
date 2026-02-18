@@ -6,6 +6,10 @@
  * This module uses Node.js-specific APIs not available in Edge/Middleware.
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { configure, getConsoleSink, type Sink } from '@logtape/logtape';
+import { getOpenTelemetrySink } from '@logtape/otel';
+import { DEFAULT_REDACT_FIELDS, redactByField } from '@logtape/redaction';
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
@@ -63,6 +67,7 @@ let sdk: NodeSDK | null = null;
 let telemetryInitialized = false;
 let logProcessorConfigured = false;
 let telemetryShuttingDown = false;
+let loggingConfigured = false;
 
 function writeBootstrap(
   level: 'info' | 'warn' | 'error',
@@ -198,6 +203,14 @@ export async function shutdownTelemetry() {
 
     telemetryShuttingDown = true;
 
+    // Reset LogTape before shutting down the OTel provider so any
+    // in-flight log records are flushed through the OTel sink first.
+    if (loggingConfigured) {
+      const { reset } = await import('@logtape/logtape');
+      await reset();
+      loggingConfigured = false;
+    }
+
     await loggerProvider.forceFlush();
     await loggerProvider.shutdown();
     await sdk.shutdown();
@@ -212,5 +225,132 @@ export async function shutdownTelemetry() {
     writeBootstrap('error', 'Error shutting down telemetry', {
       error: error instanceof Error ? error.message : String(error)
     });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOGTAPE LOGGING CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Custom field patterns for PII redaction.
+ * Replicates the original SENSITIVE_FIELDS set from the manual logger
+ * plus coverage for common variations via regex.
+ */
+const URLFY_REDACT_FIELDS: (string | RegExp)[] = [
+  /^pass(word|Hash|code|phrase)?$/i,
+  /^(api)?(Key|Secret)(Hash)?$/i,
+  /^(access|refresh)?[Tt]oken$/i,
+  /^authorization$/i,
+  /^cookie$/i,
+  /^email$/i,
+  /^(ip|ipAddress)$/i,
+  /^(creditCard|ssn)$/i
+];
+
+const URLFY_REDACT_PATTERNS: (string | RegExp)[] = [
+  ...DEFAULT_REDACT_FIELDS,
+  ...URLFY_REDACT_FIELDS
+];
+
+/**
+ * Configure LogTape logging pipeline.
+ *
+ * MUST be called AFTER `initTelemetry()` to ensure the OTel SDK and
+ * LoggerProvider are ready. Uses the same `loggerProvider` instance
+ * already configured in this module — zero duplication of exporters.
+ *
+ * Sinks:
+ * - otel: Sends logs via the existing OTel LoggerProvider to SigNoz
+ * - console: Structured console output (dev only), wrapped with field redaction
+ *
+ * Categories:
+ * - ["urlfy"]         — root category for all app logs
+ * - ["urlfy", "http"] — Elysia request logging (via @logtape/elysia)
+ * - ["urlfy", "db"]   — Drizzle ORM query logging (via @logtape/drizzle-orm)
+ * - ["drizzle-orm"]   — default category used by @logtape/drizzle-orm
+ * - ["logtape", "meta"] — LogTape internal diagnostics
+ */
+export async function configureLogging(): Promise<void> {
+  if (loggingConfigured) return;
+
+  const env = getEnv();
+  const isDev = process.env.NODE_ENV === 'development';
+  const telemetryActive =
+    env.TELEMETRY_ENABLED && !!env.OTEL_EXPORTER_OTLP_ENDPOINT;
+
+  // Build sinks
+  const sinks: Record<string, Sink> = {};
+
+  if (telemetryActive) {
+    // Use existing loggerProvider — logs go through the same
+    // BatchLogRecordProcessor → OTLPLogExporter pipeline already configured.
+    // LogTape handles body/attributes natively (no JSON.stringify).
+    sinks.otel = getOpenTelemetrySink({
+      loggerProvider,
+      exceptionAttributes: 'semconv'
+    });
+  }
+
+  if (isDev) {
+    // Console sink with field-based PII redaction for development output
+    sinks.console = redactByField(getConsoleSink(), {
+      fieldPatterns: URLFY_REDACT_PATTERNS,
+      action: () => '[REDACTED]'
+    });
+  }
+
+  // Determine available sink names
+  const appSinks = Object.keys(sinks);
+
+  if (appSinks.length === 0) {
+    // Production without telemetry — no sinks, logging is effectively noop.
+    loggingConfigured = true;
+    writeBootstrap('warn', 'No logging sinks available', {
+      telemetryActive,
+      isDev
+    });
+    return;
+  }
+
+  try {
+    await configure({
+      sinks,
+      loggers: [
+        // Root app category — all urlfy logs
+        {
+          category: ['urlfy'],
+          sinks: appSinks,
+          lowestLevel: isDev ? 'debug' : 'info'
+        },
+        // Drizzle ORM query logging (uses its own default category)
+        {
+          category: ['drizzle-orm'],
+          sinks: appSinks,
+          lowestLevel: isDev ? 'debug' : 'warning'
+        },
+        // LogTape meta logger — for debugging LogTape itself
+        {
+          category: ['logtape', 'meta'],
+          sinks: isDev ? ['console'] : [],
+          lowestLevel: 'warning'
+        }
+      ],
+      // Enable withContext() / withCategoryPrefix() for request correlation
+      contextLocalStorage: new AsyncLocalStorage()
+    });
+
+    loggingConfigured = true;
+    writeBootstrap('info', 'LogTape logging configured', {
+      sinks: appSinks,
+      telemetryActive,
+      isDev
+    });
+  } catch (error) {
+    writeBootstrap('error', 'Failed to configure LogTape', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    // Don't throw — logging failure should not crash the app
+    loggingConfigured = true;
   }
 }

@@ -1,14 +1,17 @@
 // src/server/lib/telemetry/logger.ts
 /**
- * Structured logger built on top of OpenTelemetry LoggerProvider.
+ * Structured logger adapter over LogTape.
  *
- * Usage:
+ * Maintains backward compatibility with the existing createLogger API:
  *   const logger = createLogger('my-module');
  *   logger.info('Something happened', { userId: '123' });
+ *
+ * Internally uses LogTape's getLogger(['urlfy', name]) to leverage
+ * the LogTape pipeline (OTel sink, redaction, categories).
+ * The logging pipeline is configured in configureLogging() (init.ts).
  */
 
-import { type Attributes, trace } from '@opentelemetry/api';
-import { loggerProvider } from './init';
+import { getLogger as getLogTapeLogger } from '@logtape/logtape';
 
 export interface LogContext {
   traceId?: string;
@@ -19,78 +22,9 @@ export interface LogContext {
 
 export type Logger = ReturnType<typeof createLogger>;
 
-function writeLine(stream: 'stdout' | 'stderr', payload: unknown) {
-  const line = `${JSON.stringify(payload)}\n`;
-  if (stream === 'stderr') {
-    process.stderr.write(line);
-    return;
-  }
-
-  process.stdout.write(line);
-}
-
-function normalizeAttributeValue(
-  value: unknown
-): string | number | boolean | string[] | number[] | boolean[] | undefined {
-  if (value === null || value === undefined) {
-    return undefined;
-  }
-
-  if (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  ) {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    if (value.every((item) => typeof item === 'string')) {
-      return value;
-    }
-    if (value.every((item) => typeof item === 'number')) {
-      return value;
-    }
-    if (value.every((item) => typeof item === 'boolean')) {
-      return value;
-    }
-
-    return [JSON.stringify(value)];
-  }
-
-  if (value instanceof Error) {
-    return `${value.name}: ${value.message}`;
-  }
-
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-function toOtelAttributes(
-  data: Record<string, unknown>
-): Record<string, string | number | boolean | string[] | number[] | boolean[]> {
-  const attributes: Record<
-    string,
-    string | number | boolean | string[] | number[] | boolean[]
-  > = {};
-
-  for (const [key, value] of Object.entries(data)) {
-    const normalized = normalizeAttributeValue(value);
-    if (normalized !== undefined) {
-      attributes[key] = normalized;
-    }
-  }
-
-  return attributes;
-}
-
 /**
- * Sensitive field names that should be redacted from log context.
- * Values are replaced with '[REDACTED]' to prevent PII/secrets leaking
- * into the observability pipeline.
+ * @deprecated Redaction is now handled at the sink level by @logtape/redaction.
+ * Kept for backward compatibility with existing tests that import this function.
  */
 const SENSITIVE_FIELDS = new Set([
   'password',
@@ -112,8 +46,9 @@ const SENSITIVE_FIELDS = new Set([
 ]);
 
 /**
- * Redact sensitive fields from log context to prevent PII leakage.
- * Only redacts top-level keys to avoid performance overhead of deep traversal.
+ * @deprecated Redaction is now handled at the sink level by @logtape/redaction
+ * via redactByField() in configureLogging(). Kept for backward compatibility
+ * with tests that import this function directly.
  */
 export function redactLogContext(ctx: LogContext): LogContext {
   const redacted: LogContext = {};
@@ -127,64 +62,34 @@ export function redactLogContext(ctx: LogContext): LogContext {
   return redacted;
 }
 
+/**
+ * Create a structured logger for a given module name.
+ *
+ * Category: ["urlfy", name] — inherits sinks configured for ["urlfy"].
+ * Redaction: Handled at the sink level (not per-call).
+ * OTel correlation: The @logtape/otel sink automatically picks up
+ *   the active trace/span context — no manual injection needed.
+ */
 export function createLogger(name: string) {
-  const logger = loggerProvider.getLogger(name);
+  const logger = getLogTapeLogger(['urlfy', name]);
 
-  const log = (level: string, message: string, ctx?: LogContext) => {
-    // Redact sensitive fields before any logging/emission
-    const safeCtx = ctx ? redactLogContext(ctx) : ctx;
-
-    // Safely get active span (may not exist in test environment)
-    const span =
-      typeof trace?.getActiveSpan === 'function'
-        ? trace.getActiveSpan()
-        : undefined;
-    const spanContext = span?.spanContext();
-
-    const logRecord: Record<string, unknown> = {
-      level,
-      message,
-      timestamp: new Date().toISOString(),
-      logger: name,
-      ...safeCtx
-    };
-
-    if (spanContext) {
-      logRecord.traceId = spanContext.traceId;
-      logRecord.spanId = spanContext.spanId;
-    }
-
-    // Emit structured log record
-    const attributes = toOtelAttributes(logRecord) as unknown as Attributes;
-
-    try {
-      logger.emit({
-        severityText: level.toUpperCase(),
-        body: JSON.stringify(logRecord),
-        attributes
-      });
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') {
-        writeLine('stderr', {
-          event: 'failed-to-emit-log-record',
-          error: error instanceof Error ? error.message : String(error),
-          logger: name,
-          level,
-          message
-        });
-      }
-    }
-
-    // Console log in development
-    if (process.env.NODE_ENV === 'development') {
-      writeLine('stdout', logRecord);
+  const log = (
+    level: 'debug' | 'info' | 'warning' | 'error',
+    message: string,
+    ctx?: LogContext
+  ) => {
+    if (ctx) {
+      logger[level](message, ctx);
+    } else {
+      logger[level](message);
     }
   };
 
   return {
     debug: (message: string, ctx?: LogContext) => log('debug', message, ctx),
     info: (message: string, ctx?: LogContext) => log('info', message, ctx),
-    warn: (message: string, ctx?: LogContext) => log('warn', message, ctx),
+    // LogTape uses 'warning' internally; map 'warn' for backward compat
+    warn: (message: string, ctx?: LogContext) => log('warning', message, ctx),
     error: (message: string, ctx?: LogContext) => log('error', message, ctx)
   };
 }

@@ -78,7 +78,6 @@ unlock verification and redirect safety checks before issuing the redirect.
 | ----------------------------------------- | ------- | ------------------------------ |
 | `src/proxy.ts`                            | Edge    | Route matching                 |
 | `src/app/r/[code]/route.ts`               | Node.js | Redirect resolution + response |
-| `src/server/lib/telemetry.edge.ts`        | Edge    | Lightweight logging            |
 | `src/server/services/redirect.service.ts` | Node.js | Full redirect service          |
 | `src/server/lib/telemetry.ts`             | Node.js | OpenTelemetry                  |
 

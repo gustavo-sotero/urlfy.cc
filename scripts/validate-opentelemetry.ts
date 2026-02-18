@@ -184,18 +184,153 @@ try {
     resolve(process.cwd(), 'src/server/lib/telemetry.ts'),
     'utf-8'
   );
+  const telemetryInit = readFileSync(
+    resolve(process.cwd(), 'src/server/lib/telemetry/init.ts'),
+    'utf-8'
+  );
 
-  const hasOtelSdk = telemetryLib.includes('@opentelemetry/sdk-node');
+  const hasOtelSdk =
+    telemetryLib.includes('@opentelemetry/sdk-node') ||
+    telemetryInit.includes('@opentelemetry/sdk-node');
   validate(
     'Step 5',
     hasOtelSdk,
     'Global OpenTelemetry SDK configured',
     hasOtelSdk
-      ? 'SDK initialization found in src/server/lib/telemetry.ts'
+      ? 'SDK initialization found in src/server/lib/telemetry/init.ts'
       : 'SDK not found'
   );
 } catch (error) {
   validate('Step 5', false, 'Failed to read telemetry.ts', String(error));
+}
+
+// Step 6: Check LogTape packages
+try {
+  const packageJson = JSON.parse(
+    readFileSync(resolve(process.cwd(), 'package.json'), 'utf-8')
+  );
+
+  const hasLogTape = '@logtape/logtape' in packageJson.dependencies;
+  const hasLogTapeOtel = '@logtape/otel' in packageJson.dependencies;
+  const hasLogTapeElysia = '@logtape/elysia' in packageJson.dependencies;
+  const hasLogTapeDrizzle = '@logtape/drizzle-orm' in packageJson.dependencies;
+  const hasLogTapeRedaction = '@logtape/redaction' in packageJson.dependencies;
+
+  validate(
+    'Step 6a',
+    hasLogTape,
+    '@logtape/logtape installed',
+    hasLogTape
+      ? `Version: ${packageJson.dependencies['@logtape/logtape']}`
+      : 'Not found in dependencies'
+  );
+  validate(
+    'Step 6b',
+    hasLogTapeOtel,
+    '@logtape/otel installed',
+    hasLogTapeOtel
+      ? `Version: ${packageJson.dependencies['@logtape/otel']}`
+      : 'Not found in dependencies'
+  );
+  validate(
+    'Step 6c',
+    hasLogTapeElysia,
+    '@logtape/elysia installed',
+    hasLogTapeElysia
+      ? `Version: ${packageJson.dependencies['@logtape/elysia']}`
+      : 'Not found in dependencies'
+  );
+  validate(
+    'Step 6d',
+    hasLogTapeDrizzle,
+    '@logtape/drizzle-orm installed',
+    hasLogTapeDrizzle
+      ? `Version: ${packageJson.dependencies['@logtape/drizzle-orm']}`
+      : 'Not found in dependencies'
+  );
+  validate(
+    'Step 6e',
+    hasLogTapeRedaction,
+    '@logtape/redaction installed',
+    hasLogTapeRedaction
+      ? `Version: ${packageJson.dependencies['@logtape/redaction']}`
+      : 'Not found in dependencies'
+  );
+} catch (error) {
+  validate('Step 6', false, 'Failed to check LogTape packages', String(error));
+}
+
+// Step 7: Check LogTape configuration in init.ts
+try {
+  const initTs = readFileSync(
+    resolve(process.cwd(), 'src/server/lib/telemetry/init.ts'),
+    'utf-8'
+  );
+
+  validate(
+    'Step 7a',
+    initTs.includes('configureLogging'),
+    'configureLogging() function exists in init.ts',
+    initTs.includes('configureLogging')
+      ? 'Function found'
+      : 'Function not found'
+  );
+  validate(
+    'Step 7b',
+    initTs.includes('getOpenTelemetrySink'),
+    'LogTape OTel sink configured',
+    initTs.includes('getOpenTelemetrySink')
+      ? 'getOpenTelemetrySink() call found'
+      : 'Not found'
+  );
+  validate(
+    'Step 7c',
+    initTs.includes('redactByField'),
+    'Field-based redaction configured',
+    initTs.includes('redactByField')
+      ? 'redactByField() call found'
+      : 'Not found'
+  );
+} catch (error) {
+  validate('Step 7', false, 'Failed to check LogTape config', String(error));
+}
+
+// Step 8: Check Elysia request logging via @logtape/elysia
+try {
+  const serverIndex = readFileSync(
+    resolve(process.cwd(), 'src/server/index.ts'),
+    'utf-8'
+  );
+
+  validate(
+    'Step 8',
+    serverIndex.includes('elysiaLogger'),
+    'Elysia request logging via @logtape/elysia',
+    serverIndex.includes('elysiaLogger')
+      ? 'elysiaLogger() middleware found'
+      : 'Not found'
+  );
+} catch (error) {
+  validate('Step 8', false, 'Failed to check Elysia logging', String(error));
+}
+
+// Step 9: Check Drizzle ORM query logging
+try {
+  const dbIndex = readFileSync(
+    resolve(process.cwd(), 'src/db/index.ts'),
+    'utf-8'
+  );
+
+  validate(
+    'Step 9',
+    dbIndex.includes('getDrizzleLogger'),
+    'Drizzle ORM query logging via @logtape/drizzle-orm',
+    dbIndex.includes('getDrizzleLogger')
+      ? 'getDrizzleLogger() call found in db/index.ts'
+      : 'Not found'
+  );
+} catch (error) {
+  validate('Step 9', false, 'Failed to check Drizzle logging', String(error));
 }
 
 // Print results

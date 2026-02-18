@@ -13,7 +13,8 @@ const mockLogger = {
 };
 
 mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => mockLogger
+  createLogger: () => mockLogger,
+  configureLogging: async () => {}
 }));
 
 // Mock Redis client

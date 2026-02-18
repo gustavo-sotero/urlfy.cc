@@ -6,6 +6,7 @@ import { closeDatabase, initDatabase } from '@/db';
 import { validateEnv } from '@/lib/env';
 import { closeRedis } from '@/server/lib/redis';
 import {
+  configureLogging,
   createLogger,
   initTelemetry,
   shutdownTelemetry
@@ -29,6 +30,9 @@ if (
 
   // Initialize telemetry
   initTelemetry();
+
+  // Configure LogTape logging pipeline (must be after initTelemetry)
+  await configureLogging();
 
   // Eagerly test database connectivity.
   // This MUST complete before the server accepts requests.
