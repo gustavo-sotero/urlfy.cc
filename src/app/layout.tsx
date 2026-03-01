@@ -44,7 +44,7 @@ export default async function RootLayout({
       >
         <SkipLink label={skipLinkLabel} />
         <CspNonceProvider nonce={nonce}>
-          <Providers>
+          <Providers nonce={nonce}>
             <div id="main-content">{children}</div>
           </Providers>
         </CspNonceProvider>

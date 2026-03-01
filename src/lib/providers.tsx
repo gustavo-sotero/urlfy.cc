@@ -8,7 +8,13 @@ import { Toaster } from 'sonner';
 import { AnnouncerProvider } from '@/components/ui/announcer';
 import { SessionProvider } from './session-provider';
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({
+  children,
+  nonce
+}: {
+  children: ReactNode;
+  nonce?: string;
+}) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -30,6 +36,7 @@ export function Providers({ children }: { children: ReactNode }) {
         forcedTheme="dark"
         enableSystem={false}
         disableTransitionOnChange
+        nonce={nonce}
       >
         <SessionProvider>
           <AnnouncerProvider>
