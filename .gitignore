@@ -42,7 +42,14 @@ opencode.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tsc emit artifacts (project uses noEmit; these should never be committed)
+src/messages/**/*.js
+src/messages/**/*.d.ts
+src/messages/**/*.d.ts.map
 .serena
 .github/instructions
 .github/prompts
 .github/copilot-instructions.md
+dist/
+node_modules/

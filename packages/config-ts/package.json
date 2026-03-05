@@ -1,0 +1,17 @@
+{
+  "name": "@urlfy/config-ts",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./base": "./base.json",
+    "./nextjs": "./nextjs.json",
+    "./server": "./server.json",
+    "./react-library": "./react-library.json"
+  },
+  "files": [
+    "base.json",
+    "nextjs.json",
+    "server.json",
+    "react-library.json"
+  ]
+}

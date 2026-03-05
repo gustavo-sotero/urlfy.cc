@@ -52,7 +52,48 @@
 
 ## Architecture
 
+### Monorepo Structure
+
+This project is organized as a **Bun Workspaces + Turborepo** monorepo:
+
 ```
+urlfy.cc/
+├── apps/
+│   ├── web/          # Next.js 16 frontend + redirect hot path
+│   ├── api/          # Standalone ElysiaJS API server (port 3001)
+│   └── worker/       # Redis Streams workers (analytics, cleanup)
+├── packages/
+│   ├── auth-shared/  # ACL scopes shared by api and web
+│   ├── cache/        # Redis client, cache keys, distributed lock
+│   ├── config-biome/ # Shared Biome formatter/linter config
+│   ├── config-ts/    # Shared TypeScript configs (base/nextjs/server)
+│   ├── contracts/    # API types (request/response shapes)
+│   ├── data/         # Drizzle ORM schemas + DB client
+│   ├── redirect-domain/ # Redirect domain logic (cache, validate, url-build)
+│   └── telemetry/    # OpenTelemetry + structured logging (LogTape)
+├── docker/
+│   ├── docker-compose.yml         # Infrastructure (PostgreSQL, Redis, GeoIP)
+│   └── docker-compose.apps.yml    # Application services overlay (web/api/worker)
+└── drizzle/          # Database migrations
+```
+
+### Service Communication
+
+```
+Browser → apps/web (port 3000 / Next.js)
+            ├── /r/:code  → redirect hot path (in-process, no network hop)
+            │               uses @urlfy/redirect-domain package
+            └── /api/**   → HTTP proxy to apps/api (port 3001)
+
+apps/api (port 3001 / ElysiaJS)
+            └── writes analytics events → Redis Streams
+
+apps/worker (no port / Bun)
+            └── consumes Redis Streams → PostgreSQL
+```
+
+```
+
 ┌──────────────────────────────────────────────────────────────┐
 │                       DOCKER COMPOSE                         │
 ├──────────────────────────────────────────────────────────────┤
@@ -101,9 +142,8 @@ The redirect engine is optimized for sub-30ms P50 latency:
 
 ### Prerequisites
 
-- [Bun](https://bun.sh) v1.x+
+- [Bun](https://bun.sh) v1.3.9+
 - [Docker](https://www.docker.com/) & Docker Compose
-- [Node.js](https://nodejs.org/) 20+ (optional, for some tooling)
 
 ### 1. Clone the repository
 
@@ -118,13 +158,15 @@ cd urlfy.cc
 bun install
 ```
 
+This installs dependencies for **all workspaces** (apps + packages) in a single command.
+
 ### 3. Start infrastructure services
 
 ```bash
 bun run docker:up
 ```
 
-This starts **PostgreSQL 16** and **Redis 7** in Docker containers.
+Starts **PostgreSQL 16**, **Redis 7**, and the **GeoIP downloader** in Docker containers.
 
 ### 4. Configure environment
 
@@ -132,7 +174,11 @@ This starts **PostgreSQL 16** and **Redis 7** in Docker containers.
 cp .env.example .env
 ```
 
-Edit `.env` with your values (see [Environment Variables](#environment-variables) below).
+Edit `.env` with your values. The same env file is used by all services.
+
+Key env for the monorepo:
+- `API_INTERNAL_URL` — URL that apps/web proxies API calls to (default: `http://localhost:3001`)
+- `API_PORT` — Port for the standalone Elysia API server (default: `3001`)
 
 ### 5. Run database migrations
 
@@ -146,21 +192,30 @@ bun run db:migrate
 bun run db:seed
 ```
 
-### 7. Download GeoIP database (optional)
-
-```bash
-bun run docker:geoip
-```
-
-### 8. Start development server
+### 7. Start development servers
 
 ```bash
 bun run dev
 ```
 
-The app will be available at **http://localhost:3000**.
+This uses **Turborepo** to start all apps in parallel:
+- `apps/web` → [http://localhost:3000](http://localhost:3000) (Next.js)
+- `apps/api` → [http://localhost:3001](http://localhost:3001) (Elysia API)
+- `apps/worker` → background process (no HTTP)
 
-> This starts both the Next.js app and the background workers concurrently.
+> **Or start individual services:**
+> ```bash
+> bun run dev:web     # Next.js only
+> bun run dev:api     # Elysia API only
+> bun run dev:worker  # Worker only
+> ```
+
+### Running with Docker Compose (all services)
+
+```bash
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up -d
+```
+
 
 ## Environment Variables
 
@@ -185,19 +240,22 @@ The app will be available at **http://localhost:3000**.
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | No       | —                               | SigNoz/OTLP collector endpoint           |
 | `GEOIP_DB_PATH`               | No       | `/app/geoip/GeoLite2-City.mmdb` | Path to GeoLite2 MMDB file               |
 | `TRUSTED_ORIGINS`             | No       | —                               | Comma-separated list of trusted origins  |
+| `API_INTERNAL_URL`            | No       | `http://localhost:3001`         | URL apps/web proxies API calls to        |
+| `API_PORT`                    | No       | `3001`                          | Port for the standalone Elysia API server |
 
 ## Scripts
 
 ### Development
 
-| Command              | Description                                    |
-| -------------------- | ---------------------------------------------- |
-| `bun run dev`        | Start app + workers in dev mode (hot reload)   |
-| `bun run dev:app`    | Start only the Next.js app                     |
-| `bun run worker:dev` | Start only the background workers (watch mode) |
-| `bun run lint`       | Check & fix with Biome                         |
-| `bun run format`     | Format code with Biome                         |
-| `bun run type-check` | TypeScript type checking                       |
+| Command               | Description                                              |
+| --------------------- | -------------------------------------------------------- |
+| `bun run dev`         | Start all apps in parallel (Turborepo)                   |
+| `bun run dev:web`     | Start only apps/web (Next.js, port 3000)                 |
+| `bun run dev:api`     | Start only apps/api (Elysia, port 3001)                  |
+| `bun run dev:worker`  | Start only apps/worker (background workers)              |
+| `bun run lint`        | Lint & auto-fix all workspaces (Biome)                   |
+| `bun run format`      | Format all workspaces (Biome)                            |
+| `bun run type-check`  | Type-check all workspaces (Turborepo → tsc --noEmit)     |
 
 ### Database
 
@@ -220,10 +278,12 @@ The app will be available at **http://localhost:3000**.
 
 ### Build & Production
 
-| Command         | Description                        |
-| --------------- | ---------------------------------- |
-| `bun run build` | Build Next.js + post-build scripts |
-| `bun run start` | Start production app + workers     |
+| Command              | Description                                     |
+| -------------------- | ----------------------------------------------- |
+| `bun run build`      | Build all apps (Turborepo — web + api)          |
+| `bun run start`      | Start all apps in production mode               |
+| `bun run start:web`  | Start apps/web production server                |
+| `bun run start:api`  | Start apps/api production server                |
 
 ### Testing
 
@@ -272,45 +332,53 @@ The ElysiaJS API is mounted at `/api/` via a Next.js catch-all route and auto-ge
 ## Project Structure
 
 ```
-src/
-├── app/                    # Next.js App Router (pages, layouts, API gateway)
-│   ├── api/[[...slugs]]/   # ElysiaJS API catch-all mount point
-│   └── [locale]/           # i18n routing
-├── components/             # React components (UI, dashboard, admin, etc.)
-├── db/
-│   ├── schema/             # Drizzle ORM schemas (single source of truth)
-│   └── scripts/            # Seed data, migration runners
-├── emails/                 # React Email templates
-├── i18n/                   # Internationalization config
-├── lib/                    # Shared utilities, auth config, env validation
-├── messages/               # Translation files (pt-BR, en)
-├── server/
-│   ├── modules/            # Feature-based API modules (Elysia MVC)
-│   │   ├── links/          # Link CRUD, QR codes, UTM
-│   │   ├── analytics/      # Click analytics, aggregation
-│   │   ├── auth/           # Authentication endpoints
-│   │   ├── admin/          # Admin panel API
-│   │   └── ...
-│   ├── middleware/          # Redirect engine, rate limiting, security headers
-│   ├── services/           # Shared business logic
-│   ├── workers/            # Background job processors
-│   └── lib/                # Server utilities (cache, queue, circuit breaker)
-├── proxy.ts                # Edge redirect proxy (hot path)
-└── workers.ts              # Worker process entry point
-
-docker/
-├── docker-compose.yml      # Dev: PostgreSQL + Redis
-├── docker-compose.prod.yml # Production compose
-├── Dockerfile              # Multi-stage app build
-└── geoip/                  # GeoIP auto-downloader
-
-tests/
-├── unit/                   # Unit tests
-├── integration/            # Integration tests
-├── security/               # Security tests
-├── e2e/                    # Playwright E2E tests
-├── load/                   # Load testing (k6)
-└── perf/                   # Performance benchmarks
+urlfy.cc/
+├── apps/
+│   ├── web/                      # Next.js 16 (frontend + redirect hot path)
+│   │   └── src/
+│   │       ├── app/              # App Router (pages, layouts, API proxy)
+│   │       │   ├── api/[[...slugs]]/  # Proxy: forwards /api/* → apps/api
+│   │       │   └── r/[code]/     # Redirect hot path (in-process)
+│   │       ├── components/       # React components (UI, dashboard, admin)
+│   │       ├── lib/              # Client utilities, auth client, env
+│   │       └── server/           # Server-only utilities (email, audit)
+│   ├── api/                      # ElysiaJS standalone API (port 3001)
+│   │   └── src/server/
+│   │       ├── modules/          # Feature-based Elysia MVC
+│   │       │   ├── links/        # Link CRUD, QR codes, UTM
+│   │       │   ├── analytics/    # Click analytics, aggregation
+│   │       │   ├── auth/         # Authentication endpoints
+│   │       │   └── admin/        # Admin panel API
+│   │       ├── middleware/       # Rate limiting, security, auth
+│   │       ├── services/         # Shared business logic
+│   │       └── lib/              # Server utilities (cache, queue, circuit breaker)
+│   └── worker/                   # Redis Streams workers (Bun process)
+│       └── src/
+│           ├── workers/          # Analytics, aggregation, cleanup, deletion
+│           └── jobs/             # Scheduled jobs
+├── packages/
+│   ├── auth-shared/              # ACL scopes shared by api and web
+│   ├── cache/                    # Redis client, cache keys, distributed lock
+│   ├── config-biome/             # Shared Biome formatter/linter config
+│   ├── config-ts/                # Shared TypeScript configs (base/nextjs/server)
+│   ├── contracts/                # API types (request/response shapes)
+│   ├── data/                     # Drizzle ORM schemas + DB client
+│   ├── redirect-domain/          # Redirect logic (cache, validate, url-build)
+│   └── telemetry/                # OpenTelemetry + structured logging
+├── docker/
+│   ├── docker-compose.yml        # Infrastructure (PostgreSQL, Redis, GeoIP)
+│   ├── docker-compose.apps.yml   # Application services overlay
+│   ├── web.Dockerfile            # apps/web multi-stage image
+│   ├── api.Dockerfile            # apps/api multi-stage image
+│   └── geoip/                    # GeoLite2 auto-downloader
+├── drizzle/                      # Database migrations
+└── tests/
+    ├── unit/                     # Unit tests
+    ├── integration/              # Integration tests
+    ├── security/                 # Security tests
+    ├── e2e/                      # Playwright E2E tests
+    ├── load/                     # Load testing (k6)
+    └── perf/                     # Performance benchmarks
 ```
 
 ## Testing
@@ -345,10 +413,14 @@ bun run test:e2e
 ### Docker (Production)
 
 ```bash
-# Build the app image
-bun run docker:build:app
+# Build individual app images
+docker build -f docker/web.Dockerfile -t urlfy-web .
+docker build -f docker/api.Dockerfile -t urlfy-api .
 
-# Start with production compose
+# Start all services (infra + apps)
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up -d
+
+# Or use the production compose
 cd docker && docker compose -f docker-compose.prod.yml up -d
 ```
 

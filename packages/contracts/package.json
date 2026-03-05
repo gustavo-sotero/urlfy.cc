@@ -1,0 +1,26 @@
+{
+  "name": "@urlfy/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared types, DTOs and API envelopes for urlfy.cc",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./analytics": "./src/analytics.types.ts",
+    "./api-keys": "./src/api-keys.types.ts",
+    "./auth": "./src/auth.types.ts",
+    "./links": "./src/links.types.ts",
+    "./redirect": "./src/redirect.types.ts",
+    "./security": "./src/security.types.ts",
+    "./shared": "./src/shared.ts"
+  },
+  "scripts": {
+    "type-check": "bunx tsc --noEmit",
+    "lint": "bunx biome check . --write"
+  },
+  "dependencies": {
+    "@urlfy/auth-shared": "workspace:*",
+    "@urlfy/data": "workspace:*"
+  }
+}

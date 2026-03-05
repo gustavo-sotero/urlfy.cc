@@ -1,0 +1,10 @@
+{
+  "extends": "@urlfy/config-ts/server",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "drizzle.config.ts"],
+  "exclude": ["node_modules", "dist", "migrations"]
+}

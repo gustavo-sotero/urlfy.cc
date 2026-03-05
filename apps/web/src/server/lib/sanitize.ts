@@ -1,0 +1,251 @@
+/**
+ * Sanitization Service
+ * Prevents XSS, injection attacks, and enforces security policies
+ */
+
+import DOMPurify from 'isomorphic-dompurify';
+import { createLogger } from './telemetry';
+
+const logger = createLogger('sanitizer');
+
+const TITLE_MAX = 60;
+const DESC_MAX = 160;
+const IMAGE_URL_MAX = 500;
+const TAGS_MAX_LENGTH = 50;
+const TAGS_MAX_COUNT = 10;
+const NOTES_MAX = 500;
+
+// Allowed CDNs for OG images
+const ALLOWED_IMAGE_HOSTS = new Set([
+  'imgur.com',
+  'i.imgur.com',
+  'cloudinary.com',
+  'res.cloudinary.com',
+  'images.unsplash.com',
+  'cdn.pixabay.com',
+  'images.pexels.com',
+  'pbs.twimg.com', // Twitter/X
+  'platform.twitter.com'
+]);
+
+/**
+ * Sanitize custom OG meta tags
+ * Removes HTML, limits lengths, and validates image URLs
+ */
+export function sanitizeMetaTags(input: {
+  title?: string | null;
+  description?: string | null;
+  image?: string | null;
+}) {
+  return {
+    metaTitle: input.title?.trim()
+      ? DOMPurify.sanitize(input.title, { ALLOWED_TAGS: [] })
+          .slice(0, TITLE_MAX)
+          .trim() || null
+      : null,
+
+    metaDescription: input.description?.trim()
+      ? DOMPurify.sanitize(input.description, { ALLOWED_TAGS: [] })
+          .slice(0, DESC_MAX)
+          .trim() || null
+      : null,
+
+    metaImage: input.image ? validateImageUrl(input.image) : null
+  };
+}
+
+/**
+ * Validate OG image URL
+ * - HTTPS only
+ * - Whitelist of trusted CDNs
+ * - Size limit
+ */
+function validateImageUrl(url: string | null | undefined): string | null {
+  if (!url || url.trim().length === 0) return null;
+
+  if (url.length > IMAGE_URL_MAX) {
+    logger.warn('Image URL too long', {
+      length: url.length,
+      max: IMAGE_URL_MAX
+    });
+    return null;
+  }
+
+  try {
+    const { hostname, protocol } = new URL(url);
+
+    // Only HTTPS for security
+    if (protocol !== 'https:') {
+      logger.warn('Image URL uses non-HTTPS protocol', { protocol });
+      return null;
+    }
+
+    // Check if hostname is in CDN whitelist
+    const isAllowed = Array.from(ALLOWED_IMAGE_HOSTS).some(
+      (host) => hostname === host || hostname.endsWith(`.${host}`)
+    );
+
+    if (!isAllowed) {
+      logger.warn('Image host not in whitelist', { hostname });
+      return null;
+    }
+
+    return url;
+  } catch (error) {
+    logger.warn('Invalid image URL', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  }
+}
+
+/**
+ * Sanitize generic text
+ * Removes HTML tags and limits length
+ */
+export function sanitizeText(
+  text: string | null | undefined,
+  maxLength: number
+): string | null {
+  if (!text) return null;
+
+  // Remove dangerous protocols first
+  const dangerousProtocols = [
+    /javascript:/gi,
+    /data:/gi,
+    /vbscript:/gi,
+    /file:/gi,
+    /about:/gi
+  ];
+
+  let cleaned = text;
+  for (const protocol of dangerousProtocols) {
+    cleaned = cleaned.replace(protocol, '');
+  }
+
+  // Then sanitize with DOMPurify
+  cleaned = DOMPurify.sanitize(cleaned, { ALLOWED_TAGS: [] })
+    .slice(0, maxLength)
+    .trim();
+
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+/**
+ * Sanitize tags/labels (array of strings)
+ * - Remove duplicates
+ * - Limit count and individual length
+ * - Remove empty strings
+ */
+export function sanitizeTags(
+  tags: string[] | null | undefined
+): string[] | null {
+  if (!tags || !Array.isArray(tags) || tags.length === 0) return null;
+
+  const sanitized = new Set<string>();
+
+  for (const tag of tags) {
+    if (typeof tag !== 'string') continue;
+
+    const clean = sanitizeText(tag, TAGS_MAX_LENGTH);
+    if (clean) {
+      sanitized.add(clean.toLowerCase());
+    }
+
+    // Stop if we've reached max count
+    if (sanitized.size >= TAGS_MAX_COUNT) {
+      logger.warn('Max tags exceeded, truncating', {
+        provided: tags.length,
+        max: TAGS_MAX_COUNT
+      });
+      break;
+    }
+  }
+
+  return sanitized.size > 0 ? Array.from(sanitized) : null;
+}
+
+/**
+ * Sanitize notes/comments
+ */
+export function sanitizeNotes(notes: string | null | undefined): string | null {
+  return sanitizeText(notes, NOTES_MAX);
+}
+
+/**
+ * Sanitizes user input for search
+ * Prevents injection and reduces noise
+ */
+export function sanitizeSearchQuery(query: string | null | undefined): string {
+  if (!query) return '';
+
+  // Remove dangerous special characters
+  let clean = DOMPurify.sanitize(query, { ALLOWED_TAGS: [] });
+
+  // Limit size
+  clean = clean.slice(0, 200).trim();
+
+  return clean;
+}
+
+/**
+ * Validates and sanitizes link input fields
+ */
+export interface SanitizedLinkInput {
+  title: string | null;
+  description: string | null;
+  image: string | null;
+  tags: string[] | null;
+  notes: string | null;
+}
+
+export function sanitizeLinkInput(input: {
+  title?: string | null;
+  description?: string | null;
+  image?: string | null;
+  tags?: string[] | null;
+  notes?: string | null;
+}): SanitizedLinkInput {
+  const metaTags = sanitizeMetaTags({
+    title: input.title,
+    description: input.description,
+    image: input.image
+  });
+
+  return {
+    title: metaTags.metaTitle,
+    description: metaTags.metaDescription,
+    image: metaTags.metaImage,
+    tags: sanitizeTags(input.tags),
+    notes: sanitizeNotes(input.notes)
+  };
+}
+
+/**
+ * Add an allowed image host (runtime)
+ * @param host - Hostname to allow (e.g., 'cdn.example.com')
+ */
+export function allowImageHost(host: string): void {
+  const normalized = host.toLowerCase().trim();
+  if (normalized.length > 0) {
+    ALLOWED_IMAGE_HOSTS.add(normalized);
+    logger.info('Image host allowed', { host: normalized });
+  }
+}
+
+/**
+ * Remove a host from the allow list
+ * @param host - Hostname to remove
+ */
+export function disallowImageHost(host: string): void {
+  const normalized = host.toLowerCase().trim();
+  ALLOWED_IMAGE_HOSTS.delete(normalized);
+  logger.info('Image host disallowed', { host: normalized });
+}
+
+/**
+ * Get allowed hosts list
+ */
+export function getAllowedImageHosts(): string[] {
+  return Array.from(ALLOWED_IMAGE_HOSTS).sort();
+}

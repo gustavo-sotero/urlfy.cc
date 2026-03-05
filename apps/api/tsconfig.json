@@ -1,0 +1,17 @@
+{
+  "extends": "@urlfy/config-ts/server",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "outDir": "dist",
+    "noEmit": false,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "preserveSymlinks": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}

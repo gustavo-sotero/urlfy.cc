@@ -1,8 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════
-# CI Pipeline - urlfy.cc
+# CI Pipeline - urlfy.cc (Monorepo)
 # ═══════════════════════════════════════════════════════════════════
 # Runs on every push to main/develop and on pull requests.
 # Steps: lint, type-check, test, build, migration validation.
+# Uses Turborepo for incremental task execution across apps/* and packages/*.
 # ═══════════════════════════════════════════════════════════════════
 
 name: CI
@@ -19,6 +20,8 @@ concurrency:
 
 env:
   BUN_VERSION: '1'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
 
 jobs:
   # ─── Lint & Type Check ──────────────────────────────────────────
@@ -35,11 +38,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Biome lint
+      - name: Biome lint (all workspaces)
         run: bunx biome check .
 
-      - name: TypeScript type check
-        run: bunx tsc --noEmit
+      - name: TypeScript type check (all workspaces)
+        run: bunx turbo run type-check
+        env:
+          SKIP_ENV_VALIDATION: "1"
 
   # ─── Unit & Integration Tests ───────────────────────────────────
   test:
@@ -82,7 +87,7 @@ jobs:
       JWT_SECRET: ci-test-jwt-secret-minimum-32-characters
       INTERNAL_API_SECRET: ci-test-internal-secret
       NEXT_PUBLIC_APP_URL: http://localhost:3000
-      SKIP_ENV_VALIDATION: true
+      SKIP_ENV_VALIDATION: "1"
 
     steps:
       - uses: actions/checkout@v4
@@ -97,8 +102,8 @@ jobs:
       - name: Run database migrations
         run: bun run db:migrate:prod
 
-      - name: Run unit tests
-        run: bun test src/
+      - name: Run unit tests (API)
+        run: bun test apps/api/src/
 
       - name: Run integration tests
         run: bun test tests/integration/
@@ -173,7 +178,7 @@ jobs:
     needs: [quality, migrations]
 
     env:
-      SKIP_ENV_VALIDATION: true
+      SKIP_ENV_VALIDATION: "1"
 
     steps:
       - uses: actions/checkout@v4
@@ -185,12 +190,12 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build Next.js application
-        run: bun run build
+      - name: Build all apps (Turborepo)
+        run: bunx turbo run build
 
-      - name: Verify standalone output
+      - name: Verify Next.js standalone output
         run: |
-          test -f .next/standalone/server.js || (echo "❌ standalone/server.js missing" && exit 1)
+          test -f apps/web/.next/standalone/server.js || (echo "❌ apps/web standalone/server.js missing" && exit 1)
           echo "✅ Standalone build verified"
 
   # ─── Docker Image Build ─────────────────────────────────────────
@@ -206,20 +211,28 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
+      - name: Build web Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/Dockerfile
-          target: runner
+          file: docker/web.Dockerfile
           push: false
-          tags: urlfy-app:${{ github.sha }}
+          tags: urlfy-web:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Verify Docker image
+      - name: Build API Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/api.Dockerfile
+          push: false
+          tags: urlfy-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify Docker images
         run: |
-          docker run --rm urlfy-app:${{ github.sha }} test -f /app/server.js
-          docker run --rm urlfy-app:${{ github.sha }} test -f /app/migrate.ts
-          docker run --rm urlfy-app:${{ github.sha }} test -d /app/drizzle
-          echo "✅ Docker image verified"
+          docker run --rm urlfy-web:${{ github.sha }} test -f /app/server.js
+          docker run --rm urlfy-web:${{ github.sha }} test -d /app/drizzle
+          echo "✅ Docker images verified"
