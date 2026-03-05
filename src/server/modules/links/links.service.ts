@@ -5,6 +5,7 @@ import {
   getLinkById,
   getLinkByIdUnsafe
 } from './services/get-link';
+import { getDashboardSummary } from './services/link-stats';
 import { listUserLinks } from './services/list-links';
 import { updateLink } from './services/update-link';
 
@@ -16,6 +17,7 @@ export {
   getLinkById,
   getLinkByIdUnsafe
 } from './services/get-link';
+export { getDashboardSummary } from './services/link-stats';
 export { listUserLinks } from './services/list-links';
 export { updateLink } from './services/update-link';
 
@@ -30,5 +32,6 @@ export const LinkService = {
   getLinkByIdUnsafe,
   getLinkByCode,
   updateLink,
-  formatLinkResponse
+  formatLinkResponse,
+  getDashboardSummary
 };

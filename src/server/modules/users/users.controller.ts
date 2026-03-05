@@ -16,6 +16,7 @@ import {
   PaginatedResponse,
   SuccessResponse
 } from '@/server/lib/response.schema';
+import { createLogger } from '@/server/lib/telemetry';
 import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
 import {
@@ -27,6 +28,8 @@ import {
   UsersModel
 } from './users.schema';
 import { UserService } from './users.service';
+
+const logger = createLogger('users-controller');
 
 export const usersController = new Elysia({ prefix: '/users' })
   .use(requireAdmin)
@@ -179,9 +182,11 @@ export const usersController = new Elysia({ prefix: '/users' })
         };
       } catch (error) {
         if (error instanceof AppError) throw error;
-        throw new AppError(ErrorCode.INTERNAL_ERROR, 'Failed to unban user', {
-          originalError: error
+        logger.error('Failed to unban user', {
+          userId: params.userId,
+          error: error instanceof Error ? error.message : String(error)
         });
+        throw new AppError(ErrorCode.INTERNAL_ERROR, 'Failed to unban user');
       }
     },
     {
@@ -224,12 +229,13 @@ export const usersController = new Elysia({ prefix: '/users' })
         };
       } catch (error) {
         if (error instanceof AppError) throw error;
+        logger.error('Failed to update user role', {
+          userId: params.userId,
+          error: error instanceof Error ? error.message : String(error)
+        });
         throw new AppError(
           ErrorCode.INTERNAL_ERROR,
-          'Failed to update user role',
-          {
-            originalError: error
-          }
+          'Failed to update user role'
         );
       }
     },

@@ -33,7 +33,12 @@ const BLOCKED_HOSTNAMES = [
   'metadata.goog' // GCP alternative
 ];
 
-const INTERNAL_TLD_PATTERNS = [/\.internal$/i, /\.local$/i, /\.localdomain$/i];
+const INTERNAL_TLD_PATTERNS = [
+  /\.internal$/i,
+  /\.local$/i,
+  /\.localdomain$/i,
+  /\.service$/i
+];
 
 const BLOCKED_SHORTENERS = new Set([
   'bit.ly',
@@ -130,7 +135,8 @@ export async function reloadBannedDomains(): Promise<void> {
  * @returns true if IP is private/internal
  */
 export function isPrivateIP(ip: string): boolean {
-  return PRIVATE_IP_RANGES.some((regex) => regex.test(ip));
+  const normalized = ip.trim().replace(/^\[/, '').replace(/\]$/, '');
+  return PRIVATE_IP_RANGES.some((regex) => regex.test(normalized));
 }
 
 /**

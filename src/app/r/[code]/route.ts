@@ -19,7 +19,7 @@ import { RATE_LIMIT_CONFIGS, rateLimiter } from '@/server/lib/rate-limiter';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { createLogger } from '@/server/lib/telemetry';
 import { MetricsService } from '@/server/services/metrics.service';
-import { redirectService } from '@/server/services/redirect.service';
+import { redirectService } from '@/server/services/redirect';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -216,34 +216,32 @@ export async function GET(
     // ── 2. Rate limiting (IP + per-link) ─────────────────────────
     const redirectConfig = RATE_LIMIT_CONFIGS.GET_REDIRECT;
     if (redirectConfig) {
-      if (redirectConfig.perIP) {
-        const ipLimit = await rateLimiter.checkIPLimit(
-          clientIp,
-          redirectConfig.perIP
-        );
-        if (!ipLimit.allowed) {
-          return handleError(
-            'RATE_LIMITED',
-            code,
-            requestId,
-            ipLimit.retryAfter
-          );
-        }
-      }
+      // Run both checks in parallel — they are independent Redis operations
+      const [ipLimit, linkLimit] = await Promise.all([
+        redirectConfig.perIP
+          ? rateLimiter.checkIPLimit(clientIp, redirectConfig.perIP)
+          : Promise.resolve({ allowed: true as const }),
+        redirectConfig.perLink
+          ? rateLimiter.checkLinkLimit(code, redirectConfig.perLink)
+          : Promise.resolve({ allowed: true as const })
+      ]);
 
-      if (redirectConfig.perLink) {
-        const linkLimit = await rateLimiter.checkLinkLimit(
+      // IP limit takes priority to avoid leaking per-link traffic data
+      if (!ipLimit.allowed) {
+        return handleError(
+          'RATE_LIMITED',
           code,
-          redirectConfig.perLink
+          requestId,
+          (ipLimit as { allowed: false; retryAfter?: number }).retryAfter
         );
-        if (!linkLimit.allowed) {
-          return handleError(
-            'RATE_LIMITED',
-            code,
-            requestId,
-            linkLimit.retryAfter
-          );
-        }
+      }
+      if (!linkLimit.allowed) {
+        return handleError(
+          'RATE_LIMITED',
+          code,
+          requestId,
+          (linkLimit as { allowed: false; retryAfter?: number }).retryAfter
+        );
       }
     }
 

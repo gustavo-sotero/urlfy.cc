@@ -8,11 +8,14 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import {
+  acquireIdempotencyLock,
   checkIdempotency,
+  computePayloadHash,
+  releaseIdempotencyLock,
   setIdempotency,
   validateIdempotencyKey
 } from '@/server/lib/idempotency';
@@ -23,7 +26,15 @@ import {
   PaginatedResponse,
   SuccessResponse
 } from '@/server/lib/response.schema';
+import {
+  recordLinkCreation,
+  recordLinkCreationFailure
+} from '@/server/middleware/anti-abuse';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
+import {
+  buildErrorEnvelope,
+  getOrCreateRequestId
+} from '@/server/middleware/error-response';
 import { LinkLifecycleService } from './link-lifecycle.service';
 import {
   LinkBulkCreateBody,
@@ -34,6 +45,96 @@ import {
   LinkUpdateBody
 } from './links.schema';
 import { LinkService } from './links.service';
+import { validateUrlSafe } from './services/url-validator';
+
+const GUEST_ID_COOKIE_NAME = 'urlfy_guest_id';
+const GUEST_ID_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+
+function parseCookieHeader(
+  cookieHeader: string | null
+): Record<string, string> {
+  if (!cookieHeader) return {};
+
+  return cookieHeader
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .reduce<Record<string, string>>((accumulator, part) => {
+      const separatorIndex = part.indexOf('=');
+      if (separatorIndex <= 0) return accumulator;
+
+      const key = part.slice(0, separatorIndex).trim();
+      const value = part.slice(separatorIndex + 1).trim();
+
+      if (!key || !value) return accumulator;
+
+      accumulator[key] = value;
+      return accumulator;
+    }, {});
+}
+
+function signGuestId(guestId: string): string {
+  const secret =
+    process.env.IDEMPOTENCY_GUEST_SECRET ||
+    process.env.JWT_SECRET ||
+    'urlfy-guest-id';
+
+  return createHmac('sha256', secret)
+    .update(guestId)
+    .digest('hex')
+    .slice(0, 24);
+}
+
+function getGuestIdFromCookie(request: Request): string | null {
+  const cookies = parseCookieHeader(request.headers.get('cookie'));
+  const rawValue = cookies[GUEST_ID_COOKIE_NAME];
+
+  if (!rawValue) return null;
+
+  const decoded = decodeURIComponent(rawValue);
+  const [guestId, signature] = decoded.split('.');
+
+  if (!guestId || !signature) return null;
+  if (!/^[a-f0-9]{32}$/i.test(guestId)) return null;
+
+  const expectedSignature = signGuestId(guestId);
+  if (expectedSignature !== signature) return null;
+
+  return guestId;
+}
+
+function setGuestIdCookie(
+  set: { headers: Record<string, string | number> },
+  guestId: string
+): void {
+  const signature = signGuestId(guestId);
+  const value = encodeURIComponent(`${guestId}.${signature}`);
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+
+  set.headers['set-cookie'] =
+    `${GUEST_ID_COOKIE_NAME}=${value}; Path=/; Max-Age=${GUEST_ID_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax${secure}`;
+}
+
+function resolveGuestPrincipal(
+  request: Request,
+  set: { headers: Record<string, string | number> },
+  ipHash: string,
+  userId?: string
+): string {
+  if (userId) {
+    return userId;
+  }
+
+  const cookieGuestId = getGuestIdFromCookie(request);
+  if (cookieGuestId) {
+    return `guest:${cookieGuestId}`;
+  }
+
+  const generatedGuestId = crypto.randomUUID().replace(/-/g, '');
+  setGuestIdCookie(set, generatedGuestId);
+
+  return `guest:${generatedGuestId || ipHash}`;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // CREATE LINK ROUTE (guest or authenticated)
@@ -49,18 +150,47 @@ export const createLinkController = new Elysia()
   .post(
     '/',
     async function createLink({ body, headers, request, user, set }) {
-      // Check email verification for authenticated users
-      if (user && !user.emailVerified) {
-        throw new AppError(
-          ErrorCode.EMAIL_VERIFICATION_REQUIRED,
-          'Você precisa verificar seu e-mail antes de criar links'
+      const preValidation = await validateUrlSafe(body.url);
+      if (!preValidation.valid) {
+        const requestId = getOrCreateRequestId(request);
+        set.status = 422;
+        set.headers['x-request-id'] = requestId;
+        set.headers['content-type'] = 'application/json; charset=utf-8';
+        return buildErrorEnvelope(
+          'INVALID_URL',
+          `Invalid URL: ${preValidation.error}`,
+          requestId,
+          { validationError: preValidation.error }
         );
       }
 
+      // Check email verification for authenticated users
+      if (user && !user.emailVerified) {
+        const requestId = getOrCreateRequestId(request);
+        set.status = 403;
+        set.headers['x-request-id'] = requestId;
+        set.headers['content-type'] = 'application/json; charset=utf-8';
+        return buildErrorEnvelope(
+          'EMAIL_VERIFICATION_REQUIRED',
+          'Você precisa verificar seu e-mail antes de criar links',
+          requestId
+        );
+      }
+
+      // Derive client IP and hash early — needed for compound guest principal
+      const clientIp = getClientIp(request);
+      const ipHash = createHash('sha256').update(clientIp).digest('hex');
+
+      // Build stable principal: authenticated users use their user ID,
+      // guests use a signed long-lived cookie ID (fallback-safe) so
+      // different anonymous clients do not share idempotency namespace.
+      const principal = resolveGuestPrincipal(request, set, ipHash, user?.id);
+
       // Check idempotency key
       const idempotencyKey = headers['idempotency-key'];
-      const principal = user?.id ?? 'guest';
       const idempotencyRoute = 'POST /links';
+      let payloadHash: string | undefined;
+      let lockAcquired = false;
       if (idempotencyKey) {
         if (!validateIdempotencyKey(idempotencyKey)) {
           throw new AppError(
@@ -69,43 +199,112 @@ export const createLinkController = new Elysia()
           );
         }
 
-        const cached = await checkIdempotency(
+        // Compute a stable fingerprint of the current request payload
+        // so we can detect key-reuse with a different body (RFC §7.2).
+        payloadHash = await computePayloadHash(body as Record<string, unknown>);
+
+        const idempotencyResult = await checkIdempotency(
           idempotencyKey,
           principal,
-          idempotencyRoute
+          idempotencyRoute,
+          payloadHash
         );
-        if (cached) {
+
+        if (idempotencyResult.status === 'conflict') {
+          // Same key, different payload — must be rejected per IETF draft
+          throw new AppError(
+            ErrorCode.IDEMPOTENCY_CONFLICT,
+            'Idempotency key already used with a different request body'
+          );
+        }
+
+        if (idempotencyResult.status === 'in_progress') {
+          throw new AppError(
+            ErrorCode.RATE_LIMITED,
+            'Request with this idempotency key is already in progress'
+          );
+        }
+
+        if (idempotencyResult.status === 'hit') {
+          const cachedId = idempotencyResult.resourceId;
           const link = user
-            ? await LinkService.getLinkById(cached, user.id)
-            : await LinkService.getLinkByIdUnsafe(cached);
+            ? await LinkService.getLinkById(cachedId, user.id)
+            : await LinkService.getLinkByIdUnsafe(cachedId);
 
           return {
             success: true,
             data: LinkService.formatLinkResponse(link)
           };
         }
+
+        lockAcquired = await acquireIdempotencyLock(
+          idempotencyKey,
+          principal,
+          idempotencyRoute,
+          payloadHash
+        );
+
+        if (!lockAcquired) {
+          throw new AppError(
+            ErrorCode.RATE_LIMITED,
+            'Request with this idempotency key is already in progress'
+          );
+        }
       }
 
-      // Get IP hash
-      const clientIp = getClientIp(request);
-      const ipHash = createHash('sha256').update(clientIp).digest('hex');
+      let link: Awaited<ReturnType<typeof LinkService.createLink>>;
+      try {
+        // Create link
+        link = await LinkService.createLink(
+          body,
+          user?.id ?? undefined,
+          ipHash
+        );
+      } catch (error) {
+        recordLinkCreationFailure(user?.id ?? null, clientIp).catch(() => {
+          // Intentionally ignored
+        });
 
-      // Create link
-      const link = await LinkService.createLink(
-        body,
-        user?.id ?? undefined,
-        ipHash
-      );
+        if (lockAcquired && idempotencyKey) {
+          await releaseIdempotencyLock(
+            idempotencyKey,
+            principal,
+            idempotencyRoute
+          );
+        }
+
+        throw error;
+      }
 
       // Store idempotency if provided
       if (idempotencyKey) {
+        if (!payloadHash) {
+          payloadHash = await computePayloadHash(
+            body as Record<string, unknown>
+          );
+        }
         await setIdempotency(
           idempotencyKey,
           link.id,
           principal,
-          idempotencyRoute
+          idempotencyRoute,
+          payloadHash
         );
+
+        if (lockAcquired) {
+          await releaseIdempotencyLock(
+            idempotencyKey,
+            principal,
+            idempotencyRoute
+          );
+        }
       }
+
+      // Record link creation for abuse detection (fire-and-forget — must
+      // never block or fail the primary request).
+      recordLinkCreation(user?.id ?? null, clientIp).catch(() => {
+        // Intentionally ignored
+      });
 
       set.status = 201;
       return {
@@ -153,9 +352,14 @@ export const protectedLinksController = new Elysia()
     async function createBulkLinks({ body, user, request, set }) {
       // Check email verification
       if (!user?.emailVerified) {
-        throw new AppError(
-          ErrorCode.EMAIL_VERIFICATION_REQUIRED,
-          'Você precisa verificar seu e-mail antes de criar links'
+        const requestId = getOrCreateRequestId(request);
+        set.status = 403;
+        set.headers['x-request-id'] = requestId;
+        set.headers['content-type'] = 'application/json; charset=utf-8';
+        return buildErrorEnvelope(
+          'EMAIL_VERIFICATION_REQUIRED',
+          'Você precisa verificar seu e-mail antes de criar links',
+          requestId
         );
       }
 
@@ -251,6 +455,7 @@ export const protectedLinksController = new Elysia()
       const result = await LinkService.listUserLinks(userId, {
         page: query.page ? parseInt(query.page, 10) : 1,
         perPage: query.perPage ? parseInt(query.perPage, 10) : 20,
+        cursor: query.cursor,
         search: query.search,
         tags: query.tags ? query.tags.split(',') : undefined,
         isActive:

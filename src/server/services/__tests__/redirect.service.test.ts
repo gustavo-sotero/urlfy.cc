@@ -180,12 +180,12 @@ mock.module('@opentelemetry/api', () => ({
 }));
 
 // Try to import the service - this may fail if mocks don't work in full test suite
-let RedirectService: typeof import('../redirect.service').RedirectService;
+let RedirectService: typeof import('../redirect').RedirectService;
 let redirectService: InstanceType<typeof RedirectService>;
 let testsAvailable = true;
 
 try {
-  const module = await import('../redirect.service');
+  const module = await import('../redirect');
   RedirectService = module.RedirectService;
   redirectService = new RedirectService();
 } catch (error) {

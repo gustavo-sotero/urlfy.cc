@@ -12,53 +12,63 @@ import { LinkListSkeleton } from '@/components/shared/link-card-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link } from '@/i18n/routing';
-import { useDeleteLink, useLinks } from '@/lib/hooks/use-links';
+import { useDeleteLinkFlow } from '@/lib/hooks/use-delete-link-flow';
+import { useLinks } from '@/lib/hooks/use-links';
 
 export default function LinksPage() {
   const t = useTranslations('Dashboard');
   const tCommon = useTranslations('Common');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
   const deferredSearch = useDeferredValue(search);
+  const page = cursorHistory.length + 1;
 
   const { data, isLoading, isError, error, refetch } = useLinks({
-    page,
+    cursor,
     perPage: 20,
     search: deferredSearch || undefined
   });
 
-  const deleteLink = useDeleteLink();
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const hasPrevious = cursorHistory.length > 0;
+  const hasNext = !!data?.meta?.nextCursor;
 
-  const handleDelete = async (id: string) => {
-    setDeleteTarget(id);
-  };
+  function handlePreviousPage() {
+    if (!hasPrevious) return;
 
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      await deleteLink.mutateAsync(deleteTarget);
-      toast.success(t('toasts.deleteSuccess'));
-    } catch (error) {
-      console.error('Failed to delete link:', error);
-      toast.error(
-        error instanceof Error ? error.message : t('toasts.deleteError')
-      );
-    } finally {
-      setDeleteTarget(null);
-    }
-  };
+    const history = [...cursorHistory];
+    const previousCursor = history.pop();
+    setCursor(previousCursor || undefined);
+    setCursorHistory(history);
+  }
+
+  function handleNextPage() {
+    const nextCursor = data?.meta?.nextCursor;
+    if (!nextCursor) return;
+
+    setCursorHistory((prev) => [...prev, cursor ?? '']);
+    setCursor(nextCursor);
+  }
+
+  const { isDialogOpen, cancelDelete, confirmDelete, startDelete, isPending } =
+    useDeleteLinkFlow({
+      onSuccess: () => toast.success(t('toasts.deleteSuccess')),
+      onError: (err) =>
+        toast.error(
+          err instanceof Error ? err.message : t('toasts.deleteError')
+        )
+    });
 
   return (
     <div className="space-y-6">
       <ConfirmDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        open={isDialogOpen}
+        onOpenChange={(open) => !open && cancelDelete()}
         title={t('links.deleteConfirm')}
         description={t('links.deleteConfirm')}
         onConfirm={confirmDelete}
         confirmText={t('linkCard.delete')}
-        loading={deleteLink.isPending}
+        loading={isPending}
       />
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -82,7 +92,11 @@ export default function LinksPage() {
         <Input
           placeholder={t('search')}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setCursor(undefined);
+            setCursorHistory([]);
+          }}
           className="pl-10"
         />
       </div>
@@ -115,18 +129,18 @@ export default function LinksPage() {
           ) : (
             <div className="space-y-4">
               {data.data.map((link) => (
-                <LinkCard key={link.id} link={link} onDelete={handleDelete} />
+                <LinkCard key={link.id} link={link} onDelete={startDelete} />
               ))}
             </div>
           )}
 
           {/* Pagination */}
-          {data.meta && data.meta.lastPage > 1 && (
+          {data.meta && (hasPrevious || hasNext) && (
             <div className="flex items-center justify-center gap-2">
               <Button
                 variant="outline"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
+                onClick={handlePreviousPage}
+                disabled={!hasPrevious}
               >
                 {t('pagination.previous')}
               </Button>
@@ -135,8 +149,8 @@ export default function LinksPage() {
               </span>
               <Button
                 variant="outline"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={!data.meta.hasMore}
+                onClick={handleNextPage}
+                disabled={!hasNext}
               >
                 {t('pagination.next')}
               </Button>

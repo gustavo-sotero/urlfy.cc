@@ -24,7 +24,7 @@ const ALLOWED_FIELDS = [
   'updatedAt'
 ] as const;
 
-export function filterFields<T extends Record<string, unknown>>(
+export function filterFields<T extends object>(
   item: T,
   fields?: string
 ): Partial<T> {

@@ -118,7 +118,7 @@ export function compressionMiddleware(options?: CompressionOptions) {
       const buffer = await normalizedResponse.arrayBuffer();
       const baseHeaders = new Headers(normalizedResponse.headers);
       if (buffer.byteLength < threshold) {
-        return new Response(buffer as unknown as BodyInit, {
+        return new Response(new Uint8Array(buffer), {
           status: normalizedResponse.status,
           headers: baseHeaders
         });
@@ -142,7 +142,10 @@ export function compressionMiddleware(options?: CompressionOptions) {
 
       const compressedHeaders = new Headers(baseHeaders);
       compressedHeaders.set('Content-Type', contentType);
-      return new Response(compressed as unknown as BodyInit, {
+      // note: node:zlib returns Buffer<ArrayBufferLike>; wrapping in Uint8Array
+      // strips the generic parameter so TypeScript accepts it as BodyInit
+      // (BufferSource → ArrayBufferView). This cast is safe — data is unchanged.
+      return new Response(new Uint8Array(compressed), {
         status: normalizedResponse.status,
         headers: compressedHeaders
       });

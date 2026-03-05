@@ -70,6 +70,8 @@ export const ErrorCode = {
   // ═══════════════════════════════════════════════════════════════════
   URL_MALICIOUS: 'URL_MALICIOUS',
   URL_BLOCKED: 'URL_BLOCKED',
+  /** Idempotency key reused with a different request body (IETF draft §7.2) */
+  IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
 
   // ═══════════════════════════════════════════════════════════════════
   // 429 Too Many Requests
@@ -138,6 +140,7 @@ const ERROR_STATUS_MAP: Record<ErrorCodeType, number> = {
   // 422
   [ErrorCode.URL_MALICIOUS]: 422,
   [ErrorCode.URL_BLOCKED]: 422,
+  [ErrorCode.IDEMPOTENCY_CONFLICT]: 422,
   // 429
   [ErrorCode.RATE_LIMITED]: 429,
   // 451

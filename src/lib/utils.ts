@@ -28,10 +28,10 @@ function isEmpty(value: unknown): boolean {
  */
 export function removeEmptyFields<T extends Record<string, unknown>>(
   obj: T
-): Record<string, unknown> {
+): Partial<T> {
   return Object.fromEntries(
     Object.entries(obj).filter(([_, value]) => !isEmpty(value))
-  );
+  ) as Partial<T>;
 }
 
 /**

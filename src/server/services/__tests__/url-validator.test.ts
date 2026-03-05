@@ -8,7 +8,7 @@ import {
   unblockDomain,
   validateUrl,
   validateUrlSafe
-} from '../url-validator';
+} from '@/server/modules/links/services/url-validator';
 
 describe('URL Validator', () => {
   describe('validateUrl', () => {

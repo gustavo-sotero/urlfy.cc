@@ -41,6 +41,8 @@ export interface UpdateLinkInput {
 export interface ListLinksQuery {
   page?: number;
   perPage?: number;
+  /** Opaque cursor for keyset pagination (preferred over page/perPage). */
+  cursor?: string;
   search?: string;
   tags?: string[];
   isActive?: boolean;
@@ -86,6 +88,8 @@ export interface PaginatedResponse<T> {
     perPage: number;
     lastPage: number;
     hasMore: boolean;
+    /** Cursor to pass as `cursor` query param to fetch the next page (keyset). */
+    nextCursor?: string;
   };
 }
 

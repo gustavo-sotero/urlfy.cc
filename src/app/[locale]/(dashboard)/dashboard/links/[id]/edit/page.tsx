@@ -68,7 +68,7 @@ type FormData = z.infer<ReturnType<typeof createSchema>>;
  * Removes empty fields
  */
 function transformFormData(data: FormData): UpdateLinkInput {
-  return removeEmptyFields(data) as unknown as UpdateLinkInput;
+  return removeEmptyFields(data) as UpdateLinkInput;
 }
 
 // ═══════════════════════════════════════════════════════════════════

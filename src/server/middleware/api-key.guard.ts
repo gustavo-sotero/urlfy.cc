@@ -19,6 +19,7 @@ import {
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
 import type { ApiKeyContext, ApiKeyError } from '@/types/api-keys.types';
+import { buildErrorResponse } from './error-response';
 
 const logger = createLogger('api-key-guard');
 
@@ -47,20 +48,22 @@ const ErrorResponses: Record<ApiKeyError, { status: number; message: string }> =
     }
   };
 
-function errorResponse(error: ApiKeyError, requiredScopes?: Scope[]) {
+function errorResponse(
+  error: ApiKeyError,
+  requiredScopes?: Scope[],
+  requestId?: string
+) {
   const { status, message } = ErrorResponses[error];
-  return new Response(
-    JSON.stringify({
-      success: false,
-      error: {
-        code: error,
-        message,
-        ...(requiredScopes && { requiredScopes })
-      }
-    }),
+  return buildErrorResponse(
+    status,
+    error,
+    message,
+    requestId ??
+      `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     {
-      status,
-      headers: { 'Content-Type': 'application/json' }
+      details: requiredScopes
+        ? ({ requiredScopes } as Record<string, unknown>)
+        : undefined
     }
   );
 }
@@ -119,10 +122,14 @@ interface RequireApiKeyOptions {
 export function requireApiKey(options: RequireApiKeyOptions) {
   return (app: Elysia) =>
     app.derive({ as: 'global' }, async ({ request, set }) => {
+      const requestId =
+        request.headers.get('x-request-id') ||
+        `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
       // 1. Extract API key from header
       const apiKeyHeader = request.headers.get('x-api-key');
       if (!apiKeyHeader) {
-        throw errorResponse('MISSING_KEY');
+        throw errorResponse('MISSING_KEY', undefined, requestId);
       }
 
       // 2. Compute SHA-256 hash of incoming key
@@ -151,17 +158,17 @@ export function requireApiKey(options: RequireApiKeyOptions) {
         logger.warn('Invalid API key attempt', {
           prefix: apiKeyHeader.slice(0, 15)
         });
-        throw errorResponse('INVALID_KEY');
+        throw errorResponse('INVALID_KEY', undefined, requestId);
       }
 
       // 3. Check if key is revoked
       if (keyRecord.revokedAt) {
-        throw errorResponse('KEY_REVOKED');
+        throw errorResponse('KEY_REVOKED', undefined, requestId);
       }
 
       // 4. Check if key has expired
       if (keyRecord.expiresAt && keyRecord.expiresAt < new Date()) {
-        throw errorResponse('KEY_EXPIRED');
+        throw errorResponse('KEY_EXPIRED', undefined, requestId);
       }
 
       // 5. Parse scopes and verify permissions
@@ -188,7 +195,7 @@ export function requireApiKey(options: RequireApiKeyOptions) {
           keyScopes,
           requiredScopes: options.scopes
         });
-        throw errorResponse('SCOPE_DENIED', options.scopes);
+        throw errorResponse('SCOPE_DENIED', options.scopes, requestId);
       }
 
       // 6. Check rate limit
@@ -208,7 +215,7 @@ export function requireApiKey(options: RequireApiKeyOptions) {
           set.headers['X-RateLimit-Reset'] = String(
             Math.floor(rateLimitResult.resetAt / 1000)
           );
-          throw errorResponse('RATE_LIMITED');
+          throw errorResponse('RATE_LIMITED', undefined, requestId);
         }
 
         // Set rate limit headers
@@ -227,7 +234,7 @@ export function requireApiKey(options: RequireApiKeyOptions) {
         keyRecord.remaining !== undefined &&
         Number(keyRecord.remaining) <= 0
       ) {
-        throw errorResponse('QUOTA_EXCEEDED');
+        throw errorResponse('QUOTA_EXCEEDED', undefined, requestId);
       }
 
       const quotaLimit = Number(
@@ -236,7 +243,7 @@ export function requireApiKey(options: RequireApiKeyOptions) {
       const usageCount = Number(keyRecord.usageCount ?? 0);
 
       if (Number.isFinite(quotaLimit) && usageCount >= quotaLimit) {
-        throw errorResponse('QUOTA_EXCEEDED');
+        throw errorResponse('QUOTA_EXCEEDED', undefined, requestId);
       }
 
       // 8. Increment usage count asynchronously (fire-and-forget)

@@ -51,7 +51,6 @@ export function DisableTwoFactor({
       setPassword('');
       onSuccess();
     } catch (error) {
-      console.error('Disable 2FA error:', error);
       toast.error(error instanceof Error ? error.message : t('errors.failed'));
     } finally {
       setIsLoading(false);

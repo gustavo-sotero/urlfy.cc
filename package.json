@@ -10,7 +10,7 @@
     "prebuild": "bun run security:test-secrets",
     "build": "bun run --bun next build && bun run scripts/post-build.ts",
     "start": "concurrently \"bun .next/standalone/server.js\" \"bun run worker:start\" --names \"APP,WKR\" -c \"blue,magenta\"",
-    "lint": "bunx biome check . --write",
+    "lint": "bunx biome check . --write && bun run scripts/validate-module-boundaries.ts",
     "type-check": "bunx tsc --noEmit",
     "format": "bunx biome format . --write --unsafe",
     "test": "bun test src/ tests/unit tests/integration tests/perf tests/security",
@@ -124,7 +124,7 @@
     "react-hook-form": "^7.71.1",
     "react-resizable-panels": "^4.5.2",
     "recharts": "^3.7.0",
-    "resend": "^6.8.0",
+    "resend": "^6.9.2",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "ua-parser-js": "^2.0.8",
@@ -171,6 +171,7 @@
     "unrs-resolver"
   ],
   "overrides": {
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "mailparser": "^3.9.3"
   }
 }

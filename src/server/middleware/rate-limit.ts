@@ -11,6 +11,7 @@ import {
   rateLimiter
 } from '@/server/lib/rate-limiter';
 import { createLogger } from '@/server/lib/telemetry';
+import { buildErrorResponse, getOrCreateRequestId } from './error-response';
 
 const logger = createLogger('rate-limit-middleware');
 
@@ -118,6 +119,11 @@ export interface RateLimitOutcome {
   headers?: Headers;
 }
 
+/**
+ * Build a traceable request ID from the incoming request.
+ * Reuses the caller's `x-request-id` when present so the same ID
+ * propagates through the full pipeline (gateway → middleware → Elysia).
+ */
 export async function rateLimit(
   request: Request,
   clientIp?: string
@@ -142,19 +148,15 @@ export async function rateLimit(
   const isBlocked = await rateLimiter.isIPBlocked(ip);
   if (isBlocked) {
     logger.warn('Blocked IP attempted request', { ip: maskIpForLog(ip), path });
+    const requestId = getOrCreateRequestId(request);
     return {
-      response: new Response(
-        JSON.stringify({
-          success: false,
-          error: {
-            code: 'RATE_LIMITED',
-            message: 'Your IP has been temporarily blocked'
-          }
-        }),
+      response: buildErrorResponse(
+        429,
+        'RATE_LIMITED',
+        'Your IP has been temporarily blocked',
+        requestId,
         {
-          status: 429,
           headers: {
-            'Content-Type': 'application/json',
             'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 900)
           }
         }
@@ -172,19 +174,13 @@ export async function rateLimit(
 
   // Endpoint not allowed for this auth level
   if (config === null) {
+    const requestId = getOrCreateRequestId(request);
     return {
-      response: new Response(
-        JSON.stringify({
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'This endpoint requires authentication'
-          }
-        }),
-        {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' }
-        }
+      response: buildErrorResponse(
+        403,
+        'FORBIDDEN',
+        'This endpoint requires authentication',
+        requestId
       )
     };
   }
@@ -217,22 +213,18 @@ export async function rateLimit(
       headers.set('Retry-After', String(result.retryAfter));
     }
 
+    const requestId = getOrCreateRequestId(request);
+    headers.set('x-request-id', requestId);
+
     return {
-      response: new Response(
-        JSON.stringify({
-          success: false,
-          error: {
-            code: 'RATE_LIMITED',
-            message: 'Too many requests. Please try again later.',
-            retryAfter: result.retryAfter
-          }
-        }),
+      response: buildErrorResponse(
+        429,
+        'RATE_LIMITED',
+        'Too many requests. Please try again later.',
+        requestId,
         {
-          status: 429,
-          headers: {
-            ...Object.fromEntries(headers.entries()),
-            'Content-Type': 'application/json'
-          }
+          retryAfter: result.retryAfter,
+          headers: Object.fromEntries(headers.entries())
         }
       )
     };

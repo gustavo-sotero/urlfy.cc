@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { twoFactor as twoFactorTable } from '@/db/schema/auth';
 import type { Session, User } from '@/lib/auth';
 import { createLogger } from '@/server/lib/telemetry';
+import { buildErrorEnvelope, getOrCreateRequestId } from '../error-response';
 import { requireAuth } from './require-auth';
 
 const logger = createLogger('require-admin');
@@ -12,14 +13,19 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
   .use(requireAuth)
   .onBeforeHandle(
     { as: 'scoped' },
-    async ({ user, session, isTestAuth, status }) => {
+    async ({ user, session, isTestAuth, status, request, set }) => {
       if (!user || (!session && !isTestAuth)) {
         logger.debug('Admin access denied - unauthenticated');
-
-        return status(401, {
-          success: false,
-          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
-        });
+        const requestId = getOrCreateRequestId(request);
+        set.headers['x-request-id'] = requestId;
+        return status(
+          401,
+          buildErrorEnvelope(
+            'UNAUTHORIZED',
+            'Authentication required',
+            requestId
+          )
+        );
       }
 
       const adminUser = user as User;
@@ -30,11 +36,12 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
           userId: adminUser.id,
           role: adminUser.role
         });
-
-        return status(403, {
-          success: false,
-          error: { code: 'FORBIDDEN', message: 'Admin access required' }
-        });
+        const requestId = getOrCreateRequestId(request);
+        set.headers['x-request-id'] = requestId;
+        return status(
+          403,
+          buildErrorEnvelope('FORBIDDEN', 'Admin access required', requestId)
+        );
       }
 
       // Check if 2FA is enabled for admin (required)
@@ -56,14 +63,16 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
           userId: adminUser.id,
           twoFactorEnabled: adminUser.twoFactorEnabled
         });
-
-        return status(403, {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Two-factor authentication is required for admin access'
-          }
-        });
+        const requestId = getOrCreateRequestId(request);
+        set.headers['x-request-id'] = requestId;
+        return status(
+          403,
+          buildErrorEnvelope(
+            'FORBIDDEN',
+            'Two-factor authentication is required for admin access',
+            requestId
+          )
+        );
       }
 
       logger.debug('Admin access granted', {

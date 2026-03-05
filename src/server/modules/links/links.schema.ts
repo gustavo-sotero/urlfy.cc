@@ -117,6 +117,10 @@ export type LinkBulkCreateBodyType = Static<typeof LinkBulkCreateBody>;
 export const LinkListQuery = t.Object({
   page: t.Optional(t.String()),
   perPage: t.Optional(t.String()),
+  /** Opaque keyset cursor (preferred over page/perPage for large datasets). */
+  cursor: t.Optional(
+    t.String({ description: 'Opaque cursor for keyset pagination' })
+  ),
   search: t.Optional(t.String({ description: 'Search by URL or code' })),
   tags: t.Optional(t.String({ description: 'Comma-separated tags' })),
   isActive: t.Optional(t.String({ description: '"true" or "false"' })),

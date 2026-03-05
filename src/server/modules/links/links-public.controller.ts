@@ -13,6 +13,10 @@ import { jwtPlugin } from '@/server/config/plugins';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth } from '@/server/middleware/auth.middleware';
+import {
+  buildErrorEnvelope,
+  getOrCreateRequestId
+} from '@/server/middleware/error-response';
 import { LinkPasswordService } from './link-password.service';
 import {
   LinkCodeParam,
@@ -234,10 +238,18 @@ export const publicLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .get(
     '/by-code/:code/preview',
-    async function previewLink({ params }) {
+    async function previewLink({ params, request, set }) {
       const link = await LinkService.getLinkByCode(params.code);
       if (!link) {
-        throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
+        const requestId = getOrCreateRequestId(request);
+        set.status = 404;
+        set.headers['x-request-id'] = requestId;
+        set.headers['content-type'] = 'application/json; charset=utf-8';
+        return buildErrorEnvelope(
+          'LINK_NOT_FOUND',
+          'Link not found',
+          requestId
+        );
       }
 
       const isPasswordProtected = !!link.passwordHash;

@@ -7,6 +7,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+export { LinkLifecycleService } from './link-lifecycle.service';
 export { linksController } from './links.controller';
 export * from './links.schema';
 export * from './links.service';

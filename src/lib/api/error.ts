@@ -261,13 +261,6 @@ export function extractArrayData(result: unknown): unknown[] {
     return result.data;
   }
 
-  // Log unexpected structure for debugging (client-side only)
-  if (process.env.NODE_ENV === 'development') {
-    console.warn(
-      '[API Client] Expected array or paginated response, got:',
-      typeof result
-    );
-  }
   return [];
 }
 

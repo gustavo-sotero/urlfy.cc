@@ -1,10 +1,19 @@
-// @ts-nocheck - Shadcn/UI component with complex Recharts types
 'use client';
 
 import * as React from 'react';
+// TooltipContentProps includes the 'payload' and 'label' props read from context
+import type {
+  LegendPayload,
+  TooltipContentProps,
+  TooltipPayloadEntry
+} from 'recharts';
 import * as RechartsPrimitive from 'recharts';
 
 import { cn } from '@/lib/utils';
+
+// Recharts exports ValueType/NameType only from deep paths; mirror them locally
+type ValueType = number | string | ReadonlyArray<number | string>;
+type NameType = number | string;
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: '', dark: '.dark' } as const;
@@ -115,7 +124,7 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey
-}: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
+}: TooltipContentProps<ValueType, NameType> &
   React.ComponentProps<'div'> & {
     hideLabel?: boolean;
     hideIndicator?: boolean;
@@ -178,21 +187,18 @@ function ChartTooltipContent({
       <div className="grid gap-1.5">
         {payload
           .filter(
-            (item: RechartsPrimitive.Payload<ValueType, NameType>) =>
+            (item: TooltipPayloadEntry<ValueType, NameType>) =>
               item.type !== 'none'
           )
           .map(
-            (
-              item: RechartsPrimitive.Payload<ValueType, NameType>,
-              index: number
-            ) => {
+            (item: TooltipPayloadEntry<ValueType, NameType>, index: number) => {
               const key = `${nameKey || item.name || item.dataKey || 'value'}`;
               const itemConfig = getPayloadConfigFromPayload(config, item, key);
-              const indicatorColor = color || item.payload.fill || item.color;
+              const indicatorColor = color || item.payload?.fill || item.color;
 
               return (
                 <div
-                  key={item.dataKey}
+                  key={String(item.dataKey ?? index)}
                   className={cn(
                     '[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5',
                     indicator === 'dot' && 'items-center'
@@ -266,7 +272,7 @@ function ChartLegendContent({
 }: React.ComponentProps<'div'> & {
   hideIcon?: boolean;
   nameKey?: string;
-  payload?: Array<RechartsPrimitive.Payload<ValueType, NameType>>;
+  payload?: Array<LegendPayload>;
   verticalAlign?: 'top' | 'bottom' | 'middle';
 }) {
   const { config } = useChart();
@@ -284,11 +290,8 @@ function ChartLegendContent({
       )}
     >
       {payload
-        .filter(
-          (item: RechartsPrimitive.Payload<ValueType, NameType>) =>
-            item.type !== 'none'
-        )
-        .map((item: RechartsPrimitive.Payload<ValueType, NameType>) => {
+        .filter((item: LegendPayload) => item.type !== 'none')
+        .map((item: LegendPayload) => {
           const key = `${nameKey || item.dataKey || 'value'}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
 

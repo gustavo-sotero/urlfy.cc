@@ -4,7 +4,6 @@
 import { ArrowLeft, Edit, ExternalLink, Trash } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useState } from 'react';
 import { AnalyticsDashboardSkeleton } from '@/components/charts/analytics-skeleton';
 import { ClicksChart } from '@/components/charts/clicks-chart';
 import { CountriesChart } from '@/components/charts/countries-chart';
@@ -26,7 +25,8 @@ import {
 } from '@/components/ui/card';
 import { Link, useRouter } from '@/i18n/routing';
 import { useLinkAnalytics } from '@/lib/hooks/use-analytics';
-import { useDeleteLink, useLink } from '@/lib/hooks/use-links';
+import { useDeleteLinkFlow } from '@/lib/hooks/use-delete-link-flow';
+import { useLink } from '@/lib/hooks/use-links';
 
 export default function LinkDetailPage() {
   const params = useParams();
@@ -38,22 +38,10 @@ export default function LinkDetailPage() {
 
   const { data: link, isLoading, isError, error, refetch } = useLink(linkId);
   const { daily, breakdown, summary } = useLinkAnalytics(linkId);
-  const deleteLink = useDeleteLink();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
-  const handleDelete = async () => {
-    setShowDeleteDialog(true);
-  };
-
-  const confirmDelete = async () => {
-    try {
-      await deleteLink.mutateAsync(linkId);
-      setShowDeleteDialog(false);
-      router.push('/dashboard/links?deleted=true');
-    } catch (error) {
-      console.error('Failed to delete link:', error);
-    }
-  };
+  const { isDialogOpen, cancelDelete, confirmDelete, startDelete, isPending } =
+    useDeleteLinkFlow({
+      onSuccess: () => router.push('/dashboard/links?deleted=true')
+    });
 
   if (isLoading) {
     return (
@@ -76,13 +64,13 @@ export default function LinkDetailPage() {
   return (
     <ErrorBoundary>
       <ConfirmDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
+        open={isDialogOpen}
+        onOpenChange={(open) => !open && cancelDelete()}
         title={t('deleteConfirm')}
         description={t('deleteConfirm')}
         onConfirm={confirmDelete}
         confirmText={t('delete')}
-        loading={deleteLink.isPending}
+        loading={isPending}
       />
       <div className="space-y-6">
         {/* Header */}
@@ -108,7 +96,7 @@ export default function LinkDetailPage() {
                 {t('edit')}
               </Link>
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
+            <Button variant="destructive" onClick={() => startDelete(linkId)}>
               <Trash className="mr-2 h-4 w-4" />
               {t('delete')}
             </Button>

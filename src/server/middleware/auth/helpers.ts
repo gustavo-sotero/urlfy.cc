@@ -106,13 +106,33 @@ export async function enforceApiKeyRateLimit(
 }
 
 /**
+ * Deny-all permission set returned when the stored permission payload
+ * is structurally invalid or cannot be parsed.  This ensures a
+ * malformed entry in the DB never silently escalates privileges.
+ */
+function denyAllPermissions(): NormalizedApiKeyPermissions {
+  return {
+    links: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false
+    },
+    analytics: {
+      read: false
+    }
+  };
+}
+
+/**
  * Normalize API key permissions from DB
  */
 export function parsePermissions(
   permissions: string | null
 ): NormalizedApiKeyPermissions {
   if (!permissions) {
-    return normalizePermissions({});
+    // Missing permissions payload must fail closed.
+    return denyAllPermissions();
   }
 
   try {
@@ -125,9 +145,35 @@ export function parsePermissions(
       };
       analytics?: { read?: boolean };
     };
+
+    // Guard against non-object values (arrays, primitives, null)
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      Array.isArray(parsed)
+    ) {
+      logger.warn(
+        'API key has invalid permissions structure (not a plain object) — denying all scopes',
+        { permissionsRaw: permissions.slice(0, 200) }
+      );
+      return denyAllPermissions();
+    }
+
+    // Empty objects grant no scopes (fail-closed).
+    if (
+      (!parsed.links || Object.keys(parsed.links).length === 0) &&
+      (!parsed.analytics || Object.keys(parsed.analytics).length === 0)
+    ) {
+      return denyAllPermissions();
+    }
+
     return normalizePermissions(parsed);
   } catch {
-    return normalizePermissions({});
+    logger.warn(
+      'API key has unparseable permissions JSON — denying all scopes',
+      { permissionsRaw: permissions.slice(0, 200) }
+    );
+    return denyAllPermissions();
   }
 }
 
@@ -142,13 +188,13 @@ function normalizePermissions(input: {
 }): NormalizedApiKeyPermissions {
   const defaults: NormalizedApiKeyPermissions = {
     links: {
-      create: true,
-      read: true,
-      update: true,
+      create: false,
+      read: false,
+      update: false,
       delete: false
     },
     analytics: {
-      read: true
+      read: false
     }
   };
 

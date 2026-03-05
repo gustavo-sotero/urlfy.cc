@@ -105,7 +105,6 @@ export function BackupCodes({ asDialog = true }: BackupCodesProps) {
         toast.error(t('errors.generateFailed'));
       }
     } catch (error) {
-      console.error('Generate backup codes error:', error);
       toast.error(
         error instanceof Error ? error.message : t('errors.authFailed')
       );

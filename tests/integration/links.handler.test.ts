@@ -63,6 +63,7 @@ mock.module('@/server/lib/redis', () => ({
   closeRedis: mock(() => Promise.resolve())
 }));
 
+import { antiAbuseService } from '@/server/services/anti-abuse.service';
 import {
   createElysiaTestClient,
   type ElysiaTestClient,
@@ -72,6 +73,8 @@ import {
 
 describe('Links Endpoints (handler-level)', () => {
   let client: ElysiaTestClient;
+  const originalRecordLinkCreation = antiAbuseService.recordLinkCreation;
+  const originalRecordEvent = antiAbuseService.recordEvent;
 
   beforeAll(async () => {
     // Lazy import to avoid initialization issues when infrastructure isn't running
@@ -80,6 +83,8 @@ describe('Links Endpoints (handler-level)', () => {
   });
 
   afterAll(() => {
+    antiAbuseService.recordLinkCreation = originalRecordLinkCreation;
+    antiAbuseService.recordEvent = originalRecordEvent;
     mock.restore();
   });
 
@@ -170,6 +175,46 @@ describe('Links Endpoints (handler-level)', () => {
       const response = await client.post('/api/links', {});
 
       expect(response.status).toBeGreaterThanOrEqual(400);
+    });
+
+    test('should invoke anti-abuse success recorder after successful creation', async () => {
+      const recordLinkCreationSpy = mock(async () => false);
+      const recordEventSpy = mock(async () => {});
+
+      antiAbuseService.recordLinkCreation = recordLinkCreationSpy;
+      antiAbuseService.recordEvent = recordEventSpy;
+
+      const response = await client.post('/api/links', {
+        url: 'https://example.com'
+      });
+
+      expect(response.status).toBe(201);
+      expect(recordLinkCreationSpy).toHaveBeenCalledTimes(1);
+      expect(recordEventSpy).toHaveBeenCalledTimes(0);
+
+      antiAbuseService.recordLinkCreation = originalRecordLinkCreation;
+      antiAbuseService.recordEvent = originalRecordEvent;
+    });
+
+    test('should invoke anti-abuse failure recorder when createLink throws', async () => {
+      const recordLinkCreationSpy = mock(async () => false);
+      const recordEventSpy = mock(async () => {});
+
+      antiAbuseService.recordLinkCreation = recordLinkCreationSpy;
+      antiAbuseService.recordEvent = recordEventSpy;
+
+      const response = await client.post('/api/links', {
+        url: 'https://example.com',
+        customAlias: 'needs-auth'
+      });
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(recordLinkCreationSpy).toHaveBeenCalledTimes(0);
+      expect(recordEventSpy).toHaveBeenCalledTimes(1);
+      expect(recordEventSpy.mock.calls[0]?.[0]).toBe('API_ERRORS');
+
+      antiAbuseService.recordLinkCreation = originalRecordLinkCreation;
+      antiAbuseService.recordEvent = originalRecordEvent;
     });
   });
 

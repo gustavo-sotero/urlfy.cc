@@ -120,7 +120,6 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
 
       setCurrentStep('qr');
     } catch (error) {
-      console.error('2FA enable error:', error);
       toast.error(
         error instanceof Error ? error.message : t('errors.password')
       );
@@ -164,7 +163,6 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
         onSuccess();
       }
     } catch (error) {
-      console.error('2FA verify error:', error);
       toast.error(
         error instanceof Error ? error.message : t('errors.invalidCode')
       );

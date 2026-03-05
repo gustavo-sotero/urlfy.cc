@@ -12,22 +12,27 @@
 import { Elysia, t } from 'elysia';
 import { Scopes } from '@/server/config/scopes';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
+import { getClientIp } from '@/server/lib/ip';
 import {
   ErrorRef,
   PaginatedResponse,
   ResponseModels,
   SuccessResponse
 } from '@/server/lib/response.schema';
+import {
+  recordLinkCreation,
+  recordLinkCreationFailure
+} from '@/server/middleware/anti-abuse';
 import { requireApiKey } from '@/server/middleware/api-key.guard';
 import { AnalyticsService } from '@/server/modules/analytics';
 import {
   LINK_RESPONSE_EXAMPLE,
   LINK_STATS_EXAMPLE,
   type LinkCreateBodyType,
+  LinkLifecycleService,
+  LinkService,
   LinksModel
 } from '@/server/modules/links';
-import { LinkLifecycleService } from '@/server/modules/links/link-lifecycle.service';
-import { LinkService } from '@/server/modules/links/links.service';
 
 /**
  * Helper type for context with API key
@@ -36,16 +41,33 @@ import { LinkService } from '@/server/modules/links/links.service';
 // ─── Shared handler for link creation ─────────────────────────────
 const createLinkHandler = async ({
   body,
-  apiKey
+  apiKey,
+  request
 }: {
   body: LinkCreateBodyType;
   apiKey?: { userId?: string };
+  request: Request;
 }) => {
-  const link = await LinkService.createLink(
-    body,
-    apiKey?.userId,
-    'api-key' // IP hash placeholder for API keys
-  );
+  const clientIp = getClientIp(request);
+
+  let link: Awaited<ReturnType<typeof LinkService.createLink>>;
+
+  try {
+    link = await LinkService.createLink(
+      body,
+      apiKey?.userId,
+      'api-key' // IP hash placeholder for API keys
+    );
+  } catch (error) {
+    recordLinkCreationFailure(apiKey?.userId ?? null, clientIp).catch(() => {
+      // Intentionally ignored
+    });
+    throw error;
+  }
+
+  recordLinkCreation(apiKey?.userId ?? null, clientIp).catch(() => {
+    // Intentionally ignored
+  });
 
   return {
     success: true as const,
@@ -191,15 +213,18 @@ const listOperations = new Elysia({ name: 'V1Links.List' })
       const result = await LinkService.listUserLinks(apiKey?.userId, {
         page: query.page ? Number.parseInt(query.page, 10) : 1,
         perPage: query.perPage ? Number.parseInt(query.perPage, 10) : 20,
+        cursor: query.cursor,
         sortBy: query.sortBy ?? 'createdAt',
         sortOrder: query.sortOrder ?? 'desc',
         search: query.search,
+        tags: query.tags ? query.tags.split(',') : undefined,
         isActive:
           query.isActive === 'true'
             ? true
             : query.isActive === 'false'
               ? false
-              : undefined
+              : undefined,
+        fields: query.fields
       });
 
       return {

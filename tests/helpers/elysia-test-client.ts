@@ -77,6 +77,13 @@ export function createElysiaTestClient(app: AnyElysia) {
   async function parseBody<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('Content-Type') || '';
 
+    // Prefer JSON parsing first even when content-type is missing/misconfigured.
+    try {
+      return (await response.clone().json()) as T;
+    } catch {
+      // Continue with content-type-based fallbacks.
+    }
+
     if (contentType.includes('application/json')) {
       try {
         return (await response.json()) as T;
@@ -86,7 +93,32 @@ export function createElysiaTestClient(app: AnyElysia) {
     }
 
     if (contentType.includes('text/')) {
-      return (await response.text()) as T;
+      const text = await response.text();
+      if (!text) return {} as T;
+
+      const trimmed = text.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          return JSON.parse(trimmed) as T;
+        } catch {
+          return text as T;
+        }
+      }
+
+      return text as T;
+    }
+
+    // Some handlers can return JSON strings without a content-type.
+    try {
+      const text = await response.text();
+      if (!text) return {} as T;
+
+      const trimmed = text.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        return JSON.parse(trimmed) as T;
+      }
+    } catch {
+      // Fall through to binary parsing
     }
 
     // For binary content (images, etc.)

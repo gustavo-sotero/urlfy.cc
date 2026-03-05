@@ -23,7 +23,13 @@ import {
   sql
 } from 'drizzle-orm';
 import { db } from '@/db';
-import { analyticsEvents } from '@/db/schema';
+import {
+  analyticsBrowserBreakdown,
+  analyticsCountryBreakdown,
+  analyticsDeviceBreakdown,
+  analyticsEvents,
+  linkClicksDaily
+} from '@/db/schema';
 import { CACHE_KEYS, CACHE_TTL } from '@/server/lib/cache-keys';
 import type {
   AnalyticsBreakdown,
@@ -43,6 +49,54 @@ import {
   withCache
 } from './analytics.helpers';
 import { AnalyticsGlobalService } from './analytics-global.service';
+
+function toDateOnly(input: Date): string {
+  return input.toISOString().split('T')[0] as string;
+}
+
+function createRange(days: number): {
+  startDate: Date;
+  startDateStr: string;
+  todayStr: string;
+  todayStart: Date;
+  tomorrowDate: Date;
+} {
+  const startDate = getStartDate(days);
+  const todayStr = toDateOnly(new Date());
+  const todayStart = new Date(todayStr);
+  const tomorrowDate = new Date(todayStr);
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+
+  return {
+    startDate,
+    startDateStr: toDateOnly(startDate),
+    todayStr,
+    todayStart,
+    tomorrowDate
+  };
+}
+
+function mergeBreakdownCounts<T extends string>(
+  aggregated: Array<{ key: T | null; clicks: number }>,
+  realtime: Array<{ key: T | null; clicks: number }>
+): Array<{ key: T; clicks: number }> {
+  const counts = new Map<T, number>();
+
+  for (const item of aggregated) {
+    if (!item.key) continue;
+    counts.set(item.key, (counts.get(item.key) ?? 0) + item.clicks);
+  }
+
+  for (const item of realtime) {
+    if (!item.key) continue;
+    counts.set(item.key, (counts.get(item.key) ?? 0) + item.clicks);
+  }
+
+  return [...counts.entries()]
+    .map(([key, clicks]) => ({ key, clicks }))
+    .sort((a, b) => b.clicks - a.clicks);
+}
+
 export const AnalyticsService = {
   /**
    * Get total unique visitors for a link (all time)
@@ -87,7 +141,8 @@ export const AnalyticsService = {
     linkId: string,
     days: number = 30
   ): Promise<TimeSeries[]> {
-    const startDate = getStartDate(days);
+    const { startDate, startDateStr, todayStr, todayStart, tomorrowDate } =
+      createRange(days);
     const cacheKey = CACHE_KEYS.ANALYTICS_TIMESERIES(
       linkId,
       startDate.toISOString(),
@@ -100,36 +155,80 @@ export const AnalyticsService = {
       CACHE_TTL.ANALYTICS_TIMESERIES,
       async () => {
         try {
-          const stats = await db
-            .select({
-              date: sql<Date | string>`DATE(${analyticsEvents.createdAt})`.as(
-                'date'
-              ),
-              clicks: countFn().as('clicks'),
-              uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
-                'uniqueVisitors'
-              )
-            })
-            .from(analyticsEvents)
-            .where(
-              and(
-                eq(analyticsEvents.linkId, linkId),
-                gte(analyticsEvents.createdAt, startDate),
-                eq(analyticsEvents.isBot, false)
-              )
-            )
-            .groupBy(sql`DATE(${analyticsEvents.createdAt})`)
-            .orderBy(desc(sql`DATE(${analyticsEvents.createdAt})`));
+          const realtimeStart = startDate > todayStart ? startDate : todayStart;
 
-          return stats.map((s) => ({
-            // Ensure date is a string in YYYY-MM-DD format
-            date:
-              s.date instanceof Date
-                ? s.date.toISOString().split('T')[0]
-                : String(s.date),
-            clicks: toNumber(s.clicks),
-            uniqueVisitors: toNumber(s.uniqueVisitors)
-          }));
+          const [aggregatedRows, realtimeRows] = await Promise.all([
+            startDateStr < todayStr
+              ? db
+                  .select({
+                    date: linkClicksDaily.date,
+                    clicks: linkClicksDaily.clicks,
+                    uniqueVisitors: linkClicksDaily.uniqueVisitors
+                  })
+                  .from(linkClicksDaily)
+                  .where(
+                    and(
+                      eq(linkClicksDaily.linkId, linkId),
+                      gte(linkClicksDaily.date, startDateStr),
+                      lt(linkClicksDaily.date, todayStr)
+                    )
+                  )
+              : Promise.resolve([]),
+
+            realtimeStart < tomorrowDate
+              ? db
+                  .select({
+                    date: sql<
+                      Date | string
+                    >`DATE(${analyticsEvents.createdAt})`.as('date'),
+                    clicks: countFn().as('clicks'),
+                    uniqueVisitors: countDistinct(
+                      analyticsEvents.visitorHash
+                    ).as('uniqueVisitors')
+                  })
+                  .from(analyticsEvents)
+                  .where(
+                    and(
+                      eq(analyticsEvents.linkId, linkId),
+                      gte(analyticsEvents.createdAt, realtimeStart),
+                      lt(analyticsEvents.createdAt, tomorrowDate),
+                      eq(analyticsEvents.isBot, false)
+                    )
+                  )
+                  .groupBy(sql`DATE(${analyticsEvents.createdAt})`)
+              : Promise.resolve([])
+          ]);
+
+          const merged = new Map<
+            string,
+            { clicks: number; uniqueVisitors: number }
+          >();
+
+          for (const row of aggregatedRows) {
+            merged.set(row.date, {
+              clicks: toNumber(row.clicks),
+              uniqueVisitors: toNumber(row.uniqueVisitors)
+            });
+          }
+
+          for (const row of realtimeRows) {
+            const dateStr =
+              row.date instanceof Date
+                ? row.date.toISOString().split('T')[0]
+                : String(row.date);
+            merged.set(dateStr, {
+              clicks: toNumber(row.clicks),
+              uniqueVisitors: toNumber(row.uniqueVisitors)
+            });
+          }
+
+          return [...merged.entries()]
+            .sort(([a], [b]) => b.localeCompare(a))
+            .map(([date, values]) => ({
+              date,
+              clicks: values.clicks,
+              uniqueVisitors: values.uniqueVisitors
+            }));
         } catch (error) {
           logger.error('[AnalyticsService] Error getting daily stats', {
             error: error instanceof Error ? error.message : String(error),
@@ -152,7 +251,8 @@ export const AnalyticsService = {
     limit: number = 10,
     days: number = 30
   ): Promise<CountryBreakdownItem[]> {
-    const startDate = getStartDate(days);
+    const { startDate, startDateStr, todayStr, todayStart, tomorrowDate } =
+      createRange(days);
     const cacheKey = CACHE_KEYS.ANALYTICS_BREAKDOWN(
       linkId,
       'countries',
@@ -165,34 +265,65 @@ export const AnalyticsService = {
       CACHE_TTL.ANALYTICS_BREAKDOWN,
       async () => {
         try {
-          // Get countries with counts in a single query
-          const countries = await db
-            .select({
-              country: analyticsEvents.country,
-              clicks: countFn().as('clicks')
-            })
-            .from(analyticsEvents)
-            .where(
-              and(
-                eq(analyticsEvents.linkId, linkId),
-                gte(analyticsEvents.createdAt, startDate),
-                eq(analyticsEvents.isBot, false)
-              )
-            )
-            .groupBy(analyticsEvents.country)
-            .orderBy(desc(sql`clicks`))
-            .limit(limit);
+          const realtimeStart = startDate > todayStart ? startDate : todayStart;
 
-          // Calculate total from the results
-          const total = countries.reduce(
-            (sum, c) => sum + toNumber(c.clicks),
-            0
-          );
+          const [aggregatedRows, realtimeRows] = await Promise.all([
+            startDateStr < todayStr
+              ? db
+                  .select({
+                    key: analyticsCountryBreakdown.country,
+                    clicks:
+                      sql<number>`COALESCE(SUM(${analyticsCountryBreakdown.clicks}), 0)::int`.as(
+                        'clicks'
+                      )
+                  })
+                  .from(analyticsCountryBreakdown)
+                  .where(
+                    and(
+                      eq(analyticsCountryBreakdown.linkId, linkId),
+                      gte(analyticsCountryBreakdown.date, startDateStr),
+                      lt(analyticsCountryBreakdown.date, todayStr)
+                    )
+                  )
+                  .groupBy(analyticsCountryBreakdown.country)
+              : Promise.resolve([]),
+
+            realtimeStart < tomorrowDate
+              ? db
+                  .select({
+                    key: analyticsEvents.country,
+                    clicks: countFn().as('clicks')
+                  })
+                  .from(analyticsEvents)
+                  .where(
+                    and(
+                      eq(analyticsEvents.linkId, linkId),
+                      gte(analyticsEvents.createdAt, realtimeStart),
+                      lt(analyticsEvents.createdAt, tomorrowDate),
+                      eq(analyticsEvents.isBot, false)
+                    )
+                  )
+                  .groupBy(analyticsEvents.country)
+              : Promise.resolve([])
+          ]);
+
+          const countries = mergeBreakdownCounts(
+            aggregatedRows.map((row) => ({
+              key: row.key,
+              clicks: toNumber(row.clicks)
+            })),
+            realtimeRows.map((row) => ({
+              key: row.key,
+              clicks: toNumber(row.clicks)
+            }))
+          ).slice(0, limit);
+
+          const total = countries.reduce((sum, c) => sum + c.clicks, 0);
 
           return countries.map((c) => {
-            const clicks = toNumber(c.clicks);
+            const clicks = c.clicks;
             return {
-              country: c.country ?? 'unknown',
+              country: c.key,
               clicks,
               percentage: calculatePercentage(clicks, total)
             };
@@ -217,7 +348,8 @@ export const AnalyticsService = {
     linkId: string,
     days: number = 30
   ): Promise<DeviceBreakdownItem[]> {
-    const startDate = getStartDate(days);
+    const { startDate, startDateStr, todayStr, todayStart, tomorrowDate } =
+      createRange(days);
     const cacheKey = CACHE_KEYS.ANALYTICS_BREAKDOWN(
       linkId,
       'devices',
@@ -230,28 +362,65 @@ export const AnalyticsService = {
       CACHE_TTL.ANALYTICS_BREAKDOWN,
       async () => {
         try {
-          const devices = await db
-            .select({
-              type: analyticsEvents.deviceType,
-              clicks: countFn().as('clicks')
-            })
-            .from(analyticsEvents)
-            .where(
-              and(
-                eq(analyticsEvents.linkId, linkId),
-                gte(analyticsEvents.createdAt, startDate),
-                eq(analyticsEvents.isBot, false)
-              )
-            )
-            .groupBy(analyticsEvents.deviceType)
-            .orderBy(desc(sql`clicks`));
+          const realtimeStart = startDate > todayStart ? startDate : todayStart;
 
-          const total = devices.reduce((sum, d) => sum + toNumber(d.clicks), 0);
+          const [aggregatedRows, realtimeRows] = await Promise.all([
+            startDateStr < todayStr
+              ? db
+                  .select({
+                    key: analyticsDeviceBreakdown.deviceType,
+                    clicks:
+                      sql<number>`COALESCE(SUM(${analyticsDeviceBreakdown.clicks}), 0)::int`.as(
+                        'clicks'
+                      )
+                  })
+                  .from(analyticsDeviceBreakdown)
+                  .where(
+                    and(
+                      eq(analyticsDeviceBreakdown.linkId, linkId),
+                      gte(analyticsDeviceBreakdown.date, startDateStr),
+                      lt(analyticsDeviceBreakdown.date, todayStr)
+                    )
+                  )
+                  .groupBy(analyticsDeviceBreakdown.deviceType)
+              : Promise.resolve([]),
+
+            realtimeStart < tomorrowDate
+              ? db
+                  .select({
+                    key: analyticsEvents.deviceType,
+                    clicks: countFn().as('clicks')
+                  })
+                  .from(analyticsEvents)
+                  .where(
+                    and(
+                      eq(analyticsEvents.linkId, linkId),
+                      gte(analyticsEvents.createdAt, realtimeStart),
+                      lt(analyticsEvents.createdAt, tomorrowDate),
+                      eq(analyticsEvents.isBot, false)
+                    )
+                  )
+                  .groupBy(analyticsEvents.deviceType)
+              : Promise.resolve([])
+          ]);
+
+          const devices = mergeBreakdownCounts(
+            aggregatedRows.map((row) => ({
+              key: row.key,
+              clicks: toNumber(row.clicks)
+            })),
+            realtimeRows.map((row) => ({
+              key: row.key,
+              clicks: toNumber(row.clicks)
+            }))
+          );
+
+          const total = devices.reduce((sum, d) => sum + d.clicks, 0);
 
           return devices.map((d) => {
-            const clicks = toNumber(d.clicks);
+            const clicks = d.clicks;
             return {
-              type: d.type ?? 'unknown',
+              type: d.key,
               clicks,
               percentage: calculatePercentage(clicks, total)
             };
@@ -277,7 +446,8 @@ export const AnalyticsService = {
     limit: number = 10,
     days: number = 30
   ): Promise<BrowserBreakdownItem[]> {
-    const startDate = getStartDate(days);
+    const { startDate, startDateStr, todayStr, todayStart, tomorrowDate } =
+      createRange(days);
     const cacheKey = CACHE_KEYS.ANALYTICS_BREAKDOWN(
       linkId,
       'browsers',
@@ -290,32 +460,65 @@ export const AnalyticsService = {
       CACHE_TTL.ANALYTICS_BREAKDOWN,
       async () => {
         try {
-          const browsers = await db
-            .select({
-              name: analyticsEvents.browser,
-              clicks: countFn().as('clicks')
-            })
-            .from(analyticsEvents)
-            .where(
-              and(
-                eq(analyticsEvents.linkId, linkId),
-                gte(analyticsEvents.createdAt, startDate),
-                eq(analyticsEvents.isBot, false)
-              )
-            )
-            .groupBy(analyticsEvents.browser)
-            .orderBy(desc(sql`clicks`))
-            .limit(limit);
+          const realtimeStart = startDate > todayStart ? startDate : todayStart;
 
-          const total = browsers.reduce(
-            (sum, b) => sum + toNumber(b.clicks),
-            0
-          );
+          const [aggregatedRows, realtimeRows] = await Promise.all([
+            startDateStr < todayStr
+              ? db
+                  .select({
+                    key: analyticsBrowserBreakdown.browser,
+                    clicks:
+                      sql<number>`COALESCE(SUM(${analyticsBrowserBreakdown.clicks}), 0)::int`.as(
+                        'clicks'
+                      )
+                  })
+                  .from(analyticsBrowserBreakdown)
+                  .where(
+                    and(
+                      eq(analyticsBrowserBreakdown.linkId, linkId),
+                      gte(analyticsBrowserBreakdown.date, startDateStr),
+                      lt(analyticsBrowserBreakdown.date, todayStr)
+                    )
+                  )
+                  .groupBy(analyticsBrowserBreakdown.browser)
+              : Promise.resolve([]),
+
+            realtimeStart < tomorrowDate
+              ? db
+                  .select({
+                    key: analyticsEvents.browser,
+                    clicks: countFn().as('clicks')
+                  })
+                  .from(analyticsEvents)
+                  .where(
+                    and(
+                      eq(analyticsEvents.linkId, linkId),
+                      gte(analyticsEvents.createdAt, realtimeStart),
+                      lt(analyticsEvents.createdAt, tomorrowDate),
+                      eq(analyticsEvents.isBot, false)
+                    )
+                  )
+                  .groupBy(analyticsEvents.browser)
+              : Promise.resolve([])
+          ]);
+
+          const browsers = mergeBreakdownCounts(
+            aggregatedRows.map((row) => ({
+              key: row.key,
+              clicks: toNumber(row.clicks)
+            })),
+            realtimeRows.map((row) => ({
+              key: row.key,
+              clicks: toNumber(row.clicks)
+            }))
+          ).slice(0, limit);
+
+          const total = browsers.reduce((sum, b) => sum + b.clicks, 0);
 
           return browsers.map((b) => {
-            const clicks = toNumber(b.clicks);
+            const clicks = b.clicks;
             return {
-              name: b.name ?? 'unknown',
+              name: b.key,
               clicks,
               percentage: calculatePercentage(clicks, total)
             };
@@ -408,19 +611,90 @@ export const AnalyticsService = {
       const currentStart = getStartDate(days);
       const previousStart = getStartDate(days * 2);
       const previousEnd = currentStart;
+      const todayStr = new Date().toISOString().split('T')[0] as string;
+      const todayStart = new Date(todayStr);
+      const tomorrowDate = new Date(todayStr);
+      tomorrowDate.setDate(tomorrowDate.getDate() + 1);
 
-      // Get current and previous period stats in parallel
+      const getPeriodClicks = async (
+        periodStart: Date,
+        periodEndExclusive: Date
+      ): Promise<number> => {
+        if (periodStart >= periodEndExclusive) {
+          return 0;
+        }
+
+        const periodStartDate = periodStart
+          .toISOString()
+          .split('T')[0] as string;
+        const periodEndDate = periodEndExclusive
+          .toISOString()
+          .split('T')[0] as string;
+
+        const aggregateEndDate =
+          periodEndDate < todayStr ? periodEndDate : todayStr;
+
+        const [aggregatedClicks, realtimeClicks] = await Promise.all([
+          periodStartDate < aggregateEndDate
+            ? db
+                .select({
+                  clicks:
+                    sql<number>`COALESCE(SUM(${linkClicksDaily.clicks}), 0)::int`.as(
+                      'clicks'
+                    )
+                })
+                .from(linkClicksDaily)
+                .where(
+                  and(
+                    eq(linkClicksDaily.linkId, linkId),
+                    gte(linkClicksDaily.date, periodStartDate),
+                    lt(linkClicksDaily.date, aggregateEndDate)
+                  )
+                )
+            : Promise.resolve([{ clicks: 0 }]),
+
+          periodEndExclusive > todayStart
+            ? db
+                .select({
+                  clicks: countFn().as('clicks')
+                })
+                .from(analyticsEvents)
+                .where(
+                  and(
+                    eq(analyticsEvents.linkId, linkId),
+                    gte(
+                      analyticsEvents.createdAt,
+                      periodStart > todayStart ? periodStart : todayStart
+                    ),
+                    lt(analyticsEvents.createdAt, periodEndExclusive),
+                    eq(analyticsEvents.isBot, false)
+                  )
+                )
+            : Promise.resolve([{ clicks: 0 }])
+        ]);
+
+        return (
+          toNumber(aggregatedClicks[0]?.clicks) +
+          toNumber(realtimeClicks[0]?.clicks)
+        );
+      };
+
+      // Prefer aggregate tables where available, keeping exact uniques from raw data.
       const [
-        currentSummary,
-        previousSummary,
-        topCountryRow,
-        topBrowserRow,
-        topReferrerRow
+        totalClicks,
+        previousClicks,
+        currentUniqueRows,
+        previousUniqueRows,
+        countries,
+        browsers,
+        referrers
       ] = await Promise.all([
-        // Current period stats
+        getPeriodClicks(currentStart, tomorrowDate),
+        getPeriodClicks(previousStart, previousEnd),
+
+        // Exact unique visitors for current period
         db
           .select({
-            totalClicks: countFn().as('totalClicks'),
             uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
               'uniqueVisitors'
             )
@@ -433,10 +707,10 @@ export const AnalyticsService = {
               eq(analyticsEvents.isBot, false)
             )
           ),
-        // Previous period stats
+
+        // Exact unique visitors for previous period
         db
           .select({
-            totalClicks: countFn().as('totalClicks'),
             uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
               'uniqueVisitors'
             )
@@ -450,71 +724,22 @@ export const AnalyticsService = {
               eq(analyticsEvents.isBot, false)
             )
           ),
-        // Top country
-        db
-          .select({
-            country: analyticsEvents.country,
-            clicks: countFn().as('clicks')
-          })
-          .from(analyticsEvents)
-          .where(
-            and(
-              eq(analyticsEvents.linkId, linkId),
-              gte(analyticsEvents.createdAt, currentStart),
-              eq(analyticsEvents.isBot, false)
-            )
-          )
-          .groupBy(analyticsEvents.country)
-          .orderBy(desc(sql`clicks`))
-          .limit(1),
-        // Top browser
-        db
-          .select({
-            browser: analyticsEvents.browser,
-            clicks: countFn().as('clicks')
-          })
-          .from(analyticsEvents)
-          .where(
-            and(
-              eq(analyticsEvents.linkId, linkId),
-              gte(analyticsEvents.createdAt, currentStart),
-              eq(analyticsEvents.isBot, false)
-            )
-          )
-          .groupBy(analyticsEvents.browser)
-          .orderBy(desc(sql`clicks`))
-          .limit(1),
-        // Top referrer
-        db
-          .select({
-            domain: analyticsEvents.referrerDomain,
-            clicks: countFn().as('clicks')
-          })
-          .from(analyticsEvents)
-          .where(
-            and(
-              eq(analyticsEvents.linkId, linkId),
-              gte(analyticsEvents.createdAt, currentStart),
-              eq(analyticsEvents.isBot, false)
-            )
-          )
-          .groupBy(analyticsEvents.referrerDomain)
-          .orderBy(desc(sql`clicks`))
-          .limit(1)
+
+        AnalyticsService.getCountryBreakdown(linkId, 10, days),
+        AnalyticsService.getBrowserBreakdown(linkId, 10, days),
+        AnalyticsService.getReferrerBreakdown(linkId, 10, days)
       ]);
 
-      const totalClicks = toNumber(currentSummary[0]?.totalClicks);
-      const uniqueVisitors = toNumber(currentSummary[0]?.uniqueVisitors);
-      const previousClicks = toNumber(previousSummary[0]?.totalClicks);
-      const previousVisitors = toNumber(previousSummary[0]?.uniqueVisitors);
+      const uniqueVisitors = toNumber(currentUniqueRows[0]?.uniqueVisitors);
+      const previousVisitors = toNumber(previousUniqueRows[0]?.uniqueVisitors);
 
       return {
         totalClicks,
         uniqueVisitors,
         avgClicksPerDay: days > 0 ? Math.round(totalClicks / days) : 0,
-        topCountry: topCountryRow[0]?.country ?? null,
-        topBrowser: topBrowserRow[0]?.browser ?? null,
-        topReferrer: topReferrerRow[0]?.domain ?? null,
+        topCountry: countries[0]?.country ?? null,
+        topBrowser: browsers[0]?.name ?? null,
+        topReferrer: referrers[0]?.domain ?? null,
         totalClicksGrowth: calculateGrowth(totalClicks, previousClicks),
         uniqueVisitorsGrowth: calculateGrowth(uniqueVisitors, previousVisitors)
       };

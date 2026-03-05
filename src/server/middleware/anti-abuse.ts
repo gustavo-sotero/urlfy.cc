@@ -6,6 +6,7 @@
 import { getClientIp, maskIpForLog } from '@/server/lib/ip';
 import { createLogger } from '@/server/lib/telemetry';
 import { antiAbuseService } from '@/server/services/anti-abuse.service';
+import { buildErrorResponse, getOrCreateRequestId } from './error-response';
 
 const logger = createLogger('anti-abuse-middleware');
 
@@ -28,21 +29,16 @@ export async function antiAbuseMiddleware(
 
   if (isBlocked) {
     logger.warn('Blocked IP attempted request', { ip: maskIpForLog(ip), path });
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: {
-          code: 'BLOCKED',
-          message:
-            'Your IP has been blocked due to suspicious activity. Please contact support.'
-        }
-      }),
-      {
-        status: 403,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
+
+    // Propagate the incoming requestId (set by upstream or generate one) so
+    // blocked responses are traceable like every other error envelope.
+    const requestId = getOrCreateRequestId(request);
+
+    return buildErrorResponse(
+      403,
+      'BLOCKED',
+      'Your IP has been blocked due to suspicious activity. Please contact support.',
+      requestId
     );
   }
 
@@ -86,6 +82,25 @@ export async function recordLinkCreation(
     }
   } catch (error) {
     logger.error('Failed to record link creation', {
+      error: error instanceof Error ? error.message : String(error),
+      userId,
+      ip: maskIpForLog(ip)
+    });
+  }
+}
+
+/**
+ * Record failed link creation attempts for abuse detection signals.
+ */
+export async function recordLinkCreationFailure(
+  userId: string | null,
+  ip: string
+): Promise<void> {
+  try {
+    const key = userId ?? ip;
+    await antiAbuseService.recordEvent('API_ERRORS', key);
+  } catch (error) {
+    logger.error('Failed to record link creation failure', {
       error: error instanceof Error ? error.message : String(error),
       userId,
       ip: maskIpForLog(ip)

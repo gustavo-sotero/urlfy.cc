@@ -15,12 +15,16 @@ import type { OpenAPIV3 } from 'openapi-types';
 import { auth } from '@/lib/auth';
 // Plugins
 import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
-import { isAppError } from '@/server/lib/error-handler';
+import { ErrorCode, isAppError } from '@/server/lib/error-handler';
 import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 import { ResponseModels } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { compressionMiddleware } from '@/server/middleware/compression';
 import { cspMiddleware } from '@/server/middleware/csp.middleware';
+import {
+  buildErrorEnvelope,
+  getOrCreateRequestId
+} from '@/server/middleware/error-response';
 import { securityHeadersMiddleware } from '@/server/middleware/security-headers';
 // Feature-based modules
 import {
@@ -48,6 +52,19 @@ import {
 } from '@/server/modules/users';
 
 const logger = createLogger('api-router');
+
+/**
+ * Error codes whose `details` must never reach the client (internal 5xx).
+ * Any AppError carrying one of these codes will have its details logged
+ * server-side but stripped from the JSON response body.
+ */
+const INTERNAL_ERROR_CODES: ReadonlySet<string> = new Set([
+  ErrorCode.INTERNAL_ERROR,
+  ErrorCode.DATABASE_ERROR,
+  ErrorCode.CACHE_ERROR,
+  ErrorCode.SERVICE_UNAVAILABLE,
+  ErrorCode.DATABASE_UNAVAILABLE
+]);
 
 // ═══════════════════════════════════════════════════════════════════
 // PUBLIC API DOCS (ISOLATED INSTANCE)
@@ -332,14 +349,15 @@ export const api = new Elysia({ prefix: '/api' })
   .onBeforeHandle(({ request, set }) => {
     const apiKey = request.headers.get('x-api-key');
     if (apiKey && !apiKey.startsWith('urlfy_sk_')) {
+      const requestId = getOrCreateRequestId(request);
       set.status = 401;
-      return {
-        success: false as const,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Invalid API key format'
-        }
-      };
+      set.headers['x-request-id'] = requestId;
+      set.headers['content-type'] = 'application/json; charset=utf-8';
+      return buildErrorEnvelope(
+        'UNAUTHORIZED',
+        'Invalid API key format',
+        requestId
+      );
     }
   })
 
@@ -359,15 +377,28 @@ export const api = new Elysia({ prefix: '/api' })
   // Global error handler
   .onError(({ code, error, set, requestId }) => {
     set.headers['x-request-id'] = requestId;
+    set.headers['content-type'] = 'application/json; charset=utf-8';
 
     if (isAppError(error)) {
+      const isInternalCode = INTERNAL_ERROR_CODES.has(error.code);
+
+      // Always log internal error details server-side for debugging
+      if (isInternalCode && error.details) {
+        logger.error('Internal AppError details (redacted from response)', {
+          requestId,
+          code: error.code,
+          details: error.details
+        });
+      }
+
       set.status = error.status;
       return {
         success: false,
         error: {
           code: error.code,
-          message: error.message,
-          ...(error.details && { details: error.details })
+          message: isInternalCode ? 'Internal server error' : error.message,
+          // Never expose details for internal/server-side errors
+          ...(!isInternalCode && error.details && { details: error.details })
         },
         requestId
       };
@@ -412,10 +443,7 @@ export const api = new Elysia({ prefix: '/api' })
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message:
-          process.env.NODE_ENV === 'development' && error instanceof Error
-            ? error.message
-            : 'Internal server error'
+        message: 'Internal server error'
       },
       requestId
     };

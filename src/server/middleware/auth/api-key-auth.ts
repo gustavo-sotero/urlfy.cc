@@ -3,6 +3,8 @@ import { Elysia } from 'elysia';
 import { db } from '@/db';
 import { apiKey as apiKeyTable, user as userTable } from '@/db/schema/auth';
 import type { User } from '@/lib/auth';
+import { createLogger } from '@/server/lib/telemetry';
+import { buildErrorEnvelope, getOrCreateRequestId } from '../error-response';
 import {
   enforceApiKeyRateLimit,
   hashApiKey,
@@ -10,23 +12,29 @@ import {
   updateApiKeyUsage
 } from './helpers';
 
+const logger = createLogger('api-key-auth');
+
 export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
-  .derive({ as: 'scoped' }, async ({ headers, status }) => {
+  .derive({ as: 'scoped' }, async ({ headers, request, status, set }) => {
     const apiKey = headers['x-api-key'];
 
+    // Derive requestId early so all early-return error responses carry it
+    const requestId = getOrCreateRequestId(request);
+    set.headers['x-request-id'] = requestId;
+
     if (!apiKey || typeof apiKey !== 'string') {
-      throw status(401, {
-        success: false,
-        error: { code: 'UNAUTHORIZED', message: 'API key required' }
-      });
+      throw status(
+        401,
+        buildErrorEnvelope('UNAUTHORIZED', 'API key required', requestId)
+      );
     }
 
     // Validate API key format (should start with urlfy_sk_)
     if (!apiKey.startsWith('urlfy_sk_')) {
-      throw status(401, {
-        success: false,
-        error: { code: 'UNAUTHORIZED', message: 'Invalid API key format' }
-      });
+      throw status(
+        401,
+        buildErrorEnvelope('UNAUTHORIZED', 'Invalid API key format', requestId)
+      );
     }
 
     // Hash the API key
@@ -59,10 +67,14 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
       .limit(1);
 
     if (!apiKeyResult) {
-      throw status(401, {
-        success: false,
-        error: { code: 'UNAUTHORIZED', message: 'Invalid or revoked API key' }
-      });
+      throw status(
+        401,
+        buildErrorEnvelope(
+          'UNAUTHORIZED',
+          'Invalid or revoked API key',
+          requestId
+        )
+      );
     }
 
     // Get user
@@ -73,17 +85,17 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
       .limit(1);
 
     if (!user) {
-      throw status(401, {
-        success: false,
-        error: { code: 'UNAUTHORIZED', message: 'User not found' }
-      });
+      throw status(
+        401,
+        buildErrorEnvelope('UNAUTHORIZED', 'User not found', requestId)
+      );
     }
 
     if (user.deletedAt || user.bannedAt) {
-      throw status(403, {
-        success: false,
-        error: { code: 'FORBIDDEN', message: 'Account is not accessible' }
-      });
+      throw status(
+        403,
+        buildErrorEnvelope('FORBIDDEN', 'Account is not accessible', requestId)
+      );
     }
 
     const rateLimitEnabled =
@@ -100,14 +112,16 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
       );
 
       if (!rateLimitResult.allowed) {
-        throw status(429, {
-          success: false,
-          error: {
-            code: 'RATE_LIMITED',
-            message: 'API key rate limit exceeded',
-            retryAfter: rateLimitResult.retryAfter
-          }
-        });
+        throw status(
+          429,
+          buildErrorEnvelope(
+            'RATE_LIMITED',
+            'API key rate limit exceeded',
+            requestId,
+            undefined,
+            rateLimitResult.retryAfter
+          )
+        );
       }
     }
 
@@ -115,8 +129,12 @@ export const apiKeyAuth = new Elysia({ name: 'api-key-auth' })
 
     // Update last used timestamp asynchronously
     // Update API key usage in background - intentionally fire-and-forget
-    updateApiKeyUsage(apiKeyResult.id).catch(() => {
-      // Silently ignore - usage tracking is best-effort
+    updateApiKeyUsage(apiKeyResult.id).catch((error) => {
+      logger.warn('Failed to update API key usage (best-effort)', {
+        requestId,
+        apiKeyId: apiKeyResult.id,
+        error: error instanceof Error ? error.message : String(error)
+      });
     });
 
     return {

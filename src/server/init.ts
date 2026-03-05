@@ -4,6 +4,7 @@
 
 import { closeDatabase, initDatabase } from '@/db';
 import { validateEnv } from '@/lib/env';
+import { assertCorsConfigSafe } from '@/server/config/cors';
 import { closeRedis } from '@/server/lib/redis';
 import {
   configureLogging,
@@ -25,6 +26,17 @@ if (
     logger.info('Environment variables validated');
   } catch (_error) {
     logger.error('Environment validation failed');
+    process.exit(1);
+  }
+
+  // Validate CORS configuration — fail fast on wildcard + credentials combo
+  try {
+    assertCorsConfigSafe();
+    logger.info('CORS configuration validated');
+  } catch (error) {
+    logger.error('CORS misconfiguration detected', {
+      error: error instanceof Error ? error.message : String(error)
+    });
     process.exit(1);
   }
 

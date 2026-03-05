@@ -8,7 +8,6 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { useState } from 'react';
 import { toast } from 'sonner';
 import { QueryError } from '@/components/query-error';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
@@ -18,9 +17,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from '@/i18n/routing';
+import { useDeleteLinkFlow } from '@/lib/hooks/use-delete-link-flow';
 import {
   useDashboardSummary,
-  useDeleteLink,
   useLinks,
   useUserQuota
 } from '@/lib/hooks/use-links';
@@ -44,25 +43,11 @@ export default function DashboardPage() {
   const { data: quotaData, isLoading: quotaLoading } = useUserQuota();
   const { data: summaryData, isLoading: summaryLoading } =
     useDashboardSummary();
-  const deleteLink = useDeleteLink();
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-
-  const handleDelete = async (id: string) => {
-    setDeleteTarget(id);
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      await deleteLink.mutateAsync(deleteTarget);
-      toast.success(t('toasts.deleteSuccess'));
-    } catch (err) {
-      console.error('Failed to delete link:', err);
-      toast.error(t('toasts.deleteError'));
-    } finally {
-      setDeleteTarget(null);
-    }
-  };
+  const { isDialogOpen, cancelDelete, confirmDelete, startDelete, isPending } =
+    useDeleteLinkFlow({
+      onSuccess: () => toast.success(t('toasts.deleteSuccess')),
+      onError: () => toast.error(t('toasts.deleteError'))
+    });
 
   // Stats from dedicated summary endpoint (accurate across all links)
   const totalLinks = summaryData?.totalLinks || 0;
@@ -72,13 +57,13 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <ConfirmDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        open={isDialogOpen}
+        onOpenChange={(open) => !open && cancelDelete()}
         title={t('links.deleteConfirm')}
         description={t('links.deleteConfirm')}
         onConfirm={confirmDelete}
         confirmText={t('linkCard.delete')}
-        loading={deleteLink.isPending}
+        loading={isPending}
       />
       <div>
         <h2 className="text-3xl font-bold tracking-tight">{t('title')}</h2>
@@ -200,7 +185,7 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-4">
                 {linksData.data?.map((link) => (
-                  <LinkCard key={link.id} link={link} onDelete={handleDelete} />
+                  <LinkCard key={link.id} link={link} onDelete={startDelete} />
                 ))}
               </div>
             ))}

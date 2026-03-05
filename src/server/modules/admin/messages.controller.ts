@@ -12,10 +12,10 @@ import { createLogger } from '@/server/lib/telemetry';
 import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
 import {
+  ContactService,
   MessageListQuery,
   MessageUpdateBody
-} from '@/server/modules/contact/contact.schema';
-import { ContactService } from '@/server/modules/contact/contact.service';
+} from '@/server/modules/contact';
 
 const logger = createLogger('admin-messages-controller');
 

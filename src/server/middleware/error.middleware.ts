@@ -8,6 +8,18 @@ import { Elysia } from 'elysia';
 import { ErrorCode, isAppError } from '../lib/error-handler';
 import { createLogger } from '../lib/telemetry';
 
+/**
+ * Error codes whose `details` must never reach the client.
+ * Mirrors the set in src/server/index.ts onError handler.
+ */
+const INTERNAL_ERROR_CODES: ReadonlySet<string> = new Set([
+  ErrorCode.INTERNAL_ERROR,
+  ErrorCode.DATABASE_ERROR,
+  ErrorCode.CACHE_ERROR,
+  ErrorCode.SERVICE_UNAVAILABLE,
+  ErrorCode.DATABASE_UNAVAILABLE
+]);
+
 const logger = createLogger('error-middleware');
 
 /**
@@ -54,22 +66,33 @@ export const errorMiddleware = new Elysia({ name: 'error-handler' }).onError(
     // Handle AppError instances
     if (isAppError(error)) {
       set.status = error.status;
+      const isInternalCode = INTERNAL_ERROR_CODES.has(error.code);
 
-      logger.warn('Application error', {
-        requestId,
-        code: error.code,
-        message: error.message,
-        status: error.status,
-        details: error.details,
-        path: new URL(request.url).pathname
-      });
+      // Always log with details server-side for debugging
+      if (isInternalCode && error.details) {
+        logger.error('Internal AppError details (redacted from response)', {
+          requestId,
+          code: error.code,
+          details: error.details
+        });
+      } else {
+        logger.warn('Application error', {
+          requestId,
+          code: error.code,
+          message: error.message,
+          status: error.status,
+          details: error.details,
+          path: new URL(request.url).pathname
+        });
+      }
 
       return {
         success: false as const,
         error: {
           code: error.code,
           message: error.message,
-          ...(error.details && { details: error.details })
+          // Never expose details for internal/server-side errors
+          ...(!isInternalCode && error.details && { details: error.details })
         },
         requestId
       };

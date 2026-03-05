@@ -3,6 +3,7 @@ import type { Session, User } from '@/lib/auth';
 import { auth } from '@/lib/auth';
 import { sanitizeHeaders } from '@/server/lib/log-sanitizer';
 import { createLogger } from '@/server/lib/telemetry';
+import { buildErrorEnvelope, getOrCreateRequestId } from '../error-response';
 import { getTestUserFromHeaders } from './helpers';
 
 const logger = createLogger('require-auth');
@@ -84,17 +85,17 @@ export const requireAuth = new Elysia({ name: 'require-auth' })
       };
     }
   })
-  .onBeforeHandle(async ({ user, session, set, isTestAuth }) => {
+  .onBeforeHandle(async ({ user, session, set, isTestAuth, request }) => {
     if (!user || (!session && !isTestAuth)) {
       logger.debug('Returning 401 - no user or session');
+      const requestId = getOrCreateRequestId(request);
       set.status = 401;
-      return {
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required'
-        }
-      };
+      set.headers['x-request-id'] = requestId;
+      return buildErrorEnvelope(
+        'UNAUTHORIZED',
+        'Authentication required',
+        requestId
+      );
     }
 
     if (
@@ -105,14 +106,14 @@ export const requireAuth = new Elysia({ name: 'require-auth' })
       logger.debug('Returning 403 - user deleted or banned', {
         userId: user.id
       });
+      const requestId = getOrCreateRequestId(request);
       set.status = 403;
-      return {
-        success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: 'Account is not accessible'
-        }
-      };
+      set.headers['x-request-id'] = requestId;
+      return buildErrorEnvelope(
+        'FORBIDDEN',
+        'Account is not accessible',
+        requestId
+      );
     }
   })
   .as('scoped');

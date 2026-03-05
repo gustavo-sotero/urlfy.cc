@@ -100,23 +100,23 @@ const mockRedis = {
       // Handle -inf manually if passed as string
       let min = args[1];
       if (min === '-inf') min = Number.NEGATIVE_INFINITY;
-      return mockRedis.zremrangebyscore(key, min, args[2]);
+      return mockRedis.zremrangebyscore(key, Number(min), Number(args[2]));
     }
     if (cmd === 'ZCARD') {
       return mockRedis.zcard(key);
     }
     if (cmd === 'ZADD') {
-      return mockRedis.zadd(key, args[1], args[2]);
+      return mockRedis.zadd(key, Number(args[1]), String(args[2]));
     }
     if (cmd === 'EXPIRE') {
-      return mockRedis.expire(key, args[1]);
+      return mockRedis.expire(key, Number(args[1]));
     }
     return Promise.resolve(null);
   })
 };
 
 // Mock telemetry to prevent OpenTelemetry initialization
-mock.module('@/server/lib/telemetry', () => ({
+mock.module('../../src/server/lib/telemetry', () => ({
   createLogger: () => ({
     debug: () => {},
     info: () => {},
@@ -129,28 +129,76 @@ mock.module('@/server/lib/telemetry', () => ({
 }));
 
 // Mock Redis module before other imports
-mock.module('@/server/lib/redis', () => ({
+mock.module('../../src/server/lib/redis', () => ({
   getRedisClient: () => mockRedis,
   redis: mockRedis
 }));
 
 // Dynamic imports after mocking
 const { RATE_LIMIT_CONFIGS, RateLimiter } = await import(
-  '@/server/lib/rate-limiter'
+  '../../src/server/lib/rate-limiter'
 );
 
 // Import full-featured mock redis for rate limiter tests (supports EVAL/EVALSHA/SCRIPT)
-import { createInMemoryRedisClient } from '@/server/lib/redis/redis-mock';
+import { createInMemoryRedisClient } from '../../src/server/lib/redis/redis-mock';
 
 const rateLimiterMockRedis = createInMemoryRedisClient();
 
 const { sanitizeMetaTags, sanitizeTags, sanitizeText } = await import(
-  '@/server/lib/sanitize'
+  '../../src/server/lib/sanitize'
 );
-const { validateUrl } = await import('@/server/lib/url-validator');
+const { validateUrlSafe: validateUrlCanonical } = await import(
+  '../../src/server/modules/links/services/url-validator'
+);
 const { antiAbuseService } = await import(
-  '@/server/services/anti-abuse.service'
+  '../../src/server/services/anti-abuse.service'
 );
+
+type LegacyValidationResult = {
+  valid: boolean;
+  code?: string;
+  warnings?: string[];
+};
+
+function mapValidationCode(error?: string): string | undefined {
+  switch (error) {
+    case 'INVALID_FORMAT':
+      return 'INVALID_FORMAT';
+    case 'INVALID_PROTOCOL':
+      return 'INVALID_PROTOCOL';
+    case 'SHORTENER_BLOCKED':
+      return 'SHORTENER_NOT_ALLOWED';
+    case 'DOMAIN_BANNED':
+      return 'DOMAIN_BANNED';
+    case 'URL_TOO_LONG':
+      return 'URL_TOO_LONG';
+    case 'URL_INTERNAL_BLOCKED':
+    case 'URL_RESOLUTION_FAILED':
+      return 'INTERNAL_URL';
+    default:
+      return undefined;
+  }
+}
+
+async function validateUrl(url: string): Promise<LegacyValidationResult> {
+  const result = await validateUrlCanonical(url);
+
+  if (result.valid) {
+    return {
+      valid: true,
+      ...(url.startsWith('http://') && {
+        warnings: [
+          'URL uses HTTP instead of HTTPS. Consider using HTTPS for better security.'
+        ]
+      })
+    };
+  }
+
+  return {
+    valid: false,
+    code: mapValidationCode(result.error)
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // SQL INJECTION TESTS
@@ -235,7 +283,7 @@ describe('XSS Prevention', () => {
 
     if (result) {
       expect(result).not.toContain('<script>alert(1)</script>');
-      expect(result.some((tag) => tag === 'legitimate-tag')).toBe(true);
+      expect(result.some((tag: string) => tag === 'legitimate-tag')).toBe(true);
     }
   });
 });

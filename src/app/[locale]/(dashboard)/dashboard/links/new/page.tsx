@@ -88,7 +88,7 @@ function transformFormData(data: FormData): CreateLinkInput {
     redirectType: parseRedirectType(data.redirectType)
   };
 
-  return removeEmptyFields(transformed) as unknown as CreateLinkInput;
+  return removeEmptyFields(transformed) as CreateLinkInput;
 }
 
 // ═══════════════════════════════════════════════════════════════════

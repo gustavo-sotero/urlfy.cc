@@ -3,7 +3,7 @@ import {
   isBlockedHostname,
   isPrivateIP,
   validateUrlSafe
-} from '@/server/services/url-validator';
+} from '@/server/modules/links/services/url-validator';
 
 // Mock dns lookup
 const mockLookup = mock((hostname: string) => {

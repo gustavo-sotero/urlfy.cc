@@ -57,6 +57,55 @@ export const EXPOSED_HEADERS = [
  */
 export const MAX_AGE = 86400; // 24 hours
 
+let corsConfigValidated = false;
+
+function validateOriginEntry(origin: string): string {
+  const trimmed = origin.trim();
+
+  if (!trimmed) {
+    throw new Error('[CORS] Misconfiguration detected: empty origin entry.');
+  }
+
+  if (trimmed === '*') {
+    return trimmed;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error(
+      `[CORS] Misconfiguration detected: invalid origin "${trimmed}". ` +
+        'Origins must be absolute URLs (e.g. https://app.example.com).'
+    );
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error(
+      `[CORS] Misconfiguration detected: invalid protocol in origin "${trimmed}". ` +
+        'Only http:// and https:// origins are supported.'
+    );
+  }
+
+  return parsed.origin;
+}
+
+function getValidatedOrigins(): string[] {
+  const rawOrigins = getAllowedOrigins();
+  const normalized = rawOrigins.map(validateOriginEntry);
+
+  return [...new Set(normalized)];
+}
+
+function ensureCorsConfigSafe(): void {
+  if (corsConfigValidated) {
+    return;
+  }
+
+  assertCorsConfigSafe();
+  corsConfigValidated = true;
+}
+
 /**
  * Get allowed origins for current environment
  */
@@ -97,20 +146,40 @@ export function isOriginAllowed(origin: string | null): boolean {
   if (!origin) return false;
 
   try {
-    const url = new URL(origin);
-    const allowedOrigins = getAllowedOrigins();
+    const requestOrigin = new URL(origin).origin;
 
-    return allowedOrigins.some((allowed) => {
-      if (allowed === '*') return true;
+    // Fail-closed for malformed env configuration so callers that use
+    // `isOriginAllowed` directly (without bootstrap validation) still deny.
+    const allowedOrigins = getValidatedOrigins();
 
-      try {
-        return url.origin === new URL(allowed).origin;
-      } catch {
-        return false;
-      }
-    });
+    return allowedOrigins.includes(requestOrigin);
   } catch {
     return false;
+  }
+}
+
+/**
+ * Validate that the CORS configuration does not contain a wildcard
+ * origin combined with `credentials: true`.  Such a combination is
+ * forbidden by the Fetch spec and silently ignored by browsers, but
+ * it represents a misconfiguration that could lead to CORS bypasses
+ * in certain reverse-proxy or service-mesh set-ups.
+ *
+ * Call this during server bootstrap (before the first request is
+ * processed) to fail fast on invalid configuration.
+ *
+ * @throws {Error} When an unsafe wildcard+credentials combination is detected.
+ */
+export function assertCorsConfigSafe(): void {
+  const allowedOrigins = getValidatedOrigins();
+  const hasWildcard = allowedOrigins.some((o) => o === '*');
+
+  if (hasWildcard) {
+    throw new Error(
+      '[CORS] Misconfiguration detected: a wildcard origin ("*") cannot be ' +
+        'combined with credentials:true.  Remove the wildcard from ' +
+        'TRUSTED_ORIGINS or disable credentialed requests.'
+    );
   }
 }
 
@@ -119,6 +188,8 @@ export function isOriginAllowed(origin: string | null): boolean {
  * Returns configuration object compatible with @elysiajs/cors
  */
 export function getElysiaCorsConfig() {
+  ensureCorsConfigSafe();
+
   return {
     origin: (request: Request): boolean => {
       const origin = request.headers.get('origin');
@@ -147,6 +218,8 @@ export function getElysiaCorsConfig() {
  * @returns Headers object with CORS headers
  */
 export function getCorsHeaders(origin: string | null): Record<string, string> {
+  ensureCorsConfigSafe();
+
   const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': ALLOWED_METHODS.join(', '),
     'Access-Control-Allow-Headers': ALLOWED_HEADERS.join(', '),

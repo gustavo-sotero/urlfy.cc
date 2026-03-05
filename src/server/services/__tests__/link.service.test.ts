@@ -114,7 +114,7 @@ mock.module('@/db/schema', () => ({
   }
 }));
 
-mock.module('@/server/services/url-validator', () => ({
+mock.module('@/server/modules/links/services/url-validator', () => ({
   validateUrlAsync: async (url: string) => {
     if (url.length > 2048) {
       return { valid: false, error: 'URL_TOO_LONG' };

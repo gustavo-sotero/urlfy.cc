@@ -2,7 +2,11 @@
 
 import type { NextRequest } from 'next/server';
 import { api } from '@/server';
-import { antiAbuseMiddleware } from '@/server/middleware/anti-abuse';
+import { getClientIp } from '@/server/lib/ip';
+import {
+  antiAbuseMiddleware,
+  recordLoginFailure
+} from '@/server/middleware/anti-abuse';
 import { addCORSHeaders, corsMiddleware } from '@/server/middleware/cors';
 import { rateLimit } from '@/server/middleware/rate-limit';
 import { MetricsService } from '@/server/services/metrics.service';
@@ -30,6 +34,21 @@ async function handle(request: NextRequest): Promise<Response> {
   }
 
   const response = await api.handle(request);
+
+  // Record login failures for anti-abuse tracking.
+  // Runs fire-and-forget so it never delays the response.
+  const url = new URL(request.url);
+  if (
+    request.method === 'POST' &&
+    url.pathname.includes('/auth/sign-in') &&
+    (response.status === 401 || response.status === 403)
+  ) {
+    const clientIp = getClientIp(request);
+    recordLoginFailure(clientIp).catch(() => {
+      // Intentionally ignored — anti-abuse must never break requests
+    });
+  }
+
   const finalResponse = addCORSHeaders(response, request);
 
   if (rateLimitOutcome.headers) {
