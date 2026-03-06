@@ -234,6 +234,23 @@ describe('RedirectService.resolve', () => {
     expect(new URL(result.url!).hostname).toBe('example.com');
   });
 
+  it('supports the object resolve contract with request metadata', async () => {
+    mockFetcherResult = { link: makeLink(), cacheHit: true };
+
+    const result = await service.resolve({
+      linkCode: 'abc1234',
+      currentDepth: 0,
+      requestMeta: {
+        ip: '203.0.113.10',
+        requestId: 'req-object-1',
+        referrer: 'https://referrer.example.com'
+      }
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.cacheHit).toBe(true);
+  });
+
   it('appends UTM params to the final URL', async () => {
     mockFetcherResult = {
       link: makeLink({

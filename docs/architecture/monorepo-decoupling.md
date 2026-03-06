@@ -20,7 +20,7 @@ Non-negotiable constraints preserved:
 | Stage 0 - Baseline + regression gate | Implemented | `docs/development/redirect-performance-baseline.md`, `load/k6/redirect-hot-path.js` |
 | Stage 1 - Workspaces + Turbo graph | Implemented | `package.json`, `turbo.json` |
 | Stage 2 - Shared packages extraction | Implemented | `packages/contracts`, `packages/data`, `packages/cache`, `packages/telemetry` |
-| Stage 3 - Redirect domain extraction | Implemented | `packages/redirect-domain/src/index.ts`, `packages/redirect-domain/src/service.ts` |
+| Stage 3 - Redirect domain extraction | Implemented | `packages/redirect-domain/src/index.ts`, `packages/redirect-domain/src/service.ts`, `packages/redirect-domain/src/types.ts` |
 | Stage 4 - Web redirect rewire | Implemented | `apps/web/src/app/r/[code]/route.ts`, `apps/web/src/proxy.ts` |
 | Stage 5 - Standalone API service | Implemented | `apps/api/src/index.ts`, `docker/api.Dockerfile` |
 | Stage 6 - Standalone worker service | Implemented | `apps/worker/src/index.ts`, `docker/worker.Dockerfile` |
@@ -39,6 +39,7 @@ Redirect behavior implemented in the current split:
 - Depth control via `X-Redirect-Depth` (max 3).
 - Validation of `isActive`, `isBanned`, `expiresAt`, `maxClicks`, password unlock.
 - Fire-and-forget analytics dispatch via Redis Streams.
+- Explicit adapter contracts for cache/db/lock/circuit-breaker dependencies plus an object-based resolve input with `requestMeta`.
 
 Primary files:
 

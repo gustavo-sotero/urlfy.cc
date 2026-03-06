@@ -125,7 +125,18 @@ describe('Redirect hot path isolation', () => {
     );
 
     expect(resolveMock).toHaveBeenCalledTimes(1);
-    expect(resolveMock).toHaveBeenCalledWith('test-code', 0, false);
+    expect(resolveMock).toHaveBeenCalledWith({
+      linkCode: 'test-code',
+      currentDepth: 0,
+      bypassPassword: false,
+      requestMeta: {
+        ip: '203.0.113.10',
+        userAgent: null,
+        referrer: null,
+        requestId: 'req-local-1',
+        depth: 0
+      }
+    });
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe(

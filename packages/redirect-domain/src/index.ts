@@ -11,9 +11,24 @@ export {
   cacheService,
   scanKeys
 } from './cache-service';
-export type { LinkFetchResult } from './fetcher';
-export { getLink } from './fetcher';
-export { RedirectService, redirectService } from './service';
+export {
+  defaultRedirectFetcherDependencies,
+  getCircuitBreakerStatus,
+  getLink,
+  isCodeAvailable
+} from './fetcher';
+export {
+  createRedirectService,
+  RedirectService,
+  redirectService
+} from './service';
+export type {
+  LinkFetchResult,
+  RedirectFetcherDependencies,
+  RedirectRequestMeta,
+  RedirectResolveInput,
+  RedirectServiceDependencies
+} from './types';
 export { buildFinalUrl } from './url-builder';
 export type { LinkValidationResult } from './validator';
 export { validateLink } from './validator';

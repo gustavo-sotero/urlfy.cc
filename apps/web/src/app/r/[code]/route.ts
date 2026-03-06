@@ -260,7 +260,18 @@ export async function GET(
     });
 
     // ── 5. Resolve link (cache-first → DB fallback) ──────────────
-    const result = await redirectService.resolve(code, depth, bypassPassword);
+    const result = await redirectService.resolve({
+      linkCode: code,
+      currentDepth: depth,
+      bypassPassword,
+      requestMeta: {
+        ip: clientIp,
+        userAgent: request.headers.get('user-agent'),
+        referrer: request.headers.get('referer'),
+        requestId,
+        depth
+      }
+    });
 
     if (!result.success) {
       return handleError(result.error || 'UNKNOWN_ERROR', code, requestId);

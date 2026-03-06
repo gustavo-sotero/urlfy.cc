@@ -2,12 +2,44 @@ import { trace } from '@opentelemetry/api';
 import type { RedirectError, RedirectResult } from '@urlfy/contracts/redirect';
 import { createLogger, recordRedirectMetrics } from '@urlfy/telemetry';
 import { cacheService } from './cache-service';
-import * as Fetcher from './fetcher';
+import { getCircuitBreakerStatus, getLink, isCodeAvailable } from './fetcher';
+import type {
+  RedirectResolveInput,
+  RedirectServiceDependencies
+} from './types';
 import { buildFinalUrl } from './url-builder';
 import { validateLink } from './validator';
 
 const logger = createLogger('redirect-service');
 const tracer = trace.getTracer('redirect-service');
+
+const defaultRedirectServiceDependencies: RedirectServiceDependencies = {
+  fetchLink: (code) => getLink(code),
+  isCodeAvailable: (code) => isCodeAvailable(code),
+  getCircuitBreakerStatus: () => getCircuitBreakerStatus(),
+  getCacheStats: () => cacheService.getCacheStats(),
+  buildFinalUrl,
+  validateLink
+};
+
+function normalizeResolveInput(
+  codeOrInput: string | RedirectResolveInput,
+  currentDepth?: number,
+  bypassPassword?: boolean
+): RedirectResolveInput {
+  if (typeof codeOrInput === 'string') {
+    return {
+      linkCode: codeOrInput,
+      currentDepth: currentDepth ?? 0,
+      bypassPassword: bypassPassword ?? false
+    };
+  }
+
+  return {
+    ...codeOrInput,
+    bypassPassword: codeOrInput.bypassPassword ?? false
+  };
+}
 
 /**
  * Service responsible for short URL redirection
@@ -15,6 +47,10 @@ const tracer = trace.getTracer('redirect-service');
  * Aggregates fetcher, validator and url-builder functionality
  */
 export class RedirectService {
+  constructor(
+    private readonly dependencies: RedirectServiceDependencies = defaultRedirectServiceDependencies
+  ) {}
+
   /**
    * Resolve a short code to destination URL with optional password bypass
    *
@@ -23,24 +59,47 @@ export class RedirectService {
    * @param bypassPassword - If true, skips password validation (used with valid cookie)
    * @returns Result with destination URL or error
    */
+  async resolve(input: RedirectResolveInput): Promise<RedirectResult>;
   async resolve(
     code: string,
     currentDepth: number,
+    bypassPassword?: boolean
+  ): Promise<RedirectResult>;
+  async resolve(
+    codeOrInput: string | RedirectResolveInput,
+    currentDepth?: number,
     bypassPassword = false
   ): Promise<RedirectResult> {
+    const resolvedInput = normalizeResolveInput(
+      codeOrInput,
+      currentDepth,
+      bypassPassword
+    );
+    const code = resolvedInput.linkCode;
+    const depth =
+      resolvedInput.requestMeta?.depth ?? resolvedInput.currentDepth;
     const startTime = performance.now();
     let cacheHit = false;
 
     return tracer.startActiveSpan(
       'redirect.resolve',
-      { attributes: { code, depth: currentDepth } },
+      {
+        attributes: {
+          code,
+          depth,
+          'request.id': resolvedInput.requestMeta?.requestId ?? '',
+          'client.ip': resolvedInput.requestMeta?.ip ?? '',
+          'http.referrer': resolvedInput.requestMeta?.referrer ?? ''
+        }
+      },
       async (span) => {
         try {
           // 1. Check redirect depth
-          if (currentDepth >= 3) {
+          if (depth >= 3) {
             logger.warn('Redirect loop detected', {
               code,
-              depth: currentDepth
+              depth,
+              requestId: resolvedInput.requestMeta?.requestId
             });
             span.setStatus({ code: 1, message: 'REDIRECT_LOOP' });
 
@@ -55,7 +114,7 @@ export class RedirectService {
           }
 
           // 2. Fetch link (cache-first with fallback) via Fetcher
-          const resolved = await Fetcher.getLink(code);
+          const resolved = await this.dependencies.fetchLink(code);
           const link = resolved.link;
           cacheHit = resolved.cacheHit;
 
@@ -73,7 +132,10 @@ export class RedirectService {
           }
 
           // 3. Status validations
-          const validation = validateLink(link, bypassPassword);
+          const validation = this.dependencies.validateLink(
+            link,
+            resolvedInput.bypassPassword
+          );
           if (!validation.valid) {
             span.setStatus({ code: 1, message: validation.error });
 
@@ -92,14 +154,16 @@ export class RedirectService {
           }
 
           // 4. Build final URL with UTMs
-          const finalUrl = buildFinalUrl(link);
+          const finalUrl = this.dependencies.buildFinalUrl(link);
 
           const latency = performance.now() - startTime;
           logger.info('Redirect resolved', {
             code,
             linkId: link.id,
             redirectType: link.redirectType,
-            latencyMs: latency.toFixed(2)
+            latencyMs: latency.toFixed(2),
+            requestId: resolvedInput.requestMeta?.requestId,
+            clientIp: resolvedInput.requestMeta?.ip
           });
 
           span.setStatus({ code: 0 });
@@ -154,7 +218,7 @@ export class RedirectService {
    * (used when creating custom links)
    */
   async isCodeAvailable(code: string): Promise<boolean> {
-    return Fetcher.isCodeAvailable(code);
+    return this.dependencies.isCodeAvailable(code);
   }
 
   /**
@@ -165,11 +229,20 @@ export class RedirectService {
     cacheStats: Awaited<ReturnType<typeof cacheService.getCacheStats>>;
   }> {
     return {
-      circuitBreaker: Fetcher.getCircuitBreakerStatus(),
-      cacheStats: await cacheService.getCacheStats()
+      circuitBreaker: this.dependencies.getCircuitBreakerStatus(),
+      cacheStats: await this.dependencies.getCacheStats()
     };
   }
 }
 
+export function createRedirectService(
+  dependencies: Partial<RedirectServiceDependencies> = {}
+): RedirectService {
+  return new RedirectService({
+    ...defaultRedirectServiceDependencies,
+    ...dependencies
+  });
+}
+
 // Singleton instance
-export const redirectService = new RedirectService();
+export const redirectService = createRedirectService();
