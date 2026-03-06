@@ -15,6 +15,7 @@ import {
   initTelemetry,
   shutdownTelemetry
 } from '@urlfy/telemetry';
+import { startScheduler, stopScheduler } from './jobs/scheduler';
 import { validateEnv } from './lib/env';
 import { aggregationWorker } from './workers/aggregation-stream.worker';
 import { analyticsClickWorker } from './workers/analytics-click.worker';
@@ -87,6 +88,11 @@ async function main() {
     }
 
     logger.info('✅ All workers started successfully');
+
+    // Start scheduled cron jobs (daily aggregation, weekly cleanup,
+    // data deletion processing, RPS metrics calculation)
+    startScheduler();
+    logger.info('✅ Scheduler started');
   } catch (error) {
     void exitWithTelemetryFlush(1, 'Failed to start workers', {
       error: error instanceof Error ? error.message : String(error)
@@ -111,6 +117,9 @@ process.on('unhandledRejection', (reason) => {
 const gracefulWorkerShutdown = async (signal: string) => {
   logger.info(`[Main] ${signal} received. Shutting down workers...`);
   try {
+    // Stop scheduler first (prevents new jobs from being enqueued)
+    stopScheduler();
+
     // Stop all workers gracefully (drain in-flight work)
     await Promise.allSettled(
       allWorkers.map(async ({ name, instance }) => {

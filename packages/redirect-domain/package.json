@@ -15,7 +15,9 @@
   },
   "scripts": {
     "type-check": "bunx tsc --noEmit",
-    "lint": "bunx biome check . --write"
+    "lint": "bunx biome check . --write",
+    "test": "bun test src/",
+    "test:unit": "bun test src/__tests__/"
   },
   "dependencies": {
     "@urlfy/cache": "workspace:*",

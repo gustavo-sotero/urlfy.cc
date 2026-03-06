@@ -1,0 +1,10 @@
+# Bun configuration for web app
+# See: https://bun.sh/docs/runtime/bunfig
+
+[test]
+preload = ["./tests/setup.ts"]
+timeout = 10000
+coverage = false
+coverageDir = "coverage"
+retry = 0
+bail = false

@@ -15,9 +15,11 @@
     "build": "bun build src/index.ts --outdir dist --target bun",
     "lint": "bunx biome check . --write && bun run ../../scripts/validate-module-boundaries.ts",
     "type-check": "bunx tsc --noEmit",
-    "test": "bun test src/ tests/",
+    "test": "bun test src/ tests/unit tests/integration tests/perf tests/security",
     "test:unit": "bun test src/ tests/unit/",
-    "test:integration": "bun test tests/integration/"
+    "test:integration": "bun test tests/integration/",
+    "test:security": "bun test tests/security/",
+    "test:perf": "bun test tests/perf/"
   },
   "dependencies": {
     "@urlfy/auth-shared": "workspace:*",

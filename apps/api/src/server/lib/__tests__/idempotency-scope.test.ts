@@ -26,7 +26,8 @@ const redisMock = {
 };
 
 mock.module('@/server/lib/redis', () => ({
-  redis: redisMock
+  redis: redisMock,
+  getRedisClient: () => redisMock
 }));
 
 mock.module('@/server/lib/telemetry', () => ({

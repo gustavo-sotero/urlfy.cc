@@ -1,2 +1,9 @@
-// Re-export messages from monorepo root (apps/web shares the same message files)
-export { default } from '../../../../src/messages/pt-br';
+/**
+ * Email messages for the API's email rendering service (Portuguese).
+ * Only the Emails section is needed — full UI messages live in apps/web.
+ */
+import { Emails } from './pt-br/emails';
+
+const ptMessages = { Emails };
+export default ptMessages;
+export type PtMessages = typeof ptMessages;

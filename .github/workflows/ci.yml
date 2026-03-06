@@ -105,24 +105,18 @@ jobs:
       - name: Run database migrations
         run: bun run db:migrate:prod
 
-      - name: Run unit tests (API)
-        run: bun test apps/api/src/
-
-      - name: Run unit tests (web)
-        run: bun test apps/web/src/ tests/unit/
+      - name: Run unit tests (all workspaces)
+        run: bunx turbo run test:unit
         env:
           SKIP_ENV_VALIDATION: "1"
 
-      - name: Run redirect hot-path tests
-        run: bun test apps/web/src/server/services/__tests__/redirect.service.test.ts
+      - name: Run integration tests (all workspaces)
+        run: bunx turbo run test:integration
         env:
-          SKIP_ENV_VALIDATION: "1"
+          USE_REAL_REDIS: "true"
 
-      - name: Run integration tests
-        run: bun test tests/integration/
-
-      - name: Run security tests
-        run: bun test tests/security/
+      - name: Run security tests (all workspaces)
+        run: bunx turbo run test:security
 
   # ─── Migration Validation ───────────────────────────────────────
   migrations:
@@ -160,13 +154,14 @@ jobs:
       - name: Check migration files are committed
         run: |
           # Generate migrations from current schema
+          # Authoritative output path is packages/data/migrations/ (turbo target: @urlfy/data)
           bun run db:generate 2>/dev/null || true
 
-          # Check if there are uncommitted migration files
-          if git diff --name-only | grep -q "^drizzle/"; then
+          # Check if there are uncommitted migration files in the canonical location
+          if git diff --name-only | grep -qE "^packages/data/migrations/"; then
             echo "❌ ERROR: Schema changes detected but migration files are not committed!"
             echo ""
-            echo "Run 'bun run db:generate' locally and commit the migration files."
+            echo "Run 'bun run db:generate' locally and commit the generated files in packages/data/migrations/."
             git diff --stat
             exit 1
           fi
@@ -244,8 +239,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build worker Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/worker.Dockerfile
+          push: false
+          tags: urlfy-worker:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Verify Docker images
         run: |
           docker run --rm urlfy-web:${{ github.sha }} test -f /app/server.js
           docker run --rm urlfy-web:${{ github.sha }} test -d /app/drizzle
-          echo "✅ Docker images verified"
+          docker run --rm urlfy-api:${{ github.sha }} test -f /app/dist/index.js
+          docker run --rm --workdir /app/apps/worker urlfy-worker:${{ github.sha }} test -f src/index.ts
+          echo "✅ All Docker images verified"

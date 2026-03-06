@@ -8,25 +8,5 @@
     "outDir": "dist"
   },
   "include": ["src/**/*.ts"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "src/lib/api",
-    "src/lib/hooks",
-    "src/lib/auth.ts",
-    "src/lib/auth.cli.ts",
-    "src/lib/auth.client.ts",
-    "src/lib/auth.config.ts",
-    "src/lib/session-utils.ts",
-    "src/server/lib/locale.ts",
-    "src/server/lib/openapi-merger.ts",
-    "src/server/services/email.service.ts",
-    "src/server/services/qr.service.ts",
-    "src/server/services/qr.utils.ts",
-    "src/server/services/shortcode.service.ts",
-    "src/server/services/__tests__/link.service.test.ts",
-    "src/server/services/__tests__/url-validator.test.ts",
-    "src/server/services/__tests__/auth.service.test.ts",
-    "src/server/services/__tests__/qr.service.test.ts"
-  ]
+  "exclude": ["node_modules", "dist"]
 }

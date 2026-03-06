@@ -12,9 +12,25 @@ const mockLogger = {
   warn: mock(() => {})
 };
 
-mock.module('@/server/lib/telemetry', () => ({
+const noOpCounter = { add: mock(() => {}) };
+mock.module('@urlfy/telemetry', () => ({
   createLogger: () => mockLogger,
-  configureLogging: async () => {}
+  configureLogging: async () => {},
+  initTelemetry: async () => {},
+  shutdownTelemetry: async () => {},
+  circuitBreakerTrips: noOpCounter,
+  cacheHits: noOpCounter,
+  cacheMisses: noOpCounter,
+  cacheHitRate: noOpCounter,
+  redisFallbacks: noOpCounter,
+  redirectTotal: noOpCounter,
+  redirectErrors: noOpCounter,
+  redirectLatency: { record: mock(() => {}) },
+  stampedeLocksAcquired: noOpCounter,
+  stampedeLocksWaited: noOpCounter,
+  recordCacheHit: mock(() => {}),
+  recordCacheMiss: mock(() => {}),
+  recordRedirectMetrics: mock(() => {})
 }));
 
 // Mock Redis client
@@ -60,10 +76,13 @@ const mockRedis = {
   getRedisClient: () => mockRedis
 };
 
-// Mock redis module
-mock.module('@/server/lib/redis', () => ({
+// Mock only the Redis client layer so the real RedisStream/STREAM_NAMES implementation
+// is used while its internal Redis calls go to mockRedis.
+mock.module('@urlfy/cache/client', () => ({
   redis: mockRedis,
-  getRedisClient: () => mockRedis
+  getRedisClient: () => mockRedis,
+  checkRedisHealth: async () => ({ ok: true }),
+  closeRedis: async () => {}
 }));
 
 // Import RedisStream after mock

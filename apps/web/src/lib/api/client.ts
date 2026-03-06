@@ -28,11 +28,12 @@ export const BASE_URL =
  * all client.api.xxx.method() calls through until the real App type is wired.
  */
 // biome-ignore lint/suspicious/noExplicitAny: Eden Treaty stub — replace when @urlfy/api exports real routes
+type EdenApiClient = { api: Record<string, any> };
 export const client = treaty<App>(BASE_URL, {
   fetch: {
     credentials: 'include' // Required for cookies to be sent
   }
-}) as unknown as { api: Record<string, any> };
+}) as unknown as EdenApiClient;
 
 /**
  * Export default client instance for use in components
@@ -73,14 +74,13 @@ export const apiClient = {
  * }
  * ```
  */
-// biome-ignore lint/suspicious/noExplicitAny: Eden Treaty stub — replace when @urlfy/api exports real routes
 export function createClientWithHeaders(headers: HeadersInit) {
   return treaty<App>(BASE_URL, {
     fetch: {
       credentials: 'include'
     },
     headers
-  }) as unknown as { api: Record<string, any> };
+  }) as unknown as EdenApiClient;
 }
 
 /**

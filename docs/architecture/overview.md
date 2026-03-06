@@ -8,64 +8,89 @@
 
 ## Visão Geral
 
-O urlfy.cc utiliza uma arquitetura híbrida com **Next.js** no frontend e **ElysiaJS** como API REST, ambos rodando sobre o runtime **Bun**. A infraestrutura de produção é gerenciada via **Dokploy** (self-hosted PaaS), com cada serviço de infra provisionado por templates do Dokploy.
+O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços independentes: `apps/web` (Next.js 16), `apps/api` (ElysiaJS) e `apps/worker` (Bun workers). Os serviços de infra (PostgreSQL, Redis, SigNoz) são provisionados separadamente via **Dokploy** (self-hosted PaaS).
 
 ```
-┌────────────────── Dokploy (VPS) ──────────────────────────────┐
-│                                                                │
-│  ┌──────── Compose: urlfy (Git repo) ────────────────────┐    │
-│  │                                                        │    │
-│  │  ┌──────────────────────────────────────────────────┐  │    │
-│  │  │           APP (Next.js + Elysia + Bun)           │  │    │
-│  │  │                                                  │  │    │
-│  │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐       │  │    │
-│  │  │  │  Proxy   │  │ Next.js  │  │  Elysia  │       │  │    │
-│  │  │  │(proxy.ts)│  │ (Pages)  │  │  (API)   │       │  │    │
-│  │  │  └────┬─────┘  └──────────┘  └────┬─────┘       │  │    │
-│  │  │       └───────────────────────────┘              │  │    │
-│  │  └──────────────────────┬───────────────────────────┘  │    │
-│  │                         │                              │    │
-│  │  ┌──────────────────────┼───────────────────────────┐  │    │
-│  │  │              WORKERS PROCESS                     │  │    │
-│  │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐       │  │    │
-│  │  │  │Analytics │  │Aggregat. │  │ Cleanup  │       │  │    │
-│  │  │  │  Worker  │  │  Worker  │  │  Worker  │       │  │    │
-│  │  │  └──────────┘  └──────────┘  └──────────┘       │  │    │
-│  │  └──────────────────────────────────────────────────┘  │    │
-│  │                                                        │    │
-│  │  ┌──────────────────────────────────────────────────┐  │    │
-│  │  │        GeoIP Downloader (cron mensal)            │  │    │
-│  │  │   Auto-download MMDB via jsDelivr CDN            │  │    │
-│  │  └──────────────────────────────────────────────────┘  │    │
-│  │             ▲ volume compartilhado                      │    │
-│  └─────────────┼──────────────────────────────────────────┘    │
-│                │                                               │
-│  ┌─────────────┼── Serviços Dokploy (Templates) ────────────┐  │
-│  │             │                                             │  │
-│  │  ┌─────────▼────┐  ┌──────────┐  ┌────────────────────┐  │  │
-│  │  │ PostgreSQL   │  │  Redis   │  │      SigNoz        │  │  │
-│  │  │     16       │  │    7     │  │  (Observability)   │  │  │
-│  │  └──────────────┘  └──────────┘  └────────────────────┘  │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                                                                │
-│  ┌─ Traefik (Dokploy) ──────────────────────────────────────┐  │
-│  │  urlfy.cc:443       → app:3000                            │  │
-│  │  signoz.urlfy.cc:443 → signoz-frontend:3301               │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└────────────────────────────────────────────────────────────────┘
+┌────────────────── Dokploy (VPS) ─────────────────────────────────────┐
+│                                                                       │
+│  ┌──────── Compose: urlfy (docker-compose.prod.yml) ──────────────┐  │
+│  │                                                                 │  │
+│  │  ┌──────────────────────┐  ┌──────────────────────────────┐    │  │
+│  │  │   WEB  (Next.js)     │  │    API  (ElysiaJS / Bun)     │    │  │
+│  │  │   apps/web — :3000   │  │    apps/api — :3001          │    │  │
+│  │  │                      │  │                              │    │  │
+│  │  │  ┌────────────────┐  │  │  Better-Auth + Drizzle       │    │  │
+│  │  │  │ Proxy (Edge)   │  │  │  All API endpoints           │    │  │
+│  │  │  │  i18n routing  │  │  │  /api/* + /api/auth/*        │    │  │
+│  │  │  └───────┬────────┘  │  └────────────────┬─────────────┘    │  │
+│  │  │          │           │                   │                   │  │
+│  │  │  ┌───────▼────────┐  │  ┌────────────────▼─────────────┐    │  │
+│  │  │  │ /r/[code]      │◄─┼─►│  @urlfy/redirect-domain      │    │  │
+│  │  │  │ Node.js route  │  │  │  @urlfy/cache  @urlfy/data   │    │  │
+│  │  │  │ (no HTTP hop)  │  │  └──────────────────────────────┘    │  │
+│  │  │  └───────┬────────┘  │                                      │  │
+│  │  │          │ fire&forget  ┌───────────────────────────────┐   │  │
+│  │  │          └──────────────► WORKER  (Bun — apps/worker)   │   │  │
+│  │  │                       │  Analytics · Aggregation        │   │  │
+│  │  │  /api/* → :3001       │  Cleanup   · Deletion           │   │  │
+│  │  │  (HTTP proxy)         └───────────────────────────────┬─┘   │  │
+│  │  └──────────────────────┐                               │      │  │
+│  │                         │  ┌────────────────────────────▼─┐    │  │
+│  │                         │  │  GeoIP Downloader (cron)      │    │  │
+│  │                         │  │  Auto-download MMDB jsDelivr  │    │  │
+│  │                         │  └──────────────────────────────┘    │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+│  ┌─── Serviços Dokploy (Templates) ─────────────────────────────┐   │
+│  │  ┌──────────────┐  ┌──────────┐  ┌────────────────────────┐  │   │
+│  │  │ PostgreSQL   │  │  Redis   │  │        SigNoz          │  │   │
+│  │  │     16       │  │    7     │  │   (Observability)      │  │   │
+│  │  └──────────────┘  └──────────┘  └────────────────────────┘  │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                       │
+│  ┌─ Traefik (Dokploy) ─────────────────────────────────────────┐    │
+│  │  urlfy.cc:443        → web:3000                              │    │
+│  │  signoz.urlfy.cc:443 → signoz-frontend:3301                  │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+### Monorepo Layout
+
+```
+.
+├─ apps/
+│  ├─ web/          # Next.js 16 App Router (Edge proxy, pages, /r/[code])
+│  ├─ api/          # ElysiaJS REST API (Bun runtime, :3001)
+│  └─ worker/       # Bun Redis Streams workers (analytics + cleanup)
+├─ packages/
+│  ├─ contracts/    # Shared request/response envelopes, error codes
+│  ├─ redirect-domain/ # Cache-aside resolve logic (no HTTP framework coupling)
+│  ├─ data/         # Drizzle ORM + Bun SQL client + migrations
+│  ├─ cache/        # Redis client + cache keys + circuit breaker + locks
+│  ├─ telemetry/    # OpenTelemetry logger + metrics helpers
+│  ├─ auth-shared/  # API key scope definitions
+│  ├─ config-ts/    # Base tsconfig presets
+│  └─ config-biome/ # Shared Biome linting preset
+└─ docker/
+   ├─ web.Dockerfile, api.Dockerfile, worker.Dockerfile
+   ├─ docker-compose.yml       # Dev: Postgres + Redis + GeoIP
+   ├─ docker-compose.apps.yml  # Local multi-service overlay
+   └─ docker-compose.prod.yml  # Production: migrate + web + api + worker
 ```
 
 ## Stack Tecnológica
 
 | Camada            | Tecnologia               | Justificativa                                               |
 | ----------------- | ------------------------ | ----------------------------------------------------------- |
+| **Monorepo**      | Bun Workspaces + Turborepo | Build graph incremental, cache cross-workspace             |
 | **Runtime**       | Bun 1.x+                 | APIs nativas (Bun SQL, Bun Redis) para máxima performance   |
-| **Frontend**      | Next.js 16+ (App Router) | SSR, RSC, Middleware nativo                                 |
-| **API**           | ElysiaJS                 | Type-safety E2E, integração com Next.js via catch-all route |
+| **Frontend**      | Next.js 16+ (App Router) | SSR, RSC, Middleware nativo, Edge proxy                     |
+| **API**           | ElysiaJS (apps/api)      | Serviço standalone :3001, type-safety E2E via Eden Treaty   |
 | **Banco**         | PostgreSQL 16+           | Particionamento nativo, robustez                            |
 | **Cache**         | Redis 7+                 | `Bun.RedisClient` nativo com protocolo RESP3                |
 | **Queue**         | Redis Streams (Bun)      | Event-driven com XADD/XREADGROUP nativo via `Bun.redis`     |
-| **ORM**           | Drizzle                  | Type-safe, compatível com Bun SQL                           |
+| **ORM**           | Drizzle                  | Type-safe, compatível com Bun SQL (`@urlfy/data`)           |
 | **Auth**          | Better-Auth              | Plugins: `twoFactor`, `admin`, `apiKey`, `openAPI`          |
 | **Geo**           | GeoLite2 (jsDelivr CDN)  | Auto-download via public mirror, no credentials required    |
 | **Observability** | SigNoz                   | OpenTelemetry nativo, logs/traces/métricas unificados       |
@@ -134,66 +159,75 @@ GET /:code
 
 ### Desenvolvimento Local
 
-O `docker-compose.yml` sobe apenas PostgreSQL + Redis para dev local. A app roda fora do Docker via `bun run dev`.
+O `docker-compose.yml` sobe apenas PostgreSQL + Redis para dev local. A app roda fora do Docker via `bun run dev` (Turborepo orquestra web + api + worker em paralelo).
 
 ```yaml
-# docker/docker-compose.yml (dev)
+# docker/docker-compose.yml (dev — infra apenas)
 services:
-  postgres:
-    image: postgres:16-alpine
-    ports: ['127.0.0.1:5432:5432']
-  redis:
-    image: redis:7-alpine
-    ports: ['127.0.0.1:6379:6379']
-  geoip-downloader:
-    build: ./geoip # Download one-shot
+  postgres: { image: postgres:16-alpine, ports: ['127.0.0.1:5432:5432'] }
+  redis: { image: redis:7-alpine, ports: ['127.0.0.1:6379:6379'] }
+  geoip-downloader: { build: ./geoip }  # Download one-shot
 ```
 
 **Uso:** `bun run docker:up` → `bun run dev`
 
+Para testar os containers de app localmente use o overlay:
+
+```bash
+docker compose -f docker/docker-compose.yml \
+               -f docker/docker-compose.apps.yml up -d
+```
+
 ### Produção (Dokploy)
 
-Em produção, o deploy é feito via **Dokploy** (self-hosted PaaS). A arquitetura é organizada como **1 Projeto Dokploy** com serviços independentes:
+Em produção, o deploy é feito via **Dokploy** (self-hosted PaaS). Cada serviço tem sua própria imagem Docker:
 
-| Serviço       | Tipo no Dokploy     | Origem                           |
-| ------------- | ------------------- | -------------------------------- |
-| PostgreSQL 16 | Database (template) | Dokploy managed                  |
-| Redis 7       | Database (template) | Dokploy managed                  |
-| SigNoz        | Compose (template)  | Dokploy managed                  |
-| App + GeoIP   | Compose (Git)       | `docker/docker-compose.prod.yml` |
+| Serviço       | Tipo no Dokploy     | Dockerfile                  | Porta |
+| ------------- | ------------------- | --------------------------- | ----- |
+| PostgreSQL 16 | Database (template) | Dokploy managed             | —     |
+| Redis 7       | Database (template) | Dokploy managed             | —     |
+| SigNoz        | Compose (template)  | Dokploy managed             | —     |
+| web           | Compose (Git)       | `docker/web.Dockerfile`     | 3000  |
+| api           | Compose (Git)       | `docker/api.Dockerfile`     | 3001  |
+| worker        | Compose (Git)       | `docker/worker.Dockerfile`  | —     |
+| GeoIP         | Compose (Git)       | `docker/geoip/Dockerfile`   | —     |
 
-O `docker-compose.prod.yml` contém apenas a **app** e o **geoip-downloader** com volume compartilhado:
+O `docker-compose.prod.yml` define a ordem de inicialização:  
+`migrate` (DB migrations, wait→exit) → `api` + `worker` → `web`
 
 ```yaml
-# docker/docker-compose.prod.yml (Dokploy)
+# docker/docker-compose.prod.yml — produção multi-serviço
 services:
-  app:
-    build:
-      dockerfile: docker/Dockerfile
-      target: runner
-    environment:
-      - DATABASE_URL=${DATABASE_URL} # Apontando para o Postgres do Dokploy
-      - REDIS_URL=${REDIS_URL} # Apontando para o Redis do Dokploy
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
-    volumes:
-      - geoip_data:/app/geoip:ro
+  migrate:
+    build: { dockerfile: docker/worker.Dockerfile }
+    command: ['bun', 'run', 'packages/data/src/scripts/migrate.ts']
+    restart: 'no'
 
-  geoip-downloader:
-    build: docker/geoip
-    volumes:
-      - geoip_data:/app/geoip # Download + cron mensal
+  api:
+    build: { dockerfile: docker/api.Dockerfile }
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    environment: [DATABASE_URL, REDIS_URL, BETTER_AUTH_SECRET, ...]
 
-volumes:
-  geoip_data:
+  web:
+    build: { dockerfile: docker/web.Dockerfile }
+    depends_on: { api: { condition: service_healthy } }
+    environment: [API_INTERNAL_URL=http://api:3001, ...]
+
+  worker:
+    build: { dockerfile: docker/worker.Dockerfile }
+    depends_on: { migrate: { condition: service_completed_successfully } }
 ```
 
 ### Arquivos Docker no Repositório
 
 ```
 docker/
-├── Dockerfile               # Build multi-stage da app (3 stages)
+├── api.Dockerfile           # Elysia API (Bun runtime, standalone)
+├── web.Dockerfile           # Next.js web (standalone output)
+├── worker.Dockerfile        # Bun workers (Redis Streams)
 ├── docker-compose.yml       # Dev local (Postgres + Redis + GeoIP)
-├── docker-compose.prod.yml  # Produção Dokploy (App + GeoIP)
+├── docker-compose.apps.yml  # Local multi-service overlay
+├── docker-compose.prod.yml  # Produção Dokploy (migrate + web + api + worker)
 └── geoip/
     ├── Dockerfile           # Alpine + curl + cron
     ├── geoip-entrypoint.sh  # Download + inicia cron daemon
@@ -206,6 +240,7 @@ docker/
 - **Networking:** Dokploy coloca todos os serviços do projeto na mesma Docker network interna
 - **SSL/TLS:** Gerenciado pelo Traefik integrado ao Dokploy (Let's Encrypt automático)
 - **GeoIP:** Usa mirror público (jsDelivr CDN), sem necessidade de credenciais
+- **API Gateway:** `apps/web` proxia `/api/*` para `apps/api` via `API_INTERNAL_URL` (sem hop extra no redirect)
 
 ### GeoIP Auto-Download
 

@@ -1,6 +1,58 @@
 /**
- * CSP directives builder - re-exported from monorepo root
- * Shared with Next.js middleware and Elysia API
- * @see src/lib/csp.ts (monorepo root)
+ * CSP directives builder for the Elysia API
+ * Keeps CSP configuration consistent with the web app
  */
-export * from '../../../../src/lib/csp';
+
+export interface CspOptions {
+  nonce: string;
+  isProduction?: boolean;
+}
+
+/**
+ * Build Content-Security-Policy header value
+ */
+export function buildCspDirectives({
+  nonce,
+  isProduction
+}: CspOptions): string {
+  const scriptSrc = ["'self'", `'nonce-${nonce}'`, 'https://cdn.jsdelivr.net'];
+
+  const extraImgOrigins = (process.env.NEXT_PUBLIC_CSP_IMG_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const imgSrc = [
+    "'self'",
+    'data:',
+    'blob:',
+    'https://*.cloudinary.com',
+    'https://*.imgur.com',
+    'https://*.unsplash.com',
+    'https://lh3.googleusercontent.com',
+    'https://avatars.githubusercontent.com',
+    'https://*.githubusercontent.com',
+    ...extraImgOrigins
+  ];
+
+  if (!isProduction) {
+    scriptSrc.push("'unsafe-eval'");
+  }
+
+  const directives = [
+    "default-src 'self'",
+    `script-src ${scriptSrc.join(' ')}`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+    `img-src ${imgSrc.join(' ')}`,
+    "font-src 'self' https://fonts.gstatic.com https://fonts.scalar.com",
+    "connect-src 'self' https://cdn.jsdelivr.net",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "worker-src 'self'",
+    ...(isProduction ? ['upgrade-insecure-requests'] : [])
+  ];
+
+  return directives.join('; ');
+}

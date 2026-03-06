@@ -1,5 +1,5 @@
-// Re-export shared cache keys for backward compatibility
-export { CACHE_KEYS, CACHE_TTL } from '../cache-keys';
-export * from './lock';
-export * from './redis';
-export * from './types';
+/**
+ * Redis barrel shim - re-exports all from @urlfy/cache.
+ * Maintains backward-compat for existing `@/server/lib/redis` barrel imports.
+ */
+export * from '@urlfy/cache';

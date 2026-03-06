@@ -7,7 +7,7 @@
 export { configureLogging, initTelemetry, shutdownTelemetry } from './init';
 export type { LogContext, Logger } from './logger';
 // Structured logger
-export { createLogger } from './logger';
+export { createLogger, redactLogContext } from './logger';
 
 // Metrics
 export {

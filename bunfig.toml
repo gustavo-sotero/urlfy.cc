@@ -2,8 +2,10 @@
 # See: https://bun.sh/docs/runtime/bunfig
 
 [test]
-# Preload test setup file
-preload = ["./tests/setup.ts"]
+# NOTE: Each app in apps/* has its own bunfig.toml with the correct preload
+# for its tests/setup.ts. The root does not have a global test setup file,
+# so no preload is defined here. Run tests via turbo (bun run test:unit)
+# to ensure each workspace uses its own bunfig.toml.
 
 # Test timeout (in milliseconds) - default is 5000
 timeout = 10000

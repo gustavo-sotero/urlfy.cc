@@ -1,6 +1,4 @@
-export type InMemoryValue = {
-  value: string;
-  expiresAt?: number;
-};
-
-export type ZSetEntry = { score: number; member: string };
+/**
+ * Redis types shim - re-exports from @urlfy/cache.
+ */
+export type { InMemoryValue, ZSetEntry } from '@urlfy/cache';

@@ -12,7 +12,9 @@
     "./lock": "./src/lock.ts",
     "./stream": "./src/stream.ts",
     "./circuit-breaker": "./src/circuit-breaker.ts",
-    "./distributed-lock": "./src/distributed-lock.ts"
+    "./distributed-lock": "./src/distributed-lock.ts",
+    "./mock": "./src/mock.ts",
+    "./types": "./src/types.ts"
   },
   "scripts": {
     "type-check": "bunx tsc --noEmit",

@@ -17,6 +17,28 @@ mock.module('@/server/lib/telemetry', () => ({
   configureLogging: async () => {}
 }));
 
+// Also mock the canonical telemetry package used by @urlfy/cache internals
+const noOpCounter = { add: mock(() => {}) };
+mock.module('@urlfy/telemetry', () => ({
+  createLogger: () => mockLogger,
+  configureLogging: async () => {},
+  initTelemetry: async () => {},
+  shutdownTelemetry: async () => {},
+  circuitBreakerTrips: noOpCounter,
+  cacheHits: noOpCounter,
+  cacheMisses: noOpCounter,
+  cacheHitRate: noOpCounter,
+  redisFallbacks: noOpCounter,
+  redirectTotal: noOpCounter,
+  redirectErrors: noOpCounter,
+  redirectLatency: { record: mock(() => {}) },
+  stampedeLocksAcquired: noOpCounter,
+  stampedeLocksWaited: noOpCounter,
+  recordCacheHit: mock(() => {}),
+  recordCacheMiss: mock(() => {}),
+  recordRedirectMetrics: mock(() => {})
+}));
+
 // Mock Redis client
 const mockRedis = {
   send: mock(async (command: string, args: string[]) => {
@@ -60,10 +82,17 @@ const mockRedis = {
   getRedisClient: () => mockRedis
 };
 
-// Mock redis module
+// Mock redis module — both the legacy shim path and the canonical package client
+// so that @urlfy/cache/stream internals see the mock Redis too.
 mock.module('@/server/lib/redis', () => ({
   redis: mockRedis,
   getRedisClient: () => mockRedis
+}));
+mock.module('@urlfy/cache/client', () => ({
+  redis: mockRedis,
+  getRedisClient: () => mockRedis,
+  checkRedisHealth: async () => ({ ok: true }),
+  closeRedis: async () => {}
 }));
 
 // Import RedisStream after mock

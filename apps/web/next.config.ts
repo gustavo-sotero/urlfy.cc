@@ -21,30 +21,21 @@ const nextConfig: NextConfig = {
   // External packages that should be bundled for server-side use
   // These packages need to be explicitly included in standalone output
   serverExternalPackages: [
-    // Elysia ecosystem
-    'elysia',
-    '@elysiajs/bearer',
-    '@elysiajs/cors',
-    '@elysiajs/jwt',
-    '@elysiajs/openapi',
-    '@elysiajs/opentelemetry',
-    '@labzzhq/compressor',
-    // Auth & Database
+    // Auth & Database (used by apps/web directly: auth.ts + @urlfy/data)
     'better-auth',
     'drizzle-orm',
-    // Services
+    // Services used by redirect hot path (@urlfy/redirect-domain + @urlfy/cache)
     '@maxmind/geoip2-node',
     'qrcode',
     'nanoid',
     'isomorphic-dompurify',
-    'ua-parser-js',
-    // Email
+    // Email (apps/web/src/server/services/email.service.ts)
     'resend',
     '@react-email/components',
     '@react-email/render',
     // Cron
     'cron',
-    // OpenTelemetry
+    // OpenTelemetry (@urlfy/telemetry)
     '@opentelemetry/api',
     '@opentelemetry/sdk-node',
     '@opentelemetry/sdk-logs',
@@ -58,28 +49,15 @@ const nextConfig: NextConfig = {
     // LogTape
     '@logtape/logtape',
     '@logtape/otel',
-    '@logtape/elysia',
     '@logtape/drizzle-orm',
     '@logtape/redaction'
   ],
 
   // Explicitly include server-only packages in output file tracing for standalone
   outputFileTracingIncludes: {
-    '/api/**/*': [
-      './node_modules/elysia/**/*',
-      './node_modules/@elysiajs/**/*',
-      './node_modules/@labzzhq/**/*',
-      './node_modules/better-auth/**/*',
-      './node_modules/drizzle-orm/**/*',
-      './node_modules/qrcode/**/*',
+    '/r/**/*': [
       './node_modules/@maxmind/**/*',
-      './node_modules/nanoid/**/*',
-      './node_modules/isomorphic-dompurify/**/*',
-      './node_modules/dompurify/**/*',
-      './node_modules/ua-parser-js/**/*',
-      './node_modules/resend/**/*',
-      './node_modules/@react-email/**/*',
-      './node_modules/cron/**/*',
+      './node_modules/drizzle-orm/**/*',
       './node_modules/@opentelemetry/**/*',
       './node_modules/@logtape/**/*'
     ]

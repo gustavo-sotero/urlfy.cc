@@ -1,3 +1,6 @@
-export * from './telemetry/init';
-export * from './telemetry/logger';
-export * from './telemetry/metrics';
+/**
+ * Telemetry barrel shim — re-exports from @urlfy/telemetry package.
+ * All existing `import { ... } from '@/server/lib/telemetry'` paths
+ * continue to work unchanged.
+ */
+export * from '@urlfy/telemetry';

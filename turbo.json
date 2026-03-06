@@ -35,13 +35,42 @@
     },
     "test:unit": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [],
+      "env": ["NODE_ENV", "SKIP_ENV_VALIDATION"]
     },
     "test:integration": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [],
+      "env": [
+        "DATABASE_URL",
+        "REDIS_URL",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "BETTER_AUTH_SECRET",
+        "JWT_SECRET",
+        "INTERNAL_API_SECRET",
+        "NEXT_PUBLIC_APP_URL",
+        "NODE_ENV",
+        "SKIP_ENV_VALIDATION",
+        "USE_REAL_REDIS"
+      ]
     },
     "test:security": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "env": [
+        "DATABASE_URL",
+        "REDIS_URL",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "BETTER_AUTH_SECRET",
+        "JWT_SECRET",
+        "INTERNAL_API_SECRET",
+        "NODE_ENV",
+        "SKIP_ENV_VALIDATION"
+      ]
+    },
+    "test:perf": {
       "dependsOn": ["^build"],
       "outputs": []
     },
