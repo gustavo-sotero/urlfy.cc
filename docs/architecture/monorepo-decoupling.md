@@ -17,6 +17,7 @@ Non-negotiable constraints preserved:
 
 | Stage | Status | Evidence |
 | --- | --- | --- |
+| Stage 0 - Baseline + regression gate | Implemented | `docs/development/redirect-performance-baseline.md`, `load/k6/redirect-hot-path.js` |
 | Stage 1 - Workspaces + Turbo graph | Implemented | `package.json`, `turbo.json` |
 | Stage 2 - Shared packages extraction | Implemented | `packages/contracts`, `packages/data`, `packages/cache`, `packages/telemetry` |
 | Stage 3 - Redirect domain extraction | Implemented | `packages/redirect-domain/src/index.ts`, `packages/redirect-domain/src/service.ts` |
@@ -71,6 +72,7 @@ Performance evidence captured from existing perf tests:
 
 - API analytics perf (`apps/api/tests/perf/analytics.perf.test.ts`): P99 observed at 30ms in current test run.
 - Web perf (`apps/web/tests/perf/navbar-performance.test.ts`): component perf tests passed.
+- Redirect load harness is now tracked in `load/k6/redirect-hot-path.js` and documented in `docs/development/redirect-performance-baseline.md`.
 
 ## Known Follow-ups (Non-blocking to Decoupling)
 

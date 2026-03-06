@@ -18,6 +18,18 @@ Este módulo estabelece a **fundação técnica** do projeto urlfy.cc, incluindo
 - Health endpoints para monitoramento
 - Estratégia de backup e disaster recovery
 
+### Status Atual no Monorepo
+
+Desde o desacoplamento `web/api/worker`, a implementação canônica deste módulo está distribuída em:
+
+- `apps/web` para proxy, gateway `/api/*` e runtime web
+- `apps/api` para bootstrap Elysia, health checks e auth server
+- `apps/worker` para workers Redis Streams
+- `packages/data`, `packages/cache` e `packages/telemetry` para infraestrutura compartilhada
+- `docker/docker-compose.yml`, `docker/docker-compose.apps.yml` e `docker/docker-compose.prod.yml` para topologias dev/prod
+
+Os snippets abaixo preservam parte do racional original do módulo, mas os caminhos acima são a referência autoritativa do estado atual.
+
 ---
 
 ## 2. Stack Tecnológica
@@ -40,98 +52,72 @@ Este módulo estabelece a **fundação técnica** do projeto urlfy.cc, incluindo
 
 ```
 urlfy.cc/
+├── apps/
+│   ├── web/                    # Next.js 16 frontend + proxy + redirect hot path
+│   ├── api/                    # Standalone Elysia API service
+│   └── worker/                 # Redis Streams background workers
+├── packages/
+│   ├── data/                   # Bun SQL + Drizzle + migrations
+│   ├── cache/                  # Redis client, cache keys, locks, streams
+│   ├── telemetry/              # OpenTelemetry + structured logging
+│   ├── contracts/              # Shared request/response contracts
+│   └── auth-shared/            # Shared auth scopes/utilities
 ├── docker/
-│   ├── docker-compose.yml
-│   ├── docker-compose.dev.yml
-│   ├── docker-compose.prod.yml
-│   └── Dockerfile
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── api/
-│   │   │   └── [[...slugs]]/   # ElysiaJS catch-all
-│   │   │       └── route.ts
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── server/                 # Backend logic
-│   │   ├── api/                # ElysiaJS routes
-│   │   │   ├── index.ts
-│   │   │   ├── health.ts
-│   │   │   └── v1/
-│   │   ├── services/           # Business logic
-│   │   ├── lib/                # Utilities
-│   │   │   ├── db.ts
-│   │   │   ├── redis.ts
-│   │   │   ├── queue.ts
-│   │   │   ├── geoip.ts
-│   │   │   └── telemetry.ts
-│   │   └── middleware/
-│   ├── db/
-│   │   ├── index.ts            # Drizzle instance
-│   │   ├── schema.ts           # Schema exports
-│   │   └── schema/             # Schema files
-│   └── lib/                    # Shared utilities
+│   ├── docker-compose.yml      # Infra local (PostgreSQL, Redis, GeoIP)
+│   ├── docker-compose.apps.yml # Overlay multi-serviço local
+│   ├── docker-compose.prod.yml # Topologia prod (Dokploy)
+│   ├── web.Dockerfile
+│   ├── api.Dockerfile
+│   └── worker.Dockerfile
 ├── scripts/
 │   ├── backup.sh
-│   ├── create-partition.ts
-│   └── seed.ts
-├── geoip/                      # GeoIP data (volume mount)
-├── drizzle.config.ts
-├── next.config.ts
+│   ├── validate-migrations.ts
+│   └── validate-opentelemetry.ts
 ├── package.json
-├── tsconfig.json
-└── biome.json
+├── turbo.json
+└── bunfig.toml
 ```
 
 ---
 
 ## 4. Docker Compose
 
-### 4.1 Arquivo Principal (`docker/docker-compose.yml`)
+### 4.1 Arquivos de Compose Atuais
+
+Os arquivos de infraestrutura válidos no estado atual do monorepo são:
+
+- `docker/docker-compose.yml`: infraestrutura local (`postgres`, `redis`, `geoip-downloader`)
+- `docker/docker-compose.apps.yml`: overlay local com `web`, `api` e `worker`
+- `docker/docker-compose.prod.yml`: topologia multi-serviço de produção
+
+Resumo da topologia implementada:
 
 ```yaml
-version: '3.9'
-
 services:
-  # ═══════════════════════════════════════════════════════════════════
-  # APLICAÇÃO PRINCIPAL (Next.js + ElysiaJS + Bun)
-  # ═══════════════════════════════════════════════════════════════════
-  app:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    container_name: urlfy-app
-    restart: unless-stopped
-    ports:
-      - '3000:3000'
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgres://urlfy:${DB_PASSWORD}@postgres:5432/urlfy
-      REDIS_URL: redis://redis:6379
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://signoz:4318
-      OTEL_SERVICE_NAME: urlfy-api
-      GEOIP_DB_PATH: /app/geoip/GeoLite2-City.mmdb
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - geoip_data:/app/geoip:ro
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/api/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - urlfy-network
-
-  # ═══════════════════════════════════════════════════════════════════
-  # POSTGRESQL 16
-  # ═══════════════════════════════════════════════════════════════════
   postgres:
     image: postgres:16-alpine
-    container_name: urlfy-postgres
+
+  redis:
+    image: redis:7-alpine
+
+  geoip-downloader:
+    build:
+      context: ./geoip
+
+  api:
+    build:
+      dockerfile: docker/api.Dockerfile
+
+  web:
+    build:
+      dockerfile: docker/web.Dockerfile
+    environment:
+      API_INTERNAL_URL: http://api:3001
+
+  worker:
+    build:
+      dockerfile: docker/worker.Dockerfile
+```
     restart: unless-stopped
     environment:
       POSTGRES_USER: urlfy
@@ -282,55 +268,15 @@ networks:
     driver: bridge
 ```
 
-### 4.2 Dockerfile (`docker/Dockerfile`)
+### 4.2 Dockerfiles Atuais
 
-```dockerfile
-# ═══════════════════════════════════════════════════════════════════
-# STAGE 1: Dependencies
-# ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:1 AS dependencies
+Não existe mais um único `docker/Dockerfile` para toda a aplicação. O monorepo usa três imagens separadas:
 
-WORKDIR /app
+- `docker/web.Dockerfile` para `apps/web`
+- `docker/api.Dockerfile` para `apps/api`
+- `docker/worker.Dockerfile` para `apps/worker`
 
-# Copia arquivos de dependências
-COPY package.json bun.lock* ./
-
-# Instala dependências
-RUN bun install --frozen-lockfile --production=false
-
-# ═══════════════════════════════════════════════════════════════════
-# STAGE 2: Builder
-# ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:1 AS builder
-
-WORKDIR /app
-
-# Copia dependências do stage anterior
-COPY --from=dependencies /app/node_modules ./node_modules
-COPY . .
-
-# Build da aplicação
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN bun run build
-
-# ═══════════════════════════════════════════════════════════════════
-# STAGE 3: Runner
-# ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:1-slim AS runner
-
-WORKDIR /app
-
-# Cria usuário não-root
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-# Copia arquivos necessários
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-# Cria diretório para GeoIP
-RUN mkdir -p /app/geoip && chown nextjs:nodejs /app/geoip
+Cada imagem instala dependências no root workspace e copia apenas os workspaces/pacotes necessários para o serviço correspondente.
 
 # Define usuário
 USER nextjs
@@ -408,8 +354,8 @@ export async function checkDatabaseHealth(): Promise<{
 import type { Config } from 'drizzle-kit';
 
 export default {
-  schema: './src/db/schema/*',
-  out: './drizzle/migrations',
+  schema: './packages/data/src/schema/*',
+  out: './packages/data/migrations',
   dialect: 'postgresql',
   dbCredentials: {
     url: process.env.DATABASE_URL!
@@ -498,70 +444,31 @@ export const CACHE_TTL = {
 
 ---
 
-## 7. Configuração de Filas (BullMQ)
+## 7. Configuração de Filas (Redis Streams)
 
-### 7.1 Setup das Filas (`src/server/lib/queue.ts`)
+### 7.1 Streams Compartilhadas (`packages/cache/src/stream.ts`)
 
 ```typescript
-import { Queue, Worker, QueueEvents } from 'bullmq';
-import IORedis from 'ioredis';
-import { trace } from '@opentelemetry/api';
-
-// Conexão Redis para BullMQ (usa ioredis internamente)
-const connection = new IORedis(process.env.REDIS_URL!, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// FILAS DISPONÍVEIS
-// ═══════════════════════════════════════════════════════════════════
-
-export const QUEUE_NAMES = {
-  analytics: 'analytics',
-  analyticsDead: 'analytics:dead', // Dead Letter Queue
-  aggregation: 'aggregation',
-  cleanup: 'cleanup',
-  notifications: 'notifications'
+export const STREAM_NAMES = {
+  analyticsClicks: 'analytics:clicks',
+  analyticsDead: 'analytics:dead',
+  analyticsAggregation: 'analytics:aggregation',
+  analyticsCleanup: 'analytics:cleanup'
 } as const;
 
-// Fila de Analytics (eventos de clique)
-export const analyticsQueue = new Queue(QUEUE_NAMES.analytics, {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 1000 // 1s, 2s, 4s
-    },
-    removeOnComplete: {
-      age: 3600, // Remove jobs completos após 1 hora
-      count: 10000 // Mantém no máximo 10k jobs
-    },
-    removeOnFail: {
-      age: 86400 // Remove jobs falhos após 24 horas
-    }
-  }
-});
+export const CONSUMER_GROUPS = {
+  analytics: 'analytics-group',
+  aggregation: 'aggregation-group',
+  cleanup: 'cleanup-group'
+} as const;
+```
 
-// Dead Letter Queue para analytics falhos
-export const analyticsDeadQueue = new Queue(QUEUE_NAMES.analyticsDead, {
-  connection
-});
+### 7.2 Modelo Operacional Atual
 
-// Fila de agregação diária
-export const aggregationQueue = new Queue(QUEUE_NAMES.aggregation, {
-  connection,
-  defaultJobOptions: {
-    attempts: 5,
-    backoff: {
-      type: 'exponential',
-      delay: 5000
-    }
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════════
+- `apps/web` faz `XADD` fire-and-forget para `analytics:clicks`
+- `apps/worker` consome via consumer groups Redis Streams
+- falhas persistentes são redirecionadas para `analytics:dead`
+- agregação e cleanup continuam assíncronos com Redis Streams e cliente Redis nativo do Bun
 // INTERFACE DE JOBS
 // ═══════════════════════════════════════════════════════════════════
 
@@ -636,7 +543,7 @@ export async function checkQueueHealth(): Promise<{
 
 ## 8. Observabilidade (OpenTelemetry + SigNoz)
 
-### 8.1 Setup de Telemetria (`src/server/lib/telemetry.ts`)
+### 8.1 Setup de Telemetria (`packages/telemetry/src/init.ts`)
 
 ```typescript
 import { NodeSDK } from '@opentelemetry/sdk-node';
@@ -680,15 +587,15 @@ const resource = new Resource({
 // ═══════════════════════════════════════════════════════════════════
 
 const traceExporter = new OTLPTraceExporter({
-  url: `${OTEL_ENDPOINT}/traces`
+  url: `${OTEL_ENDPOINT}/v1/traces`
 });
 
 const metricExporter = new OTLPMetricExporter({
-  url: `${OTEL_ENDPOINT}/metrics`
+  url: `${OTEL_ENDPOINT}/v1/metrics`
 });
 
 const logExporter = new OTLPLogExporter({
-  url: `${OTEL_ENDPOINT}/logs`
+  url: `${OTEL_ENDPOINT}/v1/logs`
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1079,16 +986,16 @@ export function hashVisitor(ip: string, userAgent: string): string {
 Cada feature é organizada em seu próprio diretório com Controller, Service e Model:
 
 ```
-src/server/api/
+apps/api/src/server/modules/
 ├── links/
-│   ├── index.ts          # Controller (Elysia instance)
+│   ├── links.controller.ts
+│   ├── links.service.ts
+│   ├── links.schema.ts
 │   └── ...
 ├── auth/
-│   └── ...
-├── models/               # Schemas TypeBox centralizados
-│   ├── links.models.ts
-│   ├── auth.models.ts
-│   └── index.ts
+│   ├── auth.controller.ts
+│   ├── auth.service.ts
+│   └── auth.schema.ts
 └── ...
 ```
 
@@ -1146,7 +1053,7 @@ const AuthMiddleware = new Elysia({ name: 'Auth.Middleware' }).macro({
 ### 10.4 Model Pattern (Single Source of Truth)
 
 ```typescript
-// src/server/api/models/links.models.ts
+// apps/api/src/server/modules/links/links.schema.ts
 import { Elysia, t } from 'elysia';
 
 // ✅ TypeBox para validação runtime + inferência de tipos
@@ -1173,13 +1080,13 @@ interface LinkInput {
 
 ## 11. Health Endpoints
 
-### 11.1 Implementação (`src/server/api/health.ts`)
+### 11.1 Implementação (`apps/api/src/server/modules/internal/health.controller.ts`)
 
 ```typescript
+import { checkDatabaseHealth } from '@urlfy/data';
 import { Elysia, t } from 'elysia';
-import { checkDatabaseHealth } from '../lib/db';
-import { checkRedisHealth } from '../lib/redis';
-import { checkQueueHealth } from '../lib/queue';
+import { checkRedisHealth } from '@/server/lib/redis';
+import { requireAdmin } from '@/server/middleware/auth.middleware';
 
 // ═══════════════════════════════════════════════════════════════════
 // HEALTH CHECK SIMPLES (público)
@@ -1239,21 +1146,15 @@ const healthReady = new Elysia().get(
 // HEALTH CHECK DETALHADO (admin only)
 // ═══════════════════════════════════════════════════════════════════
 
-const healthDetailed = new Elysia().get(
+const healthDetailed = new Elysia().use(requireAdmin).get(
   '/health/detailed',
-  async ({ set }) => {
-    const [db, redis, queue] = await Promise.all([
+  async () => {
+    const [db, redis] = await Promise.all([
       checkDatabaseHealth(),
-      checkRedisHealth(),
-      checkQueueHealth()
+      checkRedisHealth()
     ]);
 
-    const isHealthy =
-      db.status === 'ok' && redis.status === 'ok' && queue.status === 'ok';
-
-    if (!isHealthy) {
-      set.status = 503;
-    }
+    const isHealthy = db.status === 'ok' && redis.status === 'ok';
 
     return {
       status: isHealthy ? 'healthy' : 'degraded',
@@ -1267,11 +1168,6 @@ const healthDetailed = new Elysia().get(
           status: redis.status,
           latencyMs: redis.latencyMs,
           error: redis.error
-        },
-        queue: {
-          status: queue.status,
-          pendingJobs: queue.pendingJobs,
-          failedJobs: queue.failedJobs
         }
       },
       uptime: Math.floor(process.uptime()),
@@ -1283,7 +1179,6 @@ const healthDetailed = new Elysia().get(
     };
   },
   {
-    // TODO: Adicionar auth middleware para admin
     detail: {
       summary: 'Detailed Health Check',
       description: 'Retorna status detalhado de todos os serviços (admin only)',
@@ -1296,7 +1191,7 @@ const healthDetailed = new Elysia().get(
 // EXPORT
 // ═══════════════════════════════════════════════════════════════════
 
-export const healthRoutes = new Elysia({ prefix: '/api' })
+export const healthRoutes = new Elysia()
   .use(healthSimple)
   .use(healthReady)
   .use(healthDetailed);
@@ -1429,8 +1324,8 @@ curl http://localhost:3000/api/health/ready
 | 1.2  | Criar `Dockerfile` multi-stage                   | ✅     |
 | 1.3  | Configurar conexão PostgreSQL com Bun SQL        | ✅     |
 | 1.4  | Configurar Drizzle ORM e migrações               | ✅     |
-| 1.5  | Configurar cliente Redis com ioredis             | ✅     |
-| 1.6  | Setup BullMQ com Dead Letter Queue               | ✅     |
+| 1.5  | Configurar cliente Redis com Bun native client   | ✅     |
+| 1.6  | Setup Redis Streams para processamento assíncrono | ✅     |
 | 1.7  | Integrar OpenTelemetry com SigNoz                | ✅     |
 | 1.8  | Implementar logger estruturado                   | ✅     |
 | 1.9  | Configurar métricas customizadas                 | ✅     |
@@ -1478,7 +1373,7 @@ PORT=3000
 - [Caching Strategy](../architecture/caching-strategy.md)
 - [Bun SQL Documentation](https://bun.sh/docs/api/sql)
 - [Drizzle ORM](https://orm.drizzle.team/)
-- [BullMQ](https://docs.bullmq.io/)
+- [Redis Streams Commands](https://redis.io/docs/latest/develop/data-types/streams/)
 - [OpenTelemetry JS](https://opentelemetry.io/docs/languages/js/)
 - [SigNoz](https://signoz.io/docs/)
 - [MaxMind GeoIP2](https://dev.maxmind.com/geoip)

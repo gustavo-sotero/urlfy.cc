@@ -159,7 +159,7 @@ src/
 ### 4.1 Tabela `links`
 
 ```typescript
-// src/db/schema/links.ts
+// packages/data/src/schema/links.ts
 import {
   pgTable,
   uuid,
@@ -248,7 +248,7 @@ export const links = pgTable(
 ### 4.2 Tabela `reserved_slugs`
 
 ```typescript
-// src/db/schema/reserved-slugs.ts
+// packages/data/src/schema/reserved-slugs.ts
 export const reservedSlugs = pgTable('reserved_slugs', {
   slug: varchar('slug', { length: 50 }).primaryKey(),
   reason: varchar('reason', { length: 255 }).notNull()
@@ -850,7 +850,7 @@ abstract class LinkService {
 ### 11.4 Model Pattern (Single Source of Truth)
 
 ```typescript
-// src/server/api/models/links.models.ts
+// apps/api/src/server/modules/links/links.schema.ts
 import { Elysia, t } from 'elysia';
 
 // ✅ TypeBox para validação + inferência de tipos
@@ -1192,7 +1192,7 @@ function getErrorMessage(code: LinkErrorCode): string {
 ## 16. Drizzle Relations
 
 ```typescript
-// src/db/schema/links.ts (adicionar ao final)
+// packages/data/src/schema/links.ts (adicionar ao final)
 
 import { relations } from 'drizzle-orm';
 import { users } from './auth';

@@ -12,6 +12,7 @@
     "test:unit": "bun test src/ tests/unit/",
     "test:integration": "bun test tests/integration/",
     "test:security": "bun test tests/security/",
+    "test:perf": "bun test tests/perf/",
     "test:e2e": "bunx playwright test"
   },
   "dependencies": {

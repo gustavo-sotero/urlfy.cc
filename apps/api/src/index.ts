@@ -19,5 +19,6 @@ api.listen(PORT, () => {
   logger.info('[api] Elysia server listening', { port: PORT });
 });
 
-// Re-export App type for Eden Treaty type inference in apps/web
+// Re-export App type for external tooling and tests.
+// apps/web should prefer shared contracts from @urlfy/contracts.
 export type { App } from './server';

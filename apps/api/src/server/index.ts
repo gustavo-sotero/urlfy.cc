@@ -146,7 +146,7 @@ const publicDocsApp = new Elysia()
 // MAIN API INSTANCE
 // ═══════════════════════════════════════════════════════════════════
 
-// biome-ignore lint: needed for Eden Treaty type inference
+// biome-ignore lint: exported router type leaks Elysia internals in declarations
 // @ts-ignore: TS4023 - Elysia internal types referenced in declaration (harmless)
 export const api = new Elysia({ prefix: '/api' })
   // ═══════════════════════════════════════════════════════════════════
@@ -154,7 +154,7 @@ export const api = new Elysia({ prefix: '/api' })
   // ═══════════════════════════════════════════════════════════════════
   .use(
     opentelemetry({
-      // Automatically uses the global SDK initialized in src/server/lib/telemetry.ts
+      // Automatically uses the global SDK initialized during apps/api startup
       // No need to pass spanProcessors or exporters - they are inherited
     })
   )

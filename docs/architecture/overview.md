@@ -86,7 +86,7 @@ O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços ind
 | **Monorepo**      | Bun Workspaces + Turborepo | Build graph incremental, cache cross-workspace             |
 | **Runtime**       | Bun 1.x+                 | APIs nativas (Bun SQL, Bun Redis) para máxima performance   |
 | **Frontend**      | Next.js 16+ (App Router) | SSR, RSC, Middleware nativo, Edge proxy                     |
-| **API**           | ElysiaJS (apps/api)      | Serviço standalone :3001, type-safety E2E via Eden Treaty   |
+| **API**           | ElysiaJS (apps/api)      | Serviço standalone :3001, contratos compartilhados via `@urlfy/contracts` |
 | **Banco**         | PostgreSQL 16+           | Particionamento nativo, robustez                            |
 | **Cache**         | Redis 7+                 | `Bun.RedisClient` nativo com protocolo RESP3                |
 | **Queue**         | Redis Streams (Bun)      | Event-driven com XADD/XREADGROUP nativo via `Bun.redis`     |

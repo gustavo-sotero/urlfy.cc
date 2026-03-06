@@ -283,7 +283,7 @@ Configure in SigNoz UI: Settings → General → Retention Period.
 
 #### 1. OTLP Endpoint URL Misconfiguration
 
-The OTLP/HTTP specification requires `/v1/` prefix for all signal types. Verify the exporter URLs in `src/server/lib/telemetry.ts` include:
+The OTLP/HTTP specification requires `/v1/` prefix for all signal types. Verify the exporter URLs in `packages/telemetry/src/init.ts` include:
 
 - Traces: `/v1/traces`
 - Metrics: `/v1/metrics`

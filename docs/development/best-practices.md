@@ -460,8 +460,8 @@ bun test           # Unit tests
 **Good Examples:**
 
 - ✅ `src/server/modules/api-keys/api-keys.controller.ts` - Proper destructuring
-- ✅ `src/server/api/users/me.ts` - Clean Context usage
-- ✅ `src/server/services/link.service.ts` - Pure business logic
+- ✅ `apps/api/src/server/modules/users/me.controller.ts` - Clean Context usage
+- ✅ `apps/api/src/server/modules/links/links.service.ts` - Pure business logic
 
 **Before/After Refactorings:**
 

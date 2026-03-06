@@ -88,7 +88,7 @@ src/
 ### 4.1 Tabela de Eventos (Particionada)
 
 ```typescript
-// src/db/schema/analytics.ts
+// packages/data/src/schema/analytics.ts
 import {
   pgTable,
   uuid,
@@ -477,51 +477,25 @@ export interface DailyStats {
 
 ---
 
-## 6. Configuração do BullMQ
+## 6. Configuração do Redis Streams
 
 ```typescript
-// src/server/lib/queue.ts
-import { Queue, Worker, QueueScheduler } from 'bullmq';
-import { redis } from './redis';
+// packages/cache/src/stream.ts
+export const STREAM_NAMES = {
+  analyticsClicks: 'analytics:clicks',
+  analyticsDead: 'analytics:dead',
+  analyticsAggregation: 'analytics:aggregation',
+  analyticsCleanup: 'analytics:cleanup'
+} as const;
 
-const connection = {
-  host: process.env.REDIS_HOST ?? 'localhost',
-  port: parseInt(process.env.REDIS_PORT ?? '6379')
-};
-
-// Queue principal de analytics
-export const analyticsQueue = new Queue('analytics:clicks', {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 1000 // 1s, 2s, 4s
-    },
-    removeOnComplete: { count: 1000 },
-    removeOnFail: false // Mantém para DLQ
-  }
-});
-
-// Queue de agregação
-export const aggregationQueue = new Queue('analytics:aggregation', {
-  connection
-});
-
-// Queue de cleanup
-export const cleanupQueue = new Queue('analytics:cleanup', {
-  connection
-});
-
-// Dead Letter Queue
-export const deadLetterQueue = new Queue('analytics:dead', {
-  connection
-});
-
-// Scheduler para cron jobs
-new QueueScheduler('analytics:aggregation', { connection });
-new QueueScheduler('analytics:cleanup', { connection });
+export const CONSUMER_GROUPS = {
+  analytics: 'analytics-group',
+  aggregation: 'aggregation-group',
+  cleanup: 'cleanup-group'
+} as const;
 ```
+
+No estado atual, o hot path publica eventos com `XADD` e os workers usam consumer groups Redis Streams. A DLQ continua existindo, mas como stream dedicada de falhas (`analytics:dead`).
 
 ---
 
@@ -530,25 +504,15 @@ new QueueScheduler('analytics:cleanup', { connection });
 ### 7.1 Click Worker
 
 ```typescript
-// src/server/workers/click.worker.ts
-import { Worker, Job } from 'bullmq';
-import { db } from '@/db';
-import { analyticsEvents, links } from '@/db/schema';
+// apps/worker/src/workers/analytics-click.worker.ts
+import { db, analyticsEvents, links } from '@urlfy/data';
 import { eq, sql } from 'drizzle-orm';
-import { geoipService } from '@/server/services/geoip.service';
-import { userAgentService } from '@/server/services/useragent.service';
-import { hashVisitor } from '@/server/lib/privacy';
-import type { ClickEvent, EnrichedClickEvent } from '@/types/analytics.types';
+import { WorkerBase } from '../server/lib/worker-base';
 
-const connection = {
-  host: process.env.REDIS_HOST ?? 'localhost',
-  port: parseInt(process.env.REDIS_PORT ?? '6379')
-};
+export class AnalyticsClickWorker extends WorkerBase {
+  protected readonly stream = 'analytics:clicks';
 
-export const clickWorker = new Worker<ClickEvent>(
-  'analytics:clicks',
-  async (job: Job<ClickEvent>) => {
-    const event = job.data;
+  protected async processMessage(event: ClickEvent) {
 
     // 1. Busca link_id pelo shortCode
     const link = await db.query.links.findFirst({
@@ -590,13 +554,8 @@ export const clickWorker = new Worker<ClickEvent>(
       .where(eq(links.id, link.id));
 
     return { processed: true, linkId: link.id };
-  },
-  {
-    connection,
-    concurrency: 10,
-    limiter: { max: 100, duration: 1000 } // 100 jobs/s
   }
-);
+}
 
 async function enrichEvent(
   event: ClickEvent,
@@ -651,25 +610,15 @@ clickWorker.on('failed', (job, err) => {
 ### 7.2 Aggregation Worker
 
 ```typescript
-// src/server/workers/aggregation.worker.ts
-import { Worker, Job } from 'bullmq';
-import { db } from '@/db';
-import { analyticsEvents, linkClicksDaily } from '@/db/schema';
+// apps/worker/src/workers/aggregation-stream.worker.ts
+import { db, analyticsEvents, linkClicksDaily } from '@urlfy/data';
 import { sql, eq, and, gte, lt } from 'drizzle-orm';
-
-const connection = {
-  host: process.env.REDIS_HOST ?? 'localhost',
-  port: parseInt(process.env.REDIS_PORT ?? '6379')
-};
 
 interface AggregationJob {
   date: string; // YYYY-MM-DD
 }
 
-export const aggregationWorker = new Worker<AggregationJob>(
-  'analytics:aggregation',
-  async (job: Job<AggregationJob>) => {
-    const { date } = job.data;
+export async function runAggregationJob({ date }: AggregationJob) {
     const startOfDay = new Date(`${date}T00:00:00Z`);
     const endOfDay = new Date(`${date}T23:59:59.999Z`);
 
@@ -710,30 +659,19 @@ export const aggregationWorker = new Worker<AggregationJob>(
     }
 
     return { aggregated: aggregated.length, date };
-  },
-  { connection, concurrency: 1 }
-);
+}
 ```
 
 ### 7.3 Cleanup Worker
 
 ```typescript
-// src/server/workers/cleanup.worker.ts
-import { Worker, Job } from 'bullmq';
-import { db } from '@/db';
-import { analyticsEvents } from '@/db/schema';
+// apps/worker/src/workers/cleanup-stream.worker.ts
+import { db, analyticsEvents } from '@urlfy/data';
 import { lt, sql } from 'drizzle-orm';
-
-const connection = {
-  host: process.env.REDIS_HOST ?? 'localhost',
-  port: parseInt(process.env.REDIS_PORT ?? '6379')
-};
 
 const RETENTION_DAYS = 90;
 
-export const cleanupWorker = new Worker(
-  'analytics:cleanup',
-  async (job: Job) => {
+export async function runCleanupJob() {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
 
@@ -749,8 +687,7 @@ export const cleanupWorker = new Worker(
     return {
       deletedBefore: cutoffDate.toISOString(),
       droppedPartition: oldPartition
-    };
-  },
+    }
   { connection, concurrency: 1 }
 );
 
@@ -1379,17 +1316,17 @@ describe('Analytics Performance', () => {
 - [ ] Script de criação automática de partições (PartitionManager)
 - [ ] Índices otimizados para queries comuns
 - [ ] Job agendado de manutenção de partições
-- [ ] BullMQ queues configuradas
-- [ ] Click Worker com enriquecimento
-- [ ] Aggregation Worker (cron diário)
-- [ ] Cleanup Worker (cron semanal)
+- [x] Redis Streams configurados
+- [x] Click Worker com enriquecimento
+- [x] Aggregation Worker (cron diário)
+- [x] Cleanup Worker (cron semanal)
 - [x] GeoIP Service (credential-free)
-- [ ] User-Agent parsing com detecção de bots
-- [ ] Hash de visitante LGPD compliant
-- [ ] Dead Letter Queue
-- [ ] Analytics Service para API
-- [ ] Métricas OpenTelemetry configuradas
+- [x] User-Agent parsing com detecção de bots
+- [x] Hash de visitante LGPD compliant
+- [x] Dead Letter Queue / stream de falhas
+- [x] Analytics Service para API
+- [x] Métricas OpenTelemetry configuradas
 - [ ] Dashboard de métricas (SigNoz)
-- [ ] Testes unitários de workers
-- [ ] Testes de integração end-to-end
+- [x] Testes unitários de workers
+- [x] Testes de integração end-to-end
 - [ ] Testes de performance

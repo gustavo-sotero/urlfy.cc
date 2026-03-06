@@ -2,7 +2,7 @@
 
 > 📖 [← Back to Overview](./overview.md)
 
-**Last Updated:** 2026-01-31
+**Last Updated:** 2026-03-06
 
 ---
 
@@ -44,11 +44,12 @@ The urlfy.cc API now uses the official `@elysiajs/opentelemetry` plugin to provi
 │  │                   (e.g., createLink)                    │    │
 │  └────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  Global OpenTelemetry SDK (src/server/lib/telemetry.ts)│   │
-│  │  - OTLP Exporter → SigNoz                              │   │
-│  │  - Auto-instrumentations (HTTP, pg, Redis)              │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌────────────────────────────────────────────────────────────┐│
+│  │ Global OpenTelemetry SDK (@urlfy/telemetry)               ││
+│  │ Initialized by apps/api/src/server/init.ts                ││
+│  │ - OTLP Exporter → SigNoz                                  ││
+│  │ - Auto-instrumentations (HTTP, pg, Redis)                 ││
+│  └────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -61,13 +62,13 @@ The urlfy.cc API now uses the official `@elysiajs/opentelemetry` plugin to provi
 The plugin is registered as the **first middleware** in the Elysia API router to capture the full request lifecycle:
 
 ```typescript
-// src/server/index.ts
+// apps/api/src/server/index.ts
 import { opentelemetry } from '@elysiajs/opentelemetry';
 
 export const api = new Elysia({ prefix: '/api' })
   .use(
     opentelemetry({
-      // Automatically uses the global SDK initialized in src/server/lib/telemetry.ts
+      // Automatically uses the global SDK initialized in apps/api/src/server/init.ts
     })
   )
   .use(errorMiddleware)
@@ -75,24 +76,17 @@ export const api = new Elysia({ prefix: '/api' })
 // ...
 ```
 
-### 2. Build Configuration
+### 2. Service Build Boundary
 
-The plugin is excluded from Next.js bundling to avoid runtime errors:
+The API is now built and deployed as a standalone Bun service, so `@elysiajs/opentelemetry` is resolved entirely inside `apps/api` and no longer needs special handling in `apps/web`/Next.js bundling:
 
 ```typescript
-// next.config.ts
-const nextConfig: NextConfig = {
-  serverExternalPackages: [
-    '@elysiajs/opentelemetry'
-    // ... other packages
-  ],
-  outputFileTracingIncludes: {
-    '/api/**/*': [
-      './node_modules/@elysiajs/**/*' // Covers opentelemetry plugin
-      // ... other packages
-    ]
+// apps/api/package.json
+{
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target bun"
   }
-};
+}
 ```
 
 ### 3. Named Handlers
@@ -128,8 +122,11 @@ Critical handlers are refactored to use named functions for better trace visibil
 
 ### 1. Start Infrastructure
 
+Use the local infrastructure plus app services, or point the OTLP exporter at an existing SigNoz deployment:
+
 ```bash
-bun run docker:up:full  # Includes SigNoz
+bun run docker:up
+bun run dev:api
 ```
 
 ### 2. Generate Traces
@@ -204,7 +201,7 @@ const link = await record('LinkService.create', async () => {
 1. **Check global SDK initialization:**
 
    ```typescript
-   // src/server/lib/telemetry.ts should be imported BEFORE Elysia
+  // apps/api/src/server/init.ts should import @urlfy/telemetry BEFORE the API starts listening
    ```
 
 2. **Verify OTLP endpoint:**

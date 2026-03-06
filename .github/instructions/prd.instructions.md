@@ -276,7 +276,7 @@ interface LinkCreateBody {
 - [ ] Cache Redis com invalidação
 - [ ] Rate limiting (sliding window)
 - [ ] Circuit breaker
-- [ ] BullMQ (filas + DLQ)
+- [ ] Redis Streams (filas + DLQ)
 - [ ] SigNoz (observability)
 - [ ] MaxMind (geo-location)
 - [ ] CI/CD + testes de carga
@@ -290,7 +290,7 @@ interface LinkCreateBody {
 
 ### Fase 4: Analytics & Admin
 
-- [ ] Event sourcing com BullMQ
+- [ ] Event sourcing com Redis Streams
 - [ ] Particionamento de eventos
 - [ ] Agregação diária
 - [ ] Dashboard de gráficos

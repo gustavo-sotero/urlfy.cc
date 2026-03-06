@@ -10,6 +10,17 @@
 
 Este módulo implementa o **caminho crítico de performance** do sistema: o redirecionamento de URLs curtas para destinos originais. É a funcionalidade mais acessada e deve ter latência mínima.
 
+### Status Atual no Monorepo
+
+A implementação atual do hot path não vive mais em `src/server/services` nem em um middleware isolado dentro do app monolítico. Hoje o fluxo real é:
+
+- `apps/web/src/proxy.ts` classifica a rota curta e reescreve para `/r/{code}`
+- `apps/web/src/app/r/[code]/route.ts` executa o handler HTTP em Node.js
+- `packages/redirect-domain` resolve cache, fallback de banco e validações de redirect
+- `packages/cache` fornece Redis, chaves, locks e Redis Streams
+
+Os snippets antigos abaixo são úteis para entender o racional do módulo, mas os caminhos acima são a referência canônica do código implementado.
+
 ### Responsabilidades
 
 - Interceptação de rotas via Next.js Proxy
@@ -30,7 +41,7 @@ GET /:code
     ▼
 ┌──────────────────────────────────────┐
 │     Next.js Proxy                    │
-│     (src/proxy.ts)                   │
+│   (apps/web/src/proxy.ts)            │
 └──────────────────┬───────────────────┘
                    │
     ┌──────────────┴──────────────┐
@@ -40,8 +51,8 @@ GET /:code
                    │ (short code detected)
                    ▼
 ┌──────────────────────────────────────┐
-│     RedirectService                  │
-│     (src/server/services/)           │
+│  Redirect Route Handler + Domain     │
+│ apps/web + packages/redirect-domain  │
 └──────────────────┬───────────────────┘
                    │
     ┌──────────────┴──────────────┐
@@ -72,19 +83,24 @@ GET /:code
 ## 3. Estrutura de Diretórios
 
 ```
-src/
-├── proxy.ts                         # Next.js proxy principal
-├── server/
-│   ├── services/
-│   │   ├── redirect.service.ts      # Lógica de redirecionamento
-│   │   └── cache.service.ts         # Operações de cache
-│   ├── lib/
-│   │   ├── circuit-breaker.ts       # Wrapper circuit breaker
-│   │   └── distributed-lock.ts      # Lock distribuído Redis
-│   └── middleware/
-│       └── redirect.middleware.ts   # Handler de redirect isolado
-└── types/
-    └── redirect.types.ts            # Tipos específicos
+apps/web/
+├── src/proxy.ts                      # Classificador Edge + rewrite para /r/{code}
+└── src/app/r/[code]/route.ts         # Handler Node.js do redirect HTTP
+
+packages/redirect-domain/
+├── src/service.ts                    # Orquestra resolução de redirect
+├── src/fetcher.ts                    # Cache-aside + fallback DB
+├── src/validator.ts                  # Regras de status/expiração/senha/depth
+└── src/url-builder.ts                # URL final + redirect type
+
+packages/cache/
+├── src/client.ts                     # Redis client
+├── src/keys.ts                       # Cache keys e TTLs
+├── src/distributed-lock.ts           # Stampede protection
+└── src/stream.ts                     # Redis Streams analytics
+
+packages/contracts/
+└── src/redirect.types.ts             # Tipos compartilhados do domínio
 ```
 
 ---
@@ -93,52 +109,13 @@ src/
 
 ### 4.1 Configuração Principal
 
-```typescript
-// src/proxy.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { handleRedirect } from '@/server/middleware/redirect.middleware';
+O proxy real está em `apps/web/src/proxy.ts` e hoje faz três coisas principais:
 
-// Rotas que NÃO devem ser interceptadas
-const EXCLUDED_PATHS = [
-  '/api',
-  '/auth',
-  '/dashboard',
-  '/admin',
-  '/login',
-  '/signup',
-  '/unlock',
-  '/_next',
-  '/favicon.ico',
-  '/robots.txt',
-  '/sitemap.xml'
-];
+- ignora rotas internas/estáticas e rotas de sistema (`/api`, `/auth`, `/admin`, `/r`, `_next`)
+- aplica i18n e CSP nonce para páginas localizadas
+- detecta short codes válidos (`3–20` caracteres) e reescreve para `apps/web/src/app/r/[code]/route.ts`
 
-export const config = {
-  matcher: [
-    // Match all paths except static files and excluded
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'
-  ]
-};
-
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Verifica se é rota excluída
-  if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
-    return NextResponse.next();
-  }
-
-  // Verifica se é um short code válido (1-20 chars alfanuméricos)
-  const shortCodeMatch = pathname.match(/^\/([a-zA-Z0-9_-]{1,20})$/);
-
-  if (!shortCodeMatch) {
-    return NextResponse.next();
-  }
-
-  const shortCode = shortCodeMatch[1];
-  return handleRedirect(request, shortCode);
-}
-```
+O redirect não é mais executado via `middleware()` chamando um serviço HTTP interno. O proxy apenas classifica a rota; a resolução do código acontece no handler Node.js e no pacote `@urlfy/redirect-domain`.
 
 ---
 
@@ -693,7 +670,7 @@ export default function () {
 ### 12.1 Configuração de Telemetria
 
 ```typescript
-// src/server/lib/telemetry.ts
+// packages/telemetry/src/init.ts
 import { trace, metrics, context, SpanStatusCode } from '@opentelemetry/api';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
@@ -1435,15 +1412,15 @@ describe('Redirect Integration', () => {
 
 ## 15. Checklist de Implementação
 
-- [ ] Next.js Middleware com route classifier
-- [ ] RedirectService com Cache-Aside
-- [ ] Distributed Lock (SETNX)
-- [ ] Circuit Breaker para PostgreSQL
-- [ ] Graceful Degradation para Redis
-- [ ] Validação de profundidade (X-Redirect-Depth)
-- [ ] Verificação de senha via cookie JWT
-- [ ] Enfileiramento assíncrono de clicks
-- [ ] Testes unitários (>80% cobertura)
+- [x] Next.js route classifier em `apps/web/src/proxy.ts`
+- [x] `@urlfy/redirect-domain` com Cache-Aside
+- [x] Distributed Lock (SETNX) em `packages/cache`
+- [x] Circuit Breaker para PostgreSQL/Redis
+- [x] Graceful Degradation para Redis
+- [x] Validação de profundidade (`X-Redirect-Depth`)
+- [x] Verificação de senha via cookie JWT
+- [x] Enfileiramento assíncrono de clicks via Redis Streams
+- [x] Testes unitários e integração para redirect/domain
 - [ ] Testes de carga k6
-- [ ] Métricas OpenTelemetry
-- [ ] Alertas SigNoz configurados
+- [x] Métricas OpenTelemetry
+- [ ] Alertas SigNoz configurados/documentados fora do repositório

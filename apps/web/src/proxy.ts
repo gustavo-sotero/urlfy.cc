@@ -4,7 +4,7 @@
  * ═════════════════════════════════════════════════════════════════════
  * This proxy combines next-intl internationalization with URL shortener
  * redirect logic. It runs in Edge Runtime with limited APIs - all heavy
- * lifting is done via internal API calls to the Node.js runtime.
+ * lifting is delegated to the Node.js redirect route and shared domain code.
  *
  * Flow:
  * 1. Skip static files, API routes, and internal Next paths

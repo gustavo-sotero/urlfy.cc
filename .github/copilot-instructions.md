@@ -7,33 +7,34 @@ Self-hosted URL shortener. Bun runtime, Next.js 16 (App Router) frontend, Elysia
 ## Code Style
 
 - **Formatter/Linter**: Biome 2.2 only (no ESLint/Prettier). Run `bun run lint` to auto-fix.
-- **TypeScript**: `strict: true`, `target: ES2017`. Path alias `@/*` → `./src/*`.
+- **TypeScript**: `strict: true`, `target: ES2017`. Each workspace owns its local `@/*` alias to its own `src/*`; cross-workspace sharing must go through `@urlfy/*` packages.
 - **Imports**: `node:` prefix for Node builtins, `@/` for src, third-party first.
 - **Files**: `kebab-case.ts`. Controllers: `camelCase`. Services: `PascalCase` object or named exports. Schemas: `PascalCase`.
 - **Quotes**: Single. **Trailing commas**: None. **Indent**: 2 spaces.
-- **Logging**: Use `createLogger('module-name')` from `@/server/lib/telemetry`. Never `console.log`.
+- **Logging**: Use `createLogger('module-name')` from `@urlfy/telemetry` or the app-local telemetry re-export. Never `console.log`.
 
 ## Architecture
 
 ### Entry Points
 
-| File                                | Purpose                                                                                                             |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `src/proxy.ts`                      | Next.js 16 proxy export: i18n routing + short URL detection → rewrites to `/r/{code}`                               |
-| `src/app/api/[[...slugs]]/route.ts` | API gateway: CORS, anti-abuse, rate-limit middleware → Elysia `api.handle(request)`                                 |
-| `src/app/r/[code]/route.ts`         | Redirect hot path (Node.js runtime): cache lookup, password check, redirect depth, analytics emit via Redis Streams |
-| `src/server/index.ts`               | Main Elysia router (`/api` prefix) with all plugins, models, controllers, Better-Auth mount                         |
-| `src/server/init.ts`                | Server bootstrap: env validation → telemetry → DB health check → graceful shutdown                                  |
-| `src/workers.ts`                    | Separate Bun process for Redis Streams workers (analytics, aggregation, cleanup, deletion)                          |
-| `instrumentation.ts`                | Next.js instrumentation hook → imports `@/server/init`                                                              |
+| File                                         | Purpose                                                                                                             |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `apps/web/src/proxy.ts`                      | Next.js 16 proxy export: i18n routing + short URL detection → rewrites to `/r/{code}`                              |
+| `apps/web/src/app/api/[[...slugs]]/route.ts` | API gateway: CORS, anti-abuse, rate-limit middleware → proxies `/api/*` to standalone `apps/api` over HTTP        |
+| `apps/web/src/app/r/[code]/route.ts`         | Redirect hot path (Node.js runtime): local cache/domain resolution, password check, redirect depth, analytics emit |
+| `apps/api/src/index.ts`                      | Standalone Bun entrypoint for the Elysia API service (`API_PORT`, default `3001`)                                  |
+| `apps/api/src/server/index.ts`               | Main Elysia router (`/api` prefix) with plugins, models, controllers and Better-Auth mount                         |
+| `apps/api/src/server/init.ts`                | API bootstrap: env validation → telemetry → DB health check → graceful shutdown                                     |
+| `apps/worker/src/index.ts`                   | Separate Bun process for Redis Streams workers (analytics, aggregation, cleanup, deletion)                         |
+| `apps/web/instrumentation.ts`                | Next.js instrumentation hook → imports `apps/web/src/server/init`                                                   |
 
-### Module Structure (`src/server/modules/{feature}/`)
+### Module Structure (`apps/api/src/server/modules/{feature}/`)
 
 Each module contains: `controller.ts` (Elysia instance), `service.ts` (pure logic), `schema.ts` (TypeBox + `.model()` registration), optional `services/` subfolder. See `src/server/modules/README.md`.
 
 ```
 # Example: links module
-src/server/modules/links/
+apps/api/src/server/modules/links/
 ├── links.controller.ts    # new Elysia({ prefix: '/links' }).use(LinksModel)
 ├── links.service.ts       # export const LinkService = { createLink, listUserLinks, ... }
 ├── links.schema.ts        # TypeBox schemas + LinksModel Elysia model injection
@@ -45,17 +46,17 @@ src/server/modules/links/
 
 ### Key Infrastructure
 
-| Component  | Location                             | Notes                                                                                                          |
-| ---------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| Database   | `src/db/index.ts`                    | Bun native `SQL` class + `drizzle-orm/bun-sql`. Lazy proxy for test mocking. Pool: 20.                         |
-| Schemas    | `src/db/schema/`                     | Split by domain: `links.ts`, `auth.ts`, `analytics.ts`, `audit.ts`, etc.                                       |
-| Redis      | `src/server/lib/redis/redis.ts`      | Bun native `RedisClient`. In-memory mock in `NODE_ENV=test`.                                                   |
-| Cache keys | `src/server/lib/cache-keys.ts`       | Centralized key builders: `CACHE_KEYS.LINK(code)`, TTL constants.                                              |
-| Auth       | `src/lib/auth.ts` + `auth.config.ts` | Better-Auth with Drizzle adapter, `twoFactor`/`admin`/`apiKey`/`openAPI` plugins, Argon2id via `Bun.password`. |
-| Env        | `src/lib/env.ts`                     | Zod v4 validation. `SKIP_ENV_VALIDATION=1` during `next build`.                                                |
-| API client | `src/lib/api/client.ts`              | Eden Treaty (`treaty<App>`) for type-safe client → server calls.                                               |
-| i18n       | `src/i18n/routing.ts`                | `next-intl`, locales: `['en', 'pt-br']`, `localePrefix: 'always'`.                                             |
-| UI         | `src/components/ui/`                 | Shadcn/UI (new-york style) + Radix primitives + Tailwind CSS 4.                                                |
+| Component  | Location                                                 | Notes                                                                                                          |
+| ---------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Database   | `packages/data/src/index.ts`                             | Bun native `SQL` class + `drizzle-orm/bun-sql`. Lazy proxy for test mocking. Pool: 20.                       |
+| Schemas    | `packages/data/src/schema/`                              | Split by domain: `links.ts`, `auth.ts`, `analytics.ts`, `audit.ts`, etc.                                      |
+| Redis      | `packages/cache/src/client.ts`                           | Bun native `RedisClient`. In-memory mock in `NODE_ENV=test`.                                                  |
+| Cache keys | `packages/cache/src/keys.ts`                             | Centralized key builders: `CACHE_KEYS.LINK(code)`, negative cache, TTL constants.                             |
+| Auth       | `apps/api/src/lib/auth.ts` + `apps/web/src/lib/auth.ts` | Better-Auth server/client split with shared auth utilities in `packages/auth-shared`.                         |
+| Env        | `apps/*/src/lib/env.ts`                                  | Zod v4 validation per service. `SKIP_ENV_VALIDATION=1` during builds where required.                          |
+| API client | `packages/contracts/src/api-client.ts`                   | Shared API client contract/types consumed by `apps/web/src/lib/api/*`; `apps/web` must not import `@urlfy/api`. |
+| i18n       | `apps/web/src/i18n/routing.ts`                           | `next-intl`, locales: `['en', 'pt-br']`, `localePrefix: 'always'`.                                            |
+| UI         | `apps/web/src/components/ui/`                            | Shadcn/UI (new-york style) + Radix primitives + Tailwind CSS 4.                                               |
 
 ### Auth Middleware Chain
 
@@ -82,13 +83,13 @@ Errors use `AppError` class (`src/server/lib/error-handler.ts`) with `ErrorCode`
 | -------------------------- | ------------------------------------------------------------ |
 | `bun run docker:up`        | Start Postgres + Redis + GeoIP containers                    |
 | `bun run docker:down`      | Stop containers                                              |
-| `bun run dev`              | Next.js dev + worker process (concurrently)                  |
-| `bun run build`            | Production build (`SKIP_ENV_VALIDATION=1` set automatically) |
+| `bun run dev`              | Start `web`, `api` and `worker` via Turborepo                |
+| `bun run build`            | Build all workspaces (`web`, `api`, `worker`, packages)      |
 | `bun run lint`             | Biome check + auto-fix                                       |
 | `bun run type-check`       | `tsc --noEmit`                                               |
-| `bun run test`             | All tests (unit + integration + perf + security)             |
-| `bun run test:unit`        | `bun test src/ tests/unit/`                                  |
-| `bun run test:integration` | `bun test tests/integration/`                                |
+| `bun run test`             | Workspace-aware test orchestration via Turborepo             |
+| `bun run test:unit`        | Unit suites across workspaces                                |
+| `bun run test:integration` | Integration suites across workspaces                         |
 | `bun run test:e2e`         | Playwright E2E tests                                         |
 | `bun run test:coverage`    | Tests with coverage report                                   |
 | `bun run db:generate`      | Generate Drizzle migrations (after schema edits)             |
@@ -96,7 +97,7 @@ Errors use `AppError` class (`src/server/lib/error-handler.ts`) with `ErrorCode`
 | `bun run db:push`          | Push schema directly (dev only)                              |
 | `bun run db:seed`          | Seed reserved slugs                                          |
 
-**Test setup**: `tests/setup.ts` (preloaded via `bunfig.toml`). Uses `bun:test` runner, Happy-DOM for React, `.env.test` for secrets. Test files: `**/__tests__/*.test.ts`, `tests/unit/*.test.ts[x]`, `tests/integration/*.test.ts`, `tests/e2e/*.spec.ts`.
+**Test setup**: each app owns its own `bunfig.toml` and `tests/setup.ts`; the root `bunfig.toml` intentionally has no preload. Run tests through workspace scripts or `turbo` so the correct setup file is applied.
 
 ## Project Conventions
 
@@ -109,19 +110,20 @@ Errors use `AppError` class (`src/server/lib/error-handler.ts`) with `ErrorCode`
 
 ### Database
 
-- Schemas in `src/db/schema/` — single source of truth. Import `db` from `@/db`.
+- Schemas in `packages/data/src/schema/` — single source of truth. Import `db` from `@urlfy/data`.
 - Prefer `db.query.tableName.findFirst` unless raw SQL is needed for performance.
 - After editing schemas, run `bun run db:generate` then `bun run db:migrate`.
 
 ### Workers
 
-- Workers run as separate Bun process (`src/workers.ts`), NOT inside Next.js.
-- Use `WorkerBase` abstract class (`src/server/lib/worker-base.ts`) for Redis Streams consumers.
+- Workers run as a separate Bun process (`apps/worker/src/index.ts`), NOT inside Next.js.
+- Use `WorkerBase` abstract class (`apps/worker/src/server/lib/worker-base.ts`) for Redis Streams consumers.
 - Analytics events emitted via Redis Streams (XADD), not direct DB writes on the hot path.
 
 ### Frontend
 
-- Eden Treaty client for API calls — never raw `fetch` to own API.
+- Shared API client types live in `packages/contracts/src/api-client.ts`; web-side client wrappers live in `apps/web/src/lib/api/`.
+- UI code should use the shared client helpers instead of importing API runtime code.
 - React Query for server state. Form handling via `react-hook-form` + `@hookform/resolvers`.
 - Dark mode default. CSP nonce propagated via `CspNonceProvider`.
 

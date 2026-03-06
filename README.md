@@ -43,7 +43,7 @@
 | **API**           | ElysiaJS                 | Type-safe REST API with OpenAPI auto-generation |
 | **Database**      | PostgreSQL 16            | Partitioned analytics, Drizzle ORM              |
 | **Cache**         | Redis 7                  | Hot-path caching, rate limiting, queues         |
-| **Queue**         | Redis Streams (BullMQ)   | Async analytics ingestion, background jobs      |
+| **Queue**         | Redis Streams            | Async analytics ingestion, background jobs      |
 | **Auth**          | Better-Auth              | OAuth, 2FA, API keys, admin roles               |
 | **Observability** | SigNoz (OpenTelemetry)   | Distributed traces, metrics, structured logs    |
 | **GeoIP**         | MaxMind GeoLite2         | Credential-free auto-download (jsDelivr CDN)    |
@@ -74,7 +74,7 @@ urlfy.cc/
 ├── docker/
 │   ├── docker-compose.yml         # Infrastructure (PostgreSQL, Redis, GeoIP)
 │   └── docker-compose.apps.yml    # Application services overlay (web/api/worker)
-└── drizzle/          # Database migrations
+└── packages/data/migrations/  # Database migrations (authoritative path)
 ```
 
 ### Service Communication
@@ -98,32 +98,29 @@ apps/worker (no port / Bun)
 │                       DOCKER COMPOSE                         │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │              APP (Next.js + ElysiaJS)                  │  │
-│  │                                                        │  │
-│  │   ┌────────────┐  ┌────────────┐  ┌────────────────┐  │  │
-│  │   │   Proxy    │  │  Next.js   │  │    Elysia      │  │  │
-│  │   │ (proxy.ts) │  │  (Pages)   │  │    (API)       │  │  │
-│  │   └─────┬──────┘  └────────────┘  └───────┬────────┘  │  │
-│  │         └──────────────────────────────────┘           │  │
-│  └─────────────────────────┬──────────────────────────────┘  │
-│                            │                                 │
-│  ┌──────────┐  ┌───────────▼──────┐  ┌────────────────────┐ │
-│  │PostgreSQL│  │      Redis       │  │      SigNoz        │ │
-│  │    16    │  │        7         │  │  (Observability)   │ │
-│  └──────────┘  └───────────▲──────┘  └────────────────────┘ │
-│                            │                                 │
-│  ┌─────────────────────────┼──────────────────────────────┐  │
-│  │                   WORKERS PROCESS                      │  │
-│  │  ┌────────────┐  ┌─────────────┐  ┌────────────────┐  │  │
-│  │  │ Analytics  │  │ Aggregation │  │    Cleanup     │  │  │
-│  │  │  Worker    │  │   Worker    │  │    Worker      │  │  │
-│  │  └────────────┘  └─────────────┘  └────────────────┘  │  │
-│  └────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────┐    HTTP    ┌───────────────────────┐  │
+│  │   apps/web       │───────────►│      apps/api         │  │
+│  │  Next.js + proxy │ /api/*     │     Elysia service    │  │
+│  │  /r/:code local  │            │     auth + REST       │  │
+│  └────────┬─────────┘            └──────────┬────────────┘  │
+│           │                                  │               │
+│           │ Redis / DB hot path              │ Redis Streams │
+│           ▼                                  ▼               │
+│  ┌────────────────────┐              ┌────────────────────┐  │
+│  │     PostgreSQL     │◄────────────►│       Redis        │  │
+│  │        16          │              │         7          │  │
+│  └────────────────────┘              └─────────┬──────────┘  │
+│                                                │             │
+│                                      consumes   ▼             │
+│                              ┌──────────────────────────────┐ │
+│                              │        apps/worker           │ │
+│                              │ analytics + cleanup workers  │ │
+│                              └──────────────────────────────┘ │
 │                                                              │
 │  ┌────────────────────────────────────────────────────────┐  │
-│  │              GeoIP Downloader (auto)                   │  │
+│  │         GeoIP Downloader + SigNoz (optional)          │  │
 │  └────────────────────────────────────────────────────────┘  │
+│                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -158,15 +155,11 @@ cd urlfy.cc
 bun install
 ```
 
-This installs dependencies for **all workspaces** (apps + packages) in a single command.
-
-### 3. Start infrastructure services
+### 3. Start infrastructure
 
 ```bash
 bun run docker:up
 ```
-
-Starts **PostgreSQL 16**, **Redis 7**, and the **GeoIP downloader** in Docker containers.
 
 ### 4. Configure environment
 
@@ -280,21 +273,26 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 
 | Command              | Description                                     |
 | -------------------- | ----------------------------------------------- |
-| `bun run build`      | Build all apps (Turborepo — web + api)          |
+| `bun run build`      | Build all apps and shared packages              |
+| `bun run build:web`  | Build only apps/web                             |
+| `bun run build:api`  | Build only apps/api                             |
+| `bun run build:worker` | Build only apps/worker                        |
 | `bun run start`      | Start all apps in production mode               |
 | `bun run start:web`  | Start apps/web production server                |
 | `bun run start:api`  | Start apps/api production server                |
+| `bun run start:worker` | Start apps/worker production process          |
 
 ### Testing
 
 | Command                    | Description                    |
 | -------------------------- | ------------------------------ |
-| `bun test`                 | Run all tests                  |
+| `bun run test`             | Run workspace test suites      |
 | `bun run test:unit`        | Run unit tests only            |
 | `bun run test:integration` | Run integration tests          |
 | `bun run test:security`    | Run security tests             |
+| `bun run test:perf`        | Run Bun perf suites            |
+| `bun run test:load`        | Run k6 redirect load harness   |
 | `bun run test:e2e`         | Run Playwright E2E tests       |
-| `bun run test:coverage`    | Run tests with coverage report |
 
 ### Security
 
@@ -306,7 +304,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 
 ## API
 
-The ElysiaJS API is mounted at `/api/` via a Next.js catch-all route and auto-generates OpenAPI documentation.
+The ElysiaJS API runs as a standalone Bun service in `apps/api`. The web app proxies `/api/*` traffic to that service and preserves request correlation headers and response envelopes.
 
 ### Key Endpoints
 
@@ -342,6 +340,7 @@ urlfy.cc/
 │   │       ├── components/       # React components (UI, dashboard, admin)
 │   │       ├── lib/              # Client utilities, auth client, env
 │   │       └── server/           # Server-only utilities (email, audit)
+│   │   └── tests/                # Web integration, perf, and security tests
 │   ├── api/                      # ElysiaJS standalone API (port 3001)
 │   │   └── src/server/
 │   │       ├── modules/          # Feature-based Elysia MVC
@@ -352,10 +351,12 @@ urlfy.cc/
 │   │       ├── middleware/       # Rate limiting, security, auth
 │   │       ├── services/         # Shared business logic
 │   │       └── lib/              # Server utilities (cache, queue, circuit breaker)
+│   │   └── tests/                # API integration, perf, and security tests
 │   └── worker/                   # Redis Streams workers (Bun process)
 │       └── src/
 │           ├── workers/          # Analytics, aggregation, cleanup, deletion
 │           └── jobs/             # Scheduled jobs
+│       └── tests/                # Worker unit tests
 ├── packages/
 │   ├── auth-shared/              # ACL scopes shared by api and web
 │   ├── cache/                    # Redis client, cache keys, distributed lock
@@ -365,36 +366,31 @@ urlfy.cc/
 │   ├── data/                     # Drizzle ORM schemas + DB client
 │   ├── redirect-domain/          # Redirect logic (cache, validate, url-build)
 │   └── telemetry/                # OpenTelemetry + structured logging
+├── load/
+│   └── k6/                       # Redirect load harness and instructions
 ├── docker/
 │   ├── docker-compose.yml        # Infrastructure (PostgreSQL, Redis, GeoIP)
 │   ├── docker-compose.apps.yml   # Application services overlay
 │   ├── web.Dockerfile            # apps/web multi-stage image
 │   ├── api.Dockerfile            # apps/api multi-stage image
+│   ├── worker.Dockerfile         # apps/worker multi-stage image
 │   └── geoip/                    # GeoLite2 auto-downloader
-├── drizzle/                      # Database migrations
-└── tests/
-    ├── unit/                     # Unit tests
-    ├── integration/              # Integration tests
-    ├── security/                 # Security tests
-    ├── e2e/                      # Playwright E2E tests
-    ├── load/                     # Load testing (k6)
-    └── perf/                     # Performance benchmarks
+└── packages/data/migrations/     # Database migrations
 ```
 
 ## Testing
 
 ```bash
-# Run all tests
-bun test
-
-# Run with coverage
-bun run test:coverage
-
-# Run specific suites
+# Run workspace suites
+bun run test
 bun run test:unit
 bun run test:integration
 bun run test:security
+bun run test:perf
 bun run test:e2e
+
+# Run the manual redirect load harness
+BASE_URL=http://localhost:3000 SHORT_CODE=mycode bun run test:load
 ```
 
 ### Performance Targets
@@ -446,6 +442,8 @@ cd docker && docker compose -f docker-compose.prod.yml up -d
 | [API Endpoints](docs/api/endpoints.md)                     | Full REST API reference                |
 | [Observability](docs/architecture/observability-elysia.md) | OpenTelemetry + SigNoz setup           |
 | [Best Practices](docs/development/best-practices.md)       | Code conventions and patterns          |
+| [Decoupling Status](docs/architecture/monorepo-decoupling.md) | Monorepo split implementation status |
+| [Redirect Performance Baseline](docs/development/redirect-performance-baseline.md) | Baseline and k6 validation flow |
 
 ## License
 

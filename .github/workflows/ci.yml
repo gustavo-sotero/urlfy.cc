@@ -118,6 +118,14 @@ jobs:
       - name: Run security tests (all workspaces)
         run: bunx turbo run test:security
 
+      - name: Run performance tests (workspace suites)
+        run: bunx turbo run test:perf
+        env:
+          SKIP_ENV_VALIDATION: "1"
+
+      - name: Verify k6 redirect harness exists
+        run: test -f load/k6/redirect-hot-path.js
+
   # ─── Migration Validation ───────────────────────────────────────
   migrations:
     name: Migration Safety Check

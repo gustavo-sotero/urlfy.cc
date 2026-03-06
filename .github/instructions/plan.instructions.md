@@ -73,7 +73,7 @@ Este documento descreve o plano de implementação dividido em módulos lógicos
 | **4.3** | **Stampede Protection:** Proteção contra _Cache Stampede_ usando Distributed Locks (Redis SETNX) e Probabilistic Early Expiration.                                                     | Caching        |
 | **4.4** | **Validação Rápida:** Checagem de `isActive`, `isBanned`, `expiresAt`, `maxClicks` e senha (via cookie JWT) antes do redirect.                                                         | RF-13          |
 | **4.5** | **Redirect Depth Control:** Header `X-Redirect-Depth` com limite máximo de 3 para prevenir loops. Retorna `421 Misdirected Request` se excedido.                                       | RF-14          |
-| **4.6** | **Async Handoff:** Disparo de eventos de clique para BullMQ sem bloquear a resposta HTTP.                                                                                              | RF-15          |
+| **4.6** | **Async Handoff:** Disparo de eventos de clique para Redis Streams sem bloquear a resposta HTTP.                                                                                       | RF-15          |
 | **4.7** | **Graceful Degradation:** Fallback direto para PostgreSQL quando Redis está indisponível, com alerta para SigNoz.                                                                      | RNF-08         |
 | **4.8** | **Circuit Breaker:** Implementação com `opossum` ou `cockatiel` para PostgreSQL e Redis (threshold: 50% falhas em 10s, reset: 30s).                                                    | RNF-06         |
 
@@ -85,7 +85,7 @@ Este documento descreve o plano de implementação dividido em módulos lógicos
 
 | Item    | Descrição                                                                                                                                               | Requisitos   |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| **5.1** | **Queue System:** Setup do BullMQ com configuração de **Dead Letter Queue** (`analytics:dead`) para eventos falhos (retry: 3x com backoff 1s, 5s, 30s). | RNF-07       |
+| **5.1** | **Queue System:** Setup de Redis Streams com stream de falhas/DLQ (`analytics:dead`) para eventos falhos (retry: 3x com backoff 1s, 5s, 30s). | RNF-07       |
 | **5.2** | **Ingestão de Eventos:** Worker para processar cliques brutos na tabela particionada `analytics_events`.                                                | RF-17        |
 | **5.3** | **Enriquecimento de Dados:** Resolução de GeoIP offline (MaxMind GeoLite2) e User-Agent parser para browser, OS e device type.                          | RF-19, RF-17 |
 | **5.4** | **Privacidade (LGPD):** Hash SHA-256 do IP com salt rotativo semanal (`{year}-W{week}`). IP nunca armazenado em texto.                                  | RF-18        |

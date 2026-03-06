@@ -76,7 +76,7 @@ src/
 > ⚠️ **Geradas automaticamente:** `bun run db:generate:auth`
 
 ```typescript
-// src/db/schema/auth.ts
+// packages/data/src/schema/auth.ts
 import {
   pgTable,
   text,
@@ -904,7 +904,7 @@ abstract class AuthService {
 ### 7.3 Model Pattern para Auth
 
 ```typescript
-// src/server/api/models/auth.models.ts
+// apps/api/src/server/modules/auth/auth.schema.ts
 import { Elysia, t } from 'elysia';
 
 // ✅ TypeBox para validação + tipos
@@ -929,7 +929,7 @@ export const authModels = new Elysia().model({
 
 ## 8. Rotas de Autenticação (ElysiaJS)
 
-### 8.1 Handler Principal (`src/server/api/auth/index.ts`)
+### 8.1 Handler Principal (`apps/api/src/server/modules/auth/auth.controller.ts`)
 
 ```typescript
 import { Elysia, t } from 'elysia';
@@ -1057,7 +1057,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   );
 ```
 
-### 8.2 Rotas de API Keys (`src/server/api/auth/api-keys.ts`)
+### 8.2 Rotas de API Keys (`apps/api/src/server/modules/api-keys/api-keys.controller.ts`)
 
 ```typescript
 import { Elysia, t } from 'elysia';
@@ -1471,14 +1471,18 @@ RESEND_FROM=noreply@urlfy.cc
 
 ## 11. Testes
 
-### 11.1 Testes de Autenticação (`src/server/api/auth/__tests__/auth.test.ts`)
+### 11.1 Testes de Autenticação (`apps/api/tests/integration/auth.handler.test.ts`)
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { treaty } from '@elysiajs/eden';
-import { app } from '@/server/api';
+import { createElysiaTestClient } from '../helpers/elysia-test-client';
 
-const api = treaty(app);
+let client;
+
+beforeAll(async () => {
+  const { api } = await import('@/server');
+  client = createElysiaTestClient(api);
+});
 
 describe('Auth API', () => {
   let testUser = {
@@ -1488,14 +1492,14 @@ describe('Auth API', () => {
 
   describe('POST /auth/sign-up', () => {
     it('should create a new user', async () => {
-      const response = await api.api.v1.auth['sign-up'].post({
+      const response = await client.post('/api/auth/sign-up', {
         email: testUser.email,
         password: testUser.password,
         name: 'Test User'
       });
 
       expect(response.status).toBe(201);
-      expect(response.data?.user.email).toBe(testUser.email);
+      expect(response.body.data?.user.email).toBe(testUser.email);
     });
 
     it('should reject duplicate email', async () => {

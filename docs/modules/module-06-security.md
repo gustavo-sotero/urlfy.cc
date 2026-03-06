@@ -553,7 +553,7 @@ export const antiAbuseService = new AntiAbuseService();
 ### 9.1 Schema
 
 ```typescript
-// src/db/schema/audit.ts
+// packages/data/src/schema/audit.ts
 import {
   pgTable,
   uuid,
@@ -638,7 +638,7 @@ export const auditService = new AuditService();
 ### 10.1 Export de Dados
 
 ```typescript
-// src/server/api/me/export.ts
+// apps/api/src/server/modules/users/me.controller.ts
 import { Elysia } from 'elysia';
 import { authMiddleware } from '@/server/middleware/auth';
 import { gdprService } from '@/server/services/gdpr.service';
@@ -662,7 +662,7 @@ export const exportRoute = new Elysia({ prefix: '/me' })
 ### 10.2 Exclusão de Dados
 
 ```typescript
-// src/server/api/me/data.ts
+// apps/api/src/server/modules/users/me.controller.ts
 import { Elysia } from 'elysia';
 import { authMiddleware } from '@/server/middleware/auth';
 import { gdprService } from '@/server/services/gdpr.service';
