@@ -1,3 +1,5 @@
+import { db } from '@urlfy/data';
+import { links } from '@urlfy/data/schema';
 import {
   and,
   arrayContains,
@@ -11,8 +13,6 @@ import {
   or,
   sql
 } from 'drizzle-orm';
-import { db } from '@urlfy/data';
-import { links } from '@urlfy/data/schema';
 import { PAGINATION_LIMITS } from '@/server/config/limits';
 import { sanitizeSearchQuery, sanitizeTags } from '@/server/lib/sanitize';
 import type {

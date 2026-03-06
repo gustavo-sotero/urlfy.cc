@@ -1,6 +1,6 @@
-import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import { links } from '@urlfy/data/schema';
+import { and, eq, isNull } from 'drizzle-orm';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
 import type { Link } from '@/types/links.types';
 

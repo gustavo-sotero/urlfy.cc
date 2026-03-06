@@ -1,8 +1,8 @@
 // src/server/services/cache.service.ts
 
 import { getRedisClient } from '@urlfy/cache';
-import { createLogger } from '@urlfy/telemetry';
 import type { CachedLink } from '@urlfy/contracts/redirect';
+import { createLogger } from '@urlfy/telemetry';
 
 const logger = createLogger('cache-service');
 

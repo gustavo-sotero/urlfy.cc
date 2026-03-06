@@ -5,9 +5,9 @@
  * Always prioritizes user's saved locale preference from database.
  */
 
-import { eq } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import { user } from '@urlfy/data/schema/auth';
+import { eq } from 'drizzle-orm';
 import { type AppLocale, defaultLocale, isAppLocale } from '@/emails/types';
 import { createLogger } from '@/server/lib/telemetry';
 

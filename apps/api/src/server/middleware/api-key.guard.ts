@@ -6,10 +6,10 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { and, eq, isNull, sql } from 'drizzle-orm';
-import type { Elysia } from 'elysia';
 import { db } from '@urlfy/data';
 import { apiKey as apiKeyTable } from '@urlfy/data/schema/auth';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import type { Elysia } from 'elysia';
 import {
   hasScopes,
   parseScopes,

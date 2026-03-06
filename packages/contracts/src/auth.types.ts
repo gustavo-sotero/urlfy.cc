@@ -5,7 +5,10 @@
  * authorization, and user management.
  */
 
-import type { Session as DbSession, User as DbUser } from '@urlfy/data/schema/auth';
+import type {
+  Session as DbSession,
+  User as DbUser
+} from '@urlfy/data/schema/auth';
 
 // ═══════════════════════════════════════════════════════════════════
 // USER TYPES
@@ -168,20 +171,6 @@ export interface ApiKeyWithSecret extends PublicApiKey {
   key: string;
 }
 
-/**
- * API key authentication context
- */
-export interface ApiKeyContext {
-  user: PublicUser;
-  apiKey: {
-    id: string;
-    name: string;
-    permissions: NormalizedApiKeyPermissions;
-    rateLimit: number;
-  };
-  isAuthenticated: true;
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // TWO-FACTOR AUTHENTICATION TYPES
 // ═══════════════════════════════════════════════════════════════════
@@ -245,19 +234,6 @@ export interface UserDataExport {
   links?: unknown[]; // To be added in Module 3
   analytics?: unknown[]; // To be added in Module 5
   exportDate: string;
-}
-
-/**
- * Data deletion request
- */
-export interface DataDeletionRequest {
-  id: string;
-  userId: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  requestedAt: Date;
-  deadlineAt: Date;
-  completedAt: Date | null;
-  failureReason: string | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════

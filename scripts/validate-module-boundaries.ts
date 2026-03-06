@@ -4,7 +4,15 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 
 const PROJECT_ROOT = join(import.meta.dir, '..');
-const MODULES_ROOT = join(PROJECT_ROOT, 'src', 'server', 'modules');
+// In the monorepo, Elysia feature modules live in apps/api
+const MODULES_ROOT = join(
+  PROJECT_ROOT,
+  'apps',
+  'api',
+  'src',
+  'server',
+  'modules'
+);
 const MODULE_IMPORT_PREFIX = '@/server/modules/';
 
 interface Violation {

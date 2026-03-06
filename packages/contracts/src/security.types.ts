@@ -118,30 +118,6 @@ export interface DataDeletionRequest {
 export type DeletionStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 /**
- * User Data Export
- */
-export interface UserDataExport {
-  user: {
-    id: string;
-    email: string;
-    name: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  };
-  links: Array<{
-    id: string;
-    shortCode: string;
-    originalUrl: string;
-    createdAt: Date;
-  }>;
-  analyticsOverview: {
-    totalClicks: number;
-    uniqueVisitors: number;
-    linksCount: number;
-  };
-}
-
-/**
  * Anti-Abuse Event
  */
 export interface AbuseEvent {

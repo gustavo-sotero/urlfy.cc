@@ -15,7 +15,6 @@
  */
 
 // Set test environment before imports
-// @ts-expect-error - NODE_ENV assignment is needed for test setup
 process.env.NODE_ENV = 'test';
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
@@ -32,8 +31,10 @@ let setupError: Error | null = null;
 // Try to import database - this will fail if db not available
 let db: typeof import('@urlfy/data').db | null = null;
 let apiKeyTable: typeof import('@urlfy/data/schema/auth').apiKey | null = null;
-let sessionTable: typeof import('@urlfy/data/schema/auth').session | null = null;
-let twoFactorTable: typeof import('@urlfy/data/schema/auth').twoFactor | null = null;
+let sessionTable: typeof import('@urlfy/data/schema/auth').session | null =
+  null;
+let twoFactorTable: typeof import('@urlfy/data/schema/auth').twoFactor | null =
+  null;
 let userTable: typeof import('@urlfy/data/schema/auth').user | null = null;
 let auth: typeof import('@/lib/auth').auth | null = null;
 let apiKeyAuth:
@@ -287,7 +288,7 @@ describe('Auth Middleware', () => {
         })
       );
 
-      const data = await response.json();
+      const data = (await response.json()) as Record<string, unknown>;
       expect(data.isAuth).toBe(true);
       expect(data.userId).toBe(testUser.id);
     });
@@ -298,7 +299,7 @@ describe('Auth Middleware', () => {
         new Request('http://localhost:3000/test')
       );
 
-      const data = await response.json();
+      const data = (await response.json()) as Record<string, unknown>;
       expect(data.isAuth).toBe(false);
       expect(data.userId).toBeNull();
     });
@@ -327,7 +328,7 @@ describe('Auth Middleware', () => {
       );
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = (await response.json()) as Record<string, unknown>;
       expect(data.userId).toBe(testUser.id);
     });
 
@@ -379,7 +380,7 @@ describe('Auth Middleware', () => {
       );
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = (await response.json()) as Record<string, unknown>;
       expect(data.userId).toBe(testUser.id);
       expect(data.keyName).toBe('Test API Key');
     });
@@ -582,7 +583,7 @@ describe('Auth Middleware', () => {
       );
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = (await response.json()) as Record<string, unknown>;
       expect(data.userId).toBe(adminUser.id);
       expect(data.isAdmin).toBe(true);
     });
@@ -610,5 +611,3 @@ describe('Auth Middleware', () => {
     });
   });
 });
-
-

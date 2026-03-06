@@ -361,4 +361,3 @@ describe('LinkService - Pure Functions', () => {
     });
   });
 });
-

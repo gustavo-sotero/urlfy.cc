@@ -37,7 +37,6 @@ function getJwtSecret(): string {
   return secret;
 }
 
-// @ts-ignore: TS2742 - jose internal type reference (harmless for Eden Treaty)
 export const jwtPlugin = new Elysia({ name: 'jwt' }).use(
   jwt({
     name: 'jwt',

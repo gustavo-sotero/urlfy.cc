@@ -12,5 +12,8 @@
   "scripts": {
     "type-check": "bunx tsc --noEmit",
     "lint": "bunx biome check . --write"
+  },
+  "devDependencies": {
+    "@urlfy/config-ts": "workspace:*"
   }
 }

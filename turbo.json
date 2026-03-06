@@ -16,7 +16,7 @@
     },
     "type-check": {
       "dependsOn": ["^type-check"],
-      "outputs": ["tsconfig.tsbuildinfo"]
+      "outputs": []
     },
     "lint": {
       "dependsOn": ["^lint"],

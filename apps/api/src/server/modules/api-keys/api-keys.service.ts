@@ -4,10 +4,10 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, isNull } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { db } from '@urlfy/data';
 import { apiKey } from '@urlfy/data/schema/auth';
+import { and, desc, eq, isNull } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { parseScopes, serializeScopes } from '@/server/config/scopes';
 import type {
   ApiKeyCreated,

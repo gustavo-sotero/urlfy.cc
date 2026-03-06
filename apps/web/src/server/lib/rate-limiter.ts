@@ -4,9 +4,9 @@
  * Prevents abuse across API endpoints
  */
 
-import { maskIpForLog } from './ip';
 import { getRedisClient } from '@urlfy/cache';
 import { createLogger } from '@urlfy/telemetry';
+import { maskIpForLog } from './ip';
 
 const logger = createLogger('rate-limiter');
 

@@ -8,8 +8,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { Elysia, t } from 'elysia';
 import { checkDatabaseHealth } from '@urlfy/data';
+import { Elysia, t } from 'elysia';
 import { checkRedisHealth } from '@/server/lib/redis';
 import { ResponseModels } from '@/server/lib/response.schema';
 import { requireAdmin } from '@/server/middleware/auth.middleware';

@@ -20,5 +20,8 @@
   },
   "dependencies": {
     "@urlfy/telemetry": "workspace:*"
+  },
+  "devDependencies": {
+    "@urlfy/config-ts": "workspace:*"
   }
 }

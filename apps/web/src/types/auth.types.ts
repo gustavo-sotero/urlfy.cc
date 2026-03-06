@@ -5,7 +5,10 @@
  * authorization, and user management.
  */
 
-import type { Session as DbSession, User as DbUser } from '@urlfy/data/schema/auth';
+import type {
+  Session as DbSession,
+  User as DbUser
+} from '@urlfy/data/schema/auth';
 
 // ═══════════════════════════════════════════════════════════════════
 // USER TYPES

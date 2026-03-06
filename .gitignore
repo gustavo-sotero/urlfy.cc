@@ -48,6 +48,7 @@ src/messages/**/*.js
 src/messages/**/*.d.ts
 src/messages/**/*.d.ts.map
 .serena
+.turbo/
 .github/instructions
 .github/prompts
 .github/copilot-instructions.md

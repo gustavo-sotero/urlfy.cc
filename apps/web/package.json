@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "SKIP_ENV_VALIDATION=1 next build && bun run scripts/post-build.ts",
     "start": "next start",
-    "lint": "bunx biome check . --write && bun run scripts/validate-module-boundaries.ts",
+    "lint": "bunx biome check . --write",
     "type-check": "bunx tsc --noEmit",
     "test": "bun test src/ tests/unit tests/integration tests/perf tests/security",
     "test:unit": "bun test src/ tests/unit/",

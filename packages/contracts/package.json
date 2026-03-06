@@ -22,5 +22,8 @@
   "dependencies": {
     "@urlfy/auth-shared": "workspace:*",
     "@urlfy/data": "workspace:*"
+  },
+  "devDependencies": {
+    "@urlfy/config-ts": "workspace:*"
   }
 }

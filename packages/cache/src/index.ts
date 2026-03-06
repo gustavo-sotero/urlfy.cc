@@ -3,6 +3,8 @@
  * Redis client, cache key builders, distributed locks and streaming utilities
  */
 
+// Circuit breaker
+export { CircuitBreaker } from './circuit-breaker';
 // Redis client
 export {
   checkRedisHealth,
@@ -10,18 +12,12 @@ export {
   getRedisClient,
   redis
 } from './client';
-
-// Cache keys and TTLs
-export { CACHE_KEYS, CACHE_TTL } from './keys';
-
-// Distributed lock (simple Redis-based)
-export { acquireLock, releaseLock } from './lock';
-
 // Distributed lock (advanced, with backoff)
 export { DistributedLock } from './distributed-lock';
-
-// Circuit breaker
-export { CircuitBreaker } from './circuit-breaker';
+// Cache keys and TTLs
+export { CACHE_KEYS, CACHE_TTL } from './keys';
+// Distributed lock (simple Redis-based)
+export { acquireLock, releaseLock } from './lock';
 
 // Redis Streams
 export { RedisStream, STREAM_NAMES } from './stream';

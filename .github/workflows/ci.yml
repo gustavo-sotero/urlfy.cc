@@ -46,6 +46,9 @@ jobs:
         env:
           SKIP_ENV_VALIDATION: "1"
 
+      - name: Validate API module boundaries
+        run: bun run scripts/validate-module-boundaries.ts
+
   # ─── Unit & Integration Tests ───────────────────────────────────
   test:
     name: Tests
@@ -104,6 +107,16 @@ jobs:
 
       - name: Run unit tests (API)
         run: bun test apps/api/src/
+
+      - name: Run unit tests (web)
+        run: bun test apps/web/src/ tests/unit/
+        env:
+          SKIP_ENV_VALIDATION: "1"
+
+      - name: Run redirect hot-path tests
+        run: bun test apps/web/src/server/services/__tests__/redirect.service.test.ts
+        env:
+          SKIP_ENV_VALIDATION: "1"
 
       - name: Run integration tests
         run: bun test tests/integration/

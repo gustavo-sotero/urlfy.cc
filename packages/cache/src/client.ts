@@ -1,5 +1,5 @@
-import { RedisClient } from 'bun';
 import { createLogger } from '@urlfy/telemetry';
+import { RedisClient } from 'bun';
 import { createInMemoryRedisClient } from './mock';
 
 const logger = createLogger('redis');

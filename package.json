@@ -2,6 +2,7 @@
   "name": "urlfy-monorepo",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "bun@1.3.9",
   "workspaces": [
     "apps/*",
     "packages/*"

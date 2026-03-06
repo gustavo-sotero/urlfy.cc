@@ -1,6 +1,6 @@
-import { CACHE_KEYS, CACHE_TTL } from './keys';
 import { createLogger } from '@urlfy/telemetry';
 import { redis } from './client';
+import { CACHE_KEYS, CACHE_TTL } from './keys';
 
 const logger = createLogger('distributed-lock');
 

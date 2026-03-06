@@ -3,8 +3,6 @@
  * Handles data export and deletion requests per GDPR/LGPD regulations
  */
 
-import { and, eq, inArray, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { db } from '@urlfy/data';
 import {
   account,
@@ -15,7 +13,12 @@ import {
   twoFactor,
   user
 } from '@urlfy/data/schema';
-import { type DeletionStatus, dataDeletionRequest } from '@urlfy/data/schema/audit';
+import {
+  type DeletionStatus,
+  dataDeletionRequest
+} from '@urlfy/data/schema/audit';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { createLogger } from '@/server/lib/telemetry';
 

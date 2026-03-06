@@ -8,6 +8,15 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { db } from '@urlfy/data';
+import {
+  analyticsBrowserBreakdown,
+  analyticsCountryBreakdown,
+  analyticsDeviceBreakdown,
+  analyticsEvents,
+  linkClicksDaily
+} from '@urlfy/data/schema';
+import { links } from '@urlfy/data/schema/links';
 import {
   and,
   countDistinct,
@@ -18,15 +27,6 @@ import {
   lt,
   sql
 } from 'drizzle-orm';
-import { db } from '@urlfy/data';
-import {
-  analyticsBrowserBreakdown,
-  analyticsCountryBreakdown,
-  analyticsDeviceBreakdown,
-  analyticsEvents,
-  linkClicksDaily
-} from '@urlfy/data/schema';
-import { links } from '@urlfy/data/schema/links';
 import type {
   AnalyticsBreakdown,
   AnalyticsSummary,

@@ -21,15 +21,18 @@ export const BASE_URL =
 // CLIENT INSTANCES
 // ═══════════════════════════════════════════════════════════════════
 
-/** Default Eden Treaty client with credentials */
-// biome-ignore lint/suspicious/noExplicitAny: Full Eden Treaty type safety requires building apps/api first.
-// Run `cd apps/api && bunx tsc --build` or `turbo run build --filter=@urlfy/api` for full type inference.
-// biome-ignore lint/suspicious/noExplicitAny: see above
+/**
+ * Default Eden Treaty client with credentials.
+ * Cast to expose the /api namespace: the App stub has Routes={} so
+ * treaty<App> infers {} — casting to { api: Record<string, any> } lets
+ * all client.api.xxx.method() calls through until the real App type is wired.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: Eden Treaty stub — replace when @urlfy/api exports real routes
 export const client = treaty<App>(BASE_URL, {
   fetch: {
     credentials: 'include' // Required for cookies to be sent
   }
-}) as any;
+}) as unknown as { api: Record<string, any> };
 
 /**
  * Export default client instance for use in components
@@ -70,14 +73,14 @@ export const apiClient = {
  * }
  * ```
  */
+// biome-ignore lint/suspicious/noExplicitAny: Eden Treaty stub — replace when @urlfy/api exports real routes
 export function createClientWithHeaders(headers: HeadersInit) {
-  // biome-ignore lint/suspicious/noExplicitAny: Eden Treaty type safety requires pre-built apps/api
   return treaty<App>(BASE_URL, {
     fetch: {
       credentials: 'include'
     },
     headers
-  }) as any;
+  }) as unknown as { api: Record<string, any> };
 }
 
 /**

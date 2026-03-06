@@ -3,6 +3,7 @@
  * Applies rate limiting based on IP, token, and endpoint
  */
 
+import { createLogger } from '@urlfy/telemetry';
 import { getClientIp, maskIpForLog } from '@/server/lib/ip';
 import { maskValue, sanitizeHeaders } from '@/server/lib/log-sanitizer';
 import {
@@ -10,7 +11,6 @@ import {
   type RateLimitConfig,
   rateLimiter
 } from '@/server/lib/rate-limiter';
-import { createLogger } from '@urlfy/telemetry';
 import { buildErrorResponse, getOrCreateRequestId } from './error-response';
 
 const logger = createLogger('rate-limit-middleware');

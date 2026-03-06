@@ -3,9 +3,9 @@
  * Detects and prevents abuse patterns
  */
 
-import { maskIpForLog } from '@/server/lib/ip';
 import { getRedisClient } from '@urlfy/cache';
 import { createLogger } from '@urlfy/telemetry';
+import { maskIpForLog } from '@/server/lib/ip';
 
 const logger = createLogger('anti-abuse');
 

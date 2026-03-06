@@ -4,9 +4,9 @@
  * Controllers must not contain raw SQL — they delegate here.
  */
 
-import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import { links } from '@urlfy/data/schema';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 
 export interface DashboardSummary {
   totalLinks: number;

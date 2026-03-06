@@ -1,8 +1,8 @@
 // src/server/modules/links/services/shortcode.service.ts
 
-import { eq } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import { links, reservedSlugs } from '@urlfy/data/schema';
+import { eq } from 'drizzle-orm';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { generateShortCode } from '@/server/lib/nanoid';
 

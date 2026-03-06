@@ -4,12 +4,12 @@
  * Uses centralized configuration from @/server/config/cors
  */
 
+import { createLogger } from '@urlfy/telemetry';
 import {
   ALLOWED_METHODS,
   getCorsHeaders,
   isOriginAllowed
 } from '@/server/config/cors';
-import { createLogger } from '@urlfy/telemetry';
 
 const logger = createLogger('cors');
 

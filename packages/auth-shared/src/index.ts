@@ -4,5 +4,5 @@
  * that don't require a runtime-specific auth instance.
  */
 
-export { Scopes, ScopeMetadata } from './scopes';
 export type { Scope } from './scopes';
+export { ScopeMetadata, Scopes } from './scopes';

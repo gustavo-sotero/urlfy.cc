@@ -1,6 +1,6 @@
-import { and, eq } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import { links } from '@urlfy/data/schema';
+import { and, eq } from 'drizzle-orm';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
 import type { Link } from '@/types/links.types';
 import { linksCacheAdapter } from './adapters/cache.adapter';

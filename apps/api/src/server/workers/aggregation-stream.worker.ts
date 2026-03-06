@@ -3,7 +3,6 @@
  * Processes daily analytics aggregation from aggregation stream
  */
 
-import { and, countDistinct, count as countFn, eq, gte, lt } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import {
   analyticsBrowserBreakdown,
@@ -12,6 +11,7 @@ import {
   analyticsEvents,
   linkClicksDaily
 } from '@urlfy/data/schema';
+import { and, countDistinct, count as countFn, eq, gte, lt } from 'drizzle-orm';
 import { recordMetric } from '@/server/lib/metrics';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { WorkerBase } from '@/server/lib/worker-base';

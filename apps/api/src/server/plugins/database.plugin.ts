@@ -1,7 +1,6 @@
-import { Elysia } from 'elysia';
 import { db } from '@urlfy/data';
+import { Elysia } from 'elysia';
 
-// @ts-ignore: TS2742 - drizzle-orm bun-sql internal type reference (harmless for Eden Treaty)
 export const databasePlugin = new Elysia({ name: 'database' }).decorate(
   'db',
   db

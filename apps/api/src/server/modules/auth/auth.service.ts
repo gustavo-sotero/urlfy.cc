@@ -8,8 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { db } from '@urlfy/data';
 import {
   apiKey as apiKeyTable,
@@ -17,6 +15,8 @@ import {
   twoFactor as twoFactorTable,
   user as userTable
 } from '@urlfy/data/schema/auth';
+import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { auth } from '@/lib/auth';
 import type {
   ApiKeyPermissions,

@@ -30,5 +30,8 @@
     "@opentelemetry/exporter-metrics-otlp-http": "^0.211.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.211.0",
     "@opentelemetry/auto-instrumentations-node": "^0.69.0"
+  },
+  "devDependencies": {
+    "@urlfy/config-ts": "workspace:*"
   }
 }

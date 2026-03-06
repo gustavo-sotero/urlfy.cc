@@ -3,8 +3,8 @@
  * Receives and logs client-side errors for debugging
  */
 
-import { type NextRequest, NextResponse } from 'next/server';
 import { createLogger } from '@urlfy/telemetry';
+import { type NextRequest, NextResponse } from 'next/server';
 
 const logger = createLogger('client-error-monitor');
 

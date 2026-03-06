@@ -1,7 +1,7 @@
 // src/server/lib/distributed-lock.ts
 
-import { getRedisClient } from './client';
 import { createLogger } from '@urlfy/telemetry';
+import { getRedisClient } from './client';
 
 const logger = createLogger('distributed-lock');
 const redis = getRedisClient();

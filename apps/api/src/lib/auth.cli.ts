@@ -13,10 +13,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@urlfy/data/cli';
 import * as schema from '@urlfy/data/schema/auth';
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { baseAuthConfig, getPlugins } from './auth.config';
 
 // ═══════════════════════════════════════════════════════════════════

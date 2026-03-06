@@ -8,9 +8,9 @@
  */
 
 import { createHash } from 'node:crypto';
-import { count, desc, eq } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import { contactMessage } from '@urlfy/data/schema';
+import { count, desc, eq } from 'drizzle-orm';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { createLogger } from '@/server/lib/telemetry';
 import type { ContactBodyType, MessageUpdateBodyType } from './contact.schema';

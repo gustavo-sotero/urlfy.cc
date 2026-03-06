@@ -3,8 +3,8 @@
  * Integrates anti-abuse detection into request processing
  */
 
-import { getClientIp, maskIpForLog } from '@/server/lib/ip';
 import { createLogger } from '@urlfy/telemetry';
+import { getClientIp, maskIpForLog } from '@/server/lib/ip';
 import { antiAbuseService } from '@/server/services/anti-abuse.service';
 import { buildErrorResponse, getOrCreateRequestId } from './error-response';
 

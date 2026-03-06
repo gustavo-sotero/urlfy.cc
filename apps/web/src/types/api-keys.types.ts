@@ -4,8 +4,8 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import type { ApiKey as DbApiKey } from '@urlfy/data/schema/auth';
 import type { Scope } from '@urlfy/auth-shared';
+import type { ApiKey as DbApiKey } from '@urlfy/data/schema/auth';
 
 /**
  * API Key as returned to the user (sensitive fields omitted).

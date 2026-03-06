@@ -9,13 +9,13 @@
  *   bun run --watch src/workers.ts  (dev mode)
  */
 
-import { validateEnv } from './lib/env';
 import {
   configureLogging,
   createLogger,
   initTelemetry,
   shutdownTelemetry
 } from '@urlfy/telemetry';
+import { validateEnv } from './lib/env';
 import { aggregationWorker } from './workers/aggregation-stream.worker';
 import { analyticsClickWorker } from './workers/analytics-click.worker';
 import { cleanupWorker } from './workers/cleanup-stream.worker';

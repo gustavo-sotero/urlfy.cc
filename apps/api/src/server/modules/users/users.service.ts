@@ -8,7 +8,6 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import {
   account as accountTable,
@@ -18,6 +17,7 @@ import {
   type User,
   user as userTable
 } from '@urlfy/data/schema';
+import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { usersAuditAdapter } from './adapters/audit-log.adapter';
 

@@ -3,10 +3,14 @@
  * Processes LGPD/GDPR data deletion requests
  */
 
-import { eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@urlfy/data';
-import { analyticsEvents, dataDeletionRequest, links } from '@urlfy/data/schema';
+import {
+  analyticsEvents,
+  dataDeletionRequest,
+  links
+} from '@urlfy/data/schema';
 import { user } from '@urlfy/data/schema/auth';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { recordMetric } from '@/server/lib/metrics';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { WorkerBase } from '@/server/lib/worker-base';

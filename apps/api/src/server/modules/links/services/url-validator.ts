@@ -1,9 +1,9 @@
 // src/server/modules/links/services/url-validator.ts
 
 import { lookup } from 'node:dns/promises';
-import { eq } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import { bannedUrls } from '@urlfy/data/schema';
+import { eq } from 'drizzle-orm';
 import { createLogger } from '@/server/lib/telemetry';
 
 const logger = createLogger('url-validator');

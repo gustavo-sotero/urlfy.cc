@@ -1,6 +1,6 @@
 import { trace } from '@opentelemetry/api';
-import { createLogger, recordRedirectMetrics } from '@urlfy/telemetry';
 import type { RedirectError, RedirectResult } from '@urlfy/contracts/redirect';
+import { createLogger, recordRedirectMetrics } from '@urlfy/telemetry';
 import { cacheService } from './cache-service';
 import * as Fetcher from './fetcher';
 import { buildFinalUrl } from './url-builder';

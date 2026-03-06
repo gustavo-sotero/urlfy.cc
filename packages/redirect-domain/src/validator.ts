@@ -1,5 +1,5 @@
-import { createLogger } from '@urlfy/telemetry';
 import type { CachedLink, RedirectError } from '@urlfy/contracts/redirect';
+import { createLogger } from '@urlfy/telemetry';
 
 const logger = createLogger('redirect-validator');
 

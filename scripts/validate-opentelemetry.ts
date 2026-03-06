@@ -65,7 +65,7 @@ try {
 // Step 2: Check next.config.ts
 try {
   const nextConfig = readFileSync(
-    resolve(process.cwd(), 'next.config.ts'),
+    resolve(process.cwd(), 'apps/web/next.config.ts'),
     'utf-8'
   );
 
@@ -95,7 +95,7 @@ try {
 // Step 3: Check src/server/index.ts
 try {
   const serverIndex = readFileSync(
-    resolve(process.cwd(), 'src/server/index.ts'),
+    resolve(process.cwd(), 'apps/api/src/server/index.ts'),
     'utf-8'
   );
 
@@ -142,7 +142,7 @@ try {
   validate(
     'Step 3',
     false,
-    'Failed to read src/server/index.ts',
+    'Failed to read apps/api/src/server/index.ts',
     String(error)
   );
 }
@@ -152,7 +152,7 @@ try {
   const publicController = readFileSync(
     resolve(
       process.cwd(),
-      'src/server/modules/links/links-public.controller.ts'
+      'apps/api/src/server/modules/links/links-public.controller.ts'
     ),
     'utf-8'
   );
@@ -181,11 +181,11 @@ try {
 // Step 5: Check telemetry initialization
 try {
   const telemetryLib = readFileSync(
-    resolve(process.cwd(), 'src/server/lib/telemetry.ts'),
+    resolve(process.cwd(), 'apps/api/src/server/lib/telemetry.ts'),
     'utf-8'
   );
   const telemetryInit = readFileSync(
-    resolve(process.cwd(), 'src/server/lib/telemetry/init.ts'),
+    resolve(process.cwd(), 'apps/api/src/server/lib/telemetry/init.ts'),
     'utf-8'
   );
 
@@ -197,7 +197,7 @@ try {
     hasOtelSdk,
     'Global OpenTelemetry SDK configured',
     hasOtelSdk
-      ? 'SDK initialization found in src/server/lib/telemetry/init.ts'
+      ? 'SDK initialization found in apps/api/src/server/lib/telemetry/init.ts'
       : 'SDK not found'
   );
 } catch (error) {
@@ -263,7 +263,7 @@ try {
 // Step 7: Check LogTape configuration in init.ts
 try {
   const initTs = readFileSync(
-    resolve(process.cwd(), 'src/server/lib/telemetry/init.ts'),
+    resolve(process.cwd(), 'apps/api/src/server/lib/telemetry/init.ts'),
     'utf-8'
   );
 
@@ -298,7 +298,7 @@ try {
 // Step 8: Check Elysia request logging via @logtape/elysia
 try {
   const serverIndex = readFileSync(
-    resolve(process.cwd(), 'src/server/index.ts'),
+    resolve(process.cwd(), 'apps/api/src/server/index.ts'),
     'utf-8'
   );
 
@@ -317,7 +317,7 @@ try {
 // Step 9: Check Drizzle ORM query logging
 try {
   const dbIndex = readFileSync(
-    resolve(process.cwd(), 'src/db/index.ts'),
+    resolve(process.cwd(), 'packages/data/src/index.ts'),
     'utf-8'
   );
 
@@ -326,7 +326,7 @@ try {
     dbIndex.includes('getDrizzleLogger'),
     'Drizzle ORM query logging via @logtape/drizzle-orm',
     dbIndex.includes('getDrizzleLogger')
-      ? 'getDrizzleLogger() call found in db/index.ts'
+      ? 'getDrizzleLogger() call found in packages/data/src/index.ts'
       : 'Not found'
   );
 } catch (error) {

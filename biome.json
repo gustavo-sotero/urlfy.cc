@@ -67,11 +67,12 @@
   "overrides": [
     {
       "includes": [
-        "src/server/**",
-        "src/workers.ts",
-        "src/proxy.ts",
-        "src/app/r/**",
-        "src/app/api/**"
+        "apps/api/src/**",
+        "apps/worker/src/**",
+        "apps/web/src/server/**",
+        "apps/web/src/proxy.ts",
+        "apps/web/src/app/r/**",
+        "apps/web/src/app/api/**"
       ],
       "linter": {
         "rules": {

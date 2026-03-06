@@ -80,19 +80,6 @@ export interface LinkResponse {
   updatedAt: string;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  meta: {
-    total: number;
-    page: number;
-    perPage: number;
-    lastPage: number;
-    hasMore: boolean;
-    /** Cursor to pass as `cursor` query param to fetch the next page (keyset). */
-    nextCursor?: string;
-  };
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // DB TYPES (inferred from Drizzle)
 // ═══════════════════════════════════════════════════════════════════

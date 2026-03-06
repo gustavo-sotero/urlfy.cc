@@ -9,11 +9,14 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { db } from '@urlfy/data';
+import type {
+  Session as DbSession,
+  User as DbUser
+} from '@urlfy/data/schema/auth';
+import * as schema from '@urlfy/data/schema/auth';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { db } from '@urlfy/data';
-import type { Session as DbSession, User as DbUser } from '@urlfy/data/schema/auth';
-import * as schema from '@urlfy/data/schema/auth';
 import { createLogger } from '@/server/lib/telemetry';
 import { auditLogService } from '@/server/services/audit.service';
 import { emailService } from '@/server/services/email.service';

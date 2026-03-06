@@ -1,9 +1,9 @@
 import { trace } from '@opentelemetry/api';
-import { eq } from 'drizzle-orm';
+import { acquireLock, releaseLock } from '@urlfy/cache';
+import { CircuitBreaker } from '@urlfy/cache/circuit-breaker';
+import type { CachedLink } from '@urlfy/contracts/redirect';
 import { db } from '@urlfy/data';
 import * as schema from '@urlfy/data/schema';
-import { CircuitBreaker } from '@urlfy/cache/circuit-breaker';
-import { acquireLock, releaseLock } from '@urlfy/cache';
 import {
   createLogger,
   recordCacheHit,
@@ -12,7 +12,7 @@ import {
   stampedeLocksAcquired,
   stampedeLocksWaited
 } from '@urlfy/telemetry';
-import type { CachedLink } from '@urlfy/contracts/redirect';
+import { eq } from 'drizzle-orm';
 import { CACHE_PREFIX, CACHE_TTL, cacheService } from './cache-service';
 
 const { links } = schema;

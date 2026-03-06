@@ -130,8 +130,6 @@ export interface TimeSeriesSchema {
   uniqueVisitors: number;
 }
 
-
-
 // ═══════════════════════════════════════════════════════════════════
 // PAGINATION - Standard pagination meta interface
 // ═══════════════════════════════════════════════════════════════════
@@ -153,6 +151,8 @@ export interface PaginationMeta {
   lastPage: number;
   /** Whether there are more items after this page */
   hasMore: boolean;
+  /** Cursor to pass as `cursor` query param to fetch the next page (keyset). */
+  nextCursor?: string;
 }
 
 /**

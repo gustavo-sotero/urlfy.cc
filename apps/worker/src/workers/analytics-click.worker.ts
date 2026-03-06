@@ -8,9 +8,9 @@
  * - Batch cache increments per link
  */
 
-import { eq, sql } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import { analyticsEvents, links } from '@urlfy/data/schema';
+import { eq, sql } from 'drizzle-orm';
 import { CACHE_KEYS } from '@/server/lib/cache-keys';
 import { lookupGeoIP } from '@/server/lib/geoip';
 import { recordMetric } from '@/server/lib/metrics';

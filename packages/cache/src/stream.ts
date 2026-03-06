@@ -3,8 +3,8 @@
  * Provides type-safe abstractions over raw XADD, XREADGROUP, XACK, etc.
  */
 
-import { redis } from './client';
 import { createLogger } from '@urlfy/telemetry';
+import { redis } from './client';
 
 const logger = createLogger('redis-stream');
 

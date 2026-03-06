@@ -24,5 +24,8 @@
     "@urlfy/telemetry": "workspace:*",
     "@opentelemetry/api": "^1.9.0",
     "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "@urlfy/config-ts": "workspace:*"
   }
 }

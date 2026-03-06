@@ -1,6 +1,6 @@
-import { eq, sql } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import { apiKey as apiKeyTable } from '@urlfy/data/schema/auth';
+import { eq, sql } from 'drizzle-orm';
 import type { User } from '@/lib/auth';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';

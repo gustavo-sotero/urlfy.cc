@@ -46,19 +46,6 @@ export type RedirectError =
   | 'REDIRECT_LOOP';
 
 /**
- * Evento de clique para analytics
- */
-export interface ClickEvent {
-  linkId: string;
-  shortCode: string;
-  timestamp: string;
-  ip: string;
-  userAgent: string;
-  referer: string | null;
-  requestId: string;
-}
-
-/**
  * Métricas de cache
  */
 export interface CacheMetrics {

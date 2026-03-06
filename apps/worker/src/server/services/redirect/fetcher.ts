@@ -1,7 +1,7 @@
 import { trace } from '@opentelemetry/api';
-import { eq } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import * as schema from '@urlfy/data/schema';
+import { eq } from 'drizzle-orm';
 import { CircuitBreaker } from '@/server/lib/circuit-breaker';
 import { acquireLock, releaseLock } from '@/server/lib/redis';
 import {

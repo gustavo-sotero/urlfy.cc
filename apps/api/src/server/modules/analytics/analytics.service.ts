@@ -12,6 +12,14 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { db } from '@urlfy/data';
+import {
+  analyticsBrowserBreakdown,
+  analyticsCountryBreakdown,
+  analyticsDeviceBreakdown,
+  analyticsEvents,
+  linkClicksDaily
+} from '@urlfy/data/schema';
 import {
   and,
   countDistinct,
@@ -22,14 +30,6 @@ import {
   lt,
   sql
 } from 'drizzle-orm';
-import { db } from '@urlfy/data';
-import {
-  analyticsBrowserBreakdown,
-  analyticsCountryBreakdown,
-  analyticsDeviceBreakdown,
-  analyticsEvents,
-  linkClicksDaily
-} from '@urlfy/data/schema';
 import { CACHE_KEYS, CACHE_TTL } from '@/server/lib/cache-keys';
 import type {
   AnalyticsBreakdown,

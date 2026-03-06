@@ -4,7 +4,13 @@
  * with Stampede Protection and Graceful Degradation.
  */
 
-export { CacheService, cacheService, CACHE_PREFIX, CACHE_TTL, scanKeys } from './cache-service';
+export {
+  CACHE_PREFIX,
+  CACHE_TTL,
+  CacheService,
+  cacheService,
+  scanKeys
+} from './cache-service';
 export type { LinkFetchResult } from './fetcher';
 export { getLink } from './fetcher';
 export { RedirectService, redirectService } from './service';

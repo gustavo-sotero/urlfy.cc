@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
 import { db } from '@urlfy/data';
 import { links } from '@urlfy/data/schema';
+import { eq } from 'drizzle-orm';
 import {
   sanitizeMetaTags,
   sanitizeNotes,
