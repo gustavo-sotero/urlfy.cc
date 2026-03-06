@@ -5,7 +5,7 @@
  */
 
 import { treaty } from '@elysiajs/eden';
-import type { App } from '@urlfy/api/types';
+import type { App } from './api-types';
 
 // ═══════════════════════════════════════════════════════════════════
 // BASE URL CONFIGURATION
@@ -27,7 +27,7 @@ export const BASE_URL =
  * treaty<App> infers {} — casting to { api: Record<string, any> } lets
  * all client.api.xxx.method() calls through until the real App type is wired.
  */
-// biome-ignore lint/suspicious/noExplicitAny: Eden Treaty stub — replace when @urlfy/api exports real routes
+// biome-ignore lint/suspicious/noExplicitAny: Eden Treaty stub — replace when route-level typed client is available
 type EdenApiClient = { api: Record<string, any> };
 export const client = treaty<App>(BASE_URL, {
   fetch: {

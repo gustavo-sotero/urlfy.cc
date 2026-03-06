@@ -1,14 +1,24 @@
 // tests/integration/analytics.integration.test.ts
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { createHash } from 'node:crypto';
 import { db } from '@urlfy/data';
 import { analyticsEvents, linkClicksDaily, links } from '@urlfy/data/schema';
 import { eq } from 'drizzle-orm';
-import { hashVisitor } from '@/server/lib/privacy';
+import { getWeeklySalt } from '@/server/lib/geoip';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { AnalyticsService } from '@/server/modules/analytics';
 import type { ClickEvent } from '@/types/analytics.types';
 import { isDatabaseAvailable } from '../helpers/integration-helper';
+
+function hashVisitor(ip: string | null, linkId: string): string {
+  const normalizedIp = ip?.trim() || 'unknown';
+  const salt = getWeeklySalt();
+
+  return createHash('sha256')
+    .update(`${normalizedIp}:${linkId}:${salt}`)
+    .digest('hex');
+}
 
 const databaseAvailable = await isDatabaseAvailable();
 

@@ -1,0 +1,379 @@
+/**
+ * Unit tests for the redirect fetcher
+ *
+ * Covers all 4 cache layers and the Redis unavailable graceful degradation:
+ *  L1 — Negative cache hit (not-found sentinel)
+ *  L2 — Banned cache hit (banned sentinel)
+ *  L3 — Normal link cache hit
+ *  L4 — Cache miss → DB fetch with stampede protection
+ *  Fallback — Redis error → direct DB fetch (Plan 7.3 #5)
+ */
+
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CachedLink } from '@urlfy/contracts/redirect';
+
+// ─── NoOp OpenTelemetry ────────────────────────────────────────────────────────
+
+const noOpSpan = {
+  setAttribute: () => {},
+  recordException: () => {},
+  setStatus: () => {},
+  end: () => {}
+};
+
+mock.module('@opentelemetry/api', () => ({
+  trace: {
+    getTracer: () => ({
+      startActiveSpan: (...args: unknown[]) => {
+        const fn = args[args.length - 1] as (span: unknown) => Promise<unknown>;
+        return fn(noOpSpan);
+      }
+    })
+  },
+  SpanStatusCode: { OK: 1, ERROR: 2 }
+}));
+
+// ─── NoOp Telemetry ────────────────────────────────────────────────────────────
+
+const noOpCounter = { add: () => {} };
+const noOpHistogram = { record: () => {} };
+
+mock.module('@urlfy/telemetry', () => ({
+  createLogger: () => ({
+    debug: () => {},
+    info: () => {},
+    warn: () => {},
+    error: () => {}
+  }),
+  // Counters
+  cacheHits: noOpCounter,
+  cacheMisses: noOpCounter,
+  circuitBreakerTrips: noOpCounter,
+  redirectErrors: noOpCounter,
+  redirectTotal: noOpCounter,
+  redisFallbacks: noOpCounter,
+  stampedeLocksAcquired: noOpCounter,
+  stampedeLocksWaited: noOpCounter,
+  // Histograms
+  cacheHitRate: noOpHistogram,
+  redirectLatency: noOpHistogram,
+  // Helper functions (all no-ops in tests)
+  recordCacheHit: () => {},
+  recordCacheMiss: () => {},
+  recordRedirectMetrics: () => {},
+  resetCacheMetrics: () => {}
+}));
+
+// ─── Mutable cache state ───────────────────────────────────────────────────────
+
+interface CacheState {
+  shouldThrow: boolean;
+  linkState: {
+    link: CachedLink | null;
+    isNotFound: boolean;
+    isBanned: boolean;
+  };
+  linkAfterWait: CachedLink | null;
+}
+
+const cacheState: CacheState = {
+  shouldThrow: false,
+  linkState: { link: null, isNotFound: false, isBanned: false },
+  linkAfterWait: null
+};
+
+mock.module('../cache-service', () => ({
+  CACHE_PREFIX: {
+    LOCK: 'lock:',
+    LINK: 'link:',
+    NOT_FOUND: 'link:404:',
+    BANNED: 'link:ban:'
+  },
+  CACHE_TTL: { LINK: 3600, NOT_FOUND: 300, BANNED: 3600 },
+  cacheService: {
+    getLinkState: async (_code: string) => {
+      if (cacheState.shouldThrow)
+        throw new Error('Redis connection refused: ECONNREFUSED');
+      return cacheState.linkState;
+    },
+    getLink: async (_code: string) => cacheState.linkAfterWait,
+    setLink: async () => {},
+    setNotFound: async () => {}
+  }
+}));
+
+// ─── Mutable lock state ────────────────────────────────────────────────────────
+
+const lockState = { acquired: true };
+
+mock.module('@urlfy/cache', () => ({
+  acquireLock: async () => lockState.acquired,
+  releaseLock: async () => {}
+}));
+
+// ─── Pass-through circuit breaker ─────────────────────────────────────────────
+
+mock.module('@urlfy/cache/circuit-breaker', () => ({
+  CircuitBreaker: class {
+    async execute<T>(fn: () => Promise<T>): Promise<T> {
+      return fn();
+    }
+    getStatus(): string {
+      return 'CLOSED';
+    }
+  }
+}));
+
+// ─── Mutable DB rows ───────────────────────────────────────────────────────────
+
+let dbRows: object[] = [];
+
+mock.module('@urlfy/data', () => ({
+  db: {
+    select: (_projection?: unknown) => ({
+      from: (_table: unknown) => ({
+        where: (_condition: unknown) => ({
+          limit: async (_n: unknown) => dbRows
+        })
+      })
+    })
+  }
+}));
+
+mock.module('@urlfy/data/schema', () => ({
+  links: {
+    id: 'id',
+    shortCode: 'shortCode',
+    originalUrl: 'originalUrl',
+    redirectType: 'redirectType',
+    isActive: 'isActive',
+    isBanned: 'isBanned',
+    expiresAt: 'expiresAt',
+    maxClicks: 'maxClicks',
+    clicksCount: 'clicksCount',
+    passwordHash: 'passwordHash',
+    utmSource: 'utmSource',
+    utmMedium: 'utmMedium',
+    utmCampaign: 'utmCampaign'
+  }
+}));
+
+mock.module('drizzle-orm', () => ({
+  eq: () => ({})
+}));
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+const makeDbRow = (): object => ({
+  id: 'db-link-id',
+  originalUrl: 'https://example.com/page',
+  redirectType: 302,
+  isActive: true,
+  isBanned: false,
+  expiresAt: null,
+  maxClicks: null,
+  clicksCount: 42,
+  passwordHash: null,
+  utmSource: null,
+  utmMedium: null,
+  utmCampaign: null
+});
+
+const makeCachedLink = (overrides: Partial<CachedLink> = {}): CachedLink => ({
+  id: 'cached-link-id',
+  originalUrl: 'https://example.com/cached',
+  redirectType: 301,
+  isActive: true,
+  isBanned: false,
+  expiresAt: null,
+  maxClicks: null,
+  clicksCount: 5,
+  passwordHash: null,
+  utmSource: null,
+  utmMedium: null,
+  utmCampaign: null,
+  _cachedAt: Date.now() - 100,
+  ...overrides
+});
+
+// Import module under test AFTER all mocks are in place
+const { getLink } = await import('../fetcher');
+
+// ─── Tests ─────────────────────────────────────────────────────────────────────
+
+describe('getLink', () => {
+  beforeEach(() => {
+    cacheState.shouldThrow = false;
+    cacheState.linkState = { link: null, isNotFound: false, isBanned: false };
+    cacheState.linkAfterWait = null;
+    lockState.acquired = true;
+    dbRows = [];
+  });
+
+  // ── L1: Negative cache ──────────────────────────────────────────────────────
+
+  describe('L1 — Negative cache', () => {
+    it('returns null with cacheHit=true when not-found sentinel is set', async () => {
+      cacheState.linkState = { link: null, isNotFound: true, isBanned: false };
+
+      const result = await getLink('abc1234');
+
+      expect(result.link).toBeNull();
+      expect(result.cacheHit).toBe(true);
+    });
+  });
+
+  // ── L2: Banned cache ────────────────────────────────────────────────────────
+
+  describe('L2 — Banned cache', () => {
+    it('returns synthetic banned CachedLink with cacheHit=true', async () => {
+      cacheState.linkState = { link: null, isNotFound: false, isBanned: true };
+
+      const result = await getLink('abc1234');
+
+      expect(result.link).not.toBeNull();
+      expect(result.link?.isBanned).toBe(true);
+      expect(result.cacheHit).toBe(true);
+    });
+  });
+
+  // ── L3: Normal cache hit ────────────────────────────────────────────────────
+
+  describe('L3 — Normal link cache hit', () => {
+    it('returns cached link with cacheHit=true', async () => {
+      const cached = makeCachedLink();
+      cacheState.linkState = {
+        link: cached,
+        isNotFound: false,
+        isBanned: false
+      };
+
+      const result = await getLink('abc1234');
+
+      expect(result.link).toEqual(cached);
+      expect(result.cacheHit).toBe(true);
+    });
+
+    it('returns cached link even without _cachedAt metadata', async () => {
+      const cached = makeCachedLink({ _cachedAt: undefined });
+      cacheState.linkState = {
+        link: cached,
+        isNotFound: false,
+        isBanned: false
+      };
+
+      const result = await getLink('abc1234');
+
+      expect(result.link).toEqual(cached);
+      expect(result.cacheHit).toBe(true);
+    });
+  });
+
+  // ── L4: Cache miss → DB fetch ───────────────────────────────────────────────
+
+  describe('L4 — Cache miss → DB fetch', () => {
+    it('fetches link from DB on cache miss and returns it with cacheHit=false', async () => {
+      dbRows = [makeDbRow()];
+
+      const result = await getLink('abc1234');
+
+      expect(result.link).not.toBeNull();
+      expect(result.link?.originalUrl).toBe('https://example.com/page');
+      expect(result.link?.clicksCount).toBe(42);
+      expect(result.cacheHit).toBe(false);
+    });
+
+    it('returns null with cacheHit=false when code does not exist in DB', async () => {
+      dbRows = [];
+
+      const result = await getLink('unknown-code');
+
+      expect(result.link).toBeNull();
+      expect(result.cacheHit).toBe(false);
+    });
+  });
+
+  // ── L4 waiter branch (lock not acquired) ───────────────────────────────────
+
+  describe('L4 — Stampede protection waiter branch', () => {
+    it('returns link from cache when another request populates it while waiting', async () => {
+      lockState.acquired = false;
+      cacheState.linkAfterWait = makeCachedLink({
+        originalUrl: 'https://example.com/from-cache-after-wait'
+      });
+
+      const result = await getLink('abc1234');
+
+      expect(result.link?.originalUrl).toBe(
+        'https://example.com/from-cache-after-wait'
+      );
+      expect(result.cacheHit).toBe(false); // outer function started as cache miss
+    });
+
+    it('falls back to DB when cache is still empty after waiting for lock', async () => {
+      lockState.acquired = false;
+      cacheState.linkAfterWait = null;
+      dbRows = [makeDbRow()];
+
+      const result = await getLink('abc1234');
+
+      expect(result.link?.originalUrl).toBe('https://example.com/page');
+      expect(result.cacheHit).toBe(false);
+    });
+  });
+
+  // ── Graceful degradation: Redis unavailable (Plan 7.3 #5) ──────────────────
+
+  describe('Graceful degradation — Redis unavailable (Plan 7.3 #5)', () => {
+    it('falls back to DB when Redis throws a connection error, returns link', async () => {
+      cacheState.shouldThrow = true;
+      dbRows = [makeDbRow()];
+
+      const result = await getLink('abc1234');
+
+      expect(result.link).not.toBeNull();
+      expect(result.link?.originalUrl).toBe('https://example.com/page');
+      expect(result.cacheHit).toBe(false); // bypass = no cache
+    });
+
+    it('returns null when Redis throws and link is not in DB', async () => {
+      cacheState.shouldThrow = true;
+      dbRows = [];
+
+      const result = await getLink('not-found-code');
+
+      expect(result.link).toBeNull();
+      expect(result.cacheHit).toBe(false);
+    });
+
+    it('still returns correct link data (all fields mapped) after Redis fallback', async () => {
+      cacheState.shouldThrow = true;
+      dbRows = [
+        {
+          ...makeDbRow(),
+          id: 'fallback-id',
+          originalUrl: 'https://fallback.example.com',
+          redirectType: 301,
+          isActive: false,
+          maxClicks: 100,
+          clicksCount: 50,
+          utmSource: 'newsletter',
+          utmMedium: 'email',
+          utmCampaign: 'spring2026'
+        }
+      ];
+
+      const result = await getLink('code-xyz');
+
+      expect(result.link?.id).toBe('fallback-id');
+      expect(result.link?.originalUrl).toBe('https://fallback.example.com');
+      expect(result.link?.redirectType).toBe(301);
+      expect(result.link?.isActive).toBe(false);
+      expect(result.link?.maxClicks).toBe(100);
+      expect(result.link?.utmSource).toBe('newsletter');
+      expect(result.link?.utmMedium).toBe('email');
+      expect(result.link?.utmCampaign).toBe('spring2026');
+      expect(result.cacheHit).toBe(false);
+    });
+  });
+});

@@ -126,7 +126,8 @@ export async function proxy(req: NextRequest) {
   }
 
   // 4. Not a locale path and not system route → check if it's a short code
-  const shortCodeMatch = pathname.match(/^\/([a-zA-Z0-9_-]{1,20})$/);
+  // Short codes are NanoID (7 chars) or custom aliases (3–20 chars, per schema)
+  const shortCodeMatch = pathname.match(/^\/([a-zA-Z0-9_-]{3,20})$/);
 
   if (!shortCodeMatch) {
     // Not a valid short code pattern - let Next.js handle

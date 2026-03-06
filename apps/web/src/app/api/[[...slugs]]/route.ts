@@ -27,10 +27,53 @@ import { MetricsService } from '@/server/services/metrics.service';
 
 /** Internal URL of the Elysia API service */
 function getApiUrl(): string {
-  return process.env.API_INTERNAL_URL || 'http://localhost:3001';
+  const raw = process.env.API_INTERNAL_URL || 'http://localhost:3001';
+  try {
+    const parsed = new URL(raw);
+    // Only allow http/https to prevent SSRF via other protocols
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error(`Unsupported protocol: ${parsed.protocol}`);
+    }
+    return raw;
+  } catch {
+    // Fail loudly at startup rather than silently using a bad URL
+    throw new Error(`Invalid API_INTERNAL_URL: ${raw}`);
+  }
+}
+
+/** Keep gateway waits bounded to avoid hanging requests when API is degraded. */
+const API_PROXY_TIMEOUT_MS = 8000;
+
+function buildGatewayErrorResponse(
+  requestId: string,
+  status: number,
+  code: string,
+  message: string
+): Response {
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: {
+        code,
+        message
+      },
+      requestId
+    }),
+    {
+      status,
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'x-request-id': requestId
+      }
+    }
+  );
 }
 
 async function handle(request: NextRequest): Promise<Response> {
+  const requestId =
+    request.headers.get('x-request-id') ||
+    `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
   // Track request for RPS metrics (fire-and-forget, non-blocking)
   MetricsService.trackRequest().catch(() => {
     // Silently ignore tracking errors — metrics should never break requests
@@ -57,19 +100,48 @@ async function handle(request: NextRequest): Promise<Response> {
   const targetUrl = `${getApiUrl()}${url.pathname}${url.search}`;
 
   const proxyHeaders = new Headers(request.headers);
+  proxyHeaders.set('x-request-id', requestId);
   proxyHeaders.set('x-forwarded-for', getClientIp(request));
   proxyHeaders.set('x-forwarded-host', url.hostname);
   proxyHeaders.set('x-forwarded-proto', url.protocol.replace(':', ''));
 
-  const proxyRequest = new Request(targetUrl, {
-    method: request.method,
-    headers: proxyHeaders,
-    body: request.body,
-    // @ts-expect-error — duplex is required for streaming bodies
-    duplex: 'half'
-  });
+  const abortController = new AbortController();
+  const timeout = setTimeout(
+    () => abortController.abort(),
+    API_PROXY_TIMEOUT_MS
+  );
 
-  const response = await fetch(proxyRequest);
+  let response: Response;
+  try {
+    const proxyRequest = new Request(targetUrl, {
+      method: request.method,
+      headers: proxyHeaders,
+      body: request.body,
+      signal: abortController.signal,
+      // @ts-expect-error — duplex is required for streaming bodies
+      duplex: 'half'
+    });
+
+    response = await fetch(proxyRequest);
+  } catch (error) {
+    clearTimeout(timeout);
+    const isAbort =
+      error instanceof DOMException && error.name === 'AbortError';
+    const code = isAbort ? 'API_TIMEOUT' : 'API_UNAVAILABLE';
+    const message = isAbort
+      ? 'API upstream timeout'
+      : 'API upstream unavailable';
+
+    const gatewayErrorResponse = buildGatewayErrorResponse(
+      requestId,
+      503,
+      code,
+      message
+    );
+    return addCORSHeaders(gatewayErrorResponse, request);
+  } finally {
+    clearTimeout(timeout);
+  }
 
   // Record login failures for anti-abuse tracking (fire-and-forget)
   if (
@@ -84,6 +156,10 @@ async function handle(request: NextRequest): Promise<Response> {
   }
 
   const finalResponse = addCORSHeaders(response, request);
+
+  if (!finalResponse.headers.get('x-request-id')) {
+    finalResponse.headers.set('x-request-id', requestId);
+  }
 
   if (rateLimitOutcome.headers) {
     rateLimitOutcome.headers.forEach((value, key) => {

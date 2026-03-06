@@ -13,7 +13,7 @@
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
-    "lint": "bunx biome check . --write && bun run ../../scripts/validate-module-boundaries.ts",
+    "lint": "bunx biome check . --write",
     "type-check": "bunx tsc --noEmit",
     "test": "bun test src/ tests/unit tests/integration tests/perf tests/security",
     "test:unit": "bun test src/ tests/unit/",

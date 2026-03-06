@@ -11,19 +11,17 @@
 
 ## Eden Treaty Route-Level Type Safety
 
-- **Location:** `apps/web/src/lib/api/api-types.ts`, `apps/web/tsconfig.json`
+- **Location:** `apps/web/src/lib/api/api-types.ts`, `apps/web/src/lib/api/client.ts`
 - **Owner:** gustavo-sotero
 - **Tracking ID:** TODO-EDEN-TREATY-TYPES
 - **Status:** Open
-- **Context:** `apps/web` uses a generic `Elysia<'/api', any>` stub as the `App` type for Eden Treaty.
-  This loses per-endpoint type safety (request/response schemas not inferred).
-  The root cause is that TypeScript cannot resolve `@urlfy/api/types` (which imports Elysia server code)
-  from inside `apps/web` without building `apps/api` first, creating a chicken-and-egg dependency.
+- **Context:** `apps/web` intentionally uses a local generic `Elysia<'/api', any>` stub as the `App` type for Eden Treaty.
+  This keeps strict package boundaries (web does not import `@urlfy/api`) but loses per-endpoint type safety
+  (request/response schemas are not inferred).
 - **Resolution path:**
-  1. Build `apps/api` as a compiled TypeScript project before web (`cd apps/api && bunx tsc --build`).
-  2. Remove the `@urlfy/api/types` path override from `apps/web/tsconfig.json`.
-  3. Import the real `App` type from `@urlfy/api/types` in `api-types.ts`.
-  4. Remove the `biome-ignore` comment and the `app/dist` copy from `docker/web.Dockerfile`.
+  1. Generate an API client contract artifact from `apps/api` that can be consumed without importing server internals.
+  2. Replace `Elysia<'/api', any>` in `apps/web/src/lib/api/api-types.ts` with the generated contract type.
+  3. Remove the `biome-ignore` comment in `apps/web/src/lib/api/client.ts` when `Record<string, any>` is no longer required.
 
 ---
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { readdir, readFile } from 'node:fs/promises';
-import { join, relative, sep } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 
 const PROJECT_ROOT = join(import.meta.dir, '..');
 // In the monorepo, Elysia feature modules live in apps/api
@@ -15,53 +15,165 @@ const MODULES_ROOT = join(
 );
 const MODULE_IMPORT_PREFIX = '@/server/modules/';
 
+const APP_SOURCE_DIRS = {
+  web: join(PROJECT_ROOT, 'apps', 'web', 'src'),
+  api: join(PROJECT_ROOT, 'apps', 'api', 'src'),
+  worker: join(PROJECT_ROOT, 'apps', 'worker', 'src')
+} as const;
+
+type AppName = keyof typeof APP_SOURCE_DIRS;
+
 // ── Cross-app boundary rules ──────────────────────────────────────────────────
 // Maps each app source directory to the import patterns that are FORBIDDEN
 // in its files. This enforces the monorepo contract: apps must not reach into
 // another app's internal runtime code; they should only communicate via:
 //   - published workspace packages  (packages/*)
-//   - well-defined workspace exports (e.g. @urlfy/api/types for type-only access)
+//   - network boundaries between services (HTTP between web and api)
 const APP_BOUNDARY_RULES: {
+  appName: AppName;
   appDir: string;
+  forbiddenAppDirs: string[];
   forbiddenPatterns: { pattern: RegExp; reason: string }[];
 }[] = [
   {
-    // apps/web must not import apps/api runtime code.
-    // @urlfy/api/types is intentionally allowed (type-only Eden Treaty stub).
-    appDir: join(PROJECT_ROOT, 'apps', 'web', 'src'),
+    // apps/web must not import from other apps.
+    appName: 'web',
+    appDir: APP_SOURCE_DIRS.web,
+    forbiddenAppDirs: [APP_SOURCE_DIRS.api, APP_SOURCE_DIRS.worker],
     forbiddenPatterns: [
       {
-        pattern: /^@urlfy\/api(?!\/types)/,
+        pattern: /^@urlfy\/api\b/,
         reason:
-          'apps/web must not import @urlfy/api runtime code. ' +
-          'Use @urlfy/api/types for type-only access or @urlfy/* shared packages.'
+          'apps/web must not import @urlfy/api. ' +
+          'Use @urlfy/* shared packages and HTTP API boundaries instead.'
+      },
+      {
+        pattern: /^worker\b/,
+        reason:
+          'apps/web must not import worker app internals. ' +
+          'Use @urlfy/* shared packages instead.'
+      },
+      {
+        pattern: /^apps\/(api|worker)\b/,
+        reason:
+          'apps/web must not import apps/api or apps/worker internals by path.'
       }
     ]
   },
   {
     // apps/api must not import from apps/web or apps/worker.
-    appDir: join(PROJECT_ROOT, 'apps', 'api', 'src'),
+    appName: 'api',
+    appDir: APP_SOURCE_DIRS.api,
+    forbiddenAppDirs: [APP_SOURCE_DIRS.web, APP_SOURCE_DIRS.worker],
     forbiddenPatterns: [
+      {
+        pattern: /^web\b/,
+        reason: 'apps/api must not import from apps/web.'
+      },
       {
         pattern: /^worker\b/,
         reason: 'apps/api must not import from apps/worker.'
+      },
+      {
+        pattern: /^apps\/(web|worker)\b/,
+        reason:
+          'apps/api must not import apps/web or apps/worker internals by path.'
       }
     ]
   },
   {
-    // apps/worker must not import apps/web or apps/api runtime code.
-    // @urlfy/api/types remains allowed in worker just as in web.
-    appDir: join(PROJECT_ROOT, 'apps', 'worker', 'src'),
+    // apps/worker must not import apps/web or apps/api code.
+    appName: 'worker',
+    appDir: APP_SOURCE_DIRS.worker,
+    forbiddenAppDirs: [APP_SOURCE_DIRS.web, APP_SOURCE_DIRS.api],
     forbiddenPatterns: [
       {
-        pattern: /^@urlfy\/api(?!\/types)/,
+        pattern: /^@urlfy\/api\b/,
         reason:
-          'apps/worker must not import @urlfy/api runtime code. ' +
+          'apps/worker must not import @urlfy/api. ' +
           'Use @urlfy/* shared packages instead.'
+      },
+      {
+        pattern: /^web\b/,
+        reason: 'apps/worker must not import from apps/web.'
+      },
+      {
+        pattern: /^apps\/(web|api)\b/,
+        reason:
+          'apps/worker must not import apps/web or apps/api internals by path.'
       }
     ]
   }
 ];
+
+// ── packages/* → apps boundary rules ─────────────────────────────────────────
+// Shared packages must not depend on app-level code so they remain reusable
+// across all services. The only scoped app package name is @urlfy/api.
+const PACKAGE_FORBIDDEN_PATTERNS: { pattern: RegExp; reason: string }[] = [
+  {
+    pattern: /^@urlfy\/api\b/,
+    reason:
+      'packages/* must not import @urlfy/api. ' +
+      'Keep packages independent of app internals; expose shared functionality via @urlfy/* packages instead.'
+  },
+  {
+    pattern: /^web\b/,
+    reason: 'packages/* must not import from apps/web.'
+  },
+  {
+    pattern: /^worker\b/,
+    reason: 'packages/* must not import from apps/worker.'
+  },
+  {
+    pattern: /^apps\/(web|api|worker)\b/,
+    reason: 'packages/* must not import app internals via path aliases.'
+  }
+];
+
+function normalizePath(path: string): string {
+  return path.replaceAll('\\', '/').replace(/\/+$/g, '');
+}
+
+function isPathInside(path: string, parentDir: string): boolean {
+  const normalizedPath = normalizePath(path);
+  const normalizedParent = normalizePath(parentDir);
+
+  return (
+    normalizedPath === normalizedParent ||
+    normalizedPath.startsWith(`${normalizedParent}/`)
+  );
+}
+
+function findRelativeBoundaryViolation(
+  filePath: string,
+  importPath: string,
+  forbiddenAppDirs: string[],
+  currentAppName: AppName
+): string | null {
+  if (!importPath.startsWith('./') && !importPath.startsWith('../')) {
+    return null;
+  }
+
+  const resolvedImportPath = join(dirname(filePath), importPath);
+
+  for (const forbiddenDir of forbiddenAppDirs) {
+    if (!isPathInside(resolvedImportPath, forbiddenDir)) {
+      continue;
+    }
+
+    const targetAppName =
+      (Object.entries(APP_SOURCE_DIRS).find(
+        ([, value]) => normalizePath(value) === normalizePath(forbiddenDir)
+      )?.[0] as AppName | undefined) || 'unknown';
+
+    return (
+      `apps/${currentAppName} must not import files from apps/${targetAppName} ` +
+      'through relative paths. Use @urlfy/* shared packages or service boundaries instead.'
+    );
+  }
+
+  return null;
+}
 
 interface Violation {
   file: string;
@@ -147,7 +259,12 @@ async function validateCrossAppBoundaries(): Promise<Violation[]> {
   const importRegex =
     /(?:^|\n)\s*(?:import|export)\s+(?:type\s+)?[^'"\n]*?from\s+['"]([^'"]+)['"]/g;
 
-  for (const { appDir, forbiddenPatterns } of APP_BOUNDARY_RULES) {
+  for (const {
+    appName,
+    appDir,
+    forbiddenAppDirs,
+    forbiddenPatterns
+  } of APP_BOUNDARY_RULES) {
     let files: string[];
     try {
       files = await getTypeScriptFiles(appDir);
@@ -179,6 +296,74 @@ async function validateCrossAppBoundaries(): Promise<Violation[]> {
                 reason
               });
               break; // one reason per import per line is enough
+            }
+          }
+
+          const relativeViolation = findRelativeBoundaryViolation(
+            filePath,
+            importPath,
+            forbiddenAppDirs,
+            appName
+          );
+
+          if (relativeViolation) {
+            violations.push({
+              file: relative(PROJECT_ROOT, filePath).replaceAll('\\', '/'),
+              line: index + 1,
+              importPath,
+              reason: relativeViolation
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // ── packages/* → apps boundary check ──────────────────────────────────────
+  // Dynamically scan every package src/ to enforce the invariant that shared
+  // packages never reach into app runtime code.
+  const packagesRoot = join(PROJECT_ROOT, 'packages');
+  let packageDirs: import('node:fs').Dirent[] = [];
+  try {
+    packageDirs = await readdir(packagesRoot, { withFileTypes: true });
+  } catch {
+    // packages/ directory not found — skip
+  }
+
+  for (const pkg of packageDirs) {
+    if (!pkg.isDirectory()) continue;
+
+    const srcDir = join(packagesRoot, pkg.name, 'src');
+    let pkgFiles: string[];
+    try {
+      pkgFiles = await getTypeScriptFiles(srcDir);
+    } catch {
+      continue; // No src/ directory in this package (e.g. config-ts, config-biome)
+    }
+
+    for (const filePath of pkgFiles) {
+      const source = await readFile(filePath, 'utf-8');
+      const lines = source.split('\n');
+
+      for (const [index, line] of lines.entries()) {
+        importRegex.lastIndex = 0;
+
+        for (;;) {
+          const match = importRegex.exec(line);
+          if (match === null) break;
+
+          const importPath = match[1];
+          if (!importPath) continue;
+
+          for (const { pattern, reason } of PACKAGE_FORBIDDEN_PATTERNS) {
+            if (pattern.test(importPath)) {
+              violations.push({
+                file: relative(PROJECT_ROOT, filePath).replaceAll('\\', '/'),
+                line: index + 1,
+                importPath,
+                reason
+              });
+              break;
             }
           }
         }

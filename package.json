@@ -16,8 +16,8 @@
     "build:web": "turbo run build --filter=web",
     "build:api": "turbo run build --filter=api",
     "start": "turbo run start --parallel",
-    "lint": "turbo run lint",
-    "type-check": "turbo run type-check",
+    "lint": "turbo run lint --concurrency=6 && bun run scripts/validate-module-boundaries.ts",
+    "type-check": "turbo run type-check --concurrency=6",
     "format": "bunx biome format . --write --unsafe",
     "test": "turbo run test",
     "test:unit": "turbo run test:unit",
@@ -176,6 +176,7 @@
     "unrs-resolver"
   ],
   "overrides": {
+    "dompurify": "^3.3.2",
     "esbuild": "^0.25.0",
     "mailparser": "^3.9.3"
   }

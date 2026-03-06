@@ -1,14 +1,8 @@
 /**
- * Eden Treaty type stub for @urlfy/api/types
+ * Eden Treaty type stub used only inside apps/web.
  *
- * This file overrides the @urlfy/api/types resolution to prevent cross-workspace
- * TypeScript @/ path resolution failures.
- *
- * For full route-level type inference (recommended in CI), build apps/api first:
- *   cd apps/api && bunx tsc --build
- * Then update apps/web/tsconfig.json to remove the @urlfy/api/types path override.
- *
- * This stub provides the /api prefix structure so Eden Treaty's client.api works.
+ * This keeps web independent from apps/api internals at compile time while
+ * preserving the /api namespace shape (`client.api.*`) expected by callers.
  */
 import type { Elysia } from 'elysia';
 

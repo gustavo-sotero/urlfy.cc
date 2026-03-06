@@ -11,7 +11,15 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { afterEach, beforeAll, describe, expect, mock, test } from 'bun:test';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test
+} from 'bun:test';
 
 // Mock anti-abuse and rate-limit middleware before module load
 mock.module('@/server/middleware/anti-abuse', () => ({
@@ -52,6 +60,15 @@ describe('API gateway anti-abuse wiring', () => {
   beforeAll(() => {
     // Ensure env var for API URL is set
     process.env.API_INTERNAL_URL = 'http://localhost:3001';
+  });
+
+  beforeEach(() => {
+    (antiAbuseMiddleware as ReturnType<typeof mock>).mockImplementation(
+      async () => null
+    );
+    (recordLoginFailure as ReturnType<typeof mock>).mockImplementation(
+      async () => {}
+    );
   });
 
   afterEach(() => {
@@ -147,5 +164,61 @@ describe('API gateway anti-abuse wiring', () => {
     // Should be blocked — fetch to upstream should never be called
     expect(response.status).toBe(403);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test('forwards x-request-id to upstream and preserves it in response', async () => {
+    const fetchSpy = mock(async (request: Request) => {
+      expect(request.headers.get('x-request-id')).toBe('req-test-123');
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+          'x-request-id': 'req-test-123'
+        }
+      });
+    }) as unknown as typeof fetch;
+
+    global.fetch = fetchSpy;
+
+    const response = await POST(
+      new Request('http://localhost/api/links', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-request-id': 'req-test-123'
+        },
+        body: JSON.stringify({ url: 'https://example.com' })
+      }) as never
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-request-id')).toBe('req-test-123');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('returns 503 envelope when upstream API is unavailable', async () => {
+    global.fetch = mock(async () => {
+      throw new Error('connect ECONNREFUSED');
+    }) as unknown as typeof fetch;
+
+    const response = await POST(
+      new Request('http://localhost/api/links', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-request-id': 'req-unavailable-1'
+        },
+        body: JSON.stringify({ url: 'https://example.com' })
+      }) as never
+    );
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get('x-request-id')).toBe('req-unavailable-1');
+
+    const body = await response.json();
+    expect(body.success).toBe(false);
+    expect(body.error?.code).toBe('API_UNAVAILABLE');
+    expect(body.requestId).toBe('req-unavailable-1');
   });
 });

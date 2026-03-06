@@ -78,7 +78,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@urlfy/api": "workspace:*",
     "@urlfy/config-ts": "workspace:*",
     "@biomejs/biome": "2.2.0",
     "elysia": "^1.4.22",

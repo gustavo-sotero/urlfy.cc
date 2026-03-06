@@ -62,34 +62,43 @@ try {
   validate('Step 1', false, 'Failed to read package.json', String(error));
 }
 
-// Step 2: Check next.config.ts
+// Step 2: Check apps/api/package.json (monorepo: @elysiajs/opentelemetry belongs
+// to the API service only, not to apps/web which uses standard @opentelemetry/*)
 try {
+  const apiPackageJson = JSON.parse(
+    readFileSync(resolve(process.cwd(), 'apps/api/package.json'), 'utf-8')
+  );
+
+  const hasApiDep =
+    '@elysiajs/opentelemetry' in (apiPackageJson.dependencies ?? {});
+  validate(
+    'Step 2a',
+    hasApiDep,
+    '@elysiajs/opentelemetry in apps/api/package.json dependencies',
+    hasApiDep
+      ? `Version: ${apiPackageJson.dependencies?.['@elysiajs/opentelemetry']}`
+      : 'Not found in apps/api dependencies (package only needed by Elysia server, not Next.js)'
+  );
+
+  // apps/web/next.config.ts should include the standard @opentelemetry packages
+  // (NOT @elysiajs/opentelemetry which is only used by apps/api Elysia server)
   const nextConfig = readFileSync(
     resolve(process.cwd(), 'apps/web/next.config.ts'),
     'utf-8'
   );
-
-  const hasServerExternal = nextConfig.includes("'@elysiajs/opentelemetry'");
-  validate(
-    'Step 2a',
-    hasServerExternal,
-    'Added to serverExternalPackages in next.config.ts',
-    hasServerExternal ? 'Found in serverExternalPackages array' : 'Not found'
-  );
-
-  const hasOutputTracing =
-    nextConfig.includes('./node_modules/@elysiajs/**/*') ||
-    nextConfig.includes('./node_modules/@elysiajs/opentelemetry/**/*');
+  const hasWebOtelPackages =
+    nextConfig.includes("'@opentelemetry/api'") ||
+    nextConfig.includes("'@opentelemetry/sdk-node'");
   validate(
     'Step 2b',
-    hasOutputTracing,
-    'Added to outputFileTracingIncludes in next.config.ts',
-    hasOutputTracing
-      ? 'Found in outputFileTracingIncludes (via @elysiajs/**/* glob)'
-      : 'Not found'
+    hasWebOtelPackages,
+    'Standard @opentelemetry/* packages in apps/web serverExternalPackages',
+    hasWebOtelPackages
+      ? 'Found @opentelemetry/* packages in serverExternalPackages (correct: Elysia plugin is API-only)'
+      : 'Standard OTel packages missing from next.config.ts serverExternalPackages'
   );
 } catch (error) {
-  validate('Step 2', false, 'Failed to read next.config.ts', String(error));
+  validate('Step 2', false, 'Failed to read API/web config', String(error));
 }
 
 // Step 3: Check src/server/index.ts
