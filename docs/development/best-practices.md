@@ -373,8 +373,7 @@ type MyType = Static<typeof schema>; // Single source
 Feature-based organization following MVC pattern:
 
 ```
-src/server/
-├── api/                        # Legacy API routes (being phased out)
+apps/api/src/server/
 ├── modules/                    # Feature-based modules
 │   ├── links/
 │   │   ├── links.controller.ts   # Elysia instance with routes
