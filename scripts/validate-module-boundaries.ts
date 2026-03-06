@@ -182,6 +182,61 @@ interface Violation {
   reason: string;
 }
 
+interface ImportReference {
+  importPath: string;
+  line: number;
+}
+
+function getLineFromIndex(source: string, index: number): number {
+  let line = 1;
+  for (let i = 0; i < index; i++) {
+    if (source.charCodeAt(i) === 10) {
+      line++;
+    }
+  }
+  return line;
+}
+
+function collectImportReferences(source: string): ImportReference[] {
+  // Supports:
+  // - static imports (including multiline)
+  // - export ... from 'module'
+  // - side-effect imports: import 'module'
+  // - dynamic imports: import('module')
+  const patterns = [
+    /(?:^|[\n;])\s*(?:import|export)\s+(?:type\s+)?[\w*\s{},]*\sfrom\s+['"]([^'"]+)['"]/gm,
+    /(?:^|[\n;])\s*import\s+['"]([^'"]+)['"]/gm,
+    /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/gm
+  ];
+
+  const references: ImportReference[] = [];
+  const seen = new Set<string>();
+
+  for (const pattern of patterns) {
+    pattern.lastIndex = 0;
+
+    for (;;) {
+      const match = pattern.exec(source);
+      if (match === null) break;
+
+      const importPath = match[1];
+      if (!importPath) continue;
+
+      const line = getLineFromIndex(source, match.index);
+      const key = `${line}:${importPath}`;
+
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      references.push({ importPath, line });
+    }
+  }
+
+  return references;
+}
+
 async function getTypeScriptFiles(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   const files: string[] = [];
@@ -196,7 +251,15 @@ async function getTypeScriptFiles(dir: string): Promise<string[]> {
     }
 
     if (!entry.isFile()) continue;
-    if (!fullPath.endsWith('.ts')) continue;
+    if (
+      !fullPath.endsWith('.ts') &&
+      !fullPath.endsWith('.tsx') &&
+      !fullPath.endsWith('.mts') &&
+      !fullPath.endsWith('.cts')
+    ) {
+      continue;
+    }
+    if (fullPath.endsWith('.d.ts')) continue;
 
     files.push(fullPath);
   }
@@ -256,8 +319,6 @@ function isCrossModuleInternalImport(
 
 async function validateCrossAppBoundaries(): Promise<Violation[]> {
   const violations: Violation[] = [];
-  const importRegex =
-    /(?:^|\n)\s*(?:import|export)\s+(?:type\s+)?[^'"\n]*?from\s+['"]([^'"]+)['"]/g;
 
   for (const {
     appName,
@@ -275,45 +336,35 @@ async function validateCrossAppBoundaries(): Promise<Violation[]> {
 
     for (const filePath of files) {
       const source = await readFile(filePath, 'utf-8');
-      const lines = source.split('\n');
+      const imports = collectImportReferences(source);
 
-      for (const [index, line] of lines.entries()) {
-        importRegex.lastIndex = 0;
-
-        for (;;) {
-          const match = importRegex.exec(line);
-          if (match === null) break;
-
-          const importPath = match[1];
-          if (!importPath) continue;
-
-          for (const { pattern, reason } of forbiddenPatterns) {
-            if (pattern.test(importPath)) {
-              violations.push({
-                file: relative(PROJECT_ROOT, filePath).replaceAll('\\', '/'),
-                line: index + 1,
-                importPath,
-                reason
-              });
-              break; // one reason per import per line is enough
-            }
-          }
-
-          const relativeViolation = findRelativeBoundaryViolation(
-            filePath,
-            importPath,
-            forbiddenAppDirs,
-            appName
-          );
-
-          if (relativeViolation) {
+      for (const { importPath, line } of imports) {
+        for (const { pattern, reason } of forbiddenPatterns) {
+          if (pattern.test(importPath)) {
             violations.push({
               file: relative(PROJECT_ROOT, filePath).replaceAll('\\', '/'),
-              line: index + 1,
+              line,
               importPath,
-              reason: relativeViolation
+              reason
             });
+            break; // one reason per import per line is enough
           }
+        }
+
+        const relativeViolation = findRelativeBoundaryViolation(
+          filePath,
+          importPath,
+          forbiddenAppDirs,
+          appName
+        );
+
+        if (relativeViolation) {
+          violations.push({
+            file: relative(PROJECT_ROOT, filePath).replaceAll('\\', '/'),
+            line,
+            importPath,
+            reason: relativeViolation
+          });
         }
       }
     }
@@ -343,28 +394,18 @@ async function validateCrossAppBoundaries(): Promise<Violation[]> {
 
     for (const filePath of pkgFiles) {
       const source = await readFile(filePath, 'utf-8');
-      const lines = source.split('\n');
+      const imports = collectImportReferences(source);
 
-      for (const [index, line] of lines.entries()) {
-        importRegex.lastIndex = 0;
-
-        for (;;) {
-          const match = importRegex.exec(line);
-          if (match === null) break;
-
-          const importPath = match[1];
-          if (!importPath) continue;
-
-          for (const { pattern, reason } of PACKAGE_FORBIDDEN_PATTERNS) {
-            if (pattern.test(importPath)) {
-              violations.push({
-                file: relative(PROJECT_ROOT, filePath).replaceAll('\\', '/'),
-                line: index + 1,
-                importPath,
-                reason
-              });
-              break;
-            }
+      for (const { importPath, line } of imports) {
+        for (const { pattern, reason } of PACKAGE_FORBIDDEN_PATTERNS) {
+          if (pattern.test(importPath)) {
+            violations.push({
+              file: relative(PROJECT_ROOT, filePath).replaceAll('\\', '/'),
+              line,
+              importPath,
+              reason
+            });
+            break;
           }
         }
       }
@@ -382,37 +423,22 @@ async function validateBoundaries(): Promise<void> {
   const files = await getTypeScriptFiles(MODULES_ROOT);
   const violations: Violation[] = [];
 
-  const importRegex =
-    /(?:^|\n)\s*(?:import|export)\s+(?:type\s+)?[^'"\n]*?from\s+['"]([^'"]+)['"]/g;
-
   for (const filePath of files) {
     const currentModule = getCurrentModuleName(filePath);
     if (!currentModule) continue;
 
     const source = await readFile(filePath, 'utf-8');
-    const lines = source.split('\n');
+    const imports = collectImportReferences(source);
 
-    for (const [index, line] of lines.entries()) {
-      importRegex.lastIndex = 0;
-
-      for (;;) {
-        const match = importRegex.exec(line);
-        if (match === null) {
-          break;
-        }
-
-        const importPath = match[1];
-        if (!importPath) continue;
-
-        const result = isCrossModuleInternalImport(currentModule, importPath);
-        if (!result.valid) {
-          violations.push({
-            file: relative(PROJECT_ROOT, filePath).replaceAll('\\', '/'),
-            line: index + 1,
-            importPath,
-            reason: result.reason || 'Invalid cross-module import'
-          });
-        }
+    for (const { importPath, line } of imports) {
+      const result = isCrossModuleInternalImport(currentModule, importPath);
+      if (!result.valid) {
+        violations.push({
+          file: relative(PROJECT_ROOT, filePath).replaceAll('\\', '/'),
+          line,
+          importPath,
+          reason: result.reason || 'Invalid cross-module import'
+        });
       }
     }
   }

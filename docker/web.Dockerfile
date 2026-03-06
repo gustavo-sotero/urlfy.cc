@@ -34,11 +34,6 @@ COPY package.json bun.lock* bunfig.toml turbo.json ./
 COPY apps/web ./apps/web
 COPY packages ./packages
 
-# apps/web needs the api package for Eden Treaty types (dev-only)
-COPY apps/api/src/index.ts ./apps/api/src/index.ts
-COPY apps/api/src/server/index.ts ./apps/api/src/server/index.ts
-COPY apps/api/package.json ./apps/api/
-
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV SKIP_ENV_VALIDATION=1

@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./analytics": "./src/analytics.types.ts",
+    "./api-client": "./src/api-client.ts",
     "./api-keys": "./src/api-keys.types.ts",
     "./auth": "./src/auth.types.ts",
     "./links": "./src/links.types.ts",

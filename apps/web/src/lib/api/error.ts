@@ -4,6 +4,8 @@
  * Provides consistent error handling for Eden Treaty responses
  */
 
+import type { ApiClientResponse } from '@urlfy/contracts/api-client';
+
 // ═══════════════════════════════════════════════════════════════════
 // ERROR CLASS
 // ═══════════════════════════════════════════════════════════════════
@@ -24,19 +26,7 @@ export class ApiClientError extends Error {
 // RESPONSE TYPES
 // ═══════════════════════════════════════════════════════════════════
 
-/**
- * Eden Treaty response structure from @elysiajs/eden
- */
-export interface TreatyResponse<T = unknown> {
-  data: T;
-  error: null | {
-    status: number;
-    value: unknown;
-  };
-  response: Response;
-  status: number;
-  headers?: HeadersInit;
-}
+export type TreatyResponse<T = unknown> = ApiClientResponse<T>;
 
 /**
  * Backend API error structure

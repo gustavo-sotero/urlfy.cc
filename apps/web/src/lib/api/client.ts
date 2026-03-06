@@ -5,7 +5,7 @@
  */
 
 import { treaty } from '@elysiajs/eden';
-import type { App } from './api-types';
+import type { ApiClientContract } from './api-types';
 
 // ═══════════════════════════════════════════════════════════════════
 // BASE URL CONFIGURATION
@@ -23,17 +23,15 @@ export const BASE_URL =
 
 /**
  * Default Eden Treaty client with credentials.
- * Cast to expose the /api namespace: the App stub has Routes={} so
- * treaty<App> infers {} — casting to { api: Record<string, any> } lets
- * all client.api.xxx.method() calls through until the real App type is wired.
+ *
+ * The runtime still comes from Eden Treaty, but the namespace contract lives in
+ * @urlfy/contracts so apps/web stays decoupled from apps/api internals.
  */
-// biome-ignore lint/suspicious/noExplicitAny: Eden Treaty stub — replace when route-level typed client is available
-type EdenApiClient = { api: Record<string, any> };
-export const client = treaty<App>(BASE_URL, {
+export const client = treaty(BASE_URL, {
   fetch: {
     credentials: 'include' // Required for cookies to be sent
   }
-}) as unknown as EdenApiClient;
+}) as unknown as ApiClientContract;
 
 /**
  * Export default client instance for use in components
@@ -75,12 +73,12 @@ export const apiClient = {
  * ```
  */
 export function createClientWithHeaders(headers: HeadersInit) {
-  return treaty<App>(BASE_URL, {
+  return treaty(BASE_URL, {
     fetch: {
       credentials: 'include'
     },
     headers
-  }) as unknown as EdenApiClient;
+  }) as unknown as ApiClientContract;
 }
 
 /**
@@ -103,4 +101,4 @@ export function convertHeadersForApiClient(
   return headersObj;
 }
 
-export type { App };
+export type { ApiClientContract };

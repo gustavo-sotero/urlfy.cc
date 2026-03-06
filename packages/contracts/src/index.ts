@@ -4,6 +4,7 @@
  */
 
 export * from './analytics.types';
+export * from './api-client';
 export * from './api-keys.types';
 export * from './auth.types';
 export * from './links.types';

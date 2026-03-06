@@ -9,22 +9,6 @@
 - **Context:** Script injection is intentionally deferred until a production analytics vendor is selected.
 ---
 
-## Eden Treaty Route-Level Type Safety
-
-- **Location:** `apps/web/src/lib/api/api-types.ts`, `apps/web/src/lib/api/client.ts`
-- **Owner:** gustavo-sotero
-- **Tracking ID:** TODO-EDEN-TREATY-TYPES
-- **Status:** Open
-- **Context:** `apps/web` intentionally uses a local generic `Elysia<'/api', any>` stub as the `App` type for Eden Treaty.
-  This keeps strict package boundaries (web does not import `@urlfy/api`) but loses per-endpoint type safety
-  (request/response schemas are not inferred).
-- **Resolution path:**
-  1. Generate an API client contract artifact from `apps/api` that can be consumed without importing server internals.
-  2. Replace `Elysia<'/api', any>` in `apps/web/src/lib/api/api-types.ts` with the generated contract type.
-  3. Remove the `biome-ignore` comment in `apps/web/src/lib/api/client.ts` when `Record<string, any>` is no longer required.
-
----
-
 ## Dual Better-Auth Instantiation (Architectural Decision)
 
 - **Location:** `apps/web/src/lib/auth.ts`, `apps/api/src/lib/auth.ts`

@@ -221,4 +221,29 @@ describe('API gateway anti-abuse wiring', () => {
     expect(body.error?.code).toBe('API_UNAVAILABLE');
     expect(body.requestId).toBe('req-unavailable-1');
   });
+
+  test('returns 503 timeout envelope when upstream API aborts', async () => {
+    global.fetch = mock(async () => {
+      throw new DOMException('Request timed out', 'AbortError');
+    }) as unknown as typeof fetch;
+
+    const response = await POST(
+      new Request('http://localhost/api/links', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-request-id': 'req-timeout-1'
+        },
+        body: JSON.stringify({ url: 'https://example.com' })
+      }) as never
+    );
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get('x-request-id')).toBe('req-timeout-1');
+
+    const body = await response.json();
+    expect(body.success).toBe(false);
+    expect(body.error?.code).toBe('API_TIMEOUT');
+    expect(body.requestId).toBe('req-timeout-1');
+  });
 });

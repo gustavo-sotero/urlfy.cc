@@ -25,17 +25,17 @@ Failed to load external module bun: TypeError: Native module not found: bun
 
 The redirect flow is split into two runtime-safe parts:
 
-### 1. Edge Proxy (`src/proxy.ts`)
+### 1. Edge Proxy (`apps/web/src/proxy.ts`)
 
 - Runs in Edge Runtime environment
 - Handles route matching and basic HTTP logic
 - Rewrites short-code requests to Node route handler (`/r/:code`)
 
-### 2. Node.js Route Handler (`src/app/r/[code]/route.ts`)
+### 2. Node.js Route Handler (`apps/web/src/app/r/[code]/route.ts`)
 
 - Runs in full Node.js runtime
-- Has access to database, OpenTelemetry, BullMQ
-- Uses existing `redirectService` with all features
+- Has access to database, OpenTelemetry and Redis Streams
+- Uses `@urlfy/redirect-domain` with the same business rules
 - Executes redirect decision directly (no internal HTTP hop)
 
 ## Flow
@@ -80,10 +80,10 @@ internal API endpoint:
 
 | File                                      | Runtime | Purpose                        |
 | ----------------------------------------- | ------- | ------------------------------ |
-| `src/proxy.ts`                            | Edge    | Route matching                 |
-| `src/app/r/[code]/route.ts`               | Node.js | Redirect resolution + response |
-| `src/server/services/redirect.service.ts` | Node.js | Full redirect service          |
-| `src/server/lib/telemetry.ts`             | Node.js | OpenTelemetry                  |
+| `apps/web/src/proxy.ts`                   | Edge    | Route matching                 |
+| `apps/web/src/app/r/[code]/route.ts`      | Node.js | Redirect resolution + response |
+| `packages/redirect-domain/src/service.ts` | Bun/TS  | Redirect domain rules          |
+| `packages/telemetry/src/index.ts`         | Bun/TS  | OpenTelemetry helpers          |
 
 ## Performance Considerations
 

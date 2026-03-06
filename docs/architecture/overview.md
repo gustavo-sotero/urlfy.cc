@@ -2,7 +2,7 @@
 
 > 📖 [← Voltar ao PRD](../prd.md) | [Database Schema →](./database-schema.md)
 
-**Navegação:** [Overview](#) · [Database](./database-schema.md) · [Caching](./caching-strategy.md) · [Security](./security.md) · [API](../api/endpoints.md)
+**Navegação:** [Overview](#) · [Decoupling](./monorepo-decoupling.md) · [Database](./database-schema.md) · [Caching](./caching-strategy.md) · [Security](./security.md) · [API](../api/endpoints.md)
 
 ---
 

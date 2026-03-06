@@ -4,6 +4,7 @@
  * Type-safe wrapper for API key-related endpoints
  */
 
+import type { ApiResponse } from '@urlfy/contracts/shared';
 import { BASE_URL, client } from './client';
 import { ApiClientError, extractErrorInfo, handleEden } from './error';
 
@@ -93,7 +94,7 @@ export async function createApiKey(
     body: JSON.stringify(payload)
   });
 
-  const body = (await response.json()) as unknown;
+  const body = (await response.json()) as ApiResponse<ApiKeyCreated>;
 
   if (!response.ok) {
     const errorInfo = extractErrorInfo(body);
