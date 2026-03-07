@@ -1199,7 +1199,7 @@ export const apiKeyRoutes = new Elysia({ prefix: '/api-keys' })
 
 ## 9. Serviço de Usuários
 
-### 9.1 User Service (`src/server/services/user.service.ts`)
+### 9.1 User Service (`apps/api/src/server/modules/users/users.service.ts`)
 
 ```typescript
 import { db } from '@/server/lib/db';

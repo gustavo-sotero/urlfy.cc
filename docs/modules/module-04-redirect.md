@@ -160,7 +160,7 @@ export type RedirectError =
 ### 5.2 Serviço Principal
 
 ```typescript
-// src/server/services/redirect.service.ts
+// packages/redirect-domain/src/service.ts
 import { redis } from '@/server/lib/redis';
 import { db } from '@/db';
 import { links } from '@/db/schema';
@@ -350,7 +350,7 @@ export const redirectService = new RedirectService();
 ## 6. Middleware Handler
 
 ```typescript
-// src/server/middleware/redirect.middleware.ts
+// apps/web/src/app/r/[code]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { redirectService } from '@/server/services/redirect.service';
 import { analyticsQueue } from '@/server/lib/queue';
@@ -555,7 +555,7 @@ export async function releaseLock(key: string): Promise<void> {
 Quando Redis está indisponível:
 
 ```typescript
-// src/server/services/redirect.service.ts (método getLink modificado)
+// packages/redirect-domain/src/fetcher.ts (fallback Redis -> DB)
 private async getLink(code: string): Promise<CachedLink | null> {
   try {
     // Tenta usar Redis
@@ -579,7 +579,7 @@ private async getLink(code: string): Promise<CachedLink | null> {
 Para links protegidos, verificação via cookie JWT:
 
 ```typescript
-// src/server/middleware/redirect.middleware.ts (adicional)
+// apps/web/src/app/r/[code]/route.ts (verificação do cookie unlock)
 function checkPasswordCookie(request: NextRequest, code: string): boolean {
   const cookieName = `urlfy_unlock_${code}`;
   const token = request.cookies.get(cookieName)?.value;
@@ -605,7 +605,7 @@ function checkPasswordCookie(request: NextRequest, code: string): boolean {
 ### 11.1 Testes Unitários
 
 ```typescript
-// src/server/services/__tests__/redirect.service.test.ts
+// packages/redirect-domain/src/__tests__/service.test.ts
 import { describe, it, expect, mock } from 'bun:test';
 import { RedirectService } from '../redirect.service';
 
@@ -635,7 +635,7 @@ describe('RedirectService', () => {
 ### 11.2 Testes de Carga (k6)
 
 ```javascript
-// tests/load/redirect.js
+// load/k6/redirect-hot-path.js
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
@@ -753,7 +753,7 @@ export const cacheHitRate = meter.createObservableGauge(
 ### 12.2 Instrumentação do Redirect Service
 
 ```typescript
-// src/server/services/redirect.service.ts (com telemetria)
+// packages/redirect-domain/src/service.ts (com telemetria)
 import {
   tracer,
   redirectLatency,
@@ -951,7 +951,7 @@ export class RedirectService {
 ### 13.1 Testes Unitários Completos
 
 ```typescript
-// src/server/services/__tests__/redirect.service.test.ts
+// packages/redirect-domain/src/__tests__/service.test.ts
 import { describe, it, expect, mock, beforeEach, afterEach } from 'bun:test';
 import { RedirectService } from '../redirect.service';
 

@@ -705,7 +705,7 @@ function getOldPartitionName(date: Date): string {
 ### 8.1 GeoIP Service
 
 ```typescript
-// src/server/services/geoip.service.ts
+// apps/worker/src/server/lib/geoip.ts
 import { Reader } from '@maxmind/geoip2-node';
 import type { GeoData } from '@/types/analytics.types';
 
@@ -743,7 +743,7 @@ export const geoipService = new GeoIPService();
 ### 8.2 User-Agent Service
 
 ```typescript
-// src/server/services/useragent.service.ts
+// apps/api/src/server/services/useragent.service.ts
 import { UAParser } from 'ua-parser-js';
 import type { UserAgentData } from '@/types/analytics.types';
 

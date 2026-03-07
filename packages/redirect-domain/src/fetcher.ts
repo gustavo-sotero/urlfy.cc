@@ -277,7 +277,7 @@ async function fetchWithStampedeProtection(
   logger.warn('Cache still empty after waiting, fetching from database', {
     code
   });
-  return fetchFromDatabase(code);
+  return fetchFromDatabase(code, dependencies);
 }
 
 /**

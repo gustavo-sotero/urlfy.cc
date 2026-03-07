@@ -307,7 +307,7 @@ export const generateShortCode = customAlphabet(ALPHABET, CODE_LENGTH);
 ### 5.2 Serviço de Short Codes
 
 ```typescript
-// src/server/services/shortcode.service.ts
+// apps/api/src/server/modules/links/services/shortcode.service.ts
 import { db } from '@/db';
 import { links, reservedSlugs } from '@/db/schema';
 import { eq, or } from 'drizzle-orm';
@@ -366,7 +366,7 @@ export async function validateCustomAlias(alias: string): Promise<boolean> {
 ## 6. Validação de URLs
 
 ```typescript
-// src/server/services/url-validator.ts
+// apps/api/src/server/modules/links/services/url-validator.ts
 const BLOCKED_SHORTENERS = new Set([
   'bit.ly',
   'tinyurl.com',
@@ -489,7 +489,7 @@ function validateImageUrl(url: string): string | null {
 ## 8. QR Code Service
 
 ```typescript
-// src/server/services/qr.service.ts
+// apps/api/src/server/modules/links/services/qr.service.ts
 import QRCode from 'qrcode';
 import { redis } from '../lib/redis';
 
@@ -536,7 +536,7 @@ export async function generateQRCode(
 ## 9. Link Service (CRUD)
 
 ```typescript
-// src/server/services/link.service.ts
+// apps/api/src/server/modules/links/links.service.ts
 import { db } from '@/db';
 import { links } from '@/db/schema';
 import { eq, and, isNull, desc, sql } from 'drizzle-orm';
@@ -829,7 +829,7 @@ class LinksController {
 ### 11.3 Service Pattern (Non-Request Dependent)
 
 ```typescript
-// src/server/services/link.service.ts
+// apps/api/src/server/modules/links/links.service.ts
 // ✅ Correto: abstract class + static methods
 abstract class LinkService {
   static async create(input: CreateLinkInput, userId?: string): Promise<Link> {
@@ -1024,7 +1024,7 @@ export const linksController = new Elysia({ prefix: '/links' })
 ### 14.1 Formatador de Resposta
 
 ```typescript
-// src/server/services/link.service.ts
+// apps/api/src/server/modules/links/links.service.ts
 
 const BASE_URL = process.env.PUBLIC_APP_URL || 'https://urlfy.cc';
 
@@ -1058,7 +1058,7 @@ export function formatLinkResponse(link: Link): LinkResponse {
 ### 14.2 Toggle Active Status
 
 ```typescript
-// src/server/services/link.service.ts
+// apps/api/src/server/modules/links/links.service.ts
 
 export async function toggleLinkActive(id: string, userId: string) {
   const link = await db.query.links.findFirst({
@@ -1089,7 +1089,7 @@ export async function toggleLinkActive(id: string, userId: string) {
 ### 14.3 Get Single Link
 
 ```typescript
-// src/server/services/link.service.ts
+// apps/api/src/server/modules/links/links.service.ts
 
 export async function getLinkById(id: string, userId: string) {
   const link = await db.query.links.findFirst({
