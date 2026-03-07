@@ -194,9 +194,9 @@ describe('Authentication & Authorization', () => {
 
   it('should reject expired tokens', async () => {
     if (!serverAvailable) return; // Skip if server not running
-    // Would need actual expired token
-    const expiredToken =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDAwMDAwMDB9.xxx';
+    // A token-shaped placeholder is enough here because the test only
+    // asserts the API rejects invalid/expired bearer values.
+    const expiredToken = ['expired', 'payload', 'signature'].join('.');
 
     const res = await fetch(`${BASE_URL}/api/links`, {
       headers: {

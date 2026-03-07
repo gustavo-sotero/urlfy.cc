@@ -260,7 +260,8 @@ jobs:
       - name: Verify Docker images
         run: |
           docker run --rm urlfy-web:${{ github.sha }} test -f /app/server.js
-          docker run --rm urlfy-web:${{ github.sha }} test -d /app/drizzle
+          docker run --rm urlfy-web:${{ github.sha }} test -d /app/.next/static
           docker run --rm urlfy-api:${{ github.sha }} test -f /app/dist/index.js
           docker run --rm --workdir /app/apps/worker urlfy-worker:${{ github.sha }} test -f src/index.ts
+          docker run --rm --workdir /app/apps/worker urlfy-worker:${{ github.sha }} test -f src/healthcheck.ts
           echo "✅ All Docker images verified"
