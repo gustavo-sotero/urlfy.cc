@@ -44,6 +44,7 @@ export interface WorkerConfig {
  * Handles connection, graceful shutdown, error handling, and GC
  */
 export abstract class WorkerBase<T = Record<string, string>> {
+  private static readonly DEFAULT_INITIALIZATION_RETRY_MS = 2000;
   protected readonly config: Required<WorkerConfig>;
   protected readonly logger: Logger;
   protected running = false;
@@ -78,6 +79,10 @@ export abstract class WorkerBase<T = Record<string, string>> {
     payload: T
   ): Promise<void> | void;
 
+  protected getInitializationRetryMs(): number {
+    return WorkerBase.DEFAULT_INITIALIZATION_RETRY_MS;
+  }
+
   /**
    * Initialize consumer group (idempotent)
    */
@@ -110,11 +115,28 @@ export abstract class WorkerBase<T = Record<string, string>> {
       return;
     }
 
-    // Initialize before starting
-    await this.initialize();
-
     this.running = true;
     this.setupGracefulShutdown();
+
+    // Retry initialization until Redis becomes available or shutdown is requested.
+    while (this.running) {
+      try {
+        await this.initialize();
+        break;
+      } catch (error) {
+        const retryInMs = this.getInitializationRetryMs();
+        this.logger.warn('[WorkerBase] Initialization failed; retrying', {
+          error: error instanceof Error ? error.message : String(error),
+          retryInMs
+        });
+        await Bun.sleep(retryInMs);
+      }
+    }
+
+    if (!this.running) {
+      this.logger.info('[WorkerBase] Worker stopped before initialization');
+      return;
+    }
 
     this.logger.info('[WorkerBase] Worker started', {
       stream: this.config.stream,

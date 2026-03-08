@@ -36,6 +36,10 @@ mock.module('../telemetry', () => ({
 class TestWorker extends WorkerBase<{ test: string }> {
   processedMessages: Array<{ id: string; payload: { test: string } }> = [];
 
+  protected override getInitializationRetryMs(): number {
+    return 0;
+  }
+
   protected async processMessage(
     id: string,
     payload: { test: string }
@@ -130,6 +134,19 @@ describe('WorkerBase', () => {
         '$',
         true
       );
+    });
+
+    it('should retry initialization until consumer group succeeds', async () => {
+      mockRedisStream.createGroup
+        .mockRejectedValueOnce(new Error('Redis unavailable'))
+        .mockResolvedValueOnce(undefined);
+
+      const runPromise = worker.run();
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      await worker.stop();
+      await runPromise;
+
+      expect(mockRedisStream.createGroup).toHaveBeenCalledTimes(2);
     });
   });
 
