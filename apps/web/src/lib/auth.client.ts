@@ -9,11 +9,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import {
-  adminClient,
-  apiKeyClient,
-  twoFactorClient
-} from 'better-auth/client/plugins';
+import { adminClient, twoFactorClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 
 export const authClient = createAuthClient({
@@ -23,7 +19,7 @@ export const authClient = createAuthClient({
   fetchOptions: {
     credentials: 'include' // Required for cookies to be sent with requests
   },
-  plugins: [twoFactorClient(), adminClient(), apiKeyClient()]
+  plugins: [twoFactorClient(), adminClient()]
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -51,7 +47,9 @@ export const twoFactor = authClient.twoFactor;
 // Access via authClient.admin methods
 export const admin = authClient.admin;
 
-// Note: API key management is done via custom REST endpoints at /api/keys
+// API key management is handled by the app's custom REST endpoints at /api/keys.
+// Better Auth 1.5 moved its API key plugin to a separate package, but this app
+// already owns that domain logic independently.
 // Use the api-keys module client (src/lib/api/api-keys.ts) to interact with these endpoints
 
 // Re-export the entire client for direct access to all methods

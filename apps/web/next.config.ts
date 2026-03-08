@@ -1,9 +1,11 @@
+import { resolve } from 'node:path';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 import { getNextJSHeaders } from './src/server/config/security';
 
 // Initialize next-intl plugin
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+const monorepoRoot = resolve(__dirname, '../..');
 
 // Security headers from centralized configuration
 const securityHeaders = getNextJSHeaders();
@@ -14,6 +16,7 @@ const nextConfig: NextConfig = {
 
   // Standalone output for Docker
   output: 'standalone',
+  outputFileTracingRoot: monorepoRoot,
 
   // Optimize for production
   poweredByHeader: false,
@@ -80,6 +83,10 @@ const nextConfig: NextConfig = {
     },
     // Enable nonce-based CSP for Script components
     nextScriptWorkers: false // Keep false to ensure nonce works properly
+  },
+
+  turbopack: {
+    root: monorepoRoot
   }
 };
 

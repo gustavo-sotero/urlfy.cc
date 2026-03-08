@@ -10,7 +10,7 @@
  */
 
 import type { BetterAuthOptions } from 'better-auth';
-import { admin, apiKey, openAPI, twoFactor } from 'better-auth/plugins';
+import { admin, openAPI, twoFactor } from 'better-auth/plugins';
 
 // ═══════════════════════════════════════════════════════════════════
 // AUTH SECRET VALIDATION
@@ -206,9 +206,6 @@ export function getPlugins(
       })
     );
   }
-
-  // API Keys (RF-29)
-  plugins.push(apiKey());
 
   // Better-Auth OpenAPI docs (RF-30)
   if (!options.disableOpenAPI) {
