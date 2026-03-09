@@ -46,7 +46,7 @@ export class AuditLogService {
    * Log an administrative or security event
    */
   async log(params: {
-    userId: string;
+    userId: string | null;
     action: AuditAction;
     entityType: string;
     entityId: string;
@@ -209,10 +209,11 @@ export class AuditLogService {
     const userCounts: Record<string, number> = {};
 
     for (const log of allLogs) {
+      const userKey = log.userId ?? 'system';
       actionCounts[log.action] = (actionCounts[log.action] || 0) + 1;
       entityTypeCounts[log.entityType] =
         (entityTypeCounts[log.entityType] || 0) + 1;
-      userCounts[log.userId] = (userCounts[log.userId] || 0) + 1;
+      userCounts[userKey] = (userCounts[userKey] || 0) + 1;
     }
 
     const topUsers = Object.entries(userCounts)

@@ -2,7 +2,8 @@
 # STAGE 1: Dependencies
 # ═══════════════════════════════════════════════════════════════════
 # hadolint ignore=DL3006
-FROM oven/bun:slim AS dependencies
+ARG BUN_VERSION=1.3.10
+FROM oven/bun:${BUN_VERSION}-slim AS dependencies
 
 # Labels OCI padrão
 LABEL org.opencontainers.image.source="https://github.com/urlfy/urlfy.cc"
@@ -20,7 +21,7 @@ RUN bun install --frozen-lockfile
 # ═══════════════════════════════════════════════════════════════════
 # STAGE 2: Builder
 # ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:slim AS builder
+FROM oven/bun:${BUN_VERSION}-slim AS builder
 
 WORKDIR /app
 
@@ -61,7 +62,7 @@ RUN echo "Building with NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}" && \
 # ═══════════════════════════════════════════════════════════════════
 # STAGE 3: Runner (minimal production image)
 # ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:slim AS runner
+FROM oven/bun:${BUN_VERSION}-slim AS runner
 
 WORKDIR /app
 
@@ -102,7 +103,7 @@ ENV NODE_ENV=production \
 
 # Health check usando curl (mais leve que spawnar Bun)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl --fail --silent --max-time 5 http://localhost:3000/api/health || exit 1
+    CMD curl --fail --silent --max-time 5 http://localhost:3000/api/health/ready || exit 1
 
 # Entrypoint runs migrations, then CMD starts the app
 ENTRYPOINT ["docker-entrypoint.sh"]

@@ -4,7 +4,13 @@
  * Prevents abuse across API endpoints
  */
 
-import { getRedisClient } from '@urlfy/cache';
+import {
+  canAttemptRedisCommand,
+  getRedisClient,
+  markRedisCommandFailure,
+  markRedisCommandSuccess,
+  shouldLogRedisFailure
+} from '@urlfy/cache';
 import { createLogger } from '@urlfy/telemetry';
 import { maskIpForLog } from './ip';
 
@@ -18,6 +24,7 @@ const logger = createLogger('rate-limiter');
 class InMemoryRateLimiter {
   private counters = new Map<string, { count: number; resetAt: number }>();
   private cleanupInterval: ReturnType<typeof setInterval>;
+  private static readonly MAX_ENTRIES = 10_000;
 
   constructor() {
     // Periodic cleanup of expired entries every 60s
@@ -33,6 +40,13 @@ class InMemoryRateLimiter {
     const entry = this.counters.get(key);
 
     if (!entry || now >= entry.resetAt) {
+      if (!entry && this.counters.size >= InMemoryRateLimiter.MAX_ENTRIES) {
+        const oldestKey = this.counters.keys().next().value;
+        if (oldestKey) {
+          this.counters.delete(oldestKey);
+        }
+      }
+
       // Window expired or first request — start new window
       this.counters.set(key, { count: 1, resetAt: now + durationMs });
       return { allowed: true, count: 1 };
@@ -168,6 +182,51 @@ export class RateLimiter {
     this.redis = redis ?? getRedisClient();
   }
 
+  private buildFallbackResult(
+    key: string,
+    config: RateLimitConfig,
+    prefix: string,
+    now: number,
+    reason: 'degraded' | 'error'
+  ): RateLimitResult {
+    if (config.failClosed) {
+      logger.warn('Rate limiter fail-closed: denying request', {
+        key,
+        reason
+      });
+
+      return {
+        allowed: false,
+        remaining: 0,
+        resetTime: now + 60_000,
+        retryAfter: 60
+      };
+    }
+
+    const fallback = memoryFallback.check(
+      `${prefix}:${key}`,
+      config.points,
+      config.duration * 1000
+    );
+    const remaining = Math.max(0, config.points - fallback.count);
+
+    if (!fallback.allowed) {
+      logger.warn('Rate limit exceeded (in-memory fallback)', {
+        key,
+        count: fallback.count,
+        limit: config.points,
+        reason
+      });
+    }
+
+    return {
+      allowed: fallback.allowed,
+      remaining,
+      resetTime: now + config.duration * 1000,
+      retryAfter: fallback.allowed ? undefined : config.duration
+    };
+  }
+
   /**
    * Lua script for atomic sliding-window rate limiting.
    *
@@ -267,6 +326,10 @@ return {0, count}
     const now = Date.now();
     const windowStart = now - config.duration * 1000;
 
+    if (!canAttemptRedisCommand()) {
+      return this.buildFallbackResult(key, config, prefix, now, 'degraded');
+    }
+
     try {
       const member = `${now}-${Math.random()}`;
       const [allowed, count] = await this.evalSlidingWindow(
@@ -277,6 +340,7 @@ return {0, count}
         config.duration,
         member
       );
+      markRedisCommandSuccess();
 
       const remaining = Math.max(0, config.points - count);
 
@@ -295,46 +359,15 @@ return {0, count}
         retryAfter: allowed === 1 ? undefined : config.duration
       };
     } catch (error) {
-      logger.error('Rate limiter Redis error', {
-        error: error instanceof Error ? error.message : String(error),
-        key,
-        failClosed: config.failClosed ?? false
-      });
-
-      // For security-critical endpoints (auth, admin), deny requests
-      // when Redis is unavailable to prevent brute-force attacks
-      if (config.failClosed) {
-        logger.warn('Rate limiter fail-closed: denying request', { key });
-        return {
-          allowed: false,
-          remaining: 0,
-          resetTime: now + 60_000,
-          retryAfter: 60
-        };
-      }
-
-      // Fall back to in-memory rate limiting for non-critical endpoints
-      const fallback = memoryFallback.check(
-        `${prefix}:${key}`,
-        config.points,
-        config.duration * 1000
-      );
-      const remaining = Math.max(0, config.points - fallback.count);
-
-      if (!fallback.allowed) {
-        logger.warn('Rate limit exceeded (in-memory fallback)', {
+      markRedisCommandFailure(error);
+      if (shouldLogRedisFailure()) {
+        logger.error('Rate limiter Redis error', {
+          error: error instanceof Error ? error.message : String(error),
           key,
-          count: fallback.count,
-          limit: config.points
+          failClosed: config.failClosed ?? false
         });
       }
-
-      return {
-        allowed: fallback.allowed,
-        remaining,
-        resetTime: now + config.duration * 1000,
-        retryAfter: fallback.allowed ? undefined : config.duration
-      };
+      return this.buildFallbackResult(key, config, prefix, now, 'error');
     }
   }
 
@@ -372,11 +405,15 @@ return {0, count}
    * Block an IP temporarily
    */
   async blockIP(ip: string, ttl: number = 900): Promise<void> {
+    if (!canAttemptRedisCommand()) return;
+
     try {
       const key = `blocked:${ip}`;
       await this.redis.setex(key, ttl, '1');
+      markRedisCommandSuccess();
       logger.warn('IP blocked', { ip: maskIpForLog(ip), ttl });
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to block IP', {
         error: error instanceof Error ? error.message : String(error),
         ip: maskIpForLog(ip)
@@ -388,11 +425,15 @@ return {0, count}
    * Check if IP is blocked
    */
   async isIPBlocked(ip: string): Promise<boolean> {
+    if (!canAttemptRedisCommand()) return false;
+
     try {
       const key = `blocked:${ip}`;
       const blocked = (await this.redis.send('EXISTS', [key])) as number;
+      markRedisCommandSuccess();
       return blocked === 1;
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to check IP block', {
         error: error instanceof Error ? error.message : String(error),
         ip
@@ -405,9 +446,13 @@ return {0, count}
    * Reset rate limit for a key
    */
   async reset(key: string, prefix: string = 'rl'): Promise<void> {
+    if (!canAttemptRedisCommand()) return;
+
     try {
       await this.redis.del(`${prefix}:${key}`);
+      markRedisCommandSuccess();
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to reset rate limit', {
         error: error instanceof Error ? error.message : String(error),
         key
@@ -423,12 +468,21 @@ return {0, count}
     config: RateLimitConfig,
     prefix: string = 'rl'
   ): Promise<{ used: number; limit: number; resetTime: number }> {
+    if (!canAttemptRedisCommand()) {
+      return {
+        used: 0,
+        limit: config.points,
+        resetTime: Date.now() + config.duration * 1000
+      };
+    }
+
     try {
       const redisKey = `${prefix}:${key}`;
       const now = Date.now();
       const windowStart = now - config.duration * 1000;
 
       const count = await this.redis.zcount(redisKey, windowStart, now);
+      markRedisCommandSuccess();
 
       return {
         used: count,
@@ -436,6 +490,7 @@ return {0, count}
         resetTime: now + config.duration * 1000
       };
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to get rate limit status', {
         error: error instanceof Error ? error.message : String(error),
         key

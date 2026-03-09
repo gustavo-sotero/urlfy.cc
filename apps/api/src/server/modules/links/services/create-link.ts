@@ -16,6 +16,7 @@ import { validateUrlSafe } from './url-validator';
 
 /** PostgreSQL error code for unique constraint violation. */
 const PG_UNIQUE_VIOLATION = '23505';
+const MAX_INSERT_RETRIES = 5;
 
 /**
  * Returns true when `err` is a PostgreSQL unique constraint violation.
@@ -96,47 +97,55 @@ export async function createLink(
   // 5. Process expiration
   const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
 
-  // 6. Create link
   const now = new Date();
 
   let link: typeof links.$inferSelect | undefined;
 
-  try {
-    [link] = await db
-      .insert(links)
-      .values({
-        id: linkId,
-        userId,
-        originalUrl: input.url,
-        shortCode,
-        redirectType: input.redirectType || 302,
-        clicksCount: 0,
-        isActive: true,
-        isBanned: false,
-        maxClicks: input.maxClicks,
-        passwordHash,
-        expiresAt,
-        metaTitle: meta.metaTitle,
-        metaDescription: meta.metaDescription,
-        metaImage: meta.metaImage,
-        utmSource: input.utmSource,
-        utmMedium: input.utmMedium,
-        utmCampaign: input.utmCampaign,
-        tags,
-        notes,
-        createdByIpHash: ipHash,
-        createdAt: now,
-        updatedAt: now
-      })
-      .returning();
-  } catch (error) {
-    if (isUniqueConstraintViolation(error)) {
+  for (let attempt = 0; attempt < MAX_INSERT_RETRIES; attempt++) {
+    try {
+      [link] = await db
+        .insert(links)
+        .values({
+          id: linkId,
+          userId,
+          originalUrl: input.url,
+          shortCode,
+          redirectType: input.redirectType || 302,
+          clicksCount: 0,
+          isActive: true,
+          isBanned: false,
+          maxClicks: input.maxClicks,
+          passwordHash,
+          expiresAt,
+          metaTitle: meta.metaTitle,
+          metaDescription: meta.metaDescription,
+          metaImage: meta.metaImage,
+          utmSource: input.utmSource,
+          utmMedium: input.utmMedium,
+          utmCampaign: input.utmCampaign,
+          tags,
+          notes,
+          createdByIpHash: ipHash,
+          createdAt: now,
+          updatedAt: now
+        })
+        .returning();
+      break;
+    } catch (error) {
+      if (!isUniqueConstraintViolation(error)) {
+        throw error;
+      }
+
       if (input.customAlias) {
         throw createLinkAppError('ALIAS_UNAVAILABLE');
       }
-      throw createLinkAppError('SHORTCODE_GENERATION_FAILED');
+
+      if (attempt === MAX_INSERT_RETRIES - 1) {
+        throw createLinkAppError('SHORTCODE_GENERATION_FAILED');
+      }
+
+      shortCode = await generateUniqueCode();
     }
-    throw error;
   }
 
   if (!link) {

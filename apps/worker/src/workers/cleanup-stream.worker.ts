@@ -34,7 +34,7 @@ class CleanupWorker extends WorkerBase<CleanupJobStream> {
       gcIntervalMs: 300000, // 5 minutes
       gcMinIdleMs: 600000, // 10 minutes
       enableGC: true,
-      deadLetterStream: 'cleanup:dead',
+      deadLetterStream: STREAM_NAMES.cleanupDead,
       maxRetries: 2
     });
   }

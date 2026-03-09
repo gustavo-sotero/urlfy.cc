@@ -44,7 +44,7 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
       gcIntervalMs: 300000, // 5 minutes
       gcMinIdleMs: 600000, // 10 minutes
       enableGC: true,
-      deadLetterStream: 'deletion:dead',
+      deadLetterStream: STREAM_NAMES.deletionDead,
       maxRetries: 3
     });
   }
@@ -80,6 +80,19 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         return;
       }
 
+      if (request.status === 'completed') {
+        this.logger.info(
+          '[DeletionWorker] Deletion request already completed',
+          {
+            requestId
+          }
+        );
+        return;
+      }
+
+      const effectiveUserId =
+        request.userId ?? request.userIdSnapshot ?? userId;
+
       // 2. Check if deadline has passed
       const now = new Date();
       if (now < request.deadlineAt) {
@@ -108,7 +121,7 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
           await auditLogService.log({
             action: 'system' as const,
             entityType: 'user',
-            entityId: userId,
+            entityId: effectiveUserId,
             metadata: {
               email: userData.email,
               createdAt: userData.createdAt?.toISOString(),
@@ -116,16 +129,15 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
               reason: 'GDPR data snapshot before deletion',
               operation: 'user_data_snapshot'
             },
-            userId: userId,
+            userId: effectiveUserId,
             ipAddress: '127.0.0.1'
           });
         }
       }
 
       // 5. Mark deletion as completed BEFORE deleting the user row so that
-      //    (a) the status update can still reach the record (CASCADE would
-      //        delete it along with the user) and
-      //    (b) the completion audit log can still reference a live user FK.
+      //    (a) the status update can still reach the record and
+      //    (b) the completion audit log is emitted while the user row still exists.
       await db
         .update(dataDeletionRequest)
         .set({
@@ -134,36 +146,36 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         })
         .where(eq(dataDeletionRequest.id, requestId));
 
-      // 6. Completion audit log — must happen while the user row still exists
-      //    because audit_log.userId has ON DELETE CASCADE.
+      // 6. Completion audit log — emit while the user row still exists so the
+      //    audit entry retains the originating principal before the FK is nulled.
       await auditLogService.log({
         action: 'system' as const,
         entityType: 'user',
-        entityId: userId,
+        entityId: effectiveUserId,
         metadata: {
           requestId,
           deletedAt: new Date().toISOString(),
           reason: 'GDPR deletion request processed',
           operation: 'user_data_deleted'
         },
-        userId: userId,
+        userId: effectiveUserId,
         ipAddress: '127.0.0.1'
       });
 
       // 7. Delete user data (user row deleted last — cascades handle the rest)
-      await this.deleteUserData(userId);
+      await this.deleteUserData(effectiveUserId);
 
       const duration = Date.now() - startTime;
 
       recordMetric('deletion_request_completed', 1, {
-        userId,
+        userId: effectiveUserId,
         duration: String(duration)
       });
 
       this.logger.info('[DeletionWorker] Deletion completed', {
         messageId: id,
         requestId,
-        userId,
+        userId: effectiveUserId,
         duration
       });
     } catch (error) {

@@ -127,7 +127,21 @@ mock.module('@/server/lib/redis', () => ({
     del: async () => 1,
     send: async () => null
   },
-  getRedisClient: () => ({})
+  getRedisClient: () => ({}),
+  canAttemptRedisCommand: () => true,
+  markRedisCommandFailure: mock(() => {}),
+  markRedisCommandSuccess: mock(() => {}),
+  getRedisHealthSnapshot: mock(() => ({
+    isHealthy: true,
+    isConnected: true,
+    isDegraded: false,
+    consecutiveFailures: 0,
+    lastError: null,
+    lastConnectedAt: null,
+    lastFailureAt: null,
+    lastSuccessfulCommandAt: null,
+    degradedUntil: null
+  }))
 }));
 
 mock.module('@urlfy/telemetry', () => ({

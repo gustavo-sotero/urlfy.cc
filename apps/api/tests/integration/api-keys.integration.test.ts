@@ -149,6 +149,7 @@ const mockRedisClient = {
 mock.module('@/server/lib/redis', () => ({
   redis: mockRedisClient,
   getRedisClient: () => mockRedisClient,
+  shouldLogRedisFailure: () => true,
   CACHE_KEYS: {
     link: (c) => `link:${c}`,
     linkMeta: (c) => `link:meta:${c}`,

@@ -1,6 +1,12 @@
 // src/server/services/metrics.service.ts
 
-import { redis, redisHealth } from '@urlfy/cache';
+import {
+  canAttemptRedisCommand,
+  markRedisCommandFailure,
+  markRedisCommandSuccess,
+  redis,
+  shouldLogRedisFailure
+} from '@urlfy/cache';
 import { createLogger } from '@urlfy/telemetry';
 
 const logger = createLogger('metrics-service');
@@ -35,14 +41,17 @@ export const MetricsService = {
    * Time Complexity: O(1)
    */
   async trackRequest(): Promise<void> {
-    // Fast path: skip the Redis round-trip when we already know it's unreachable.
-    // This prevents per-request error noise during a Redis outage.
-    if (!redisHealth.isHealthy) return;
+    if (!canAttemptRedisCommand()) return;
+
     try {
       await redis.incr(REDIS_KEYS.REQUEST_COUNT);
+      markRedisCommandSuccess();
     } catch (error) {
+      markRedisCommandFailure(error);
       // Non-blocking: metrics should never break the request flow
-      logger.warn('Failed to track request metric', { error });
+      if (shouldLogRedisFailure()) {
+        logger.warn('Failed to track request metric', { error });
+      }
     }
   },
 
@@ -59,6 +68,10 @@ export const MetricsService = {
    * @returns The calculated RPS value, or null on error.
    */
   async calculateRPS(): Promise<number | null> {
+    if (!canAttemptRedisCommand()) {
+      return null;
+    }
+
     try {
       const now = Date.now();
 
@@ -84,12 +97,16 @@ export const MetricsService = {
 
       // Update last calculation timestamp
       await redis.set(REDIS_KEYS.LAST_CALC_TIME, now.toString());
+      markRedisCommandSuccess();
 
       logger.debug('RPS calculated', { count, elapsedSeconds, rps });
 
       return rps;
     } catch (error) {
-      logger.error('Failed to calculate RPS', { error });
+      markRedisCommandFailure(error);
+      if (shouldLogRedisFailure()) {
+        logger.error('Failed to calculate RPS', { error });
+      }
       return null;
     }
   }

@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BUN_VERSION: '1'
+  BUN_VERSION: '1.3.10'
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
 

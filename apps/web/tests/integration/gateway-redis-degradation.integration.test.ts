@@ -251,5 +251,16 @@ describe('Gateway Redis degradation', () => {
       // With mocked modules the total time should be well under 1s
       expect(Date.now() - start).toBeLessThan(1000);
     });
+
+    test('concurrent requests remain successful during degraded Redis state', async () => {
+      stubUpstreamSuccess();
+
+      const { POST } = await import('@/app/api/[[...slugs]]/route');
+      const responses = await Promise.all(
+        Array.from({ length: 20 }, () => POST(makeLinksRequest() as never))
+      );
+
+      expect(responses.every((response) => response.status === 201)).toBe(true);
+    });
   });
 });

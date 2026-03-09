@@ -41,7 +41,7 @@
     "@opentelemetry/instrumentation-pg": "^0.56.0",
     "@opentelemetry/instrumentation-redis-4": "^0.48.0",
     "@opentelemetry/sdk-node": "^0.211.0",
-    "better-auth": "^1.5.4",
+    "better-auth": "1.5.4",
     "elysia": "^1.4.22",
     "isomorphic-dompurify": "^2.35.0",
     "jose": "^6.0.0",

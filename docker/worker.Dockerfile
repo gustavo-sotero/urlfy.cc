@@ -3,7 +3,8 @@
 # Build context: repo root (docker build -f docker/worker.Dockerfile .)
 # ═══════════════════════════════════════════════════════════════════
 # hadolint ignore=DL3006
-FROM oven/bun:slim AS dependencies
+ARG BUN_VERSION=1.3.10
+FROM oven/bun:${BUN_VERSION}-slim AS dependencies
 
 LABEL org.opencontainers.image.source="https://github.com/urlfy/urlfy.cc"
 LABEL org.opencontainers.image.description="urlfy.cc — background workers"
@@ -21,7 +22,7 @@ COPY packages/data/package.json ./packages/data/
 RUN bun install --frozen-lockfile
 
 # ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:slim AS runner
+FROM oven/bun:${BUN_VERSION}-slim AS runner
 WORKDIR /app
 
 COPY --from=dependencies /app/node_modules ./node_modules
@@ -45,6 +46,6 @@ ENV NODE_ENV=production
 
 WORKDIR /app/apps/worker
 
-HEALTHCHECK --interval=60s --timeout=10s --start-period=20s --retries=3 CMD ["bun", "run", "src/healthcheck.ts"]
+HEALTHCHECK --interval=60s --timeout=10s --start-period=20s --retries=3 CMD ["bun", "run", "healthcheck"]
 
 CMD ["bun", "run", "src/index.ts"]

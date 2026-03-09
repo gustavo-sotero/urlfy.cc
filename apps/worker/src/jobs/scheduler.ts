@@ -14,6 +14,26 @@ import { MetricsService } from '@/server/services/metrics.service';
 
 const logger = createLogger('scheduler');
 
+async function getDueDeletionRequests() {
+  try {
+    return await db
+      .select()
+      .from(dataDeletionRequest)
+      .where(
+        and(
+          eq(dataDeletionRequest.status, 'pending' as const),
+          lt(dataDeletionRequest.deadlineAt, new Date())
+        )
+      );
+  } catch (error) {
+    logger.error('[Scheduler] Data deletion query failed', {
+      stage: 'db_query',
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
+}
+
 /**
  * Scheduler for scheduled jobs (cron)
  * - Daily analytics aggregation
@@ -123,16 +143,7 @@ export const dataDeletionJob = new CronJob(
     try {
       logger.info('[Scheduler] Running data deletion check');
 
-      // Find pending requests with deadline reached
-      const pendingRequests = await db
-        .select()
-        .from(dataDeletionRequest)
-        .where(
-          and(
-            eq(dataDeletionRequest.status, 'pending' as const),
-            lt(dataDeletionRequest.deadlineAt, new Date())
-          )
-        );
+      const pendingRequests = await getDueDeletionRequests();
 
       if (pendingRequests.length === 0) {
         logger.debug('[Scheduler] No pending deletion requests due');
@@ -146,16 +157,20 @@ export const dataDeletionJob = new CronJob(
       // Enqueue each request for processing
       for (const request of pendingRequests) {
         try {
-          // Schedule deletion job via Redis Streams
-          const jobId = await scheduleDeletion(request.id, request.userId);
+          const jobId = await scheduleDeletion(
+            request.id,
+            request.userId ?? request.userIdSnapshot
+          );
 
           logger.info('[Scheduler] Data deletion job scheduled', {
+            stage: 'redis_enqueue',
             jobId,
             requestId: request.id,
-            userId: request.userId
+            userId: request.userId ?? request.userIdSnapshot
           });
         } catch (error) {
           logger.error('[Scheduler] Error enqueueing deletion job', {
+            stage: 'redis_enqueue',
             error: error instanceof Error ? error.message : String(error),
             requestId: request.id
           });
@@ -167,6 +182,7 @@ export const dataDeletionJob = new CronJob(
       );
     } catch (error) {
       logger.error('[Scheduler] Error in data deletion job', {
+        stage: 'job',
         error: error instanceof Error ? error.message : String(error)
       });
     }

@@ -2,7 +2,7 @@
   "name": "urlfy-monorepo",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "bun@1.3.9",
+  "packageManager": "bun@1.3.10",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -54,7 +54,7 @@
     "db:seed:analytics": "bun run packages/data/src/scripts/seed-analytics.ts",
     "db:validate": "bun run scripts/validate-migrations.ts",
     "db:validate:strict": "bun run scripts/validate-migrations.ts --strict",
-    "auth:generate": "bunx @better-auth/cli generate --config ./apps/api/src/lib/auth.cli.ts --output ./packages/data/src/schema/initial.auth.ts --yes"
+    "auth:generate": "bunx @better-auth/cli@1.5.4 generate --config ./apps/api/src/lib/auth.cli.ts --output ./packages/data/src/schema/initial.auth.ts --yes"
   },
   "dependencies": {
     "@elysiajs/bearer": "^1.4.3",
@@ -111,7 +111,7 @@
     "@react-email/components": "^1.0.8",
     "@react-email/render": "^2.0.4",
     "@tanstack/react-query": "^5.90.21",
-    "better-auth": "^1.5.4",
+    "better-auth": "1.5.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

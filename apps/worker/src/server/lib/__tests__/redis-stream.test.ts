@@ -1,291 +1,102 @@
-/**
- * Unit tests for Redis Streams Wrapper
- */
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
-import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
-
-// Mock telemetry
-const mockLogger = {
-  info: mock(() => {}),
-  error: mock(() => {}),
-  debug: mock(() => {}),
-  warn: mock(() => {})
+const redisStreamMock = {
+  add: mock(async () => '1678900000000-0'),
+  createGroup: mock(async () => {}),
+  readGroup: mock(async () => []),
+  ack: mock(
+    async (_stream: string, _group: string, ids: string[]) => ids.length
+  ),
+  getLength: mock(async () => 10),
+  info: mock(async () => ({ length: 10 })),
+  groups: mock(async () => [{ name: 'test-group' }]),
+  autoClaim: mock(async () => ({ messages: [], cursor: '0-0' })),
+  getPendingCount: mock(async () => 0)
 };
 
-const noOpCounter = { add: mock(() => {}) };
-mock.module('@urlfy/telemetry', () => ({
-  createLogger: () => mockLogger,
-  configureLogging: async () => {},
-  initTelemetry: async () => {},
-  shutdownTelemetry: async () => {},
-  circuitBreakerTrips: noOpCounter,
-  cacheHits: noOpCounter,
-  cacheMisses: noOpCounter,
-  cacheHitRate: noOpCounter,
-  redisFallbacks: noOpCounter,
-  redirectTotal: noOpCounter,
-  redirectErrors: noOpCounter,
-  redirectLatency: { record: mock(() => {}) },
-  stampedeLocksAcquired: noOpCounter,
-  stampedeLocksWaited: noOpCounter,
-  recordCacheHit: mock(() => {}),
-  recordCacheMiss: mock(() => {}),
-  recordRedirectMetrics: mock(() => {})
+const STREAM_NAMES_MOCK = {
+  analyticsClicks: 'analytics:clicks',
+  analyticsDead: 'analytics:dead',
+  aggregation: 'aggregation',
+  aggregationDead: 'aggregation:dead',
+  cleanup: 'cleanup',
+  cleanupDead: 'cleanup:dead',
+  deletion: 'deletion',
+  deletionDead: 'deletion:dead',
+  notifications: 'notifications'
+} as const;
+
+const CONSUMER_GROUPS_MOCK = {
+  analytics: 'analytics-group',
+  analyticsDead: 'analytics-dead-group',
+  aggregation: 'aggregation-group',
+  cleanup: 'cleanup-group',
+  deletion: 'deletion-group',
+  notifications: 'notifications-group'
+} as const;
+
+mock.module('@urlfy/cache', () => ({
+  RedisStream: redisStreamMock,
+  STREAM_NAMES: STREAM_NAMES_MOCK,
+  CONSUMER_GROUPS: CONSUMER_GROUPS_MOCK
 }));
 
-// Mock Redis client
-const mockRedis = {
-  send: mock(async (command: string, args: string[]) => {
-    switch (command) {
-      case 'XADD':
-        return '1678900000000-0';
-      case 'XGROUP':
-        return 'OK';
-      case 'XREADGROUP':
-        // Handle empty case for test
-        if (args.some((a) => a.includes('empty'))) {
-          return [];
-        }
-        // Return format: [[stream, [[id, [key, val, ...]]]]]
-        return [
-          [
-            args[args.indexOf('STREAMS') + 1], // Stream name
-            [['1678900000000-0', ['test', 'data', 'key1', 'value1']]]
-          ]
-        ];
-      case 'XACK':
-        return 1;
-      case 'XLEN':
-        return 10;
-      case 'XINFO':
-        if (args[0] === 'STREAM') {
-          return ['length', 10, 'radix-tree-keys', 1];
-        } else if (args[0] === 'GROUPS') {
-          return [['name', 'test-group', 'consumers', 1, 'pending', 0]];
-        }
-        return [];
-      case 'XAUTOCLAIM':
-        // Format: [cursor, [messages]]
-        return ['0-0', [['1678900000000-0', ['test', 'claimed']]]];
-      case 'DEL':
-        return 1;
-      default:
-        return 'OK';
-    }
-  }),
-  getRedisClient: () => mockRedis
-};
-
-// Mock only the Redis client layer so the real RedisStream/STREAM_NAMES implementation
-// is used while its internal Redis calls go to mockRedis.
-mock.module('@urlfy/cache/client', () => ({
-  redis: mockRedis,
-  getRedisClient: () => mockRedis,
-  checkRedisHealth: async () => ({ ok: true }),
-  closeRedis: async () => {},
-  // Required by @urlfy/cache index re-export (Phase 2 client health state)
-  redisHealth: { isHealthy: true, consecutiveFailures: 0, lastError: null }
-}));
-
-// Import RedisStream directly from @urlfy/cache/stream (not the local shim).
-// This bypasses any mock.module('@/server/lib/redis-stream', ...) registered by
-// other test files (e.g. deletion-workflow.test.ts) that have run before this
-// file in the same bun test process, preventing module-mock contamination.
 const { CONSUMER_GROUPS, RedisStream, STREAM_NAMES } = await import(
-  '@urlfy/cache/stream'
+  '@/server/lib/redis-stream'
 );
 
-// Test stream names
-const TEST_STREAM = 'test:stream';
-const TEST_GROUP = 'test-group';
-const TEST_CONSUMER = 'test-consumer';
-
-describe('RedisStream', () => {
-  beforeAll(async () => {
-    // Clean up test streams before running tests
-    try {
-      await mockRedis.send('DEL', [TEST_STREAM]);
-    } catch {
-      // Ignore if stream doesn't exist
-    }
-  });
-
-  afterAll(async () => {
-    // Clean up after tests
-    try {
-      await mockRedis.send('DEL', [TEST_STREAM]);
-    } catch {
-      // Ignore errors
-    }
-  });
-
-  describe('add()', () => {
-    it('should add a message to a stream', async () => {
-      const messageId = await RedisStream.add(TEST_STREAM, {
-        key1: 'value1',
-        key2: 'value2'
-      });
-
-      expect(messageId).toBeDefined();
-      expect(typeof messageId).toBe('string');
-      expect(messageId).toContain('-');
-    });
-
-    it('should handle various data types', async () => {
-      const messageId = await RedisStream.add(TEST_STREAM, {
-        string: 'test',
-        number: 123,
-        boolean: true,
-        null: null,
-        object: { nested: 'value' }
-      });
-
-      expect(messageId).toBeDefined();
+describe('worker redis-stream shim', () => {
+  beforeEach(() => {
+    Object.values(redisStreamMock).forEach((method) => {
+      method.mockClear();
     });
   });
 
-  describe('createGroup()', () => {
-    it('should create a consumer group', async () => {
-      try {
-        await RedisStream.createGroup(TEST_STREAM, TEST_GROUP, '$', true);
-      } catch (e) {
-        console.log('Error in createGroup:', e);
-        throw e;
-      }
+  it('re-exports the canonical stream names including dead-letter streams', () => {
+    expect(STREAM_NAMES).toEqual(STREAM_NAMES_MOCK);
+  });
+
+  it('re-exports the canonical consumer groups', () => {
+    expect(CONSUMER_GROUPS).toEqual(CONSUMER_GROUPS_MOCK);
+  });
+
+  it('forwards RedisStream.add calls through the shim', async () => {
+    const messageId = await RedisStream.add('deletion', {
+      requestId: 'req-123',
+      userId: 'user-123'
     });
 
-    it('should not throw on duplicate group creation', async () => {
-      await RedisStream.createGroup(TEST_STREAM, TEST_GROUP, '$', true);
-
-      // Second call should not throw
-      await RedisStream.createGroup(TEST_STREAM, TEST_GROUP, '$', true);
+    expect(messageId).toBe('1678900000000-0');
+    expect(redisStreamMock.add).toHaveBeenCalledWith('deletion', {
+      requestId: 'req-123',
+      userId: 'user-123'
     });
   });
 
-  describe('readGroup()', () => {
-    it('should read messages from a stream', async () => {
-      // Add test message
-      await RedisStream.add(TEST_STREAM, { test: 'data' });
+  it('exposes the full RedisStream method surface used by workers', async () => {
+    await RedisStream.createGroup('deletion', 'deletion-group');
+    await RedisStream.readGroup('deletion-group', 'consumer-1', ['deletion']);
+    await RedisStream.ack('deletion', 'deletion-group', ['1-0']);
+    await RedisStream.getLength('deletion');
+    await RedisStream.info('deletion');
+    await RedisStream.groups('deletion');
+    await RedisStream.autoClaim(
+      'deletion',
+      'deletion-group',
+      'consumer-1',
+      60000,
+      '0-0',
+      10
+    );
+    await RedisStream.getPendingCount('deletion', 'deletion-group');
 
-      // Read messages
-      const results = await RedisStream.readGroup(
-        TEST_GROUP,
-        TEST_CONSUMER,
-        [TEST_STREAM],
-        10,
-        null // Non-blocking
-      );
-
-      expect(Array.isArray(results)).toBe(true);
-      if (results.length > 0) {
-        expect(results[0].stream).toBe(TEST_STREAM);
-        expect(Array.isArray(results[0].messages)).toBe(true);
-      }
-    });
-
-    it('should return empty array when no messages', async () => {
-      const results = await RedisStream.readGroup(
-        TEST_GROUP,
-        `${TEST_CONSUMER}-empty`,
-        [TEST_STREAM],
-        1,
-        null
-      );
-      expect(Array.isArray(results)).toBe(true);
-      expect(results.length).toBe(0);
-    });
-  });
-
-  describe('ack()', () => {
-    it('should acknowledge messages', async () => {
-      // Add and read a message
-      await RedisStream.add(TEST_STREAM, { test: 'ack' });
-      const results = await RedisStream.readGroup(
-        TEST_GROUP,
-        `${TEST_CONSUMER}-ack`,
-        [TEST_STREAM],
-        1,
-        null
-      );
-
-      if (results.length > 0 && results[0].messages.length > 0) {
-        const messageId = results[0].messages[0].id;
-
-        const ackCount = await RedisStream.ack(TEST_STREAM, TEST_GROUP, [
-          messageId
-        ]);
-
-        expect(ackCount).toBeGreaterThanOrEqual(0);
-      }
-    });
-
-    it('should return 0 for empty id array', async () => {
-      const ackCount = await RedisStream.ack(TEST_STREAM, TEST_GROUP, []);
-      expect(ackCount).toBe(0);
-    });
-  });
-
-  describe('getLength()', () => {
-    it('should get stream length', async () => {
-      const length = await RedisStream.getLength(TEST_STREAM);
-
-      expect(typeof length).toBe('number');
-      expect(length).toBeGreaterThanOrEqual(0);
-    });
-  });
-
-  describe('info()', () => {
-    it('should get stream information', async () => {
-      const info = await RedisStream.info(TEST_STREAM);
-
-      expect(typeof info).toBe('object');
-      expect(info).not.toBeNull();
-    });
-  });
-
-  describe('groups()', () => {
-    it('should get consumer groups', async () => {
-      const groups = await RedisStream.groups(TEST_STREAM);
-
-      expect(Array.isArray(groups)).toBe(true);
-    });
-  });
-
-  describe('autoClaim()', () => {
-    it('should claim messages from dead consumers', async () => {
-      const result = await RedisStream.autoClaim(
-        TEST_STREAM,
-        TEST_GROUP,
-        `${TEST_CONSUMER}-gc`,
-        60000, // 1 minute
-        '0-0',
-        10
-      );
-
-      expect(result).toHaveProperty('messages');
-      expect(result).toHaveProperty('cursor');
-      expect(Array.isArray(result.messages)).toBe(true);
-      expect(typeof result.cursor).toBe('string');
-    });
-  });
-
-  describe('STREAM_NAMES', () => {
-    it('should have defined stream names', () => {
-      expect(STREAM_NAMES.analyticsClicks).toBe('analytics:clicks');
-      expect(STREAM_NAMES.analyticsDead).toBe('analytics:dead');
-      expect(STREAM_NAMES.aggregation).toBe('aggregation');
-      expect(STREAM_NAMES.cleanup).toBe('cleanup');
-      expect(STREAM_NAMES.deletion).toBe('deletion');
-    });
-  });
-
-  describe('CONSUMER_GROUPS', () => {
-    it('should have defined consumer groups', () => {
-      expect(CONSUMER_GROUPS.analytics).toBe('analytics-group');
-      expect(CONSUMER_GROUPS.analyticsDead).toBe('analytics-dead-group');
-      expect(CONSUMER_GROUPS.aggregation).toBe('aggregation-group');
-      expect(CONSUMER_GROUPS.cleanup).toBe('cleanup-group');
-      expect(CONSUMER_GROUPS.deletion).toBe('deletion-group');
-    });
+    expect(redisStreamMock.createGroup).toHaveBeenCalledTimes(1);
+    expect(redisStreamMock.readGroup).toHaveBeenCalledTimes(1);
+    expect(redisStreamMock.ack).toHaveBeenCalledTimes(1);
+    expect(redisStreamMock.getLength).toHaveBeenCalledTimes(1);
+    expect(redisStreamMock.info).toHaveBeenCalledTimes(1);
+    expect(redisStreamMock.groups).toHaveBeenCalledTimes(1);
+    expect(redisStreamMock.autoClaim).toHaveBeenCalledTimes(1);
+    expect(redisStreamMock.getPendingCount).toHaveBeenCalledTimes(1);
   });
 });

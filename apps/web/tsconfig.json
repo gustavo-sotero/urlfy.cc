@@ -1,7 +1,6 @@
 {
   "extends": "@urlfy/config-ts/nextjs",
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }

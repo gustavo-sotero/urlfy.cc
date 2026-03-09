@@ -22,6 +22,7 @@
  */
 
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { inspect } from 'node:util';
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────
 const REQUEST_ID = 'del-req-001';
@@ -30,6 +31,7 @@ const USER_ID = 'user-del-001';
 const makePendingRequest = (deadlineOffset = -1000) => ({
   id: REQUEST_ID,
   userId: USER_ID,
+  userIdSnapshot: USER_ID,
   status: 'pending' as const,
   deadlineAt: new Date(Date.now() + deadlineOffset),
   dataExported: 'no' as const,
@@ -92,7 +94,7 @@ const dbMock = {
       // Detect which table is being deleted from the serialized condition.
       // drizzle-orm is mocked to return plain objects, so JSON.stringify works.
       // Check more-specific table names before shorter prefixes.
-      const sig = JSON.stringify(condition);
+      const sig = inspect(condition, { depth: 4 });
       if (sig.includes('analyticsEvents')) opOrder.push('delete:analytics');
       else if (sig.includes('links')) opOrder.push('delete:links');
       else if (sig.includes('twoFactor')) opOrder.push('delete:twoFactor');
@@ -136,6 +138,7 @@ mock.module('@urlfy/data/schema', () => ({
     id: { __col: 'dataDeletionRequest.id' },
     status: { __col: 'dataDeletionRequest.status' },
     userId: { __col: 'dataDeletionRequest.userId' },
+    userIdSnapshot: { __col: 'dataDeletionRequest.userIdSnapshot' },
     deadlineAt: { __col: 'dataDeletionRequest.deadlineAt' }
   },
   links: { id: { __col: 'links.id' }, userId: { __col: 'links.userId' } }
@@ -175,8 +178,11 @@ mock.module('@urlfy/cache', () => ({
     analyticsClicks: 'analytics:clicks',
     analyticsDead: 'analytics:dead',
     aggregation: 'aggregation',
+    aggregationDead: 'aggregation:dead',
     cleanup: 'cleanup',
+    cleanupDead: 'cleanup:dead',
     deletion: 'deletion',
+    deletionDead: 'deletion:dead',
     notifications: 'notifications'
   },
   RedisStream: {
@@ -216,8 +222,11 @@ mock.module('@/server/lib/redis-stream', () => ({
     analyticsClicks: 'analytics:clicks',
     analyticsDead: 'analytics:dead',
     aggregation: 'aggregation',
+    aggregationDead: 'aggregation:dead',
     cleanup: 'cleanup',
+    cleanupDead: 'cleanup:dead',
     deletion: 'deletion',
+    deletionDead: 'deletion:dead',
     notifications: 'notifications'
   },
   RedisStream: {
@@ -336,7 +345,7 @@ describe('DeletionWorker.processMessage', () => {
     dbMock.update.mockImplementation(() => makeUpdater());
     dbMock.delete.mockImplementation(() => ({
       where: mock(async (condition: unknown) => {
-        const sig = JSON.stringify(condition);
+        const sig = inspect(condition, { depth: 4 });
         if (sig.includes('analyticsEvents')) opOrder.push('delete:analytics');
         else if (sig.includes('links')) opOrder.push('delete:links');
         else if (sig.includes('twoFactor')) opOrder.push('delete:twoFactor');
@@ -425,6 +434,29 @@ describe('DeletionWorker.processMessage', () => {
     // No status updates or deletes should have happened
     expect(opOrder.filter((op) => op.startsWith('delete'))).toHaveLength(0);
     expect(opOrder.filter((op) => op.startsWith('status'))).toHaveLength(0);
+  });
+
+  test('exits silently when deletion request is already completed', async () => {
+    state.dbSelectResult = [
+      {
+        ...makePendingRequest(),
+        status: 'completed',
+        completedAt: new Date()
+      }
+    ];
+
+    const worker = makeWorker();
+
+    await expect(
+      worker.runProcess('msg-004b', {
+        requestId: REQUEST_ID,
+        userId: USER_ID
+      })
+    ).resolves.toBeUndefined();
+
+    expect(opOrder.filter((op) => op.startsWith('delete'))).toHaveLength(0);
+    expect(opOrder.filter((op) => op.startsWith('status'))).toHaveLength(0);
+    expect(opOrder.filter((op) => op.startsWith('audit'))).toHaveLength(0);
   });
 
   // ── 5. Deadline not reached: throws (re-queue semantics) ─────────────────

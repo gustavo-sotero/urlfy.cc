@@ -1,7 +1,6 @@
 {
   "extends": "@urlfy/config-ts/server",
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },

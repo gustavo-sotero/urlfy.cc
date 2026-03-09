@@ -2,7 +2,15 @@
  * Unit tests for Redis Streams Wrapper
  */
 
-import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock
+} from 'bun:test';
 
 // Mock telemetry
 const mockLogger = {
@@ -81,6 +89,9 @@ const mockRedis = {
   }),
   getRedisClient: () => mockRedis
 };
+const canAttemptRedisCommandMock = mock(() => true);
+const markRedisCommandFailureMock = mock(() => {});
+const markRedisCommandSuccessMock = mock(() => {});
 
 // Mock redis module — both the legacy shim path and the canonical package client
 // so that @urlfy/cache/stream internals see the mock Redis too.
@@ -91,6 +102,20 @@ mock.module('@/server/lib/redis', () => ({
 mock.module('@urlfy/cache/client', () => ({
   redis: mockRedis,
   getRedisClient: () => mockRedis,
+  canAttemptRedisCommand: canAttemptRedisCommandMock,
+  getRedisHealthSnapshot: () => ({
+    isHealthy: true,
+    isConnected: true,
+    isDegraded: false,
+    consecutiveFailures: 0,
+    lastError: null,
+    lastConnectedAt: null,
+    lastFailureAt: null,
+    lastSuccessfulCommandAt: null,
+    degradedUntil: null
+  }),
+  markRedisCommandFailure: markRedisCommandFailureMock,
+  markRedisCommandSuccess: markRedisCommandSuccessMock,
   checkRedisHealth: async () => ({ ok: true }),
   closeRedis: async () => {},
   // Required by @urlfy/cache index re-export (Phase 2 client health state)
@@ -129,6 +154,12 @@ describe('RedisStream', () => {
     }
   });
 
+  beforeEach(() => {
+    canAttemptRedisCommandMock.mockImplementation(() => true);
+    markRedisCommandFailureMock.mockClear();
+    markRedisCommandSuccessMock.mockClear();
+  });
+
   describe('add()', () => {
     it('should add a message to a stream', async () => {
       const messageId = await RedisStream.add(TEST_STREAM, {
@@ -151,6 +182,14 @@ describe('RedisStream', () => {
       });
 
       expect(messageId).toBeDefined();
+    });
+
+    it('should fail fast when Redis is in degraded mode', async () => {
+      canAttemptRedisCommandMock.mockImplementation(() => false);
+
+      await expect(
+        RedisStream.add(TEST_STREAM, { key1: 'value1' })
+      ).rejects.toThrow('Redis unavailable for XADD');
     });
   });
 
@@ -284,8 +323,11 @@ describe('RedisStream', () => {
       expect(STREAM_NAMES.analyticsClicks).toBe('analytics:clicks');
       expect(STREAM_NAMES.analyticsDead).toBe('analytics:dead');
       expect(STREAM_NAMES.aggregation).toBe('aggregation');
+      expect(STREAM_NAMES.aggregationDead).toBe('aggregation:dead');
       expect(STREAM_NAMES.cleanup).toBe('cleanup');
+      expect(STREAM_NAMES.cleanupDead).toBe('cleanup:dead');
       expect(STREAM_NAMES.deletion).toBe('deletion');
+      expect(STREAM_NAMES.deletionDead).toBe('deletion:dead');
     });
   });
 

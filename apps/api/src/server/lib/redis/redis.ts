@@ -3,8 +3,13 @@
  * Maintains backward-compat for existing `@/server/lib/redis` imports.
  */
 export {
+  canAttemptRedisCommand,
   checkRedisHealth,
   closeRedis,
   getRedisClient,
-  redis
+  getRedisHealthSnapshot,
+  markRedisCommandFailure,
+  markRedisCommandSuccess,
+  redis,
+  shouldLogRedisFailure
 } from '@urlfy/cache';

@@ -74,8 +74,8 @@ export const auditController = new Elysia({ prefix: '/admin/audit' })
           aVal = a.action;
           bVal = b.action;
         } else if (sortBy === 'userId') {
-          aVal = a.userId;
-          bVal = b.userId;
+          aVal = a.userId ?? '';
+          bVal = b.userId ?? '';
         } else {
           return 0;
         }

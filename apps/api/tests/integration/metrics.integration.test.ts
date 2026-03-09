@@ -63,7 +63,8 @@ const mockRedis = {
 
 mock.module('@/server/lib/redis', () => ({
   redis: mockRedis,
-  getRedisClient: () => mockRedis
+  getRedisClient: () => mockRedis,
+  shouldLogRedisFailure: () => true
 }));
 
 // Import after mocking

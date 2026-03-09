@@ -3,7 +3,13 @@
  * Detects and prevents abuse patterns
  */
 
-import { getRedisClient, redisHealth } from '@urlfy/cache';
+import {
+  canAttemptRedisCommand,
+  getRedisClient,
+  markRedisCommandFailure,
+  markRedisCommandSuccess,
+  shouldLogRedisFailure
+} from '@urlfy/cache';
 import { createLogger } from '@urlfy/telemetry';
 import { maskIpForLog } from '@/server/lib/ip';
 
@@ -32,6 +38,8 @@ export class AntiAbuseService {
    * Record an abuse event
    */
   async recordEvent(type: keyof typeof THRESHOLDS, key: string): Promise<void> {
+    if (!canAttemptRedisCommand()) return;
+
     try {
       const redisKey = `abuse:${type}:${key}`;
       const threshold = THRESHOLDS[type];
@@ -39,7 +47,9 @@ export class AntiAbuseService {
       // Increment counter with expiration
       await this.redis.incr(redisKey);
       await this.redis.expire(redisKey, threshold.window);
+      markRedisCommandSuccess();
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to record abuse event', {
         error: error instanceof Error ? error.message : String(error),
         type,
@@ -55,16 +65,20 @@ export class AntiAbuseService {
     type: keyof typeof THRESHOLDS,
     key: string
   ): Promise<boolean> {
+    if (!canAttemptRedisCommand()) return false;
+
     try {
       const redisKey = `abuse:${type}:${key}`;
       const threshold = THRESHOLDS[type];
       const count = await this.redis.get(redisKey);
+      markRedisCommandSuccess();
 
       if (!count) return false;
 
       const current = parseInt(count, 10);
       return current >= threshold.count;
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to check anomaly', {
         error: error instanceof Error ? error.message : String(error),
         type,
@@ -81,11 +95,15 @@ export class AntiAbuseService {
     type: keyof typeof THRESHOLDS,
     key: string
   ): Promise<number> {
+    if (!canAttemptRedisCommand()) return 0;
+
     try {
       const redisKey = `abuse:${type}:${key}`;
       const count = await this.redis.get(redisKey);
+      markRedisCommandSuccess();
       return count ? parseInt(count, 10) : 0;
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to get event count', {
         error: error instanceof Error ? error.message : String(error),
         type,
@@ -99,6 +117,8 @@ export class AntiAbuseService {
    * Block an IP temporarily
    */
   async blockIP(ip: string, reason: string, ttl: number = 900): Promise<void> {
+    if (!canAttemptRedisCommand()) return;
+
     try {
       const key = `blocked:ip:${ip}`;
       await this.redis.setex(
@@ -106,8 +126,10 @@ export class AntiAbuseService {
         ttl,
         JSON.stringify({ reason, blockedAt: Date.now() })
       );
+      markRedisCommandSuccess();
       logger.warn('IP blocked', { ip: maskIpForLog(ip), reason, ttl });
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to block IP', {
         error: error instanceof Error ? error.message : String(error),
         ip: maskIpForLog(ip)
@@ -119,19 +141,21 @@ export class AntiAbuseService {
    * Check if IP is blocked
    */
   async isIPBlocked(ip: string): Promise<boolean> {
-    // Fast path: skip Redis round-trip when client is known unhealthy.
-    // Fail-open: allow the request through rather than block all traffic
-    // during a Redis outage.
-    if (!redisHealth.isHealthy) return false;
+    if (!canAttemptRedisCommand()) return false;
+
     try {
       const key = `blocked:ip:${ip}`;
       const blocked = (await this.redis.send('EXISTS', [key])) as number;
+      markRedisCommandSuccess();
       return blocked === 1;
     } catch (error) {
-      logger.warn('Failed to check IP block status', {
-        error: error instanceof Error ? error.message : String(error),
-        ip: maskIpForLog(ip)
-      });
+      markRedisCommandFailure(error);
+      if (shouldLogRedisFailure()) {
+        logger.warn('Failed to check IP block status', {
+          error: error instanceof Error ? error.message : String(error),
+          ip: maskIpForLog(ip)
+        });
+      }
       return false;
     }
   }
@@ -140,11 +164,15 @@ export class AntiAbuseService {
    * Unblock an IP
    */
   async unblockIP(ip: string): Promise<void> {
+    if (!canAttemptRedisCommand()) return;
+
     try {
       const key = `blocked:ip:${ip}`;
       await this.redis.del(key);
+      markRedisCommandSuccess();
       logger.info('IP unblocked', { ip: maskIpForLog(ip) });
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to unblock IP', {
         error: error instanceof Error ? error.message : String(error),
         ip
@@ -156,14 +184,18 @@ export class AntiAbuseService {
    * Block a user account
    */
   async blockUser(userId: string, reason: string): Promise<void> {
+    if (!canAttemptRedisCommand()) return;
+
     try {
       const key = `blocked:user:${userId}`;
       await this.redis.set(
         key,
         JSON.stringify({ reason, blockedAt: Date.now() })
       );
+      markRedisCommandSuccess();
       logger.warn('User blocked', { userId, reason });
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to block user', {
         error: error instanceof Error ? error.message : String(error),
         userId
@@ -175,11 +207,15 @@ export class AntiAbuseService {
    * Check if user is blocked
    */
   async isUserBlocked(userId: string): Promise<boolean> {
+    if (!canAttemptRedisCommand()) return false;
+
     try {
       const key = `blocked:user:${userId}`;
       const blocked = (await this.redis.send('EXISTS', [key])) as number;
+      markRedisCommandSuccess();
       return blocked === 1;
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to check user block status', {
         error: error instanceof Error ? error.message : String(error),
         userId
@@ -192,11 +228,15 @@ export class AntiAbuseService {
    * Unblock a user
    */
   async unblockUser(userId: string): Promise<void> {
+    if (!canAttemptRedisCommand()) return;
+
     try {
       const key = `blocked:user:${userId}`;
       await this.redis.del(key);
+      markRedisCommandSuccess();
       logger.info('User unblocked', { userId });
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to unblock user', {
         error: error instanceof Error ? error.message : String(error),
         userId
@@ -277,9 +317,14 @@ export class AntiAbuseService {
     endpoint: string,
     _windowSize: number = 60
   ): Promise<{ attackDetected: boolean; count: number }> {
+    if (!canAttemptRedisCommand()) {
+      return { attackDetected: false, count: 0 };
+    }
+
     try {
       const redisKey = `attack:${endpoint}`;
       const count = await this.redis.get(redisKey);
+      markRedisCommandSuccess();
       const currentCount = count ? parseInt(count, 10) : 0;
 
       // Threshold for distributed attack: 1000 requests per minute from unique IPs
@@ -298,6 +343,7 @@ export class AntiAbuseService {
         count: currentCount
       };
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to check distributed attack', {
         error: error instanceof Error ? error.message : String(error),
         endpoint
@@ -310,6 +356,8 @@ export class AntiAbuseService {
    * Reset abuse counters for an IP
    */
   async resetIPCounters(ip: string): Promise<void> {
+    if (!canAttemptRedisCommand()) return;
+
     try {
       const types = Object.keys(THRESHOLDS) as Array<keyof typeof THRESHOLDS>;
 
@@ -318,8 +366,10 @@ export class AntiAbuseService {
         await this.redis.del(redisKey);
       }
 
+      markRedisCommandSuccess();
       logger.info('IP counters reset', { ip: maskIpForLog(ip) });
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error('Failed to reset IP counters', {
         error: error instanceof Error ? error.message : String(error),
         ip: maskIpForLog(ip)

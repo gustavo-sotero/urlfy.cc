@@ -27,9 +27,9 @@ export const auditLog = pgTable(
   'audit_log',
   {
     id: text('id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => user.id, {
+      onDelete: 'set null'
+    }),
 
     // Action details
     action: varchar('action', { length: 50 }).notNull(),
@@ -62,9 +62,10 @@ export const dataDeletionRequest = pgTable(
   'data_deletion_request',
   {
     id: text('id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => user.id, {
+      onDelete: 'set null'
+    }),
+    userIdSnapshot: text('user_id_snapshot').notNull(),
 
     // Request status
     status: varchar('status', { length: 20 }).notNull().default('pending'), // 'pending' | 'processing' | 'completed' | 'failed'
@@ -83,6 +84,7 @@ export const dataDeletionRequest = pgTable(
   },
   (table) => [
     index('dataDeletionRequest_userId_idx').on(table.userId),
+    index('dataDeletionRequest_userIdSnapshot_idx').on(table.userIdSnapshot),
     index('dataDeletionRequest_status_idx').on(table.status),
     index('dataDeletionRequest_deadlineAt_idx').on(table.deadlineAt)
   ]

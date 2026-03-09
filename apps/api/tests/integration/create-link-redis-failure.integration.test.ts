@@ -175,6 +175,21 @@ mock.module('@urlfy/data', () => ({
 mock.module('@/server/lib/redis', () => ({
   redis: redisMock,
   getRedisClient: () => redisMock,
+  canAttemptRedisCommand: () => !failures.redisAll,
+  shouldLogRedisFailure: () => true,
+  markRedisCommandFailure: mock(() => {}),
+  markRedisCommandSuccess: mock(() => {}),
+  getRedisHealthSnapshot: mock(() => ({
+    isHealthy: !failures.redisAll,
+    isConnected: !failures.redisAll,
+    isDegraded: failures.redisAll,
+    consecutiveFailures: failures.redisAll ? 1 : 0,
+    lastError: failures.redisAll ? 'Redis connection refused' : null,
+    lastConnectedAt: null,
+    lastFailureAt: null,
+    lastSuccessfulCommandAt: null,
+    degradedUntil: failures.redisAll ? Date.now() + 5_000 : null
+  })),
   CACHE_KEYS: {
     link: (code: string) => `link:${code}`,
     linkMeta: (code: string) => `link:meta:${code}`,
@@ -296,14 +311,21 @@ describe('POST /api/links — Redis failure modes', () => {
   });
 
   // ── Test 4 ───────────────────────────────────────────────────────────────
-  test('returns 500 with JSON error envelope (not raw crash) when auto-shortcode races to a unique violation', async () => {
-    // generateUniqueCode() finds no conflicts via select (returns [])
-    // but the INSERT races and a concurrent writer claims the same shortcode.
-    failures.dbInsertUnique = true;
+  test('retries generated shortcode collisions instead of surfacing a predictable 500', async () => {
+    let callCount = 0;
+    dbMock.insert.mockImplementation(() => ({
+      values: mock(() => ({
+        returning: mock(async () => {
+          callCount++;
+          if (callCount === 1) throw pgUniqueError;
+          return [defaultLinkRow];
+        })
+      }))
+    }));
 
     const response = await client.post<{
-      success: false;
-      error: { code: string };
+      success: boolean;
+      data: { shortCode: string };
     }>(
       '/api/links',
       { url: 'https://example.com/shortcode-race' },
@@ -312,16 +334,18 @@ describe('POST /api/links — Redis failure modes', () => {
       }
     );
 
-    // SHORTCODE_GENERATION_FAILED → ErrorCode.INTERNAL_ERROR → 500
-    // Status 500 (not an unhandled 503 or empty crash) proves proper domain mapping
-    expect(response.status).toBe(500);
-    // Body should be structured error envelope if JSON-parsed, or at minimum not crash
-    const body4 = response.body as Record<string, unknown>;
-    if (body4 && typeof body4 === 'object' && 'success' in body4) {
-      expect(body4.success).toBe(false);
-      const err = body4.error as Record<string, unknown> | undefined;
-      expect(err?.code).toBeDefined();
-    }
+    expect(response.status).toBe(201);
+    expect((response.body as { success: boolean }).success).toBe(true);
+    expect(callCount).toBe(2);
+
+    dbMock.insert.mockImplementation(() => ({
+      values: mock(() => ({
+        returning: mock(async () => {
+          if (failures.dbInsertUnique) throw pgUniqueError;
+          return [defaultLinkRow];
+        })
+      }))
+    }));
   });
 
   // ── Test 5 ───────────────────────────────────────────────────────────────
@@ -377,6 +401,97 @@ describe('POST /api/links — Redis failure modes', () => {
     }
 
     // Restore default mock behaviour for subsequent tests
+    dbMock.insert.mockImplementation(() => ({
+      values: mock(() => ({
+        returning: mock(async () => {
+          if (failures.dbInsertUnique) throw pgUniqueError;
+          return [defaultLinkRow];
+        })
+      }))
+    }));
+  });
+
+  // ── Test 6 ───────────────────────────────────────────────────────────────
+  test('concurrent requests with same idempotency key do not duplicate inserts', async () => {
+    const locks = new Map<string, string>();
+    const records = new Map<string, string>();
+    const idemKey = `ik-rf-concurrent-${Date.now()}`;
+
+    redisMock.get.mockImplementation(async (key: string) => {
+      if (failures.redisAll) throw new Error('Redis connection refused');
+      return records.get(key) ?? locks.get(key) ?? null;
+    });
+
+    redisMock.send.mockImplementation(
+      async (command: string, args: string[]) => {
+        if (failures.redisAll) throw new Error('Redis connection refused');
+
+        if (command === 'SET') {
+          const [key, value, nx] = args;
+          if (nx === 'NX') {
+            if (locks.has(key)) return null;
+            locks.set(key, value ?? 'pending');
+            return 'OK';
+          }
+        }
+
+        return 'OK';
+      }
+    );
+
+    redisMock.set.mockImplementation(async (key: string, value: string) => {
+      if (failures.redisAll) throw new Error('Redis connection refused');
+      records.set(key, value);
+      return 'OK';
+    });
+
+    redisMock.del.mockImplementation(async (key: string) => {
+      locks.delete(key);
+      return 1;
+    });
+
+    let insertCount = 0;
+    dbMock.insert.mockImplementation(() => ({
+      values: mock(() => ({
+        returning: mock(async () => {
+          insertCount++;
+          return [defaultLinkRow];
+        })
+      }))
+    }));
+
+    const payload = { url: 'https://example.com/concurrent-idempotency' };
+    const headers = {
+      ...AUTH_HEADERS,
+      'idempotency-key': idemKey
+    };
+
+    const [r1, r2] = await Promise.all([
+      client.post<{ success: boolean }>('/api/links', payload, { headers }),
+      client.post<{ success: boolean }>('/api/links', payload, { headers })
+    ]);
+
+    expect([r1.status, r2.status].every((status) => status < 500)).toBe(true);
+    expect(insertCount).toBe(1);
+
+    redisMock.get.mockImplementation(async (_key: string) => {
+      if (failures.redisAll) throw new Error('Redis connection refused');
+      return null;
+    });
+    redisMock.send.mockImplementation(async (..._args: unknown[]) => {
+      if (failures.redisAll) throw new Error('Redis connection refused');
+      return 'OK';
+    });
+    redisMock.set.mockImplementation(
+      async (_key: string, _value: string, _mode?: string, _ttl?: number) => {
+        if (failures.redisAll) throw new Error('Redis connection refused');
+        return 'OK';
+      }
+    );
+    redisMock.del.mockImplementation(async (..._args: unknown[]) => {
+      if (failures.redisAll) throw new Error('Redis connection refused');
+      return 1;
+    });
     dbMock.insert.mockImplementation(() => ({
       values: mock(() => ({
         returning: mock(async () => {

@@ -57,16 +57,15 @@ const envSchema = z.object({
   // Admin (temporary)
   ADMIN_API_KEY: z.string().optional(),
 
-  // Better-Auth
-  BETTER_AUTH_SECRET: z.string().min(32),
+  // Better-Auth vars are optional in worker (kept for shared env compatibility)
+  BETTER_AUTH_SECRET: z.string().min(32).optional(),
   BETTER_AUTH_URL: z.url().optional(),
 
-  // JWT (for password-protected links)
+  // JWT is not required by worker runtime
   JWT_SECRET: z.string().min(32).optional(),
 
   // Internal API security
   INTERNAL_API_SECRET: z.string().min(16),
-  INTERNAL_API_URL: z.string().default('http://127.0.0.1:3000'),
 
   // Internal Analytics API security (separate from BETTER_AUTH_SECRET)
   INTERNAL_ANALYTICS_SECRET: z.string().min(16).optional(),
@@ -91,7 +90,7 @@ const envSchema = z.object({
   TRUSTED_ORIGINS: z.string().optional(),
 
   // Proxy Configuration
-  TRUST_PROXY: z.string().optional()
+  TRUST_PROXY: z.string().default('false')
 });
 
 type Env = z.infer<typeof envSchema>;
@@ -103,7 +102,6 @@ let env: Env | null = null;
 // Placeholders prevent validation errors while still allowing the build to succeed.
 const buildTimePlaceholders: Partial<Record<keyof Env, string>> = {
   DATABASE_URL: 'postgres://placeholder:placeholder@localhost:5432/placeholder',
-  BETTER_AUTH_SECRET: 'build-time-placeholder-secret-32chars-xx',
   INTERNAL_API_SECRET: 'build-time-placeholder-internal-secret',
   INTERNAL_ANALYTICS_SECRET: 'build-time-placeholder-analytics-secret'
 };
@@ -156,13 +154,6 @@ export function validateEnv(): Env {
       ) {
         throw new Error(
           'INTERNAL_API_SECRET must be at least 32 characters in production'
-        );
-      }
-
-      // Require JWT_SECRET for password-protected links
-      if (!env.JWT_SECRET) {
-        throw new Error(
-          'JWT_SECRET is required in production for password-protected links'
         );
       }
 

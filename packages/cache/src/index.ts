@@ -13,11 +13,16 @@ export {
 } from './circuit-breaker';
 // Redis client
 export {
+  canAttemptRedisCommand,
   checkRedisHealth,
   closeRedis,
   getRedisClient,
+  getRedisHealthSnapshot,
+  markRedisCommandFailure,
+  markRedisCommandSuccess,
   redis,
-  redisHealth
+  redisHealth,
+  shouldLogRedisFailure
 } from './client';
 // Distributed lock (advanced, with backoff)
 export { DistributedLock } from './distributed-lock';

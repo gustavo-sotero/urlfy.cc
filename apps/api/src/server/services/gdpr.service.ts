@@ -159,6 +159,7 @@ export class GDPRService {
         .values({
           id: requestId,
           userId,
+          userIdSnapshot: userId,
           status: 'pending',
           requestedAt: now,
           deadlineAt: deadline,
@@ -174,7 +175,7 @@ export class GDPRService {
 
       return {
         requestId: request.id,
-        userId: request.userId,
+        userId: request.userId ?? request.userIdSnapshot,
         status: request.status as DeletionStatus,
         requestedAt: request.requestedAt,
         deadline: request.deadlineAt,
@@ -281,7 +282,7 @@ export class GDPRService {
 
       return {
         requestId: request.id,
-        userId: request.userId,
+        userId: request.userId ?? request.userIdSnapshot,
         status: request.status as DeletionStatus,
         requestedAt: request.requestedAt,
         deadline: request.deadlineAt,
@@ -341,7 +342,7 @@ export class GDPRService {
 
     return {
       requestId: request.id,
-      userId: request.userId,
+      userId: request.userId ?? request.userIdSnapshot,
       status: request.status as DeletionStatus,
       requestedAt: request.requestedAt,
       deadline: request.deadlineAt,

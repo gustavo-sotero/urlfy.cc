@@ -15,6 +15,7 @@ const noopLogger = {
 mock.module('@/server/lib/redis', () => ({
   getRedisClient: () => mockRedis,
   redis: mockRedis,
+  shouldLogRedisFailure: () => true,
   CACHE_KEYS: {},
   CACHE_TTL: {}
 }));

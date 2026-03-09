@@ -4,9 +4,20 @@
  */
 
 import { createLogger } from '@urlfy/telemetry';
-import { redis } from './client';
+import {
+  canAttemptRedisCommand,
+  markRedisCommandFailure,
+  markRedisCommandSuccess,
+  redis
+} from './client';
 
 const logger = createLogger('redis-stream');
+
+function ensureRedisAvailable(command: string): void {
+  if (!canAttemptRedisCommand()) {
+    throw new Error(`Redis unavailable for ${command}`);
+  }
+}
 
 /**
  * Parsed stream message structure
@@ -44,6 +55,8 @@ export namespace RedisStream {
     payload: Record<string, unknown>,
     id = '*'
   ): Promise<string> {
+    ensureRedisAvailable('XADD');
+
     try {
       // Flatten payload to array format: [key1, value1, key2, value2, ...]
       const args: string[] = [stream, id];
@@ -61,9 +74,11 @@ export namespace RedisStream {
       }
 
       const messageId = await redis.send('XADD', args);
+      markRedisCommandSuccess();
 
       return String(messageId);
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error(`[RedisStream] Failed to add message to stream ${stream}`, {
         error: error instanceof Error ? error.message : String(error),
         stream,
@@ -86,6 +101,8 @@ export namespace RedisStream {
     startId = '$',
     mkstream = true
   ): Promise<void> {
+    ensureRedisAvailable('XGROUP');
+
     try {
       const args = ['CREATE', stream, group, startId];
       if (mkstream) {
@@ -93,6 +110,7 @@ export namespace RedisStream {
       }
 
       await redis.send('XGROUP', args);
+      markRedisCommandSuccess();
       logger.info(`[RedisStream] Consumer group created`, {
         stream,
         group,
@@ -102,11 +120,14 @@ export namespace RedisStream {
       const err = error as Error & { message?: string };
       // Ignore BUSYGROUP error (group already exists)
       if (err.message?.includes('BUSYGROUP')) {
+        markRedisCommandSuccess();
         logger.debug(
           `[RedisStream] Consumer group already exists: ${group} on ${stream}`
         );
         return;
       }
+
+      markRedisCommandFailure(error);
       throw error;
     }
   }
@@ -127,6 +148,8 @@ export namespace RedisStream {
     count = 10,
     block: number | null = 5000
   ): Promise<StreamReadResult<T>[]> {
+    ensureRedisAvailable('XREADGROUP');
+
     try {
       const args: string[] = ['GROUP', group, consumer, 'COUNT', String(count)];
 
@@ -141,6 +164,7 @@ export namespace RedisStream {
       }
 
       const response = await redis.send('XREADGROUP', args);
+      markRedisCommandSuccess();
 
       if (!response) {
         return [];
@@ -149,6 +173,7 @@ export namespace RedisStream {
       // Parse RESP3 response: [[streamName, [[id, [key1, val1, key2, val2, ...]]]], ...]
       return parseStreamReadResponse<T>(response);
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error(`[RedisStream] Failed to read from stream group`, {
         error: error instanceof Error ? error.message : String(error),
         group,
@@ -173,10 +198,14 @@ export namespace RedisStream {
   ): Promise<number> {
     if (ids.length === 0) return 0;
 
+    ensureRedisAvailable('XACK');
+
     try {
       const result = await redis.send('XACK', [stream, group, ...ids]);
+      markRedisCommandSuccess();
       return Number(result);
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error(`[RedisStream] Failed to ack messages`, {
         error: error instanceof Error ? error.message : String(error),
         stream,
@@ -206,6 +235,8 @@ export namespace RedisStream {
     start = '0-0',
     count = 10
   ): Promise<{ messages: StreamMessage<T>[]; cursor: string }> {
+    ensureRedisAvailable('XAUTOCLAIM');
+
     try {
       const args = [stream, group, consumer, String(minIdleTime), start];
       if (count) {
@@ -213,6 +244,7 @@ export namespace RedisStream {
       }
 
       const response = await redis.send('XAUTOCLAIM', args);
+      markRedisCommandSuccess();
 
       // Response format: [cursor, [[id, [key1, val1, ...]], ...], [deletedIds]]
       if (!Array.isArray(response) || response.length < 2) {
@@ -236,6 +268,7 @@ export namespace RedisStream {
 
       return { messages, cursor };
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error(`[RedisStream] Failed to autoclaim messages`, {
         error: error instanceof Error ? error.message : String(error),
         stream,
@@ -252,10 +285,14 @@ export namespace RedisStream {
    * @returns Stream info object
    */
   export async function info(stream: string): Promise<Record<string, unknown>> {
+    ensureRedisAvailable('XINFO STREAM');
+
     try {
       const response = await redis.send('XINFO', ['STREAM', stream]);
+      markRedisCommandSuccess();
       return parseInfoResponse(response);
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error(`[RedisStream] Failed to get stream info`, {
         error: error instanceof Error ? error.message : String(error),
         stream
@@ -272,12 +309,16 @@ export namespace RedisStream {
   export async function groups(
     stream: string
   ): Promise<Record<string, unknown>[]> {
+    ensureRedisAvailable('XINFO GROUPS');
+
     try {
       const response = await redis.send('XINFO', ['GROUPS', stream]);
+      markRedisCommandSuccess();
       if (!Array.isArray(response)) return [];
 
       return response.map((group) => parseInfoResponse(group));
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error(`[RedisStream] Failed to get group info`, {
         error: error instanceof Error ? error.message : String(error),
         stream
@@ -292,10 +333,14 @@ export namespace RedisStream {
    * @returns Number of messages in stream
    */
   export async function getLength(stream: string): Promise<number> {
+    ensureRedisAvailable('XLEN');
+
     try {
       const result = await redis.send('XLEN', [stream]);
+      markRedisCommandSuccess();
       return Number(result);
     } catch (error) {
+      markRedisCommandFailure(error);
       logger.error(`[RedisStream] Failed to get stream length`, {
         error: error instanceof Error ? error.message : String(error),
         stream
@@ -314,17 +359,31 @@ export namespace RedisStream {
     stream: string,
     group: string
   ): Promise<number> {
+    if (!canAttemptRedisCommand()) {
+      return 0;
+    }
+
     try {
       // XPENDING stream group
       // Returns: [count, firstId, lastId, [[consumer, count], ...]]
       const response = await redis.send('XPENDING', [stream, group]);
+      markRedisCommandSuccess();
 
       if (Array.isArray(response) && response.length > 0) {
         return Number(response[0]);
       }
       return 0;
-    } catch (_error) {
-      // Ignore if group doesn't exist yet
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      // Ignore when the stream/group does not exist yet.
+      if (message.includes('NOGROUP') || message.includes('no such key')) {
+        return 0;
+      }
+
+      markRedisCommandFailure(error);
+
+      // Ignore here so callers can treat "no pending" uniformly.
       return 0;
     }
   }
@@ -421,8 +480,11 @@ export const STREAM_NAMES = {
   analyticsClicks: 'analytics:clicks',
   analyticsDead: 'analytics:dead',
   aggregation: 'aggregation',
+  aggregationDead: 'aggregation:dead',
   cleanup: 'cleanup',
+  cleanupDead: 'cleanup:dead',
   deletion: 'deletion',
+  deletionDead: 'deletion:dead',
   notifications: 'notifications'
 } as const;
 

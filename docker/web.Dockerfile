@@ -3,7 +3,8 @@
 # Build context: repo root (docker build -f docker/web.Dockerfile .)
 # ═══════════════════════════════════════════════════════════════════
 # hadolint ignore=DL3006
-FROM oven/bun:slim AS dependencies
+ARG BUN_VERSION=1.3.10
+FROM oven/bun:${BUN_VERSION}-slim AS dependencies
 
 LABEL org.opencontainers.image.source="https://github.com/urlfy/urlfy.cc"
 LABEL org.opencontainers.image.description="urlfy.cc — web frontend"
@@ -25,7 +26,7 @@ COPY packages/auth-shared/package.json ./packages/auth-shared/
 RUN bun install --frozen-lockfile
 
 # ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:slim AS builder
+FROM oven/bun:${BUN_VERSION}-slim AS builder
 WORKDIR /app
 
 COPY --from=dependencies /app/node_modules ./node_modules
@@ -44,7 +45,7 @@ WORKDIR /app/apps/web
 RUN bun run build
 
 # ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:slim AS runner
+FROM oven/bun:${BUN_VERSION}-slim AS runner
 WORKDIR /app
 
 RUN apt-get update && \
@@ -67,6 +68,6 @@ ENV PORT=3000
 ENV NODE_ENV=production
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD curl -fsS http://localhost:3000/api/health || exit 1
+  CMD curl -fsS http://localhost:3000/api/health/ready || exit 1
 
 CMD ["bun", "server.js"]

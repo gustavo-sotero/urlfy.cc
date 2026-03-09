@@ -79,7 +79,7 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
       gcIntervalMs: 300000, // 5 minutes
       gcMinIdleMs: 600000, // 10 minutes
       enableGC: true,
-      deadLetterStream: 'aggregation:dead',
+      deadLetterStream: STREAM_NAMES.aggregationDead,
       maxRetries: 3
     });
   }

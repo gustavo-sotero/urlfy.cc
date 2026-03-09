@@ -138,7 +138,7 @@ services:
       - dokploy-network
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'curl', '-fsS', 'http://localhost:3000/api/health']
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:3000/api/health/ready']
       interval: 30s
       timeout: 5s
       start_period: 15s
@@ -174,6 +174,12 @@ services:
       - TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
     volumes:
       - geoip_data:/app/geoip:ro
+    healthcheck:
+      test: ['CMD', 'bun', 'run', 'healthcheck']
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
     networks:
       - dokploy-network
     restart: unless-stopped

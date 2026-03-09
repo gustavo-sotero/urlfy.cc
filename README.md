@@ -139,7 +139,7 @@ The redirect engine is optimized for sub-30ms P50 latency:
 
 ### Prerequisites
 
-- [Bun](https://bun.sh) v1.3.9+
+- [Bun](https://bun.sh) v1.3.10+
 - [Docker](https://www.docker.com/) & Docker Compose
 
 ### 1. Clone the repository

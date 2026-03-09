@@ -1,6 +1,12 @@
 // src/server/lib/idempotency.ts
 
-import { redis } from './redis';
+import {
+  canAttemptRedisCommand,
+  markRedisCommandFailure,
+  markRedisCommandSuccess,
+  redis,
+  shouldLogRedisFailure
+} from './redis';
 import { createLogger } from './telemetry';
 
 const logger = createLogger('idempotency');
@@ -88,6 +94,10 @@ export async function checkIdempotency(
   route: string,
   currentPayloadHash?: string
 ): Promise<IdempotencyCheckResult> {
+  if (!canAttemptRedisCommand()) {
+    return { status: 'miss' };
+  }
+
   try {
     const raw = await redis.get(buildScopedKey(key, principal, route));
 
@@ -95,6 +105,9 @@ export async function checkIdempotency(
       const pendingPayloadHash = await redis.get(
         buildLockKey(key, principal, route)
       );
+
+      markRedisCommandSuccess();
+
       if (!pendingPayloadHash) {
         return { status: 'miss' };
       }
@@ -109,6 +122,8 @@ export async function checkIdempotency(
 
       return { status: 'in_progress' };
     }
+
+    markRedisCommandSuccess();
 
     // Parse stored value — handle both legacy plain-string and JSON formats
     let record: IdempotencyRecord;
@@ -147,9 +162,12 @@ export async function checkIdempotency(
 
     return { status: 'hit', resourceId: record.resourceId };
   } catch (error) {
-    logger.warn('Redis unavailable for idempotency check', {
-      error: error instanceof Error ? error.message : String(error)
-    });
+    markRedisCommandFailure(error);
+    if (shouldLogRedisFailure()) {
+      logger.warn('Redis unavailable for idempotency check', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
     return { status: 'miss' };
   }
 }
@@ -164,6 +182,10 @@ export async function acquireIdempotencyLock(
   route: string,
   payloadHash?: string
 ): Promise<boolean> {
+  if (!canAttemptRedisCommand()) {
+    return true;
+  }
+
   try {
     const response = await redis.send('SET', [
       buildLockKey(key, principal, route),
@@ -172,11 +194,15 @@ export async function acquireIdempotencyLock(
       'EX',
       String(LOCK_TTL_SECONDS)
     ]);
+    markRedisCommandSuccess();
     return response === 'OK';
   } catch (error) {
-    logger.warn('Failed to acquire idempotency lock', {
-      error: error instanceof Error ? error.message : String(error)
-    });
+    markRedisCommandFailure(error);
+    if (shouldLogRedisFailure()) {
+      logger.warn('Failed to acquire idempotency lock', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
     return true;
   }
 }
@@ -186,12 +212,20 @@ export async function releaseIdempotencyLock(
   principal: string,
   route: string
 ): Promise<void> {
+  if (!canAttemptRedisCommand()) {
+    return;
+  }
+
   try {
     await redis.del(buildLockKey(key, principal, route));
+    markRedisCommandSuccess();
   } catch (error) {
-    logger.warn('Failed to release idempotency lock', {
-      error: error instanceof Error ? error.message : String(error)
-    });
+    markRedisCommandFailure(error);
+    if (shouldLogRedisFailure()) {
+      logger.warn('Failed to release idempotency lock', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
 }
 
@@ -211,6 +245,10 @@ export async function setIdempotency(
   route: string,
   payloadHash?: string
 ): Promise<void> {
+  if (!canAttemptRedisCommand()) {
+    return;
+  }
+
   try {
     const record: IdempotencyRecord = {
       resourceId,
@@ -222,10 +260,14 @@ export async function setIdempotency(
       'EX',
       TTL
     );
+    markRedisCommandSuccess();
   } catch (error) {
-    logger.warn('Failed to set idempotency key', {
-      error: error instanceof Error ? error.message : String(error)
-    });
+    markRedisCommandFailure(error);
+    if (shouldLogRedisFailure()) {
+      logger.warn('Failed to set idempotency key', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
 }
 
