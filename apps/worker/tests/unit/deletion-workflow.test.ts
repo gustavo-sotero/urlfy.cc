@@ -473,6 +473,7 @@ describe('DeletionWorker.processMessage', () => {
 
     // Must NOT have started any actual data deletion
     expect(opOrder.filter((op) => op.startsWith('delete'))).toHaveLength(0);
+    expect(opOrder.filter((op) => op.startsWith('status'))).toHaveLength(0);
   });
 
   // ── 6. DB failure during delete → request marked failed ──────────────────

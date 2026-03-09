@@ -31,6 +31,12 @@ interface DeletionJobStream {
   userId: string;
 }
 
+const DELETION_DEFERRED_ERROR = 'Deletion deadline not reached yet';
+
+function isDeferredDeletionError(error: unknown): boolean {
+  return error instanceof Error && error.message === DELETION_DEFERRED_ERROR;
+}
+
 /**
  * Deletion Worker implementation
  */
@@ -100,7 +106,7 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
           requestId,
           deadlineAt: request.deadlineAt.toISOString()
         });
-        throw new Error('Deletion deadline not reached yet'); // Will be re-queued
+        throw new Error(DELETION_DEFERRED_ERROR); // Will be re-queued
       }
 
       // 3. Mark as processing
@@ -114,7 +120,7 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         const [userData] = await db
           .select()
           .from(user)
-          .where(eq(user.id, userId))
+          .where(eq(user.id, effectiveUserId))
           .limit(1);
 
         if (userData) {
@@ -179,6 +185,14 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         duration
       });
     } catch (error) {
+      if (isDeferredDeletionError(error)) {
+        this.logger.info('[DeletionWorker] Deferring deletion retry', {
+          messageId: id,
+          requestId: payload.requestId
+        });
+        throw error;
+      }
+
       this.logger.error('[DeletionWorker] Failed to process deletion', {
         messageId: id,
         error: error instanceof Error ? error.message : String(error)

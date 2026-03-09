@@ -40,6 +40,10 @@ class TestWorker extends WorkerBase<{ test: string }> {
     return 0;
   }
 
+  protected override getRetryBackoffMs(): number {
+    return 0;
+  }
+
   protected async processMessage(
     id: string,
     payload: { test: string }
@@ -213,16 +217,45 @@ describe('WorkerBase', () => {
       // Verify we are processing the correct message
       expect(worker.processedMessages[0].payload).toEqual({ test: 'fail' });
 
-      // Should have moved to DLQ and ACKed the original message to remove from pending
+      // First failure should be re-queued on the original stream with retry metadata
       expect(mockRedisStream.add).toHaveBeenCalledWith(
-        TEST_CONFIG.deadLetterStream,
-        expect.any(Object)
+        TEST_CONFIG.stream,
+        expect.objectContaining({ test: 'fail', retryCount: 1 })
       );
 
       expect(mockRedisStream.ack).toHaveBeenCalledWith(
         TEST_CONFIG.stream,
         TEST_CONFIG.group,
         ['2-0']
+      );
+    });
+
+    it('should move a message to DLQ after retries are exhausted', async () => {
+      mockRedisStream.readGroup.mockImplementationOnce(async () => [
+        {
+          stream: TEST_CONFIG.stream,
+          messages: [
+            {
+              id: '3-0',
+              data: { test: 'fail', retryCount: TEST_CONFIG.maxRetries }
+            }
+          ]
+        }
+      ]);
+
+      const runPromise = worker.run();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await worker.stop();
+      await runPromise;
+
+      expect(mockRedisStream.add).toHaveBeenCalledWith(
+        TEST_CONFIG.deadLetterStream,
+        expect.objectContaining({ originalId: '3-0', retryCount: 3 })
+      );
+      expect(mockRedisStream.ack).toHaveBeenCalledWith(
+        TEST_CONFIG.stream,
+        TEST_CONFIG.group,
+        ['3-0']
       );
     });
   });

@@ -45,6 +45,7 @@ export interface WorkerConfig {
  */
 export abstract class WorkerBase<T = Record<string, string>> {
   private static readonly DEFAULT_INITIALIZATION_RETRY_MS = 2000;
+  private static readonly RETRY_BACKOFF_MS = [1000, 5000, 30000] as const;
   protected readonly config: Required<WorkerConfig>;
   protected readonly logger: Logger;
   protected running = false;
@@ -81,6 +82,15 @@ export abstract class WorkerBase<T = Record<string, string>> {
 
   protected getInitializationRetryMs(): number {
     return WorkerBase.DEFAULT_INITIALIZATION_RETRY_MS;
+  }
+
+  protected getRetryBackoffMs(retryCount: number): number {
+    const index = Math.max(
+      0,
+      Math.min(retryCount - 1, WorkerBase.RETRY_BACKOFF_MS.length - 1)
+    );
+
+    return WorkerBase.RETRY_BACKOFF_MS[index] ?? 0;
   }
 
   /**
@@ -190,17 +200,17 @@ export abstract class WorkerBase<T = Record<string, string>> {
     const { processedIds, failedMessages } =
       await this.processMessages(messages);
 
-    // Move failed messages to DLQ
+    // Retry failed messages before falling back to the dead-letter stream.
     for (const message of failedMessages) {
-      if (this.config.deadLetterStream) {
-        await this.moveToDLQ(message).catch((dlqError) => {
-          this.logger.error('[WorkerBase] Failed to move message to DLQ', {
-            id: message.id,
-            error:
-              dlqError instanceof Error ? dlqError.message : String(dlqError)
-          });
+      await this.handleFailedMessage(message).catch((retryError) => {
+        this.logger.error('[WorkerBase] Failed to handle failed message', {
+          id: message.id,
+          error:
+            retryError instanceof Error
+              ? retryError.message
+              : String(retryError)
         });
-      }
+      });
     }
 
     // Acknowledge successfully processed messages
@@ -255,6 +265,91 @@ export abstract class WorkerBase<T = Record<string, string>> {
     }
 
     return { processedIds, failedMessages };
+  }
+
+  private getRetryCount(message: StreamMessage<T>): number {
+    const payload = message.data as Record<string, unknown>;
+    const rawRetryCount = payload.retryCount;
+
+    if (typeof rawRetryCount === 'number' && Number.isFinite(rawRetryCount)) {
+      return Math.max(0, Math.trunc(rawRetryCount));
+    }
+
+    if (typeof rawRetryCount === 'string') {
+      const parsed = Number.parseInt(rawRetryCount, 10);
+      if (Number.isFinite(parsed)) {
+        return Math.max(0, parsed);
+      }
+    }
+
+    return 0;
+  }
+
+  private buildRetryPayload(
+    message: StreamMessage<T>,
+    retryCount: number
+  ): Record<string, unknown> {
+    const payload = { ...(message.data as Record<string, unknown>) };
+
+    return {
+      ...payload,
+      retryCount,
+      originalId:
+        typeof payload.originalId === 'string'
+          ? payload.originalId
+          : message.id,
+      firstFailedAt:
+        typeof payload.firstFailedAt === 'string'
+          ? payload.firstFailedAt
+          : new Date().toISOString()
+    };
+  }
+
+  private async acknowledgeMessage(messageId: string): Promise<void> {
+    await RedisStream.ack(this.config.stream, this.config.group, [messageId]);
+  }
+
+  private async handleFailedMessage(message: StreamMessage<T>): Promise<void> {
+    const retryCount = this.getRetryCount(message);
+
+    if (retryCount < this.config.maxRetries) {
+      await this.requeueMessage(message, retryCount + 1);
+      return;
+    }
+
+    if (this.config.deadLetterStream) {
+      await this.moveToDLQ(message, retryCount);
+      return;
+    }
+
+    await this.acknowledgeMessage(message.id);
+    this.logger.error('[WorkerBase] Dropping message after retries exhausted', {
+      id: message.id,
+      retries: retryCount
+    });
+  }
+
+  private async requeueMessage(
+    message: StreamMessage<T>,
+    retryCount: number
+  ): Promise<void> {
+    const backoffMs = this.getRetryBackoffMs(retryCount);
+
+    if (backoffMs > 0) {
+      await Bun.sleep(backoffMs);
+    }
+
+    await RedisStream.add(
+      this.config.stream,
+      this.buildRetryPayload(message, retryCount)
+    );
+    await this.acknowledgeMessage(message.id);
+
+    this.logger.warn('[WorkerBase] Message re-queued for retry', {
+      id: message.id,
+      retryCount,
+      backoffMs
+    });
   }
 
   /**
@@ -323,13 +418,17 @@ export abstract class WorkerBase<T = Record<string, string>> {
   /**
    * Move failed message to dead letter queue
    */
-  private async moveToDLQ(message: StreamMessage<T>): Promise<void> {
+  private async moveToDLQ(
+    message: StreamMessage<T>,
+    retryCount: number
+  ): Promise<void> {
     if (!this.config.deadLetterStream) return;
 
     try {
       const dlqPayload = {
         originalStream: this.config.stream,
         originalId: message.id,
+        retryCount,
         failedAt: new Date().toISOString(),
         data: JSON.stringify(message.data)
       };
@@ -337,9 +436,7 @@ export abstract class WorkerBase<T = Record<string, string>> {
       await RedisStream.add(this.config.deadLetterStream, dlqPayload);
 
       // Acknowledge the original message to remove from PEL
-      await RedisStream.ack(this.config.stream, this.config.group, [
-        message.id
-      ]);
+      await this.acknowledgeMessage(message.id);
 
       this.logger.info('[WorkerBase] Message moved to DLQ', {
         id: message.id,
