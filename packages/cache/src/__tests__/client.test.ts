@@ -11,6 +11,7 @@ mock.module('@urlfy/telemetry', () => ({
 
 import {
   canAttemptRedisCommand,
+  checkRedisHealth,
   getRedisHealthSnapshot,
   markRedisCommandFailure,
   markRedisCommandSuccess,
@@ -93,5 +94,43 @@ describe('redis client health state', () => {
     expect(snapshot.degradedUntil).toBeNull();
     expect(snapshot.lastSuccessfulCommandAt).not.toBeNull();
     expect(shouldLogRedisFailure(200)).toBe(true);
+  });
+
+  it('retries transient ping failures before reporting redis unhealthy', async () => {
+    const globalScope = globalThis as {
+      __REDIS_CLIENT__?: {
+        send: (command: string, args: string[]) => Promise<string>;
+      };
+    };
+    const previousOverride = globalScope.__REDIS_CLIENT__;
+    let attempts = 0;
+
+    globalScope.__REDIS_CLIENT__ = {
+      send: async (command: string, args: string[]) => {
+        attempts++;
+
+        expect(command).toBe('PING');
+        expect(args).toEqual([]);
+
+        if (attempts === 1) {
+          throw new Error('Connection not ready');
+        }
+
+        return 'PONG';
+      }
+    };
+
+    try {
+      const health = await checkRedisHealth();
+
+      expect(health.status).toBe('ok');
+      expect(attempts).toBe(2);
+      expect(redisHealth.isHealthy).toBe(true);
+      expect(redisHealth.isConnected).toBe(true);
+      expect(redisHealth.consecutiveFailures).toBe(0);
+      expect(redisHealth.lastError).toBeNull();
+    } finally {
+      globalScope.__REDIS_CLIENT__ = previousOverride;
+    }
   });
 });

@@ -18,16 +18,16 @@
     "@urlfy/data": "workspace:*",
     "@urlfy/telemetry": "workspace:*",
     "@maxmind/geoip2-node": "^6.3.4",
-    "ua-parser-js": "^2.0.8",
+    "ua-parser-js": "^2.0.9",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@urlfy/config-ts": "workspace:*",
-    "@biomejs/biome": "2.2.0",
-    "@types/bun": "^1.3.6",
-    "@types/node": "^25.0.10",
+    "@biomejs/biome": "2.4.6",
+    "@types/bun": "^1.3.10",
+    "@types/node": "^25.4.0",
     "@types/ua-parser-js": "^0.7.39",
-    "bun-types": "^1.3.7",
+    "bun-types": "^1.3.10",
     "typescript": "^5.9.3"
   }
 }

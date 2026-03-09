@@ -6,6 +6,7 @@ const logger = createLogger('redis');
 const REDIS_DEGRADED_BASE_MS = 5_000;
 const REDIS_DEGRADED_MAX_MS = 30_000;
 const REDIS_FAILURE_LOG_INTERVAL_MS = 10_000;
+const REDIS_HEALTHCHECK_RETRY_DELAYS_MS = [0, 100, 250, 500];
 
 // Singleton do cliente Redis
 let redisInstance: RedisClient | null = null;
@@ -156,6 +157,30 @@ export function getRedisClient(): RedisClient {
   }
 }
 
+async function pingRedisWithRetry(redis: RedisClient): Promise<void> {
+  let lastError: unknown = new Error('Redis health check failed');
+
+  for (const delayMs of REDIS_HEALTHCHECK_RETRY_DELAYS_MS) {
+    if (delayMs > 0) {
+      await Bun.sleep(delayMs);
+    }
+
+    try {
+      const response = await redis.send('PING', []);
+
+      if (response !== 'PONG') {
+        throw new Error(`Unexpected Redis PING response: ${String(response)}`);
+      }
+
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
 /**
  * Health check do Redis
  */
@@ -168,7 +193,7 @@ export async function checkRedisHealth(): Promise<{
   const redis = getRedisClient();
 
   try {
-    await redis.send('PING', []);
+    await pingRedisWithRetry(redis);
     markRedisCommandSuccess();
 
     const latencyMs = Math.round(performance.now() - start);
