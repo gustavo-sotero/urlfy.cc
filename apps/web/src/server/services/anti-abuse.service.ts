@@ -3,7 +3,7 @@
  * Detects and prevents abuse patterns
  */
 
-import { getRedisClient } from '@urlfy/cache';
+import { getRedisClient, redisHealth } from '@urlfy/cache';
 import { createLogger } from '@urlfy/telemetry';
 import { maskIpForLog } from '@/server/lib/ip';
 
@@ -119,12 +119,16 @@ export class AntiAbuseService {
    * Check if IP is blocked
    */
   async isIPBlocked(ip: string): Promise<boolean> {
+    // Fast path: skip Redis round-trip when client is known unhealthy.
+    // Fail-open: allow the request through rather than block all traffic
+    // during a Redis outage.
+    if (!redisHealth.isHealthy) return false;
     try {
       const key = `blocked:ip:${ip}`;
       const blocked = (await this.redis.send('EXISTS', [key])) as number;
       return blocked === 1;
     } catch (error) {
-      logger.error('Failed to check IP block status', {
+      logger.warn('Failed to check IP block status', {
         error: error instanceof Error ? error.message : String(error),
         ip: maskIpForLog(ip)
       });

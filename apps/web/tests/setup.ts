@@ -122,3 +122,13 @@ global.navigator = window.navigator as any;
 global.HTMLElement = window.HTMLElement as any;
 // biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
 global.Element = window.Element as any;
+
+// Patch happy-dom 20.x bug: SelectorParser uses `this.window.SyntaxError` which
+// is not defined on the happy-dom Window object, causing querySelectorAll to
+// crash inside @testing-library/dom text queries.
+// biome-ignore lint/suspicious/noExplicitAny: patching happy-dom window at test bootstrap
+(window as any).SyntaxError = SyntaxError;
+// biome-ignore lint/suspicious/noExplicitAny: patching happy-dom window at test bootstrap
+(window as any).TypeError = TypeError;
+// biome-ignore lint/suspicious/noExplicitAny: patching happy-dom window at test bootstrap
+(window as any).RangeError = RangeError;

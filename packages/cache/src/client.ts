@@ -7,6 +7,13 @@ const logger = createLogger('redis');
 // Singleton do cliente Redis
 let redisInstance: RedisClient | null = null;
 
+/** Tracks live connection health so callers can short-circuit without a round-trip. */
+export const redisHealth = {
+  isHealthy: false,
+  consecutiveFailures: 0,
+  lastError: null as string | null
+};
+
 // Get or create the Redis client instance (singleton)
 export function getRedisClient(): RedisClient {
   const override = (globalThis as { __REDIS_CLIENT__?: RedisClient })
@@ -20,30 +27,41 @@ export function getRedisClient(): RedisClient {
 
   if (useInMemory) {
     redisInstance = createInMemoryRedisClient();
+    redisHealth.isHealthy = true;
     return redisInstance;
   }
 
   const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
   try {
-    // Bun's native Redis client with automatic connection management
+    // Bun's native Redis client.
+    // autopipelining is OFF: prevents mismatched response ordering during reconnects.
+    // offlineQueue is OFF: callers get an immediate error instead of silently queuing
+    //   commands that may never be delivered, enabling fast fail-open degradation.
     redisInstance = new RedisClient(redisUrl, {
       connectionTimeout: 10000, // 10s
-      enableAutoPipelining: true,
+      enableAutoPipelining: false,
       autoReconnect: true,
       maxRetries: 10,
-      enableOfflineQueue: true
+      enableOfflineQueue: false
     });
 
     // Event handlers
     redisInstance.onconnect = () => {
+      redisHealth.isHealthy = true;
+      redisHealth.consecutiveFailures = 0;
+      redisHealth.lastError = null;
       logger.info('Redis connection established');
     };
 
     redisInstance.onclose = (error?: Error) => {
+      redisHealth.isHealthy = false;
       if (error) {
+        redisHealth.consecutiveFailures++;
+        redisHealth.lastError = error.message;
         logger.error('Redis connection closed with error', {
-          error: error.message
+          error: error.message,
+          consecutiveFailures: redisHealth.consecutiveFailures
         });
       } else {
         logger.info('Redis connection closed');

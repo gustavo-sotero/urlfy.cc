@@ -92,13 +92,17 @@ mock.module('@urlfy/cache/client', () => ({
   redis: mockRedis,
   getRedisClient: () => mockRedis,
   checkRedisHealth: async () => ({ ok: true }),
-  closeRedis: async () => {}
+  closeRedis: async () => {},
+  // Required by @urlfy/cache index re-export (Phase 2 client health state)
+  redisHealth: { isHealthy: true, consecutiveFailures: 0, lastError: null }
 }));
 
-// Import RedisStream after mock
-// Note: bun:test mocks apply to static imports too if defined before
+// Import RedisStream directly from @urlfy/cache/stream (not the local shim).
+// This is the canonical sub-path export (packages/cache/src/stream.ts) and is
+// not mocked by any other test file, so it always gives the real implementation
+// with only @urlfy/cache/client mocked above.
 const { CONSUMER_GROUPS, RedisStream, STREAM_NAMES } = await import(
-  '../redis-stream'
+  '@urlfy/cache/stream'
 );
 
 // Test stream names

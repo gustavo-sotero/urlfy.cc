@@ -9,15 +9,22 @@ import {
   dataDeletionRequest,
   links
 } from '@urlfy/data/schema';
-import { user } from '@urlfy/data/schema/auth';
-import { eq, inArray, sql } from 'drizzle-orm';
+import {
+  account,
+  apikey,
+  session,
+  twoFactor,
+  user
+} from '@urlfy/data/schema/auth';
+import { eq, inArray } from 'drizzle-orm';
 import { recordMetric } from '@/server/lib/metrics';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { WorkerBase } from '@/server/lib/worker-base';
 import { auditLogService } from '@/server/services/audit.service';
 
 /**
- * Stream message shape for deletion jobs
+ * Stream message shape for deletion jobs.
+ * Must match the flat payload published by apps/worker/src/server/lib/queue.ts.
  */
 interface DeletionJobStream {
   requestId: string;
@@ -99,7 +106,7 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
 
         if (userData) {
           await auditLogService.log({
-            action: 'system' as const, // Use valid AuditAction for system operations
+            action: 'system' as const,
             entityType: 'user',
             entityId: userId,
             metadata: {
@@ -109,16 +116,16 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
               reason: 'GDPR data snapshot before deletion',
               operation: 'user_data_snapshot'
             },
-            userId: userId, // Use userId instead of null
+            userId: userId,
             ipAddress: '127.0.0.1'
           });
         }
       }
 
-      // 5. Delete user data
-      await this.deleteUserData(userId);
-
-      // 6. Mark deletion as completed
+      // 5. Mark deletion as completed BEFORE deleting the user row so that
+      //    (a) the status update can still reach the record (CASCADE would
+      //        delete it along with the user) and
+      //    (b) the completion audit log can still reference a live user FK.
       await db
         .update(dataDeletionRequest)
         .set({
@@ -127,9 +134,10 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         })
         .where(eq(dataDeletionRequest.id, requestId));
 
-      // 7. Audit log
+      // 6. Completion audit log — must happen while the user row still exists
+      //    because audit_log.userId has ON DELETE CASCADE.
       await auditLogService.log({
-        action: 'system' as const, // Use valid AuditAction for system operations
+        action: 'system' as const,
         entityType: 'user',
         entityId: userId,
         metadata: {
@@ -138,9 +146,12 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
           reason: 'GDPR deletion request processed',
           operation: 'user_data_deleted'
         },
-        userId: userId, // Use userId instead of null
+        userId: userId,
         ipAddress: '127.0.0.1'
       });
+
+      // 7. Delete user data (user row deleted last — cascades handle the rest)
+      await this.deleteUserData(userId);
 
       const duration = Date.now() - startTime;
 
@@ -161,7 +172,7 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         error: error instanceof Error ? error.message : String(error)
       });
 
-      // Update request status to failed
+      // Update request status to failed only if the record still exists
       if (payload.requestId) {
         await db
           .update(dataDeletionRequest)
@@ -189,14 +200,18 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
   }
 
   /**
-   * Delete all user data from the system
+   * Delete all user data from the system.
+   *
+   * Ordering: application-owned data (analytics, links) is deleted explicitly
+   * first.  Auth tables (session, account, apikey, twoFactor) have
+   * ON DELETE CASCADE from the user row, so deleting the user record last
+   * is sufficient — but we keep explicit Drizzle deletes for auditability and
+   * to avoid relying solely on cascades.
    */
   private async deleteUserData(userId: string): Promise<void> {
     this.logger.info('[DeletionWorker] Starting user data deletion', {
       userId
     });
-
-    // Delete in order of dependencies (child tables first)
 
     // 1. Analytics events for user's links
     const userLinks = await db
@@ -207,7 +222,6 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
     const linkIds = userLinks.map((link) => link.id);
 
     if (linkIds.length > 0) {
-      // Delete analytics events for all user's links using inArray
       await db
         .delete(analyticsEvents)
         .where(inArray(analyticsEvents.linkId, linkIds));
@@ -222,20 +236,26 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
     await db.delete(links).where(eq(links.userId, userId));
     this.logger.debug('[DeletionWorker] Deleted links', { userId });
 
-    // 3. User sessions (from better-auth)
-    // Note: Better-Auth handles this via cascade, but we can be explicit
-    await db.execute(sql`DELETE FROM sessions WHERE user_id = ${userId}`);
-    this.logger.debug('[DeletionWorker] Deleted sessions', { userId });
-
-    // 4. Accounts (OAuth connections)
-    await db.execute(sql`DELETE FROM accounts WHERE user_id = ${userId}`);
-    this.logger.debug('[DeletionWorker] Deleted accounts', { userId });
-
-    // 5. API keys
-    await db.execute(sql`DELETE FROM apikeys WHERE user_id = ${userId}`);
+    // 3. API keys (table name: apikey — singular)
+    await db.delete(apikey).where(eq(apikey.userId, userId));
     this.logger.debug('[DeletionWorker] Deleted API keys', { userId });
 
-    // 6. User record (final)
+    // 4. Sessions (table name: session — singular)
+    await db.delete(session).where(eq(session.userId, userId));
+    this.logger.debug('[DeletionWorker] Deleted sessions', { userId });
+
+    // 5. OAuth accounts (table name: account — singular)
+    await db.delete(account).where(eq(account.userId, userId));
+    this.logger.debug('[DeletionWorker] Deleted accounts', { userId });
+
+    // 6. Two-factor authentication entries (has ON DELETE CASCADE but we delete
+    //    explicitly for auditability, matching the pattern used for other auth tables)
+    await db.delete(twoFactor).where(eq(twoFactor.userId, userId));
+    this.logger.debug('[DeletionWorker] Deleted two-factor entries', {
+      userId
+    });
+
+    // 7. User record (final — any remaining FK children cascade from here)
     await db.delete(user).where(eq(user.id, userId));
     this.logger.debug('[DeletionWorker] Deleted user record', { userId });
 

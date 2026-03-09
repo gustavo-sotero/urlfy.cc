@@ -9,6 +9,8 @@
  *   bun run --watch src/workers.ts  (dev mode)
  */
 
+import { checkRedisHealth } from '@urlfy/cache';
+import { checkDatabaseHealth } from '@urlfy/data';
 import {
   configureLogging,
   createLogger,
@@ -72,6 +74,40 @@ async function main() {
 
   // Configure LogTape logging pipeline (must be after initTelemetry)
   await configureLogging();
+
+  // --- Dependency health checks (fail-fast before starting workers) ---
+  logger.info('[workers] Checking dependency health...');
+
+  const [dbHealth, redisHealth] = await Promise.all([
+    checkDatabaseHealth().catch((err: unknown) => ({
+      status: 'error' as const,
+      error: err instanceof Error ? err.message : String(err)
+    })),
+    checkRedisHealth().catch((err: unknown) => ({
+      status: 'error' as const,
+      error: err instanceof Error ? err.message : String(err)
+    }))
+  ]);
+
+  if (dbHealth.status !== 'ok') {
+    logger.error('[workers] Database health check failed — aborting startup', {
+      error: dbHealth.error
+    });
+    process.exit(1);
+  }
+
+  if (redisHealth.status !== 'ok') {
+    logger.error('[workers] Redis health check failed — aborting startup', {
+      error: redisHealth.error
+    });
+    process.exit(1);
+  }
+
+  logger.info('[workers] All dependencies healthy', {
+    dbLatencyMs: (dbHealth as { latencyMs?: number }).latencyMs,
+    redisLatencyMs: (redisHealth as { latencyMs?: number }).latencyMs
+  });
+  // --- End health checks ---
 
   logger.info('🚀 Starting Workers...');
   logger.info('Press Ctrl+C to stop gracefully');

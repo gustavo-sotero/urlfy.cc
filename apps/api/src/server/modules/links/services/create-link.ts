@@ -14,6 +14,21 @@ import {
 } from './shortcode.service';
 import { validateUrlSafe } from './url-validator';
 
+/** PostgreSQL error code for unique constraint violation. */
+const PG_UNIQUE_VIOLATION = '23505';
+
+/**
+ * Returns true when `err` is a PostgreSQL unique constraint violation.
+ * Bun SQL surfaces the pg error code at `err.code`.
+ */
+function isUniqueConstraintViolation(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    'code' in err &&
+    (err as { code?: string }).code === PG_UNIQUE_VIOLATION
+  );
+}
+
 /**
  * Creates a new shortened link
  * @param input - Link data
@@ -84,33 +99,45 @@ export async function createLink(
   // 6. Create link
   const now = new Date();
 
-  const [link] = await db
-    .insert(links)
-    .values({
-      id: linkId,
-      userId,
-      originalUrl: input.url,
-      shortCode,
-      redirectType: input.redirectType || 302,
-      clicksCount: 0,
-      isActive: true,
-      isBanned: false,
-      maxClicks: input.maxClicks,
-      passwordHash,
-      expiresAt,
-      metaTitle: meta.metaTitle,
-      metaDescription: meta.metaDescription,
-      metaImage: meta.metaImage,
-      utmSource: input.utmSource,
-      utmMedium: input.utmMedium,
-      utmCampaign: input.utmCampaign,
-      tags,
-      notes,
-      createdByIpHash: ipHash,
-      createdAt: now,
-      updatedAt: now
-    })
-    .returning();
+  let link: typeof links.$inferSelect | undefined;
+
+  try {
+    [link] = await db
+      .insert(links)
+      .values({
+        id: linkId,
+        userId,
+        originalUrl: input.url,
+        shortCode,
+        redirectType: input.redirectType || 302,
+        clicksCount: 0,
+        isActive: true,
+        isBanned: false,
+        maxClicks: input.maxClicks,
+        passwordHash,
+        expiresAt,
+        metaTitle: meta.metaTitle,
+        metaDescription: meta.metaDescription,
+        metaImage: meta.metaImage,
+        utmSource: input.utmSource,
+        utmMedium: input.utmMedium,
+        utmCampaign: input.utmCampaign,
+        tags,
+        notes,
+        createdByIpHash: ipHash,
+        createdAt: now,
+        updatedAt: now
+      })
+      .returning();
+  } catch (error) {
+    if (isUniqueConstraintViolation(error)) {
+      if (input.customAlias) {
+        throw createLinkAppError('ALIAS_UNAVAILABLE');
+      }
+      throw createLinkAppError('SHORTCODE_GENERATION_FAILED');
+    }
+    throw error;
+  }
 
   if (!link) {
     throw createLinkAppError('SHORTCODE_GENERATION_FAILED');

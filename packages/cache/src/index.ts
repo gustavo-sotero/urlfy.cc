@@ -16,7 +16,8 @@ export {
   checkRedisHealth,
   closeRedis,
   getRedisClient,
-  redis
+  redis,
+  redisHealth
 } from './client';
 // Distributed lock (advanced, with backoff)
 export { DistributedLock } from './distributed-lock';

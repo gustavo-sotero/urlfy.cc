@@ -81,20 +81,20 @@ meter
     try {
       // Get pending counts for each stream
       const analyticsCount = await RedisStream.getPendingCount(
-        STREAM_NAMES.ANALYTICS,
-        CONSUMER_GROUPS.ANALYTICS
+        STREAM_NAMES.analyticsClicks,
+        CONSUMER_GROUPS.analytics
       );
       const aggregationCount = await RedisStream.getPendingCount(
-        STREAM_NAMES.AGGREGATION,
-        CONSUMER_GROUPS.AGGREGATION
+        STREAM_NAMES.aggregation,
+        CONSUMER_GROUPS.aggregation
       );
       const cleanupCount = await RedisStream.getPendingCount(
-        STREAM_NAMES.CLEANUP,
-        CONSUMER_GROUPS.CLEANUP
+        STREAM_NAMES.cleanup,
+        CONSUMER_GROUPS.cleanup
       );
       const deletionCount = await RedisStream.getPendingCount(
-        STREAM_NAMES.DELETION,
-        CONSUMER_GROUPS.DELETION
+        STREAM_NAMES.deletion,
+        CONSUMER_GROUPS.deletion
       );
 
       observableResult.observe(analyticsCount, { queue: 'analytics' });
@@ -118,13 +118,13 @@ meter
     try {
       // Get stream lengths (total messages including processed)
       const analyticsLength = await RedisStream.getLength(
-        STREAM_NAMES.ANALYTICS
+        STREAM_NAMES.analyticsClicks
       );
       const aggregationLength = await RedisStream.getLength(
-        STREAM_NAMES.AGGREGATION
+        STREAM_NAMES.aggregation
       );
-      const cleanupLength = await RedisStream.getLength(STREAM_NAMES.CLEANUP);
-      const deletionLength = await RedisStream.getLength(STREAM_NAMES.DELETION);
+      const cleanupLength = await RedisStream.getLength(STREAM_NAMES.cleanup);
+      const deletionLength = await RedisStream.getLength(STREAM_NAMES.deletion);
 
       observableResult.observe(analyticsLength, { queue: 'analytics' });
       observableResult.observe(aggregationLength, { queue: 'aggregation' });

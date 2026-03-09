@@ -1,6 +1,6 @@
 // src/server/services/metrics.service.ts
 
-import { redis } from '@urlfy/cache';
+import { redis, redisHealth } from '@urlfy/cache';
 import { createLogger } from '@urlfy/telemetry';
 
 const logger = createLogger('metrics-service');
@@ -35,6 +35,9 @@ export const MetricsService = {
    * Time Complexity: O(1)
    */
   async trackRequest(): Promise<void> {
+    // Fast path: skip the Redis round-trip when we already know it's unreachable.
+    // This prevents per-request error noise during a Redis outage.
+    if (!redisHealth.isHealthy) return;
     try {
       await redis.incr(REDIS_KEYS.REQUEST_COUNT);
     } catch (error) {
