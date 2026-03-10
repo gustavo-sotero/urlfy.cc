@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 const redisStreamMock = {
   add: mock(async () => '1678900000000-0'),
@@ -50,6 +50,10 @@ describe('worker redis-stream shim', () => {
     Object.values(redisStreamMock).forEach((method) => {
       method.mockClear();
     });
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   it('re-exports the canonical stream names including dead-letter streams', () => {

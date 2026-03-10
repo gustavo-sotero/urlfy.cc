@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { afterAll, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
 import { createElysiaTestClient } from '../helpers/elysia-test-client';
 import { createDbMock } from '../mocks/db.mock';
@@ -102,6 +102,10 @@ import { ResponseModels } from '@/server/lib/response.schema';
 import { AuthModels, authController } from '@/server/modules/auth';
 
 describe('auth controller 2FA status', () => {
+  afterAll(() => {
+    mock.restore();
+  });
+
   test('returns authenticated 2FA status', async () => {
     dbMock.select = mock(() => ({
       from: mock(() => ({

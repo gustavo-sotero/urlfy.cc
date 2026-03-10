@@ -7,7 +7,7 @@ process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
 process.env.REDIS_URL = 'redis://localhost:6379';
 process.env.JWT_SECRET = 'test-secret-key-for-testing';
 
-import { describe, expect, it, mock } from 'bun:test';
+import { afterAll, describe, expect, it, mock } from 'bun:test';
 
 // Mock the database module
 const mockLimitFn = mock<() => Promise<Link[]>>(() => Promise.resolve([]));
@@ -199,6 +199,10 @@ function createMockLink(overrides: Partial<Link> = {}): Link {
 }
 
 describe('LinkService - Pure Functions', () => {
+  afterAll(() => {
+    mock.restore();
+  });
+
   describe('formatLinkResponse', () => {
     it('should include shortUrl with BASE_URL', () => {
       const mockLink = createMockLink({

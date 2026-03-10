@@ -78,3 +78,38 @@ Performance evidence captured from existing perf tests:
 ## Known Follow-ups (Non-blocking to Decoupling)
 
 - `TODO-DUAL-AUTH-BOUNDARY` in `docs/development/todo-registry.md`: dual Better-Auth instantiation remains an intentional trade-off.
+
+## Shared Configuration Consolidation (2026-03-10)
+
+The following shared runtime configuration objects were extracted from per-app duplicates into `packages/contracts` and `packages/auth-shared`:
+
+| Previous location (duplicated)                                  | Canonical source                                    |
+| --------------------------------------------------------------- | --------------------------------------------------- |
+| `apps/api/src/lib/auth.config.ts`                               | `packages/auth-shared/src/auth-config.ts`           |
+| `apps/web/src/lib/auth.config.ts`                               | `packages/auth-shared/src/auth-config.ts`           |
+| `apps/api/src/server/config/cors.ts`                            | `packages/contracts/src/cors-policy.ts`             |
+| `apps/web/src/server/config/cors.ts`                            | `packages/contracts/src/cors-policy.ts`             |
+| `apps/api/src/server/config/security.ts`                        | `packages/contracts/src/security-headers.ts`        |
+| `apps/web/src/server/config/security.ts`                        | `packages/contracts/src/security-headers.ts`        |
+| `apps/api/src/server/config/rate-limits.ts`                     | `packages/contracts/src/rate-limit-policy.ts`       |
+| `apps/web/src/server/config/rate-limits.ts`                     | `packages/contracts/src/rate-limit-policy.ts`       |
+| `apps/api/src/server/config/scopes.ts` (local `hasScopes`, etc) | `packages/auth-shared/src/scopes.ts`                |
+
+App-local files (`apps/api/src/server/config/…`, `apps/web/src/server/config/…`) are now pure
+re-export shims — they preserve existing import paths for consumers while the actual logic lives
+in the shared packages.
+
+The same shim pattern now applies to `apps/api/src/lib/auth.config.ts` and
+`apps/web/src/lib/auth.config.ts`, which both re-export the canonical Better-Auth
+config primitives from `packages/auth-shared/src/auth-config.ts`.
+
+Additional hardening completed in this cycle:
+- `GET /api/auth/two-factor/status` silent failure fixed (catch returning `success:true` removed).
+- Build-time sentinel rejection added to both `auth.config.ts` files.
+- Duplicate `hasScopes` implementation removed from `packages/auth-shared`.
+- Rate-limiter evaluator is now canonical in `packages/cache/src/rate-limiter-core.ts`; `apps/api/src/server/lib/rate-limiter.ts` and `apps/web/src/server/lib/rate-limiter.ts` are adapter shims.
+- `packages/cache/src/distributed-lock.ts` now resolves the Redis client lazily (no import-time capture).
+- `@ts-ignore` / `biome-ignore` removed from `apps/api/src/server/index.ts` export (dead suppression with `noEmit:true`).
+- `biome.json` extended with `css.parser.tailwindDirectives: true` to support Tailwind v4 syntax.
+- `apps/web/src/server/init.ts` now calls `validateEnv()` at startup to surface misconfiguration early.
+- Browser-side error reporting centralized in `apps/web/src/lib/browser-logger.ts`.

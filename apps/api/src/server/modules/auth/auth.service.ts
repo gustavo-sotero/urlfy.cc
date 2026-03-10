@@ -120,7 +120,7 @@ export const AuthService = {
   async getTwoFactorStatus(userId: string): Promise<{
     enabled: boolean;
     verified: boolean;
-    setupAt: Date | null;
+    setupAt: string | null;
   }> {
     const result = await db
       .select({
@@ -136,7 +136,7 @@ export const AuthService = {
     return {
       enabled,
       verified: enabled,
-      setupAt: result[0]?.createdAt ?? null
+      setupAt: result[0]?.createdAt?.toISOString() ?? null
     };
   },
 

@@ -84,6 +84,7 @@ describe('Metrics Integration - RPS Tracking', () => {
 
   afterAll(async () => {
     store.clear();
+    mock.restore();
   });
 
   it('should track requests and calculate RPS', async () => {

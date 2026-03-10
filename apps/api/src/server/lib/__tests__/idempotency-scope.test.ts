@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 const store = new Map<string, string>();
 
@@ -25,11 +25,6 @@ const redisMock = {
   })
 };
 
-mock.module('@/server/lib/redis', () => ({
-  redis: redisMock,
-  getRedisClient: () => redisMock
-}));
-
 mock.module('@/server/lib/telemetry', () => ({
   createLogger: () => ({
     info: () => {},
@@ -41,12 +36,36 @@ mock.module('@/server/lib/telemetry', () => ({
 }));
 
 describe('Idempotency key scoping', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     store.clear();
     redisMock.get.mockClear();
     redisMock.set.mockClear();
     redisMock.del.mockClear();
     redisMock.send.mockClear();
+
+    (
+      globalThis as {
+        __IDEMPOTENCY_RUNTIME__?: {
+          canAttemptRedisCommand: () => boolean;
+          getRedisClient: () => typeof redisMock;
+          markRedisCommandFailure: (_error: unknown) => void;
+          markRedisCommandSuccess: () => void;
+          shouldLogRedisFailure: () => boolean;
+        };
+      }
+    ).__IDEMPOTENCY_RUNTIME__ = {
+      canAttemptRedisCommand: () => true,
+      getRedisClient: () => redisMock,
+      markRedisCommandFailure: () => {},
+      markRedisCommandSuccess: () => {},
+      shouldLogRedisFailure: () => false
+    };
+  });
+
+  afterAll(() => {
+    delete (globalThis as { __IDEMPOTENCY_RUNTIME__?: unknown })
+      .__IDEMPOTENCY_RUNTIME__;
+    mock.restore();
   });
 
   it('isolates keys by principal', async () => {

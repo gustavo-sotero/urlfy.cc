@@ -1,6 +1,14 @@
 // src/server/services/__tests__/cache.service.test.ts
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock
+} from 'bun:test';
 import type { CachedLink } from '@/types/redirect.types';
 
 // Mock telemetry to avoid initialization
@@ -134,10 +142,6 @@ const mockRedis = {
   })
 };
 
-// Ensure global override for any preloaded modules
-(globalThis as { __REDIS_CLIENT__?: typeof mockRedis }).__REDIS_CLIENT__ =
-  mockRedis;
-
 // Set up mock module
 mock.module('@/server/lib/redis', () => ({
   getRedisClient: () => mockRedis,
@@ -172,6 +176,9 @@ async function withTimeout<T>(
 
 describe('CacheService', () => {
   beforeEach(() => {
+    (globalThis as { __REDIS_CLIENT__?: typeof mockRedis }).__REDIS_CLIENT__ =
+      mockRedis;
+
     store.clear();
     mockRedis.get.mockClear();
     mockRedis.set.mockClear();
@@ -182,6 +189,15 @@ describe('CacheService', () => {
     mockRedis.pipeline.mockClear();
     mockPipeline.del.mockClear();
     mockPipeline.exec.mockClear();
+  });
+
+  afterEach(() => {
+    delete (globalThis as { __REDIS_CLIENT__?: typeof mockRedis })
+      .__REDIS_CLIENT__;
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   describe('getLink()', () => {

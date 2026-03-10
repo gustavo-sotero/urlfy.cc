@@ -69,7 +69,7 @@ O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços ind
 │  ├─ data/         # Drizzle ORM + Bun SQL client + migrations
 │  ├─ cache/        # Redis client + cache keys + circuit breaker + locks
 │  ├─ telemetry/    # OpenTelemetry logger + metrics helpers
-│  ├─ auth-shared/  # API key scope definitions
+│  ├─ auth-shared/  # Auth scopes + Better-Auth config primitives
 │  ├─ config-ts/    # Base tsconfig presets
 │  └─ config-biome/ # Shared Biome linting preset
 └─ docker/
@@ -103,6 +103,7 @@ Policies e contratos puros ficam centralizados em packages compartilhados; `apps
 - `packages/contracts/src/rate-limit-policy.ts`: fonte canônica de rate limits para gateway, API, admin e redirect hot path.
 - `packages/contracts/src/cors-policy.ts` e `packages/contracts/src/security-headers.ts`: origem única de CORS e security headers.
 - `packages/auth-shared/src/scopes.ts`: origem única de scopes e parsing de permissões.
+- `packages/auth-shared/src/auth-config.ts`: origem única de segredos, plugins e base config do Better-Auth.
 - `apps/web/src/lib/browser-logger.ts` + `POST /api/monitor/log`: caminho único para erros client-side, preservando `requestId` e contexto sanitizado.
 
 ## Fluxo de Redirecionamento (Hot Path)
@@ -250,6 +251,7 @@ docker/
 - **SSL/TLS:** Gerenciado pelo Traefik integrado ao Dokploy (Let's Encrypt automático)
 - **GeoIP:** Usa mirror público (jsDelivr CDN), sem necessidade de credenciais
 - **API Gateway:** `apps/web` proxia `/api/*` para `apps/api` via `API_INTERNAL_URL` (sem hop extra no redirect)
+- **Startup validation:** `docker/web.Dockerfile` usa `SKIP_ENV_VALIDATION=1` apenas no build; o container final valida env real no boot e o CI smoke-testa `/api/health`.
 
 ### GeoIP Auto-Download
 

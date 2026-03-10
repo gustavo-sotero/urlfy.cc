@@ -6,7 +6,15 @@
  * API gateway with fetch.
  */
 
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test
+} from 'bun:test';
 
 const resolveMock = mock(async () => ({
   success: true,
@@ -78,6 +86,10 @@ const originalFetch = global.fetch;
 
 describe('Redirect hot path isolation', () => {
   let fetchSpy: ReturnType<typeof mock>;
+
+  afterAll(() => {
+    mock.restore();
+  });
 
   beforeEach(() => {
     resolveMock.mockImplementation(async () => ({

@@ -41,6 +41,9 @@ export const RATE_LIMITS = {
   // ─── Analytics ───────────────────────────────────────────────────
   ANALYTICS_AUTH: { windowMs: 60 * 1000, max: 60 }, // 60/min
 
+  // ─── Contact ─────────────────────────────────────────────────────
+  CONTACT_SUBMIT: { windowMs: 60 * 60 * 1000, max: 30 }, // 30/hour per IP
+
   // ─── Admin Endpoints (fail-closed: deny when Redis is down) ───────
   ADMIN_GENERAL: { windowMs: 60 * 1000, max: 30, failClosed: true }, // 30/min
   ADMIN_USER_MANAGEMENT: { windowMs: 60 * 1000, max: 20, failClosed: true }, // 20/min

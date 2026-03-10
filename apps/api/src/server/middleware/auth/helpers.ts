@@ -2,7 +2,7 @@ import { db } from '@urlfy/data';
 import { apiKey as apiKeyTable } from '@urlfy/data/schema/auth';
 import { eq, sql } from 'drizzle-orm';
 import type { User } from '@/lib/auth';
-import { redis } from '@/server/lib/redis';
+import { rateLimiter } from '@/server/lib/rate-limiter';
 import { createLogger } from '@/server/lib/telemetry';
 import type { NormalizedApiKeyPermissions } from '@/types/auth.types';
 
@@ -67,42 +67,27 @@ export async function updateApiKeyUsage(keyId: string): Promise<void> {
 }
 
 /**
- * Enforce per-API key rate limit using Redis (sliding window via counter)
+ * Enforce per-API key rate limit using the canonical shared evaluator.
  */
 export async function enforceApiKeyRateLimit(
   apiKeyId: string,
   maxRequests: number,
   timeWindowMs: number
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
-  const key = `rl:apikey:${apiKeyId}`;
+  const result = await rateLimiter.checkLimit(
+    `apikey:${apiKeyId}`,
+    {
+      points: maxRequests,
+      duration: Math.floor(timeWindowMs / 1000),
+      failClosed: true
+    },
+    'rl'
+  );
 
-  try {
-    const current = (await redis.send('INCR', [key])) as number;
-
-    if (current === 1) {
-      await redis.pexpire(key, timeWindowMs);
-    }
-
-    if (current > maxRequests) {
-      const ttl = await redis.pttl(key);
-      const retryAfter = ttl > 0 ? Math.ceil(ttl / 1000) : undefined;
-      return { allowed: false, retryAfter };
-    }
-
-    return { allowed: true };
-  } catch (error) {
-    // FAIL-CLOSED: deny traffic when Redis is unavailable to prevent
-    // unlimited API key usage during outages
-    logger.error(
-      'API key rate limit check failed — denying request (fail-closed)',
-      {
-        error: error instanceof Error ? error.message : String(error),
-        apiKeyId
-      }
-    );
-
-    return { allowed: false, retryAfter: 30 };
-  }
+  return {
+    allowed: result.allowed,
+    retryAfter: result.retryAfter
+  };
 }
 
 /**

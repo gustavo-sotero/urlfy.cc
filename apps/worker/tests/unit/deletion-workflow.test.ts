@@ -21,7 +21,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { inspect } from 'node:util';
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────
@@ -315,6 +315,10 @@ function makeWorker(): TestDeletionWorker {
 }
 
 describe('DeletionWorker.processMessage', () => {
+  afterAll(() => {
+    mock.restore();
+  });
+
   beforeEach(() => {
     // Reset state and operation log
     opOrder.length = 0;

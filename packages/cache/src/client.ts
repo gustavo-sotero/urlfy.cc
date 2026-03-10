@@ -10,6 +10,7 @@ const REDIS_HEALTHCHECK_RETRY_DELAYS_MS = [0, 100, 250, 500];
 
 // Singleton do cliente Redis
 let redisInstance: RedisClient | null = null;
+let redisInitializingInstance: RedisClient | null = null;
 let nextRedisFailureLogAt = 0;
 
 /** Tracks live connection health so callers can short-circuit without a round-trip. */
@@ -98,16 +99,19 @@ export function getRedisClient(): RedisClient {
   if (override) return override;
 
   if (redisInstance) return redisInstance;
+  if (redisInitializingInstance) return redisInitializingInstance;
 
   const useInMemory =
     process.env.NODE_ENV === 'test' && process.env.USE_REAL_REDIS !== 'true';
 
   if (useInMemory) {
-    redisInstance = createInMemoryRedisClient();
+    redisInitializingInstance = createInMemoryRedisClient();
+    redisInstance = redisInitializingInstance;
     redisHealth.isHealthy = true;
     redisHealth.isConnected = true;
     redisHealth.lastConnectedAt = Date.now();
     redisHealth.lastSuccessfulCommandAt = Date.now();
+    redisInitializingInstance = null;
     return redisInstance;
   }
 
@@ -118,13 +122,14 @@ export function getRedisClient(): RedisClient {
     // autopipelining is OFF: prevents mismatched response ordering during reconnects.
     // offlineQueue is OFF: callers get an immediate error instead of silently queuing
     //   commands that may never be delivered, enabling fast fail-open degradation.
-    redisInstance = new RedisClient(redisUrl, {
+    redisInitializingInstance = new RedisClient(redisUrl, {
       connectionTimeout: 10000, // 10s
       enableAutoPipelining: false,
       autoReconnect: true,
       maxRetries: 10,
       enableOfflineQueue: false
     });
+    redisInstance = redisInitializingInstance;
 
     // Event handlers
     redisInstance.onconnect = () => {
@@ -148,8 +153,10 @@ export function getRedisClient(): RedisClient {
       }
     };
 
+    redisInitializingInstance = null;
     return redisInstance;
   } catch (error) {
+    redisInitializingInstance = null;
     logger.error('Failed to create Redis client', {
       error: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -218,6 +225,7 @@ export async function closeRedis(): Promise<void> {
     try {
       redisInstance.close();
       redisInstance = null;
+      redisInitializingInstance = null;
       redisHealth.isHealthy = false;
       redisHealth.isConnected = false;
       redisHealth.isDegraded = false;
@@ -231,6 +239,7 @@ export async function closeRedis(): Promise<void> {
         redisInstance.close();
       }
       redisInstance = null;
+      redisInitializingInstance = null;
     }
   }
 }

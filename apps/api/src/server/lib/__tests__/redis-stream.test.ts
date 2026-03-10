@@ -152,6 +152,8 @@ describe('RedisStream', () => {
     } catch {
       // Ignore errors
     }
+
+    mock.restore();
   });
 
   beforeEach(() => {

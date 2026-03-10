@@ -1,6 +1,14 @@
 // src/server/services/__tests__/metrics.service.test.ts
 
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock
+} from 'bun:test';
 import { MetricsService } from '../metrics.service';
 
 // Mock Redis client
@@ -58,6 +66,10 @@ describe('MetricsService', () => {
 
   afterEach(async () => {
     mockRedis._reset();
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   describe('trackRequest', () => {

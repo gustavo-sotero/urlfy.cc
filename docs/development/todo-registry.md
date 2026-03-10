@@ -1,5 +1,24 @@
 # TODO Registry
 
+## Codebase Analysis Followup Remediations
+
+- **Tracking ID:** TODO-CODEBASE-ANALYSIS-FOLLOWUP-2026-03-10
+- **Status:** Resolved
+- **Resolved date:** 2026-03-10
+- **Changes delivered:**
+  1. **2FA silent failure** — `GET /auth/two-factor/status` catch block that returned `success:true` on internal errors removed; errors now propagate to global error handler.
+  2. **Build-time sentinel rejection** — `packages/auth-shared/src/auth-config.ts` now owns Better-Auth secret validation; `apps/api/src/lib/auth.config.ts` and `apps/web/src/lib/auth.config.ts` are re-export shims.
+  3. **Scopes single source of truth** — `hasScopes`, `ScopePresets`, `parseScopes`, `serializeScopes`, `isValidScope` added to `packages/auth-shared/src/scopes.ts`; duplicate removed; `apps/api/src/server/config/scopes.ts` is now a re-export shim.
+  4. **Rate-limits canonical policy + evaluator** — `packages/contracts/src/rate-limit-policy.ts` is the single policy registry and `packages/cache/src/rate-limiter-core.ts` is the single evaluator; both app copies are now adapter shims.
+  5. **CORS/security-headers canonical policy** — `packages/contracts/src/cors-policy.ts` and `packages/contracts/src/security-headers.ts` created; all four app copies replaced with re-export shims.
+  6. **Browser error reporting** — `apps/web/src/lib/browser-logger.ts` and `apps/web/src/lib/browser-log-contract.ts` now define the canonical client payload; key dashboard/admin/form surfaces and `/api/monitor/log` all use the same requestId/context-aware contract.
+  7. **Redis import-time capture** — `packages/cache/src/distributed-lock.ts` changed from module-level `const redis = getRedisClient()` to lazy `getRedis()` accessor.
+  8. **Dead suppression removed** — `@ts-ignore` and `biome-ignore` comments removed from `apps/api/src/server/index.ts` (`noEmit: true` means TS4023 never fires).
+  9. **Biome CSS** — `biome.json` extended with `css.parser.tailwindDirectives: true` to handle Tailwind v4 `@theme`, `@custom-variant`, `@apply` syntax.
+  10. **Web env validation** — `apps/web/src/server/init.ts` now calls `validateEnv()` before telemetry init, surfacing misconfiguration at startup.
+
+---
+
 ## Analytics Provider Selection
 
 - **Location:** `src/lib/hooks/use-analytics-consent.ts`

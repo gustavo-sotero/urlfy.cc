@@ -31,9 +31,14 @@ export { CACHE_KEYS, CACHE_TTL } from './keys';
 export type { LockOptions } from './lock';
 // Distributed lock (simple Redis-based)
 export { acquireLock, releaseLock } from './lock';
-
 // In-memory Redis mock (for testing)
 export { createInMemoryRedisClient } from './mock';
+// Canonical rate limiter core
+export {
+  CanonicalRateLimiter,
+  type CanonicalRateLimiterOptions,
+  type RateLimitResult
+} from './rate-limiter-core';
 export type { StreamMessage, StreamReadResult } from './stream';
 // Redis Streams
 export {

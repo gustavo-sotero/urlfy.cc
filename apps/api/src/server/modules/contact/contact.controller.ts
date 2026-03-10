@@ -8,6 +8,7 @@
  */
 
 import { Elysia } from 'elysia';
+import { getRateLimit } from '@/server/config/rate-limits';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { getClientIp } from '@/server/lib/ip';
 import { rateLimiter } from '@/server/lib/rate-limiter';
@@ -16,19 +17,14 @@ import { ContactModels } from './contact.schema';
 import { ContactService } from './contact.service';
 
 const logger = createLogger('contact-controller');
-
-// ═══════════════════════════════════════════════════════════════════
-// RATE LIMIT CONFIG
-// ═══════════════════════════════════════════════════════════════════
-
-const CONTACT_RATE_LIMIT = {
-  points: 30, // 30 requests
-  duration: 3600 // per hour (1 hour = 3600 seconds)
+const contactRateLimit = getRateLimit('CONTACT_SUBMIT');
+const contactRateLimitConfig = {
+  points: contactRateLimit.max,
+  duration: Math.floor(contactRateLimit.windowMs / 1000),
+  ...(contactRateLimit.failClosed !== undefined
+    ? { failClosed: contactRateLimit.failClosed }
+    : {})
 };
-
-// ═══════════════════════════════════════════════════════════════════
-// CONTACT CONTROLLER
-// ═══════════════════════════════════════════════════════════════════
 
 export const contactController = new Elysia({ prefix: '/contact' })
   .model(ContactModels)
@@ -38,14 +34,14 @@ export const contactController = new Elysia({ prefix: '/contact' })
       // 1. Extract IP address using centralized trusted-proxy-aware helper
       const ip = getClientIp(request);
 
-      // 2. Rate limiting (30 requests per hour per IP)
+      // 2. Rate limiting from the canonical shared policy registry
       const rateLimitResult = await rateLimiter.checkIPLimit(
         ip,
-        CONTACT_RATE_LIMIT
+        contactRateLimitConfig
       );
 
       // Set rate limit headers
-      set.headers['X-RateLimit-Limit'] = String(CONTACT_RATE_LIMIT.points);
+      set.headers['X-RateLimit-Limit'] = String(contactRateLimitConfig.points);
       set.headers['X-RateLimit-Remaining'] = String(rateLimitResult.remaining);
       set.headers['X-RateLimit-Reset'] = String(
         Math.floor(rateLimitResult.resetTime / 1000)

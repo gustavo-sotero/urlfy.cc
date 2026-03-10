@@ -222,6 +222,8 @@ describe('ApiKeysService', () => {
     await db
       .delete(user)
       .where(and(eq(user.id, TEST_USER_ID), eq(user.email, TEST_USER_EMAIL)));
+
+    mock.restore();
   });
 
   describe('create', () => {

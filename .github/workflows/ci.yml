@@ -236,9 +236,64 @@ jobs:
           context: .
           file: docker/web.Dockerfile
           push: false
+          load: true
           tags: urlfy-web:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test web Docker rejects missing runtime env
+        run: |
+          set +e
+          timeout 20s docker run --rm --name urlfy-web-missing-env urlfy-web:${{ github.sha }}
+          status=$?
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            echo "❌ Web container unexpectedly started without runtime env"
+            exit 1
+          fi
+
+          if [ "$status" -eq 124 ]; then
+            echo "❌ Web container stayed up instead of failing fast on missing env"
+            exit 1
+          fi
+
+          echo "✅ Web container rejects missing runtime env"
+
+      - name: Smoke test web Docker boots with valid runtime env
+        run: |
+          docker run -d --rm \
+            --name urlfy-web-smoke \
+            -p 3000:3000 \
+            -e DATABASE_URL=postgresql://urlfy:password@localhost:5432/urlfy \
+            -e REDIS_URL=redis://localhost:6379 \
+            -e REDIS_HOST=localhost \
+            -e REDIS_PORT=6379 \
+            -e NEXT_PUBLIC_APP_URL=http://localhost:3000 \
+            -e BETTER_AUTH_SECRET=ci-smoke-secret-minimum-32-characters-long \
+            -e INTERNAL_API_SECRET=ci-smoke-internal-secret-minimum-32-characters \
+            -e INTERNAL_ANALYTICS_SECRET=ci-smoke-analytics-secret-minimum-32-characters \
+            -e JWT_SECRET=ci-smoke-jwt-secret-minimum-32-characters-long \
+            -e API_INTERNAL_URL=http://localhost:3001 \
+            urlfy-web:${{ github.sha }}
+
+          cleanup() {
+            docker logs urlfy-web-smoke || true
+            docker rm -f urlfy-web-smoke || true
+          }
+          trap cleanup EXIT
+
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/api/health > /dev/null; then
+              echo "✅ Web container started and served /api/health"
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "❌ Web container did not become reachable on /api/health"
+          exit 1
 
       - name: Build API Docker image
         uses: docker/build-push-action@v6

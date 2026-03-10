@@ -18,7 +18,7 @@
 
 // ── Module mocks (must be registered before the modules are imported) ─────────
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // Silent logger
 mock.module('@urlfy/telemetry', () => ({
@@ -141,6 +141,10 @@ async function callGET(
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('GET /r/[code] — redirect hot path', () => {
+  afterAll(() => {
+    mock.restore();
+  });
+
   beforeEach(() => {
     // Reset to safe defaults before each test
     mockResolveResult = { success: false, error: 'NOT_FOUND' };

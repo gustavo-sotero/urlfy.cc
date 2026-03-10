@@ -234,6 +234,8 @@ describe('POST /api/links — Redis failure modes', () => {
   });
 
   afterAll(() => {
+    delete (globalThis as { __IDEMPOTENCY_RUNTIME__?: unknown })
+      .__IDEMPOTENCY_RUNTIME__;
     mock.restore();
   });
 
@@ -241,6 +243,24 @@ describe('POST /api/links — Redis failure modes', () => {
     // Reset flags to safe defaults before every test
     failures.redisAll = false;
     failures.dbInsertUnique = false;
+
+    (
+      globalThis as {
+        __IDEMPOTENCY_RUNTIME__?: {
+          canAttemptRedisCommand: () => boolean;
+          getRedisClient: () => typeof redisMock;
+          markRedisCommandFailure: (_error: unknown) => void;
+          markRedisCommandSuccess: () => void;
+          shouldLogRedisFailure: () => boolean;
+        };
+      }
+    ).__IDEMPOTENCY_RUNTIME__ = {
+      canAttemptRedisCommand: () => true,
+      getRedisClient: () => redisMock,
+      markRedisCommandFailure: () => {},
+      markRedisCommandSuccess: () => {},
+      shouldLogRedisFailure: () => true
+    };
   });
 
   // ── Test 1 ───────────────────────────────────────────────────────────────

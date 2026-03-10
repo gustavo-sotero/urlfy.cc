@@ -14,29 +14,21 @@ Este documento descreve as medidas de segurança implementadas no urlfy.cc.
 
 ## Rate Limiting
 
-Implementado com **Redis Sorted Sets** nativos via Bun.redis usando algoritmo **Sliding Window**.
+Implementado com registro canônico de políticas em `packages/contracts/src/rate-limit-policy.ts` e avaliador único em `packages/cache/src/rate-limiter-core.ts`, usando **Redis Sorted Sets** com algoritmo **Sliding Window**.
 
 ### Implementação
 
 ```typescript
-import { getRedisClient } from './redis';
+import { RATE_LIMITS } from '@urlfy/contracts';
+import { rateLimiter } from '@/server/lib/rate-limiter';
 
-// Implementação manual com comandos nativos do Redis
-const redis = getRedisClient();
-const now = Date.now();
-const windowStart = now - duration * 1000;
+const policy = RATE_LIMITS.LINKS_CREATE_AUTH;
 
-// Remove entradas antigas da janela deslizante
-await redis.send('ZREMRANGEBYSCORE', [key, '-inf', String(windowStart)]);
-
-// Conta requisições atuais na janela
-const count = (await redis.send('ZCARD', [key])) as number;
-
-// Adiciona nova requisição se dentro do limite
-if (count < limit) {
-  await redis.send('ZADD', [key, String(now), `${now}-${Math.random()}`]);
-  await redis.send('EXPIRE', [key, String(duration)]);
-}
+const result = await rateLimiter.checkTokenLimit('user:123', {
+  points: policy.max,
+  duration: Math.floor(policy.windowMs / 1000),
+  failClosed: policy.failClosed
+});
 ```
 
 ### Limites por Endpoint
@@ -67,6 +59,14 @@ Para evitar dupla cobrança de custo no mesmo request path:
 - **Camada 3 (Guard de abuso por link):** limite por `shortCode` aplicado apenas no fluxo de redirect.
 
 Com isso, o redirect hot-path não passa pelo limiter global de `/api/*`, enquanto rotas administrativas e internas continuam protegidas pela camada de gateway.
+
+## Runtime Secret Guards
+
+Os segredos de auth e env possuem sentinelas de build-time que nunca podem ser aceitas em runtime.
+
+- `packages/auth-shared/src/auth-config.ts` rejeita `BETTER_AUTH_SECRET` placeholder e qualquer `SKIP_ENV_VALIDATION=1` fora do build do Next.js.
+- `apps/web/src/lib/env.ts`, `apps/api/src/lib/env.ts` e `apps/worker/src/lib/env.ts` rejeitam sentinelas de `BETTER_AUTH_SECRET`, `INTERNAL_API_SECRET` e `INTERNAL_ANALYTICS_SECRET` durante validação real.
+- O CI sobe a imagem `docker/web.Dockerfile` em smoke test para provar que o container falha sem env obrigatório e atende `/api/health` quando recebe env válido.
 
 ---
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 
 const addMock = mock(async () => 'stream-id-1');
 
@@ -40,6 +40,10 @@ mock.module('@/server/lib/telemetry', () => ({
 describe('queue/stream contract', () => {
   beforeEach(() => {
     addMock.mockClear();
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   test('scheduleAggregation publishes canonical payload', async () => {

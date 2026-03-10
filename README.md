@@ -358,7 +358,7 @@ urlfy.cc/
 │           └── jobs/             # Scheduled jobs
 │       └── tests/                # Worker unit tests
 ├── packages/
-│   ├── auth-shared/              # ACL scopes shared by api and web
+│   ├── auth-shared/              # ACL scopes + Better-Auth config shared by api and web
 │   ├── cache/                    # Redis client, cache keys, distributed lock
 │   ├── config-biome/             # Shared Biome formatter/linter config
 │   ├── config-ts/                # Shared TypeScript configs (base/nextjs/server)
@@ -419,6 +419,8 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 # Or use the production compose
 cd docker && docker compose -f docker-compose.prod.yml up -d
 ```
+
+The web image validates runtime env on startup. CI smoke-tests that it fails fast without required secrets and serves `/api/health` when booted with valid runtime env.
 
 ### Backup & Recovery
 

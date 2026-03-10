@@ -2,16 +2,44 @@
 
 import {
   canAttemptRedisCommand,
+  getRedisClient,
   markRedisCommandFailure,
   markRedisCommandSuccess,
-  redis,
   shouldLogRedisFailure
-} from './redis';
+} from '@urlfy/cache';
 import { createLogger } from './telemetry';
 
 const logger = createLogger('idempotency');
 const TTL = 86400; // 24 hours
 const LOCK_TTL_SECONDS = 30;
+
+type IdempotencyRedisClient = Pick<
+  ReturnType<typeof getRedisClient>,
+  'get' | 'set' | 'del' | 'send'
+>;
+
+interface IdempotencyRuntime {
+  canAttemptRedisCommand: typeof canAttemptRedisCommand;
+  getRedisClient: () => IdempotencyRedisClient;
+  markRedisCommandFailure: typeof markRedisCommandFailure;
+  markRedisCommandSuccess: typeof markRedisCommandSuccess;
+  shouldLogRedisFailure: typeof shouldLogRedisFailure;
+}
+
+const defaultIdempotencyRuntime: IdempotencyRuntime = {
+  canAttemptRedisCommand,
+  getRedisClient: () => getRedisClient() as IdempotencyRedisClient,
+  markRedisCommandFailure,
+  markRedisCommandSuccess,
+  shouldLogRedisFailure
+};
+
+function getIdempotencyRuntime(): IdempotencyRuntime {
+  return (
+    (globalThis as { __IDEMPOTENCY_RUNTIME__?: IdempotencyRuntime })
+      .__IDEMPOTENCY_RUNTIME__ ?? defaultIdempotencyRuntime
+  );
+}
 
 /**
  * Persisted record shape.  Stored as JSON so future fields can be added
@@ -94,11 +122,14 @@ export async function checkIdempotency(
   route: string,
   currentPayloadHash?: string
 ): Promise<IdempotencyCheckResult> {
-  if (!canAttemptRedisCommand()) {
+  const runtime = getIdempotencyRuntime();
+
+  if (!runtime.canAttemptRedisCommand()) {
     return { status: 'miss' };
   }
 
   try {
+    const redis = runtime.getRedisClient();
     const raw = await redis.get(buildScopedKey(key, principal, route));
 
     if (!raw) {
@@ -106,7 +137,7 @@ export async function checkIdempotency(
         buildLockKey(key, principal, route)
       );
 
-      markRedisCommandSuccess();
+      runtime.markRedisCommandSuccess();
 
       if (!pendingPayloadHash) {
         return { status: 'miss' };
@@ -123,7 +154,7 @@ export async function checkIdempotency(
       return { status: 'in_progress' };
     }
 
-    markRedisCommandSuccess();
+    runtime.markRedisCommandSuccess();
 
     // Parse stored value — handle both legacy plain-string and JSON formats
     let record: IdempotencyRecord;
@@ -162,8 +193,8 @@ export async function checkIdempotency(
 
     return { status: 'hit', resourceId: record.resourceId };
   } catch (error) {
-    markRedisCommandFailure(error);
-    if (shouldLogRedisFailure()) {
+    runtime.markRedisCommandFailure(error);
+    if (runtime.shouldLogRedisFailure()) {
       logger.warn('Redis unavailable for idempotency check', {
         error: error instanceof Error ? error.message : String(error)
       });
@@ -182,11 +213,14 @@ export async function acquireIdempotencyLock(
   route: string,
   payloadHash?: string
 ): Promise<boolean> {
-  if (!canAttemptRedisCommand()) {
+  const runtime = getIdempotencyRuntime();
+
+  if (!runtime.canAttemptRedisCommand()) {
     return true;
   }
 
   try {
+    const redis = runtime.getRedisClient();
     const response = await redis.send('SET', [
       buildLockKey(key, principal, route),
       payloadHash ?? 'pending',
@@ -194,11 +228,11 @@ export async function acquireIdempotencyLock(
       'EX',
       String(LOCK_TTL_SECONDS)
     ]);
-    markRedisCommandSuccess();
+    runtime.markRedisCommandSuccess();
     return response === 'OK';
   } catch (error) {
-    markRedisCommandFailure(error);
-    if (shouldLogRedisFailure()) {
+    runtime.markRedisCommandFailure(error);
+    if (runtime.shouldLogRedisFailure()) {
       logger.warn('Failed to acquire idempotency lock', {
         error: error instanceof Error ? error.message : String(error)
       });
@@ -212,16 +246,19 @@ export async function releaseIdempotencyLock(
   principal: string,
   route: string
 ): Promise<void> {
-  if (!canAttemptRedisCommand()) {
+  const runtime = getIdempotencyRuntime();
+
+  if (!runtime.canAttemptRedisCommand()) {
     return;
   }
 
   try {
+    const redis = runtime.getRedisClient();
     await redis.del(buildLockKey(key, principal, route));
-    markRedisCommandSuccess();
+    runtime.markRedisCommandSuccess();
   } catch (error) {
-    markRedisCommandFailure(error);
-    if (shouldLogRedisFailure()) {
+    runtime.markRedisCommandFailure(error);
+    if (runtime.shouldLogRedisFailure()) {
       logger.warn('Failed to release idempotency lock', {
         error: error instanceof Error ? error.message : String(error)
       });
@@ -245,11 +282,14 @@ export async function setIdempotency(
   route: string,
   payloadHash?: string
 ): Promise<void> {
-  if (!canAttemptRedisCommand()) {
+  const runtime = getIdempotencyRuntime();
+
+  if (!runtime.canAttemptRedisCommand()) {
     return;
   }
 
   try {
+    const redis = runtime.getRedisClient();
     const record: IdempotencyRecord = {
       resourceId,
       ...(payloadHash && { payloadHash })
@@ -260,10 +300,10 @@ export async function setIdempotency(
       'EX',
       TTL
     );
-    markRedisCommandSuccess();
+    runtime.markRedisCommandSuccess();
   } catch (error) {
-    markRedisCommandFailure(error);
-    if (shouldLogRedisFailure()) {
+    runtime.markRedisCommandFailure(error);
+    if (runtime.shouldLogRedisFailure()) {
       logger.warn('Failed to set idempotency key', {
         error: error instanceof Error ? error.message : String(error)
       });

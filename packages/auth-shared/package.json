@@ -7,11 +7,15 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./auth-config": "./src/auth-config.ts",
     "./scopes": "./src/scopes.ts"
   },
   "scripts": {
     "type-check": "bunx tsc --noEmit",
     "lint": "bunx biome check . --write"
+  },
+  "dependencies": {
+    "better-auth": "1.5.4"
   },
   "devDependencies": {
     "@urlfy/config-ts": "workspace:*"
