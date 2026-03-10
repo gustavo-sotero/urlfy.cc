@@ -18,6 +18,12 @@ export interface RateLimitConfig {
   duration: number;
   /** Optional block duration if exceeded (seconds) */
   blockDuration?: number;
+  /**
+   * When true, deny requests if Redis is unavailable (fail-closed).
+   * Use for security-critical endpoints (auth, admin, API-key creation)
+   * where fail-open could allow brute-force or abuse.
+   */
+  failClosed?: boolean;
 }
 
 /**

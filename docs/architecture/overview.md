@@ -96,6 +96,15 @@ O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços ind
 | **Observability** | SigNoz                   | OpenTelemetry nativo, logs/traces/métricas unificados       |
 | **Styling**       | TailwindCSS + Shadcn/UI  | Componentes acessíveis, design system                       |
 
+## Runtime Compartilhado
+
+Policies e contratos puros ficam centralizados em packages compartilhados; `apps/web`, `apps/api` e `apps/worker` mantêm apenas adapters framework-specific.
+
+- `packages/contracts/src/rate-limit-policy.ts`: fonte canônica de rate limits para gateway, API, admin e redirect hot path.
+- `packages/contracts/src/cors-policy.ts` e `packages/contracts/src/security-headers.ts`: origem única de CORS e security headers.
+- `packages/auth-shared/src/scopes.ts`: origem única de scopes e parsing de permissões.
+- `apps/web/src/lib/browser-logger.ts` + `POST /api/monitor/log`: caminho único para erros client-side, preservando `requestId` e contexto sanitizado.
+
 ## Fluxo de Redirecionamento (Hot Path)
 
 O redirecionamento é o caminho crítico de performance:

@@ -91,23 +91,12 @@ export const authController = new Elysia({ prefix: '/auth' })
     async ({ user }) => {
       requireUser(user);
 
-      try {
-        const status = await AuthService.getTwoFactorStatus(user.id);
+      const status = await AuthService.getTwoFactorStatus(user.id);
 
-        return {
-          success: true as const,
-          data: status
-        };
-      } catch {
-        return {
-          success: true as const,
-          data: {
-            enabled: false,
-            verified: false,
-            setupAt: null
-          }
-        };
-      }
+      return {
+        success: true as const,
+        data: status
+      };
     },
     {
       detail: {
@@ -118,7 +107,8 @@ export const authController = new Elysia({ prefix: '/auth' })
       },
       response: {
         200: SuccessResponse(t.Ref('auth.2fa.status.response')),
-        401: ErrorRef(401)
+        401: ErrorRef(401),
+        500: ErrorRef(500)
       }
     }
   )

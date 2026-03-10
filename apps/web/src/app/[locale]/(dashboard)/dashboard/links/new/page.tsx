@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Link, useRouter } from '@/i18n/routing';
+import { reportActionError } from '@/lib/browser-logger';
 import { useCreateLink } from '@/lib/hooks/use-links';
 import {
   parseRedirectType,
@@ -113,11 +114,9 @@ export default function NewLinkPage() {
       const link = await createLink.mutateAsync(payload);
       router.push(`/dashboard/links?created=${link.id}`);
     } catch (error) {
-      // Error is already handled by the mutation hook (toast)
-      // Log for debugging purposes
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to create link:', error);
-      }
+      reportActionError(error, {
+        action: 'dashboard-create-link'
+      });
     }
   };
 

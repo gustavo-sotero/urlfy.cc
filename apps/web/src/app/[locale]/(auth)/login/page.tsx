@@ -33,6 +33,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Link, useRouter } from '@/i18n/routing';
 import { authClient } from '@/lib/auth.client';
+import { reportActionError } from '@/lib/browser-logger';
 
 function LoginForm() {
   const t = useTranslations('Auth.login');
@@ -115,7 +116,7 @@ function LoginForm() {
       // Success - redirect
       router.push(callbackUrl);
     } catch (err) {
-      console.error('2FA verification error:', err);
+      reportActionError(err, { step: '2fa-verification' });
       setError(tErrors('invalidCode'));
     } finally {
       setIsLoading(false);

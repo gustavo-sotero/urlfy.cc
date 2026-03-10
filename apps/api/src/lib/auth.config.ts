@@ -15,11 +15,43 @@ import { admin, openAPI, twoFactor } from 'better-auth/plugins';
 // ═══════════════════════════════════════════════════════════════════
 // AUTH SECRET VALIDATION
 // ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Known build-time placeholder values that must never be accepted at runtime.
+ * These are injected during `next build` / `SKIP_ENV_VALIDATION=1` to allow
+ * static analysis to complete without real secrets.
+ */
+const BUILD_TIME_SENTINELS = new Set([
+  'build-time-placeholder-secret-32chars',
+  'build-time-placeholder-secret-32chars-xx',
+  'build-time-placeholder-internal-secret',
+  'build-time-placeholder-analytics-secret'
+]);
+
+function isNextProductionBuild(): boolean {
+  return process.env.NEXT_PHASE === 'phase-production-build';
+}
+
+export function assertRuntimeAuthConfigSafe(): void {
+  if (
+    process.env.SKIP_ENV_VALIDATION === '1' &&
+    !isNextProductionBuild() &&
+    process.env.NODE_ENV !== 'test'
+  ) {
+    throw new Error(
+      'SKIP_ENV_VALIDATION=1 is only supported during build. ' +
+        'Set real auth secrets before starting the server.'
+    );
+  }
+}
+
 export function getAuthSecret(): string {
   // Skip validation during build (Next.js static generation)
-  if (process.env.SKIP_ENV_VALIDATION === '1') {
+  if (process.env.SKIP_ENV_VALIDATION === '1' && isNextProductionBuild()) {
     return 'build-time-placeholder-secret-32chars';
   }
+
+  assertRuntimeAuthConfigSafe();
 
   const authSecret =
     process.env.BETTER_AUTH_SECRET ||
@@ -29,6 +61,15 @@ export function getAuthSecret(): string {
 
   if (!authSecret) {
     throw new Error('BETTER_AUTH_SECRET is required');
+  }
+
+  // Reject build-time sentinel values at runtime outside test environments.
+  // This prevents accidentally deploying with placeholder secrets.
+  if (process.env.NODE_ENV !== 'test' && BUILD_TIME_SENTINELS.has(authSecret)) {
+    throw new Error(
+      'BETTER_AUTH_SECRET contains a build-time placeholder value. ' +
+        'Set a real high-entropy secret (min 32 chars) before starting the server.'
+    );
   }
 
   return authSecret;

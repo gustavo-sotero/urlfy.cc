@@ -5,6 +5,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Component, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { reportRenderError } from '@/lib/browser-logger';
 import { sanitizeErrorMessage } from '@/lib/utils/error';
 
 interface Props {
@@ -37,28 +38,7 @@ class ErrorBoundaryImpl extends Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-
-    // Send to error tracking service
-    if (typeof window !== 'undefined') {
-      // Send to internal monitoring endpoint (fire-and-forget)
-      fetch('/api/monitor/log', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          error: error.message,
-          componentStack: errorInfo.componentStack,
-          url: window.location.href,
-          userAgent: navigator.userAgent,
-          timestamp: new Date().toISOString()
-        })
-      }).catch((fetchError) => {
-        // Silently fail - we don't want logging errors to break the app
-        console.error('Failed to send error report:', fetchError);
-      });
-    }
+    reportRenderError(error, errorInfo.componentStack);
   }
 
   handleRetry = () => {

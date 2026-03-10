@@ -6,12 +6,19 @@
 import { createLogger } from '@urlfy/telemetry';
 import {
   canAttemptRedisCommand,
+  getRedisClient,
   markRedisCommandFailure,
-  markRedisCommandSuccess,
-  redis
+  markRedisCommandSuccess
 } from './client';
 
 const logger = createLogger('redis-stream');
+
+// Lazy accessor — resolves the singleton at call time rather than at module
+// import time, so that test overrides and closeRedis()+re-init do not leave
+// this module holding a stale client reference.
+function getRedis() {
+  return getRedisClient();
+}
 
 function ensureRedisAvailable(command: string): void {
   if (!canAttemptRedisCommand()) {
@@ -73,7 +80,7 @@ export namespace RedisStream {
         );
       }
 
-      const messageId = await redis.send('XADD', args);
+      const messageId = await getRedis().send('XADD', args);
       markRedisCommandSuccess();
 
       return String(messageId);
@@ -109,7 +116,7 @@ export namespace RedisStream {
         args.push('MKSTREAM');
       }
 
-      await redis.send('XGROUP', args);
+      await getRedis().send('XGROUP', args);
       markRedisCommandSuccess();
       logger.info(`[RedisStream] Consumer group created`, {
         stream,
@@ -163,7 +170,7 @@ export namespace RedisStream {
         args.push('>');
       }
 
-      const response = await redis.send('XREADGROUP', args);
+      const response = await getRedis().send('XREADGROUP', args);
       markRedisCommandSuccess();
 
       if (!response) {
@@ -201,7 +208,7 @@ export namespace RedisStream {
     ensureRedisAvailable('XACK');
 
     try {
-      const result = await redis.send('XACK', [stream, group, ...ids]);
+      const result = await getRedis().send('XACK', [stream, group, ...ids]);
       markRedisCommandSuccess();
       return Number(result);
     } catch (error) {
@@ -243,7 +250,7 @@ export namespace RedisStream {
         args.push('COUNT', String(count));
       }
 
-      const response = await redis.send('XAUTOCLAIM', args);
+      const response = await getRedis().send('XAUTOCLAIM', args);
       markRedisCommandSuccess();
 
       // Response format: [cursor, [[id, [key1, val1, ...]], ...], [deletedIds]]
@@ -288,7 +295,7 @@ export namespace RedisStream {
     ensureRedisAvailable('XINFO STREAM');
 
     try {
-      const response = await redis.send('XINFO', ['STREAM', stream]);
+      const response = await getRedis().send('XINFO', ['STREAM', stream]);
       markRedisCommandSuccess();
       return parseInfoResponse(response);
     } catch (error) {
@@ -312,7 +319,7 @@ export namespace RedisStream {
     ensureRedisAvailable('XINFO GROUPS');
 
     try {
-      const response = await redis.send('XINFO', ['GROUPS', stream]);
+      const response = await getRedis().send('XINFO', ['GROUPS', stream]);
       markRedisCommandSuccess();
       if (!Array.isArray(response)) return [];
 
@@ -336,7 +343,7 @@ export namespace RedisStream {
     ensureRedisAvailable('XLEN');
 
     try {
-      const result = await redis.send('XLEN', [stream]);
+      const result = await getRedis().send('XLEN', [stream]);
       markRedisCommandSuccess();
       return Number(result);
     } catch (error) {
@@ -366,7 +373,7 @@ export namespace RedisStream {
     try {
       // XPENDING stream group
       // Returns: [count, firstId, lastId, [[consumer, count], ...]]
-      const response = await redis.send('XPENDING', [stream, group]);
+      const response = await getRedis().send('XPENDING', [stream, group]);
       markRedisCommandSuccess();
 
       if (Array.isArray(response) && response.length > 0) {

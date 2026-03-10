@@ -20,9 +20,15 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { createLogger } from '@/server/lib/telemetry';
 import { auditLogService } from '@/server/services/audit.service';
 import { emailService } from '@/server/services/email.service';
-import { baseAuthConfig, getPlugins } from './auth.config';
+import {
+  assertRuntimeAuthConfigSafe,
+  baseAuthConfig,
+  getPlugins
+} from './auth.config';
 
 const logger = createLogger('auth-runtime');
+
+assertRuntimeAuthConfigSafe();
 
 // ═══════════════════════════════════════════════════════════════════
 // RUNTIME-SPECIFIC CONFIGURATION

@@ -16,7 +16,7 @@ import {
   type Scope,
   Scopes
 } from '@/server/config/scopes';
-import { redis } from '@/server/lib/redis';
+import { rateLimiter } from '@/server/lib/rate-limiter';
 import { createLogger } from '@/server/lib/telemetry';
 import type { ApiKeyContext, ApiKeyError } from '@/types/api-keys.types';
 import { buildErrorResponse } from './error-response';
@@ -66,31 +66,6 @@ function errorResponse(
         : undefined
     }
   );
-}
-
-// ─── Redis Rate Limit Check ───────────────────────────────────────
-
-async function checkRateLimit(
-  keyId: string,
-  max: number,
-  windowMs: number
-): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
-  const now = Date.now();
-  const windowKey = `rl:apikey:${keyId}:${Math.floor(now / windowMs)}`;
-
-  const count = (await redis.send('INCR', [windowKey])) as number;
-  if (count === 1) {
-    await redis.send('PEXPIRE', [windowKey, String(windowMs)]);
-  }
-
-  const remaining = Math.max(0, max - count);
-  const resetAt = Math.ceil(now / windowMs) * windowMs;
-
-  return {
-    allowed: count <= max,
-    remaining,
-    resetAt
-  };
 }
 
 // ─── Async Usage Increment ────────────────────────────────────────
@@ -203,17 +178,24 @@ export function requireApiKey(options: RequireApiKeyOptions) {
         const max = keyRecord.rateLimitMax ?? 1000;
         const windowMs = keyRecord.rateLimitTimeWindow ?? 3600000; // 1 hour
 
-        const rateLimitResult = await checkRateLimit(
-          keyRecord.id,
-          max,
-          windowMs
+        // Use the canonical sliding-window evaluator instead of a bespoke
+        // INCR+PEXPIRE fixed-window counter so all rate limiting paths share
+        // one consistent algorithm, fail-closed behaviour, and Redis key scheme.
+        const rateLimitResult = await rateLimiter.checkLimit(
+          `apikey:${keyRecord.id}`,
+          {
+            points: max,
+            duration: Math.floor(windowMs / 1000),
+            failClosed: true
+          },
+          'rl'
         );
 
         if (!rateLimitResult.allowed) {
           set.headers['X-RateLimit-Limit'] = String(max);
           set.headers['X-RateLimit-Remaining'] = '0';
           set.headers['X-RateLimit-Reset'] = String(
-            Math.floor(rateLimitResult.resetAt / 1000)
+            Math.floor(rateLimitResult.resetTime / 1000)
           );
           throw errorResponse('RATE_LIMITED', undefined, requestId);
         }
@@ -224,7 +206,7 @@ export function requireApiKey(options: RequireApiKeyOptions) {
           rateLimitResult.remaining
         );
         set.headers['X-RateLimit-Reset'] = String(
-          Math.floor(rateLimitResult.resetAt / 1000)
+          Math.floor(rateLimitResult.resetTime / 1000)
         );
       }
 

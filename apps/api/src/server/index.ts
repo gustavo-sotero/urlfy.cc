@@ -146,8 +146,6 @@ const publicDocsApp = new Elysia()
 // MAIN API INSTANCE
 // ═══════════════════════════════════════════════════════════════════
 
-// biome-ignore lint: exported router type leaks Elysia internals in declarations
-// @ts-ignore: TS4023 - Elysia internal types referenced in declaration (harmless)
 export const api = new Elysia({ prefix: '/api' })
   // ═══════════════════════════════════════════════════════════════════
   // OBSERVABILITY - Must be FIRST to capture full request lifecycle

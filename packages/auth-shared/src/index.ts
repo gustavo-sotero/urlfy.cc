@@ -5,4 +5,12 @@
  */
 
 export type { Scope } from './scopes';
-export { ScopeMetadata, Scopes } from './scopes';
+export {
+  hasScopes,
+  isValidScope,
+  parseScopes,
+  ScopeMetadata,
+  ScopePresets,
+  Scopes,
+  serializeScopes
+} from './scopes';

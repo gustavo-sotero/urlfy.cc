@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { reportActionError } from '@/lib/browser-logger';
 import { sanitizeErrorMessage } from '@/lib/utils/error';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -100,7 +101,9 @@ export function ContactForm() {
       });
       form.reset();
     } catch (error) {
-      console.error('Contact form error:', error);
+      reportActionError(error, {
+        action: 'contact-form-submit'
+      });
       toast.error(t('form.toast.networkTitle'), {
         description: t('form.toast.networkDescription')
       });

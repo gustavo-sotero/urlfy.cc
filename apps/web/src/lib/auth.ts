@@ -20,9 +20,15 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { auditLogService } from '@/server/services/audit.service';
 import { emailService } from '@/server/services/email.service';
-import { baseAuthConfig, getPlugins } from './auth.config';
+import {
+  assertRuntimeAuthConfigSafe,
+  baseAuthConfig,
+  getPlugins
+} from './auth.config';
 
 const logger = createLogger('auth-runtime');
+
+assertRuntimeAuthConfigSafe();
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // RUNTIME-SPECIFIC CONFIGURATION

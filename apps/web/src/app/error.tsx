@@ -13,6 +13,7 @@ import { AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { type JSX, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { reportBrowserError } from '@/lib/browser-logger';
 
 interface ErrorPageProps {
   error: Error & { digest?: string };
@@ -24,10 +25,8 @@ export default function ErrorPage({
   reset
 }: ErrorPageProps): JSX.Element {
   useEffect(() => {
-    console.error('Root error boundary caught:', {
-      message: error.message,
-      digest: error.digest,
-      stack: error.stack
+    reportBrowserError(error, {
+      context: { digest: error.digest ?? null }
     });
   }, [error]);
 

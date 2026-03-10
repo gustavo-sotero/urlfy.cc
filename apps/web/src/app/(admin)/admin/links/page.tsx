@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { reportActionError } from '@/lib/browser-logger';
 import { useAdminLinks, useBanLink, useUnbanLink } from '@/lib/hooks';
 import type { LinkResponse } from '@/types/links.types';
 
@@ -52,7 +53,6 @@ export default function AdminLinksPage() {
       toast.success('Link banned successfully');
     } catch (error) {
       toast.error('Failed to ban link');
-      console.error(error);
       throw error;
     }
   };
@@ -63,7 +63,10 @@ export default function AdminLinksPage() {
       toast.success('Link reactivated successfully');
     } catch (error) {
       toast.error('Failed to reactivate link');
-      console.error(error);
+      reportActionError(error, {
+        action: 'admin-unban-link',
+        linkId: link.id
+      });
     }
   };
 

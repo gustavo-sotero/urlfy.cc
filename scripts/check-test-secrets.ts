@@ -18,7 +18,17 @@ const KNOWN_TEST_SECRETS = [
 const secretsToCheck = [
   { name: 'JWT_SECRET', value: process.env.JWT_SECRET },
   { name: 'BETTER_AUTH_SECRET', value: process.env.BETTER_AUTH_SECRET },
-  { name: 'AUTH_SECRET', value: process.env.AUTH_SECRET }
+  { name: 'AUTH_SECRET', value: process.env.AUTH_SECRET },
+  { name: 'INTERNAL_API_SECRET', value: process.env.INTERNAL_API_SECRET },
+  // INTERNAL_ANALYTICS_SECRET is optional but must not be weak if provided
+  ...(process.env.INTERNAL_ANALYTICS_SECRET
+    ? [
+        {
+          name: 'INTERNAL_ANALYTICS_SECRET',
+          value: process.env.INTERNAL_ANALYTICS_SECRET
+        }
+      ]
+    : [])
 ];
 
 let hasTestSecrets = false;

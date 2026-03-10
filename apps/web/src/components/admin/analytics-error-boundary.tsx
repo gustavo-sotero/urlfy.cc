@@ -4,6 +4,7 @@
 import { AlertCircle } from 'lucide-react';
 import { Component, type ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { reportRenderError } from '@/lib/browser-logger';
 
 interface Props {
   children: ReactNode;
@@ -26,7 +27,7 @@ export class AnalyticsErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Analytics error:', error, errorInfo);
+    reportRenderError(error, errorInfo.componentStack);
   }
 
   render() {

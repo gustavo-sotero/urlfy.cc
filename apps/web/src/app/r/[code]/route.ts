@@ -13,12 +13,13 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { RedisStream, STREAM_NAMES } from '@urlfy/cache';
+import { REDIRECT_RATE_LIMIT_CONFIG } from '@urlfy/contracts';
 import { redirectService } from '@urlfy/redirect-domain';
 import { createLogger } from '@urlfy/telemetry';
 import { cookies } from 'next/headers';
 import { type NextRequest, NextResponse } from 'next/server';
 import { getClientIp } from '@/server/lib/ip';
-import { RATE_LIMIT_CONFIGS, rateLimiter } from '@/server/lib/rate-limiter';
+import { rateLimiter } from '@/server/lib/rate-limiter';
 import { MetricsService } from '@/server/services/metrics.service';
 
 export const runtime = 'nodejs';
@@ -214,7 +215,7 @@ export async function GET(
     }
 
     // ── 2. Rate limiting (IP + per-link) ─────────────────────────
-    const redirectConfig = RATE_LIMIT_CONFIGS.GET_REDIRECT;
+    const redirectConfig = REDIRECT_RATE_LIMIT_CONFIG;
     if (redirectConfig) {
       // Run both checks in parallel — they are independent Redis operations
       const [ipLimit, linkLimit] = await Promise.all([

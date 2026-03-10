@@ -17,7 +17,13 @@ import { db } from '@urlfy/data/cli';
 import * as schema from '@urlfy/data/schema/auth';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { baseAuthConfig, getPlugins } from './auth.config';
+import {
+  assertRuntimeAuthConfigSafe,
+  baseAuthConfig,
+  getPlugins
+} from './auth.config';
+
+assertRuntimeAuthConfigSafe();
 
 // ═══════════════════════════════════════════════════════════════════
 // CLI-SPECIFIC CONFIGURATION

@@ -75,8 +75,8 @@ describe('Error Page Components', () => {
     const content = await Bun.file('src/app/error.tsx').text();
 
     expect(content).toContain('useEffect');
-    expect(content).toContain('console.error');
-    expect(content).toMatch(/\[error\]/);
+    expect(content).toContain('reportBrowserError');
+    expect(content).toContain('digest');
   });
 
   it('error page should display development details', async () => {

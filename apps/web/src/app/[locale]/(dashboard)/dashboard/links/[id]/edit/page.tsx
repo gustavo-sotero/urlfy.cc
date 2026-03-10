@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Link, useRouter } from '@/i18n/routing';
+import { reportActionError } from '@/lib/browser-logger';
 import { useLink, useUpdateLink } from '@/lib/hooks/use-links';
 import { removeEmptyFields } from '@/lib/utils';
 import type { UpdateLinkInput } from '@/types/links.types';
@@ -113,11 +114,10 @@ export default function EditLinkPage() {
       });
       router.push(`/dashboard/links/${linkId}`);
     } catch (error) {
-      // Error is already handled by the mutation hook (toast)
-      // Log for debugging purposes
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to update link:', error);
-      }
+      reportActionError(error, {
+        action: 'dashboard-update-link',
+        linkId
+      });
     }
   };
 

@@ -1,3 +1,15 @@
+/**
+ * @deprecated This middleware is not used in any production route.
+ *
+ * The active API key authentication path for production routes is
+ * `apps/api/src/server/middleware/api-key.guard.ts` → `requireApiKey()`.
+ * That guard uses the array-scopes permission model from `@urlfy/auth-shared`
+ * which is the canonical model for this codebase.
+ *
+ * This file uses an object-permissions model (`NormalizedApiKeyPermissions`)
+ * and is retained only because `auth.middleware.test.ts` imports it.
+ * Do NOT add new route usages of `apiKeyAuth` from this file.
+ */
 import { db } from '@urlfy/data';
 import {
   apiKey as apiKeyTable,

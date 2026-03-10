@@ -11,8 +11,17 @@ import {
   markRedisCommandSuccess,
   shouldLogRedisFailure
 } from '@urlfy/cache';
+import type { RateLimitConfig } from '@urlfy/contracts';
 import { createLogger } from '@urlfy/telemetry';
 import { maskIpForLog } from './ip';
+
+export type { RateLimitConfig, RouteRateLimitEntry } from '@urlfy/contracts';
+// Re-export the canonical route config map under the legacy name so all
+// existing middleware and route imports continue to work unchanged.
+export {
+  REDIRECT_RATE_LIMIT_CONFIG,
+  ROUTE_RATE_LIMIT_CONFIGS as RATE_LIMIT_CONFIGS
+} from '@urlfy/contracts';
 
 const logger = createLogger('rate-limiter');
 
@@ -74,21 +83,6 @@ class InMemoryRateLimiter {
 
 const memoryFallback = new InMemoryRateLimiter();
 
-export interface RateLimitConfig {
-  /** Number of allowed requests */
-  points: number;
-  /** Time window in seconds */
-  duration: number;
-  /** Optional block duration if exceeded (seconds) */
-  blockDuration?: number;
-  /**
-   * If true, deny requests when Redis is unavailable instead of falling back
-   * to in-memory rate limiting. Use for security-critical endpoints
-   * (auth, admin) where fail-open could allow brute-force attacks.
-   */
-  failClosed?: boolean;
-}
-
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
@@ -96,84 +90,11 @@ export interface RateLimitResult {
   retryAfter?: number;
 }
 
-export const RATE_LIMIT_CONFIGS = {
-  // Health checks
-  'GET /api/health': {
-    guest: { points: 600, duration: 60 },
-    auth: { points: 600, duration: 60 }
-  },
-  'GET /api/health/ready': {
-    guest: { points: 300, duration: 60 },
-    auth: { points: 300, duration: 60 }
-  },
-  'GET /api/health/detailed': {
-    guest: null,
-    auth: { points: 60, duration: 60 }
-  },
-  // Link creation
-  'POST /api/links': {
-    guest: { points: 10, duration: 3600 }, // 10/hour for guests
-    auth: { points: 100, duration: 3600 } // 100/hour for authenticated users
-  },
-  // Bulk creation
-  'POST /api/links/bulk': {
-    guest: null, // Not allowed
-    auth: { points: 20, duration: 3600 } // 20/hour
-  },
-  // Redirect (per IP)
-  GET_REDIRECT: {
-    perIP: { points: 100, duration: 60 }, // 100/min per IP
-    perLink: { points: 5000, duration: 60 } // 5000/min per link
-  },
-  // QR Code generation
-  'GET /api/links/by-code/:code/qr': {
-    guest: { points: 30, duration: 3600 }, // 30/hour
-    auth: { points: 120, duration: 3600 } // 120/hour
-  },
-  // Analytics
-  'GET /api/analytics/*': {
-    guest: null, // Not allowed
-    auth: { points: 60, duration: 60 } // 60/min
-  },
-  // Admin actions
-  'GET /api/admin/*': {
-    guest: null,
-    auth: { points: 30, duration: 60, failClosed: true }
-  },
-  'POST /api/admin/*': {
-    guest: null, // Not allowed
-    auth: { points: 30, duration: 60, failClosed: true } // 30/min
-  },
-  'PATCH /api/admin/*': {
-    guest: null,
-    auth: { points: 30, duration: 60, failClosed: true }
-  },
-  'PUT /api/admin/*': {
-    guest: null,
-    auth: { points: 30, duration: 60, failClosed: true }
-  },
-  'DELETE /api/admin/*': {
-    guest: null,
-    auth: { points: 30, duration: 60, failClosed: true }
-  },
-  // Auth endpoints
-  'POST /api/auth/sign-in': {
-    guest: { points: 5, duration: 900, failClosed: true } // 5/15min (brute force protection)
-  },
-  'POST /api/auth/sign-up': {
-    guest: { points: 3, duration: 3600, failClosed: true } // 3/hour
-  },
-  'POST /api/auth/forgot-password': {
-    guest: { points: 3, duration: 3600, failClosed: true } // 3/hour
-  },
-  'POST /api/auth/verify-email': {
-    guest: { points: 10, duration: 3600, failClosed: true } // 10/hour
-  },
-  'POST /api/keys*': {
-    guest: null, // Requires authentication
-    auth: { points: 10, duration: 3600, failClosed: true } // 10/hour
-  }
-} as const;
+// ─── RATE_LIMIT_CONFIGS ───────────────────────────────────────────────────────
+// Formerly hardcoded here. Now derived from RATE_LIMITS in @urlfy/contracts and
+// re-exported at the top of this file as RATE_LIMIT_CONFIGS.
+// See: packages/contracts/src/rate-limit-policy.ts → ROUTE_RATE_LIMIT_CONFIGS
+// ─────────────────────────────────────────────────────────────────────────────
 
 export class RateLimiter {
   private redis: ReturnType<typeof getRedisClient>;

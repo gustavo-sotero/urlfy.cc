@@ -90,7 +90,10 @@ jobs:
       JWT_SECRET: ci-test-jwt-secret-minimum-32-characters
       INTERNAL_API_SECRET: ci-test-internal-secret
       NEXT_PUBLIC_APP_URL: http://localhost:3000
-      SKIP_ENV_VALIDATION: "1"
+      # SKIP_ENV_VALIDATION is intentionally NOT set at job level so that
+      # integration and security test steps exercise env validation (including
+      # rejectSentinelValues) against real CI secrets. Steps that genuinely
+      # cannot provide real secrets (unit tests, perf tests) override it locally.
 
     steps:
       - uses: actions/checkout@v4

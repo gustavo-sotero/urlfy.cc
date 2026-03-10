@@ -20,7 +20,7 @@
     "start:web": "turbo run start --filter=web",
     "start:api": "turbo run start --filter=@urlfy/api",
     "start:worker": "turbo run start --filter=worker",
-    "lint": "turbo run lint --concurrency=6 && bun run scripts/validate-module-boundaries.ts",
+    "lint": "turbo run lint --concurrency=6 --log-order=stream && bun run scripts/validate-module-boundaries.ts",
     "type-check": "turbo run type-check --concurrency=6",
     "format": "bunx biome format . --write --unsafe",
     "test": "turbo run test",

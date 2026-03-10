@@ -107,6 +107,26 @@ const buildTimePlaceholders: Partial<Record<keyof Env, string>> = {
   INTERNAL_ANALYTICS_SECRET: 'build-time-placeholder-analytics-secret'
 };
 
+// Sentinel values that are ONLY valid during build (SKIP_ENV_VALIDATION=1).
+// If any of these reach runtime validation, the deployment is misconfigured.
+const SENTINEL_PREFIX = 'build-time-placeholder';
+const SENTINEL_KEYS = [
+  'BETTER_AUTH_SECRET',
+  'INTERNAL_API_SECRET',
+  'INTERNAL_ANALYTICS_SECRET'
+] as const satisfies ReadonlyArray<keyof Env>;
+
+function rejectSentinelValues(parsedEnv: Env): void {
+  for (const key of SENTINEL_KEYS) {
+    const value = parsedEnv[key];
+    if (typeof value === 'string' && value.startsWith(SENTINEL_PREFIX)) {
+      throw new Error(
+        `${key} contains a build-time placeholder value. Set a real secret before starting the server.`
+      );
+    }
+  }
+}
+
 export function validateEnv(): Env {
   if (env) return env;
 
@@ -119,6 +139,9 @@ export function validateEnv(): Env {
       }
     }
     env = envSchema.parse(placeholderEnv);
+    if (process.env.NODE_ENV !== 'test') {
+      rejectSentinelValues(env);
+    }
     return env;
   }
 
@@ -136,6 +159,9 @@ export function validateEnv(): Env {
         })}\n`
       );
     }
+
+    // Reject build-time placeholder sentinels at runtime, regardless of NODE_ENV.
+    rejectSentinelValues(parsedEnv);
 
     env = {
       ...parsedEnv,

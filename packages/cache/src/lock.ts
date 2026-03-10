@@ -1,8 +1,16 @@
 import { createLogger } from '@urlfy/telemetry';
-import { redis } from './client';
+import { getRedisClient } from './client';
 import { CACHE_KEYS, CACHE_TTL } from './keys';
 
 const logger = createLogger('distributed-lock');
+
+// Lazy accessor — resolves the singleton at call time rather than at module
+// import time, so that test overrides via globalThis.__REDIS_CLIENT__ work
+// correctly even after this module has already been imported (same pattern as
+// packages/cache/src/distributed-lock.ts).
+function getRedis() {
+  return getRedisClient();
+}
 
 export interface LockOptions {
   ttl?: number; // TTL in seconds (default: 5)
@@ -30,7 +38,7 @@ export async function acquireLock(
   for (let i = 0; i < retries; i++) {
     try {
       // SET with NX and EX options (atomic SETNX + EXPIRE)
-      const result = await redis.send('SET', [
+      const result = await getRedis().send('SET', [
         lockKey,
         lockValue,
         'EX',
@@ -66,7 +74,7 @@ export async function releaseLock(resource: string): Promise<void> {
     : `lock:${resource}`;
 
   try {
-    await redis.del(lockKey);
+    await getRedis().del(lockKey);
   } catch (error) {
     logger.error('Lock release error', {
       resource,

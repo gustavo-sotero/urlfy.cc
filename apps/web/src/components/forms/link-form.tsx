@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { CopyButton } from '@/components/shared/copy-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { reportActionError } from '@/lib/browser-logger';
 import { useCreateLink } from '@/lib/hooks/use-links';
 
 export function LinkForm() {
@@ -39,7 +40,7 @@ export function LinkForm() {
       const link = await createLink.mutateAsync(data);
       setResult({ shortUrl: link.shortUrl });
     } catch (error) {
-      console.error('Failed to create link:', error);
+      reportActionError(error, { action: 'create-link' });
     }
   };
 

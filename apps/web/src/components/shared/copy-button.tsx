@@ -5,6 +5,7 @@ import { Check, Copy } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { reportActionError } from '@/lib/browser-logger';
 import { cn } from '@/lib/utils';
 
 interface CopyButtonProps {
@@ -33,7 +34,9 @@ export function CopyButton({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy:', error);
+      reportActionError(error, {
+        action: 'copy-to-clipboard'
+      });
     }
   };
 

@@ -4,7 +4,13 @@ import { createLogger } from '@urlfy/telemetry';
 import { getRedisClient } from './client';
 
 const logger = createLogger('distributed-lock');
-const redis = getRedisClient();
+
+// Lazy accessor — resolves the singleton at call time rather than at module
+// import time, so that closeRedis() + re-init does not leave this module
+// holding a reference to a closed client.
+function getRedis() {
+  return getRedisClient();
+}
 
 /**
  * Attempt to acquire a distributed lock using Redis SETNX
@@ -27,7 +33,7 @@ export async function acquireLock(
   while (attempts < maxAttempts) {
     try {
       // SET NX PX: Set if Not eXists + Expiration in milliseconds
-      const result = await redis.set(key, '1', 'PX', String(ttlMs), 'NX');
+      const result = await getRedis().set(key, '1', 'PX', String(ttlMs), 'NX');
 
       if (result === 'OK') {
         logger.debug('Lock acquired', { key, ttlMs, attempt: attempts + 1 });
@@ -62,7 +68,7 @@ export async function acquireLock(
  */
 export async function releaseLock(key: string): Promise<void> {
   try {
-    const result = await redis.del(key);
+    const result = await getRedis().del(key);
     if (result === 1) {
       logger.debug('Lock released', { key });
     } else {
@@ -113,7 +119,7 @@ export async function withLock<T>(
  */
 export async function hasLock(key: string): Promise<boolean> {
   try {
-    const exists = (await redis.send('EXISTS', [key])) as number;
+    const exists = (await getRedis().send('EXISTS', [key])) as number;
     return exists === 1;
   } catch (error) {
     logger.error('Error checking lock', {
@@ -132,7 +138,7 @@ export async function hasLock(key: string): Promise<boolean> {
  */
 export async function getLockTTL(key: string): Promise<number> {
   try {
-    const ttl = await redis.pttl(key);
+    const ttl = await getRedis().pttl(key);
     return ttl;
   } catch (error) {
     logger.error('Error getting lock TTL', {

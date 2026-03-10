@@ -5,6 +5,7 @@
 
 import { createLogger } from '@urlfy/telemetry';
 import { type NextRequest, NextResponse } from 'next/server';
+import type { BrowserLogPayload } from '@/lib/browser-log-contract';
 
 const logger = createLogger('client-error-monitor');
 
@@ -66,12 +67,35 @@ function sanitizeForLog(value: string): string {
   return value.replace(/[\x00-\x1f\x7f]/g, ' ');
 }
 
-interface ClientError {
-  error: string;
-  componentStack?: string;
-  url: string;
-  userAgent?: string;
-  timestamp?: string;
+type ClientError = BrowserLogPayload;
+
+function sanitizeContext(
+  context: ClientError['context']
+): Record<string, string | number | boolean | null> | undefined {
+  if (!context) return undefined;
+
+  const entries: Array<[string, string | number | boolean | null]> = [];
+
+  for (const [key, value] of Object.entries(context)) {
+    if (value === undefined) {
+      continue;
+    }
+
+    const sanitizedKey = sanitizeForLog(truncate(key, 80));
+
+    if (typeof value === 'string') {
+      entries.push([sanitizedKey, sanitizeForLog(truncate(value, 200))]);
+      continue;
+    }
+
+    entries.push([sanitizedKey, value]);
+  }
+
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  return Object.fromEntries(entries);
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -107,7 +131,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const body = (await request.json()) as ClientError;
 
     // Validate required fields
-    if (!body.error || !body.url) {
+    const reportUrl = body.url;
+
+    if (!body.error || !reportUrl) {
       return NextResponse.json(
         {
           success: false,
@@ -124,7 +150,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const sanitizedError = sanitizeForLog(truncate(body.error, 500));
     const sanitizedStack = sanitizeForLog(truncate(body.componentStack, 2000));
     const sanitizedUrl = sanitizeForLog(
-      stripQueryParams(truncate(body.url, 500))
+      stripQueryParams(truncate(reportUrl, 500))
+    );
+    const sanitizedContext = sanitizeContext(body.context);
+    const requestId = sanitizeForLog(
+      truncate(
+        body.requestId ||
+          request.headers.get('x-request-id') ||
+          crypto.randomUUID(),
+        200
+      )
     );
 
     // Extract client information
@@ -140,7 +175,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       referer: sanitizeForLog(truncate(referer, 500)),
       userAgent: truncate(userAgent, 300),
       timestamp: body.timestamp || new Date().toISOString(),
-      requestId: request.headers.get('x-request-id') || crypto.randomUUID()
+      requestId,
+      context: sanitizedContext
     });
 
     // Return success (fire-and-forget from client perspective)

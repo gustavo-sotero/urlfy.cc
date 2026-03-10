@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { reportActionError } from '@/lib/browser-logger';
 import type { LinkResponse } from '@/types/links.types';
 
 interface BanLinkDialogProps {
@@ -41,7 +42,10 @@ export function BanLinkDialog({
       setReason('');
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to ban link:', error);
+      reportActionError(error, {
+        action: 'admin-ban-link',
+        linkId: link?.id ?? null
+      });
     } finally {
       setIsSubmitting(false);
     }

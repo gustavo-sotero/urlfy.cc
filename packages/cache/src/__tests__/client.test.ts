@@ -12,6 +12,7 @@ mock.module('@urlfy/telemetry', () => ({
 import {
   canAttemptRedisCommand,
   checkRedisHealth,
+  getRedisClient,
   getRedisHealthSnapshot,
   markRedisCommandFailure,
   markRedisCommandSuccess,
@@ -131,6 +132,37 @@ describe('redis client health state', () => {
       expect(redisHealth.lastError).toBeNull();
     } finally {
       globalScope.__REDIS_CLIENT__ = previousOverride;
+    }
+  });
+});
+
+describe('getRedisClient singleton', () => {
+  it('returns the same instance on every call (no duplicate construction)', () => {
+    // In NODE_ENV=test all calls return the in-memory mock singleton.
+    // This verifies that parallel callers cannot race into constructing two
+    // separate client objects — the null-check + synchronous constructor
+    // assignment is always atomic within JavaScript's single-threaded model.
+    const first = getRedisClient();
+    const second = getRedisClient();
+    const third = getRedisClient();
+
+    expect(first).toBe(second);
+    expect(second).toBe(third);
+  });
+
+  it('returns the test override when __REDIS_CLIENT__ is set', () => {
+    const globalScope = globalThis as { __REDIS_CLIENT__?: unknown };
+    const fakeSentinel = { _isFakeSentinel: true } as unknown as ReturnType<
+      typeof getRedisClient
+    >;
+    const previous = globalScope.__REDIS_CLIENT__;
+    globalScope.__REDIS_CLIENT__ = fakeSentinel;
+
+    try {
+      const result = getRedisClient();
+      expect(result).toBe(fakeSentinel);
+    } finally {
+      globalScope.__REDIS_CLIENT__ = previous;
     }
   });
 });

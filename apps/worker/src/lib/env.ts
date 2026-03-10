@@ -106,6 +106,23 @@ const buildTimePlaceholders: Partial<Record<keyof Env, string>> = {
   INTERNAL_ANALYTICS_SECRET: 'build-time-placeholder-analytics-secret'
 };
 
+const SENTINEL_PREFIX = 'build-time-placeholder';
+const SENTINEL_KEYS = [
+  'INTERNAL_API_SECRET',
+  'INTERNAL_ANALYTICS_SECRET'
+] as const satisfies ReadonlyArray<keyof Env>;
+
+function rejectSentinelValues(parsedEnv: Env): void {
+  for (const key of SENTINEL_KEYS) {
+    const value = parsedEnv[key];
+    if (typeof value === 'string' && value.startsWith(SENTINEL_PREFIX)) {
+      throw new Error(
+        `${key} contains a build-time placeholder value. Set a real secret before starting the worker.`
+      );
+    }
+  }
+}
+
 export function validateEnv(): Env {
   if (env) return env;
 
@@ -118,11 +135,16 @@ export function validateEnv(): Env {
       }
     }
     env = envSchema.parse(placeholderEnv);
+    if (process.env.NODE_ENV !== 'test') {
+      rejectSentinelValues(env);
+    }
     return env;
   }
 
   try {
     const parsedEnv = envSchema.parse(process.env);
+
+    rejectSentinelValues(parsedEnv);
 
     // Deprecation warning for OTEL_ENABLED
     if (parsedEnv.OTEL_ENABLED && !parsedEnv.TELEMETRY_ENABLED) {
