@@ -27,6 +27,12 @@ mock.module('@/server/services/metrics.service', () => ({
   }
 }));
 
+mock.module('@/server/lib/telemetry', () => ({
+  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
+    fn().catch(() => {});
+  }
+}));
+
 const originalFetch = global.fetch;
 
 function makeLinksRequest(): Request {

@@ -240,32 +240,6 @@ export class GDPRService {
   }
 
   /**
-   * Anonymize user data
-   * Instead of deletion, can anonymize for analytics preservation
-   */
-  async anonymizeUserData(userId: string): Promise<void> {
-    try {
-      logger.info('Anonymizing user data', { userId });
-
-      // Update user to anonymous
-      await db
-        .update(user)
-        .set({
-          email: `deleted+${userId}@urlfy.cc`
-        })
-        .where(eq(user.id, userId));
-
-      logger.info('User data anonymized', { userId });
-    } catch (error) {
-      logger.error('Failed to anonymize user data', {
-        error: error instanceof Error ? error.message : String(error),
-        userId
-      });
-      throw error;
-    }
-  }
-
-  /**
    * Get deletion request status
    */
   async getDeletionStatus(

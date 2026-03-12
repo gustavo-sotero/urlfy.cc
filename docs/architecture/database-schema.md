@@ -257,7 +257,7 @@ URLs e domínios bloqueados.
 
 ---
 
-## Tabela: `audit_logs`
+## Tabela: `audit_log`
 
 Logs de ações administrativas.
 
@@ -306,13 +306,25 @@ CREATE INDEX idx_deletion_pending ON data_deletion_requests(status, deadline_at)
 1. **Particionamento mensal** em `created_at`
 2. **Agregação diária** via worker Redis Streams → `link_clicks_daily`
 3. **TTL de dados brutos:** 90 dias
-4. **Cleanup automático:** Job mensal dropa partições antigas
+4. **Cleanup automático:** manutenção de partições remove partições inteiras
+  quando todo o range já saiu da janela de 90 dias
+5. **Retention cleanup complementar:** o worker ainda remove eventos antigos em
+  lotes dentro da partição corrente, cobrindo janelas não alinhadas ao mês
+
+Regra operacional final:
+- `cleanup-partitions` é o mecanismo primário quando uma partição inteira já
+  saiu da janela de retenção.
+- `retention-cleanup` só atua dentro da partição corrente, onde ainda não é
+  possível dropar a partição inteira sem remover dados válidos.
+- Os dois jobs são complementares, não concorrentes: partição completa primeiro,
+  trim em lote apenas para o intervalo residual.
 
 ### Workers (Redis Streams)
 
 | Job                  | Frequência         | Descrição                                   |
 | -------------------- | ------------------ | ------------------------------------------- |
 | `aggregate-daily`    | 1x/dia (02:00 UTC) | Sumariza eventos em `link_clicks_daily`     |
-| `cleanup-partitions` | 1x/mês             | Dropa partições > 90 dias                   |
+| `cleanup-partitions` | 1x/mês             | Cria partições futuras e dropa partições > 90 dias |
+| `retention-cleanup`  | 1x/mês             | Remove lotes antigos na partição ainda ativa |
 | `hard-delete-links`  | 1x/mês             | Remove links com `deleted_at` > 30 dias     |
 | `process-deletions`  | 1x/hora            | Processa `data_deletion_requests` pendentes |

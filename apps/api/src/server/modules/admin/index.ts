@@ -11,7 +11,6 @@ export {
   AdminBanLinkBody,
   type AdminBanLinkBodyType,
   AdminModel,
-  AdminModels,
   AdminStatsResponse,
   type AdminStatsResponseType,
   AdminUserListQuery,

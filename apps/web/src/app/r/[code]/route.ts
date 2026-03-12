@@ -15,7 +15,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { RedisStream, STREAM_NAMES } from '@urlfy/cache';
 import { REDIRECT_RATE_LIMIT_CONFIG } from '@urlfy/contracts';
 import { redirectService } from '@urlfy/redirect-domain';
-import { createLogger } from '@urlfy/telemetry';
+import { createLogger, fireAndForget } from '@urlfy/telemetry';
 import { cookies } from 'next/headers';
 import { type NextRequest, NextResponse } from 'next/server';
 import { getClientIp } from '@/server/lib/ip';
@@ -64,8 +64,8 @@ function verifyUnlockToken(token: string, code: string): boolean {
       Buffer.from(payloadB64, 'base64url').toString()
     ) as { code?: string; type?: string; exp?: number };
 
-    // Check expiration
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+    // Require expiration claim — tokens without exp are invalid
+    if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) {
       return false;
     }
 
@@ -170,24 +170,24 @@ function dispatchAnalytics(
 ): void {
   const searchParams = request.nextUrl.searchParams;
 
-  RedisStream.add(STREAM_NAMES.analyticsClicks, {
-    linkId,
-    shortCode: code,
-    ip: getClientIp(request),
-    userAgent: request.headers.get('user-agent') ?? '',
-    referer: request.headers.get('referer') ?? '',
-    utmSource: searchParams.get('utm_source') ?? '',
-    utmMedium: searchParams.get('utm_medium') ?? '',
-    utmCampaign: searchParams.get('utm_campaign') ?? '',
-    utmContent: searchParams.get('utm_content') ?? '',
-    utmTerm: searchParams.get('utm_term') ?? '',
-    timestamp: new Date().toISOString()
-  }).catch((err) => {
-    logger.error('Failed to enqueue click event', {
-      shortCode: code,
-      error: err instanceof Error ? err.message : String(err)
-    });
-  });
+  fireAndForget(
+    'analytics-emit',
+    () =>
+      RedisStream.add(STREAM_NAMES.analyticsClicks, {
+        linkId,
+        shortCode: code,
+        ip: getClientIp(request),
+        userAgent: request.headers.get('user-agent') ?? '',
+        referer: request.headers.get('referer') ?? '',
+        utmSource: searchParams.get('utm_source') ?? '',
+        utmMedium: searchParams.get('utm_medium') ?? '',
+        utmCampaign: searchParams.get('utm_campaign') ?? '',
+        utmContent: searchParams.get('utm_content') ?? '',
+        utmTerm: searchParams.get('utm_term') ?? '',
+        timestamp: new Date().toISOString()
+      }),
+    { shortCode: code, linkId }
+  );
 }
 
 /**
@@ -256,8 +256,8 @@ export async function GET(
     }
 
     // ── 4. Track RPS metrics (non-blocking) ──────────────────────
-    MetricsService.trackRequest().catch(() => {
-      // Intentionally ignored — metrics must never block requests
+    fireAndForget('rps-metrics', () => MetricsService.trackRequest(), {
+      shortCode: code
     });
 
     // ── 5. Resolve link (cache-first → DB fallback) ──────────────

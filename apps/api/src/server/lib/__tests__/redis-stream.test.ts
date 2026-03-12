@@ -32,6 +32,9 @@ mock.module('@urlfy/telemetry', () => ({
   configureLogging: async () => {},
   initTelemetry: async () => {},
   shutdownTelemetry: async () => {},
+  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
+    fn().catch(() => {});
+  },
   circuitBreakerTrips: noOpCounter,
   cacheHits: noOpCounter,
   cacheMisses: noOpCounter,

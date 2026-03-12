@@ -271,6 +271,11 @@ function getCurrentModuleName(filePath: string): string | null {
   const relPath = relative(MODULES_ROOT, filePath);
   if (!relPath || relPath.startsWith('..')) return null;
 
+  const normalizedRelPath = normalizePath(relPath);
+  if (!normalizedRelPath.includes('/')) {
+    return null;
+  }
+
   const [moduleName] = relPath.split(sep);
   return moduleName || null;
 }
@@ -290,7 +295,7 @@ function isCrossModuleInternalImport(
     return { valid: true };
   }
 
-  const [targetModule, secondSegment] = segments;
+  const [targetModule] = segments;
 
   if (!targetModule) {
     return { valid: true };
@@ -300,18 +305,10 @@ function isCrossModuleInternalImport(
     return { valid: true };
   }
 
-  if (!secondSegment) {
-    return { valid: true };
-  }
-
-  if (segments.length === 2 && secondSegment === 'index') {
-    return { valid: true };
-  }
-
   return {
     valid: false,
     reason:
-      'Cross-module imports must use module barrel exports only (e.g. "@/server/modules/<module>")'
+      'Feature modules must not import sibling modules directly. Extract shared abstractions under src/server/services/ or packages/* instead.'
   };
 }
 

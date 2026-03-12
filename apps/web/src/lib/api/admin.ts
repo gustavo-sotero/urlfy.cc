@@ -7,9 +7,10 @@
 import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
 import { BASE_URL, client, createClientWithHeaders } from './client';
 import {
+  ApiClientError,
+  extractErrorInfo,
   handleEden,
   handleEdenVoid,
-  type TreatyResponse,
   toQueryParams
 } from './error';
 
@@ -27,6 +28,10 @@ interface AdminLinkRaw {
   createdAt: string;
   clicksCount: number;
   [key: string]: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object';
 }
 
 /**
@@ -181,14 +186,53 @@ export interface StreamStats {
   consumers?: number;
   pending?: number;
   lastGeneratedId?: string;
+  degraded?: boolean;
+}
+
+export interface QueueStatsResponse {
+  data: Record<string, StreamStats>;
+  degraded?: boolean;
 }
 
 /**
  * Get Redis Streams queue statistics (client-side)
  */
-export async function getQueueStats(): Promise<Record<string, StreamStats>> {
+export async function getQueueStats(): Promise<QueueStatsResponse> {
   const response = await client.api.admin.queues.get();
-  return handleEden(response as TreatyResponse);
+
+  if (response.error) {
+    const errorInfo = extractErrorInfo(response.error.value);
+    const requestId =
+      errorInfo.requestId ||
+      response.response?.headers.get('x-request-id') ||
+      undefined;
+
+    throw new ApiClientError(
+      errorInfo.code,
+      errorInfo.message,
+      errorInfo.details,
+      requestId
+    );
+  }
+
+  const apiResponse = response.data;
+
+  if (
+    !isRecord(apiResponse) ||
+    apiResponse.success !== true ||
+    !('data' in apiResponse) ||
+    !isRecord(apiResponse.data)
+  ) {
+    throw new ApiClientError(
+      'INVALID_RESPONSE',
+      'Invalid queue stats response structure'
+    );
+  }
+
+  return {
+    data: apiResponse.data as Record<string, StreamStats>,
+    ...(apiResponse.degraded === true ? { degraded: true } : {})
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════════

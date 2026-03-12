@@ -151,6 +151,9 @@ mock.module('@urlfy/telemetry', () => ({
     warn: mock(),
     error: mock()
   }),
+  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
+    fn().catch(() => {});
+  },
   initTelemetry: mock(),
   shutdownTelemetry: mock()
 }));

@@ -18,11 +18,8 @@ import {
 import { createLogger } from '@/server/lib/telemetry';
 import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth/require-admin';
-import {
-  AdminModels,
-  AuditLogQuery
-} from '@/server/modules/admin/admin.schema';
-import { adminAuditAdapter } from './adapters/audit-log.adapter';
+import { AdminModel, AuditLogQuery } from '@/server/modules/admin/admin.schema';
+import { auditLogService } from '@/server/services/audit.service';
 
 const logger = createLogger('admin-audit-controller');
 
@@ -30,7 +27,7 @@ export const auditController = new Elysia({ prefix: '/admin/audit' })
   .use(requireAdmin)
   .use(adminRateLimits.general)
   // Inject shared models for type inference and OpenAPI docs
-  .use(AdminModels)
+  .use(AdminModel)
 
   // ═══════════════════════════════════════════════════════════════════
   // GET AUDIT LOGS
@@ -45,7 +42,7 @@ export const auditController = new Elysia({ prefix: '/admin/audit' })
       );
       const offset = (page - 1) * limit;
 
-      const { logs: allLogs } = await adminAuditAdapter.getRecent({
+      const { logs: allLogs } = await auditLogService.getRecent({
         action: query.action ? (query.action as AuditAction) : undefined,
         limit: 10000,
         offset: 0
@@ -129,7 +126,7 @@ export const auditController = new Elysia({ prefix: '/admin/audit' })
   .get(
     '/:id',
     async ({ user, params }) => {
-      const log = await adminAuditAdapter.getById(params.id);
+      const log = await auditLogService.getById(params.id);
 
       if (!log) {
         throw new AppError(ErrorCode.RESOURCE_NOT_FOUND, 'Audit log not found');
@@ -173,7 +170,7 @@ export const auditController = new Elysia({ prefix: '/admin/audit' })
         Math.max(1, parseInt(query.limit || '50', 10))
       );
 
-      const { logs } = await adminAuditAdapter.getByEntity(
+      const { logs } = await auditLogService.getByEntity(
         params.entityType,
         params.entityId,
         { limit }
@@ -235,7 +232,7 @@ export const auditController = new Elysia({ prefix: '/admin/audit' })
         Math.max(1, parseInt(query.limit || '50', 10))
       );
 
-      const { logs } = await adminAuditAdapter.getByUser(params.targetUserId, {
+      const { logs } = await auditLogService.getByUser(params.targetUserId, {
         limit
       });
 
@@ -286,7 +283,7 @@ export const auditController = new Elysia({ prefix: '/admin/audit' })
   .get(
     '/stats/summary',
     async ({ user }) => {
-      const summary = await adminAuditAdapter.getSummary();
+      const summary = await auditLogService.getSummary();
 
       logger.info('Audit logs summary retrieved', {
         userId: user?.id

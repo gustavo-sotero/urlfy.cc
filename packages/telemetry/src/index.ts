@@ -3,6 +3,8 @@
  * Structured logging and distributed tracing helpers for urlfy.cc
  */
 
+// Non-blocking side-effect helper
+export { fireAndForget } from './fire-and-forget';
 // SDK lifecycle
 export { configureLogging, initTelemetry, shutdownTelemetry } from './init';
 // IP extraction utilities (shared across API and web runtimes)

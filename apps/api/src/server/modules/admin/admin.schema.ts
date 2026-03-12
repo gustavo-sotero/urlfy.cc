@@ -366,7 +366,7 @@ export const AUDIT_LOG_EXAMPLE: AuditLogResponseType = {
 // ELYSIA MODEL PLUGIN (for OpenAPI $ref support)
 // ═══════════════════════════════════════════════════════════════════
 
-export const AdminModels = new Elysia({ name: 'admin.model' }).model({
+export const AdminModel = new Elysia({ name: 'admin.model' }).model({
   'admin.audit.query': AuditLogQuery,
   'admin.audit.response': AuditLogResponse,
   'admin.audit.id.param': AuditLogIdParam,
@@ -381,32 +381,5 @@ export const AdminModels = new Elysia({ name: 'admin.model' }).model({
   'admin.growth.query': GrowthStatsQuery,
   'admin.user.list.query': AdminUserListQuery,
   'admin.user.response': AdminUserResponse,
-  'admin.user.update.body': AdminUserUpdateBody,
-  AdminUserListQuery: AdminUserListQuery,
-  AdminBanLinkBody: AdminBanLinkBody,
-  AdminUserUpdateBody: AdminUserUpdateBody,
-  GrowthStatsQuery: GrowthStatsQuery
+  'admin.user.update.body': AdminUserUpdateBody
 });
-
-// Legacy export for backward compatibility
-export const AdminModel = {
-  // Audit logs
-  AuditLogQuery,
-  AuditLogResponse,
-  AuditLogIdParam,
-  AuditLogEntityParams,
-  AuditLogUserParam,
-  AuditLogLimitQuery,
-  AuditStatsSummaryResponse,
-  // Link management
-  AdminBanLinkBody,
-  AdminLinkResponse,
-  // Stats
-  AdminStatsResponse,
-  GrowthStatsResponse,
-  GrowthStatsQuery,
-  // User management
-  AdminUserListQuery,
-  AdminUserResponse,
-  AdminUserUpdateBody
-};

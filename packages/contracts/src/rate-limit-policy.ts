@@ -50,6 +50,9 @@ export const RATE_LIMITS = {
   ADMIN_LINK_BAN: { windowMs: 60 * 1000, max: 50, failClosed: true }, // 50/min
   ADMIN_BULK_ACTIONS: { windowMs: 60 * 1000, max: 10, failClosed: true }, // 10/min
 
+  // ─── Password Verification (fail-closed: brute-force protection) ──
+  VERIFY_PASSWORD: { windowMs: 15 * 60 * 1000, max: 5, failClosed: true }, // 5/15min per IP+link
+
   // ─── Authentication (fail-closed: brute-force protection) ─────────
   AUTH_SIGN_IN: { windowMs: 15 * 60 * 1000, max: 5, failClosed: true }, // 5/15min
   AUTH_SIGN_UP: { windowMs: 60 * 60 * 1000, max: 3, failClosed: true }, // 3/hour
@@ -135,6 +138,11 @@ export const ROUTE_RATE_LIMIT_CONFIGS: Record<string, RouteRateLimitEntry> = {
     perIP: toConfig(RATE_LIMITS.REDIRECT_PER_IP),
     perLink: toConfig(RATE_LIMITS.REDIRECT_PER_LINK)
   } as RedirectRouteConfig,
+  // ─── Password Verification (fail-closed: dual-key IP + link code) ─
+  'POST /api/links/by-code/:code/verify-password': {
+    guest: toConfig(RATE_LIMITS.VERIFY_PASSWORD),
+    auth: toConfig(RATE_LIMITS.VERIFY_PASSWORD)
+  },
   // ─── QR Code ──────────────────────────────────────────────────────
   'GET /api/links/by-code/:code/qr': {
     guest: toConfig(RATE_LIMITS.QR_CODE_GUEST),

@@ -26,9 +26,14 @@ mock.module('@/server/lib/telemetry', () => ({
 // ─── Mock auth module (session resolution) ───────────────────────────
 const getSessionMock = mock(async () => null);
 
+const _realAuthModule = await import('@/lib/auth');
+
 mock.module('@/lib/auth', () => ({
+  ..._realAuthModule,
   auth: {
+    ..._realAuthModule.auth,
     api: {
+      ..._realAuthModule.auth.api,
       getSession: getSessionMock
     }
   }
@@ -39,20 +44,24 @@ mock.module('@/server/lib/log-sanitizer', () => ({
   sanitizeHeaders: () => ({})
 }));
 
-// ─── Import middlewares AFTER mocks are set up ──────────────────────
-const { requireAuth } = await import('@/server/middleware/auth/require-auth');
-const { optionalAuth } = await import('@/server/middleware/auth/optional-auth');
-
 // ─── Helper: build a test app with the middleware under test ────────
 
-function buildRequireAuthApp() {
+async function buildRequireAuthApp() {
+  const { requireAuth } = await import(
+    '../../src/server/middleware/auth/require-auth.ts?auth-middleware-test=require'
+  );
+
   return new Elysia().use(requireAuth).get('/protected', ({ user }) => ({
     success: true,
     data: { userId: user?.id ?? null }
   }));
 }
 
-function buildOptionalAuthApp() {
+async function buildOptionalAuthApp() {
+  const { optionalAuth } = await import(
+    '../../src/server/middleware/auth/optional-auth.ts?auth-middleware-test=optional'
+  );
+
   return new Elysia()
     .use(optionalAuth)
     .get('/optional', ({ user, isAuthenticated }) => ({
@@ -69,7 +78,7 @@ describe('requireAuth middleware', () => {
   test('returns 401 when session is missing', async () => {
     getSessionMock.mockResolvedValueOnce(null);
 
-    const app = buildRequireAuthApp();
+    const app = await buildRequireAuthApp();
     const res = await app.handle(new Request('http://localhost/protected'));
 
     expect(res.status).toBe(401);
@@ -91,7 +100,7 @@ describe('requireAuth middleware', () => {
       session: { id: 's1', token: 't1' }
     });
 
-    const app = buildRequireAuthApp();
+    const app = await buildRequireAuthApp();
     const res = await app.handle(new Request('http://localhost/protected'));
 
     // The derive step nullifies user when banned, so onBeforeHandle sees
@@ -116,7 +125,7 @@ describe('requireAuth middleware', () => {
       session: { id: 's1', token: 't1' }
     });
 
-    const app = buildRequireAuthApp();
+    const app = await buildRequireAuthApp();
     const res = await app.handle(new Request('http://localhost/protected'));
 
     expect(res.status).toBe(200);
@@ -128,7 +137,7 @@ describe('requireAuth middleware', () => {
   test('returns 503 when auth subsystem throws unexpectedly', async () => {
     getSessionMock.mockRejectedValueOnce(new Error('Database connection lost'));
 
-    const app = buildRequireAuthApp();
+    const app = await buildRequireAuthApp();
     const res = await app.handle(new Request('http://localhost/protected'));
 
     // The middleware throws AppError(SERVICE_UNAVAILABLE) which maps to 503.
@@ -143,7 +152,7 @@ describe('requireAuth middleware', () => {
     loggerInstance.error.mockClear();
     getSessionMock.mockRejectedValueOnce(new Error('Redis timeout'));
 
-    const app = buildRequireAuthApp();
+    const app = await buildRequireAuthApp();
     await app.handle(new Request('http://localhost/protected'));
 
     expect(loggerInstance.error).toHaveBeenCalledWith(
@@ -155,7 +164,7 @@ describe('requireAuth middleware', () => {
   });
 
   test('supports test user bypass via X-Test-User-Id', async () => {
-    const app = buildRequireAuthApp();
+    const app = await buildRequireAuthApp();
     const res = await app.handle(
       new Request('http://localhost/protected', {
         headers: { 'x-test-user-id': 'test-user-123' }
@@ -177,7 +186,7 @@ describe('optionalAuth middleware', () => {
   test('continues as anonymous when session is missing', async () => {
     getSessionMock.mockResolvedValueOnce(null);
 
-    const app = buildOptionalAuthApp();
+    const app = await buildOptionalAuthApp();
     const res = await app.handle(new Request('http://localhost/optional'));
 
     expect(res.status).toBe(200);
@@ -200,7 +209,7 @@ describe('optionalAuth middleware', () => {
       session: { id: 's2', token: 't2' }
     });
 
-    const app = buildOptionalAuthApp();
+    const app = await buildOptionalAuthApp();
     const res = await app.handle(new Request('http://localhost/optional'));
 
     expect(res.status).toBe(200);
@@ -213,7 +222,7 @@ describe('optionalAuth middleware', () => {
   test('continues as anonymous when auth subsystem throws', async () => {
     getSessionMock.mockRejectedValueOnce(new Error('Connection refused'));
 
-    const app = buildOptionalAuthApp();
+    const app = await buildOptionalAuthApp();
     const res = await app.handle(new Request('http://localhost/optional'));
 
     // optionalAuth is best-effort: still succeeds as anonymous
@@ -228,7 +237,7 @@ describe('optionalAuth middleware', () => {
     loggerInstance.error.mockClear();
     getSessionMock.mockRejectedValueOnce(new Error('Connection refused'));
 
-    const app = buildOptionalAuthApp();
+    const app = await buildOptionalAuthApp();
     await app.handle(new Request('http://localhost/optional'));
 
     expect(loggerInstance.error).toHaveBeenCalledWith(

@@ -109,7 +109,7 @@ export const UUIDString = t.String({
 // MODEL REGISTRY FOR INJECTION
 // ═══════════════════════════════════════════════════════════════════
 
-export const CommonModel = {
+export const CommonSchemas = {
   PaginationQuery,
   PaginationMeta,
   ApiError,

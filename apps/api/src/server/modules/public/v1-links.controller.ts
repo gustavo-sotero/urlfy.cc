@@ -19,12 +19,13 @@ import {
   ResponseModels,
   SuccessResponse
 } from '@/server/lib/response.schema';
+import { fireAndForget } from '@/server/lib/telemetry';
 import {
   recordLinkCreation,
   recordLinkCreationFailure
 } from '@/server/middleware/anti-abuse';
 import { requireApiKey } from '@/server/middleware/api-key.guard';
-import { AnalyticsService } from '@/server/modules/analytics';
+import { AnalyticsService } from '@/server/services/analytics-shared.service';
 import {
   LINK_RESPONSE_EXAMPLE,
   LINK_STATS_EXAMPLE,
@@ -32,7 +33,7 @@ import {
   LinkLifecycleService,
   LinkService,
   LinksModel
-} from '@/server/modules/links';
+} from '@/server/services/links-shared.service';
 
 /**
  * Helper type for context with API key
@@ -59,15 +60,19 @@ const createLinkHandler = async ({
       'api-key' // IP hash placeholder for API keys
     );
   } catch (error) {
-    recordLinkCreationFailure(apiKey?.userId ?? null, clientIp).catch(() => {
-      // Intentionally ignored
-    });
+    fireAndForget(
+      'anti-abuse-fail',
+      () => recordLinkCreationFailure(apiKey?.userId ?? null, clientIp),
+      { userId: apiKey?.userId }
+    );
     throw error;
   }
 
-  recordLinkCreation(apiKey?.userId ?? null, clientIp).catch(() => {
-    // Intentionally ignored
-  });
+  fireAndForget(
+    'anti-abuse-success',
+    () => recordLinkCreation(apiKey?.userId ?? null, clientIp),
+    { userId: apiKey?.userId }
+  );
 
   return {
     success: true as const,

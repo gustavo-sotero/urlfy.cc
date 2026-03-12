@@ -6,8 +6,8 @@ import {
   sanitizeNotes,
   sanitizeTags
 } from '@/server/lib/sanitize';
-import { linksCacheAdapter } from '@/server/modules/links/adapters/cache.adapter';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
+import { cacheService } from '@/server/services/cache.service';
 import type { Link, UpdateLinkInput } from '@/types/links.types';
 import { getLinkById } from './get-link';
 import { isValidAliasFormat, validateCustomAlias } from './shortcode.service';
@@ -100,10 +100,10 @@ export async function updateLink(
     .returning();
 
   if (newShortCode && newShortCode !== link.shortCode) {
-    await linksCacheAdapter.invalidateLinkAndQR(link.shortCode, 'deleted');
-    await linksCacheAdapter.invalidateLinkAndQR(newShortCode);
+    await cacheService.invalidateLinkAndQR(link.shortCode, 'deleted');
+    await cacheService.invalidateLinkAndQR(newShortCode);
   } else {
-    await linksCacheAdapter.invalidateLinkAndQR(link.shortCode);
+    await cacheService.invalidateLinkAndQR(link.shortCode);
   }
 
   return updated;

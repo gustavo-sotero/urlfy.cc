@@ -12,6 +12,8 @@ This document outlines the coding standards and architectural patterns adopted i
 2. **Use TypeBox as Single Source of Truth** for validation and types
 3. **Services are pure business logic** - no HTTP concerns
 4. **Plugins handle request-specific concerns** - authentication, headers, cookies
+5. **Feature modules do not import sibling modules directly** - extract shared entrypoints under `src/server/services/` or `packages/*`
+6. **Canonical owners stay canonical** - use app-local shims only as narrow re-exports to shared owners such as `@urlfy/email` and `@urlfy/data/services/audit-log`
 
 ---
 
@@ -226,6 +228,123 @@ export const linksController = new Elysia()
   .use(linksModels)
   .post('/', handler, { body: 'create' });
 ```
+
+### Model & Plugin Naming Convention
+
+Follow these rules for Elysia model/plugin instances:
+
+| Element | Convention | Example |
+| --- | --- | --- |
+| Exported Elysia model | `{FeatureName}Model` (PascalCase, feature-aligned) | `AdminModel`, `LinksModel`, `ApiKeysModel` |
+| Elysia `name` param | `'{feature}.model'` (dot-notation, lowercase) | `'admin.model'`, `'links.model'` |
+| Elysia plugin `name` | `'{feature}.plugin'` (dot-notation, lowercase) | `'auth.plugin'`, `'jwt.plugin'` |
+| Registered model ref | `'{feature}.{resource}[.{resource}...]'` in lowercase dot-notation; use kebab-case for multiword segments and avoid alias refs | `'admin.growth.query'`, `'api-keys.created'`, `'auth.api-key.response'` |
+
+```typescript
+// ✅ Correct naming
+export const AdminModel = new Elysia({ name: 'admin.model' })
+  .model({ ... });
+
+// ❌ Avoid: inconsistent casing or PascalCase name param
+export const AdminModels = new Elysia({ name: 'AdminModels' })
+  .model({ ... });
+```
+
+**Do not** export legacy plain-object model dictionaries alongside the Elysia model instance — keep one canonical export per feature.
+**Do not** register fallback aliases such as `GrowthStatsQuery` or `AdminBanLinkBody` once a canonical dotted ref exists.
+
+If a shared module only exposes reusable schema dictionaries for `.model(...)`
+without owning a controller plugin, name that export `*Schemas` instead of
+`*Model` so it does not look like an Elysia plugin instance.
+
+```typescript
+// ✅ Shared schema dictionary
+export const CommonSchemas = {
+  PaginationQuery,
+  IdParam
+};
+```
+
+Keep feature modules on the singular `*Model` Elysia-plugin pattern.
+
+When a feature must expose functionality across module boundaries, prefer a
+narrow shared entrypoint under `src/server/services/` such as
+`analytics-shared.service.ts`, `contact-shared.service.ts`, or
+`links-shared.service.ts`. Do not keep a second plain-object schema export next
+to the canonical Elysia model plugin.
+
+## Non-Blocking Side Effects
+
+Non-blocking work such as analytics emits, cache invalidation, audit fan-out, or best-effort abuse tracking must use the shared `fireAndForget()` helper from `@urlfy/telemetry` or the app-local telemetry shim.
+
+```typescript
+import { fireAndForget } from '@/server/lib/telemetry';
+
+fireAndForget(
+  'analytics-emit',
+  async () => {
+    await AnalyticsService.enqueueClick(payload);
+  },
+  {
+    shortCode: payload.shortCode,
+    path: '/r/[code]'
+  }
+);
+```
+
+Rules:
+
+1. Keep the primary request path synchronous only for required correctness.
+2. Never silently swallow rejected promises in route handlers or controllers.
+3. Pass enough structured context to make failures diagnosable without rethrowing.
+4. Use this pattern only for explicitly best-effort work; mandatory side effects must remain awaited.
+
+### Streaming Proxy Requests
+
+When proxying a readable request body, isolate the `duplex: 'half'`
+workaround in a dedicated helper instead of leaving it inline in route code.
+
+```typescript
+type StreamingRequestInit = RequestInit & { duplex: 'half' };
+
+export function createStreamingRequest(url: string, init: RequestInit) {
+  const requestInit: StreamingRequestInit = {
+    ...init,
+    duplex: 'half'
+  };
+
+  return new Request(url, requestInit);
+}
+```
+
+This keeps the route logic focused on proxy behavior rather than runtime type
+interop details.
+
+### Typed Auth Context in Extracted Subcontrollers
+
+Extracted subcontrollers can lose the narrowed auth context that was derived by
+an upstream plugin. Do not cast the full handler context to recover it.
+Re-expose the typed field through a scoped derive plugin and destructure it
+normally inside the handler.
+
+```typescript
+import { Elysia } from 'elysia';
+import type { User } from '@/lib/auth';
+
+const adminHandlerContext = new Elysia({ name: 'admin.handler-context' })
+  .derive({ as: 'scoped' }, ({ user }) => ({
+    adminUser: user as User & { role: 'admin' }
+  }));
+
+const adminUserManagementController = new Elysia()
+  .use(adminHandlerContext)
+  .patch('/users/:userId', async ({ adminUser, params, body }) => {
+    return AdminService.updateUserStatus(params.userId, body, adminUser.id);
+  });
+```
+
+This keeps the type escape at the plugin boundary instead of spreading
+whole-context casts across route handlers.
 
 ---
 

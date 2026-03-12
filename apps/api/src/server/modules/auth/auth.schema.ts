@@ -274,29 +274,15 @@ export type SessionListResponseType = Static<typeof SessionListResponse>;
 // ELYSIA MODEL PLUGIN (for OpenAPI $ref support)
 // ═══════════════════════════════════════════════════════════════════
 
-export const AuthModels = new Elysia({ name: 'auth.model' }).model({
-  'auth.apiKey.permissions': ApiKeyPermissions,
-  'auth.apiKey.create': ApiKeyCreateBody,
-  'auth.apiKey.update': ApiKeyUpdateBody,
-  'auth.apiKey.param': ApiKeyIdParam,
-  'auth.apiKey.response': ApiKeyResponse,
-  'auth.apiKey.create.response': ApiKeyCreateResponse,
+export const AuthModel = new Elysia({ name: 'auth.model' }).model({
+  'auth.api-key.permissions': ApiKeyPermissions,
+  'auth.api-key.create': ApiKeyCreateBody,
+  'auth.api-key.update': ApiKeyUpdateBody,
+  'auth.api-key.param': ApiKeyIdParam,
+  'auth.api-key.response': ApiKeyResponse,
+  'auth.api-key.create.response': ApiKeyCreateResponse,
   'auth.session.response': SessionResponse,
   'auth.session.list.response': SessionListResponse,
   'auth.session.param': SessionIdParam,
   'auth.2fa.status.response': TwoFactorStatusResponse
 });
-
-// Legacy export for backward compatibility
-export const AuthModel = {
-  ApiKeyPermissions,
-  ApiKeyCreateBody,
-  ApiKeyUpdateBody,
-  ApiKeyIdParam,
-  ApiKeyResponse,
-  ApiKeyCreateResponse,
-  SessionResponse,
-  TwoFactorStatusResponse,
-  SessionIdParam,
-  SessionListResponse
-};

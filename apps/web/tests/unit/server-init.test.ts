@@ -12,6 +12,9 @@ mock.module('@/lib/env', () => ({
 mock.module('@urlfy/telemetry', () => ({
   configureLogging,
   initTelemetry,
+  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
+    fn().catch(() => {});
+  },
   // Include createLogger so the mock is a superset of all callsite expectations.
   // Without it, Bun caches a "missing binding" for createLogger that affects
   // subsequent test files even when they provide a complete mock.

@@ -473,7 +473,10 @@ describe('DeletionWorker.processMessage', () => {
         requestId: REQUEST_ID,
         userId: USER_ID
       })
-    ).rejects.toThrow('Deletion deadline not reached yet');
+    ).rejects.toMatchObject({
+      name: 'DeferredDeletionError',
+      message: 'Deletion deadline not reached yet'
+    });
 
     // Must NOT have started any actual data deletion
     expect(opOrder.filter((op) => op.startsWith('delete'))).toHaveLength(0);
@@ -501,6 +504,7 @@ describe('DeletionWorker.processMessage', () => {
 
     // The failure catch block should have attempted to set status = 'failed'
     expect(dbMock.update).toHaveBeenCalled();
+    expect(opOrder).toContain('status:failed');
   });
 
   // ── 7. Stream/group contract constants match across publisher and worker ──

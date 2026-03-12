@@ -280,7 +280,7 @@ GET /api/links/:code/qr?size=200&format=png
 ### Verificar Senha do Link
 
 ```http
-POST /api/links/:code/verify-password
+POST /api/links/by-code/:code/verify-password
 Content-Type: application/json
 ```
 
@@ -298,10 +298,22 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "redirectUrl": "/abc123"
+    "redirectUrl": "/abc123",
+    "shortUrl": "https://urlfy.cc/abc123"
   }
 }
 ```
+
+**Rate limiting:** esta rota aplica throttling canônico por IP e por link code.
+Quando o limite é excedido, retorna `429 Too Many Requests` com os headers
+`X-RateLimit-Limit`, `X-RateLimit-Remaining` e `X-RateLimit-Reset`.
+O policy canônico atual é `VERIFY_PASSWORD`: 5 tentativas por 15 minutos,
+`failClosed: true`.
+
+**Unlock cookie:** quando a verificação é bem-sucedida, a API grava o cookie
+`urlfy_unlock_{code}` com TTL de 5 minutos. O JWT de unlock sempre inclui
+`exp`; tokens sem `exp`, expirados ou com assinatura inválida são rejeitados
+na rota de redirecionamento.
 
 **Response (falha):**
 
@@ -628,6 +640,51 @@ Content-Type: application/json
   "bannedReason": "Spam/Phishing"
 }
 ```
+
+---
+
+### Monitoramento de Filas
+
+```http
+GET /api/admin/queues
+Authorization: Bearer <token>
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "degraded": true,
+  "data": {
+    "analytics": {
+      "name": "analytics",
+      "length": 10,
+      "groups": 1,
+      "pending": 2,
+      "lastGeneratedId": "1-0",
+      "degraded": true
+    },
+    "cleanup": {
+      "name": "cleanup",
+      "length": 3,
+      "groups": 1,
+      "pending": 0
+    }
+  }
+}
+```
+
+**Semântica de degradação:**
+
+- O endpoint continua disponível mesmo quando parte das leituras do Redis falha.
+- `degraded: true` no topo indica que pelo menos um stream foi servido com
+  dados parciais ou valores de fallback.
+- `data.{stream}.degraded: true` identifica exatamente qual stream sofreu
+  degradação.
+- Campos numéricos permanecem presentes para compatibilidade com o dashboard,
+  mas não devem ser interpretados como um estado totalmente saudável quando a
+  flag de degradação estiver ativa.
 
 ---
 

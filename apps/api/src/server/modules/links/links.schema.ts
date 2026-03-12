@@ -392,19 +392,3 @@ export const LinksModel = new Elysia({ name: 'links.model' }).model({
   'links.preview.response': LinkPreviewResponse,
   'links.stats.response': LinkStatsResponse
 });
-
-// Legacy export for backward compatibility (optional, can be removed after migration)
-export const LinkModel = {
-  LinkCreateBody,
-  LinkUpdateBody,
-  LinkBulkCreateBody,
-  LinkListQuery,
-  LinkIdParam,
-  LinkCodeParam,
-  QrCodeQuery,
-  VerifyPasswordBody,
-  ValidateUrlBody,
-  LinkResponse,
-  LinkPreviewResponse,
-  LinkStatsResponse
-};

@@ -265,4 +265,53 @@ describe('Public API v1 (handler-level)', () => {
     expect(response.body.success).toBe(false);
     expect(response.body.error.code).toBe('QUOTA_EXCEEDED');
   });
+
+  test('concurrent requests respect atomic quota reservation', async () => {
+    // Create a key with high rate limit (so sliding window won't interfere)
+    // but a low remaining quota to test SQL atomicity.
+    const concurrencyKeyRecord = await _ApiKeysService.create(testUserId, {
+      name: 'Concurrency Quota Key',
+      scopes: [_Scopes.LINKS_READ],
+      rateLimit: {
+        enabled: true,
+        max: 100, // High rate limit — won't block
+        windowMs: 3600000
+      }
+    });
+    createdKeyIds.push(concurrencyKeyRecord.id);
+    const concurrencyKey = concurrencyKeyRecord.key;
+
+    // Set the quota to exactly 3 via the `remaining` column.
+    // usageCount starts at 0, so 3 requests should succeed.
+    await _db
+      .update(_apikey)
+      .set({ remaining: 3, usageCount: 0 })
+      .where(eq(_apikey.id, concurrencyKeyRecord.id));
+
+    // Fire 6 concurrent requests
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        client
+          .withApiKey(concurrencyKey)
+          .get<
+            | { success: true; data: unknown }
+            | { success: false; error: { code: string } }
+          >('/api/v1/links')
+      )
+    );
+
+    const succeeded = results.filter((r) => r.status === 200).length;
+    const quotaExceeded = results.filter(
+      (r) =>
+        r.status === 429 &&
+        r.body.success === false &&
+        (r.body as { error: { code: string } }).error.code === 'QUOTA_EXCEEDED'
+    ).length;
+
+    // Exactly 3 should succeed (atomic SQL: UPDATE WHERE usageCount < 3)
+    expect(succeeded).toBe(3);
+    // The rest should be quota-exceeded (or rate-limited, but with max:100 that's unlikely)
+    expect(quotaExceeded).toBeGreaterThanOrEqual(3);
+    expect(succeeded + quotaExceeded).toBe(6);
+  });
 });

@@ -16,7 +16,7 @@ import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { requireUser } from '@/server/lib/require-user';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
-import { AuthModels, SessionIdParam } from './auth.schema';
+import { AuthModel, SessionIdParam } from './auth.schema';
 import { AuthService } from './auth.service';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -25,7 +25,7 @@ import { AuthService } from './auth.service';
 
 export const authController = new Elysia({ prefix: '/auth' })
   .use(optionalAuth)
-  .use(AuthModels)
+  .use(AuthModel)
 
   // ─────────────────────────────────────────────────────────────────
   // GET /auth/session - Get current session with full user details

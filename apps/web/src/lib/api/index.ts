@@ -29,6 +29,7 @@ export {
   listAdminLinks,
   listAdminLinksSSR,
   type MessageStatus,
+  type QueueStatsResponse,
   type StreamStats,
   searchLinks,
   type UserResponse,

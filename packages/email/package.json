@@ -11,7 +11,9 @@
     "./render": "./src/render.ts",
     "./transport": "./src/transport.ts",
     "./locale": "./src/locale.ts",
-    "./email-service": "./src/email-service.ts"
+    "./email-service": "./src/email-service.ts",
+    "./messages/en": "./src/messages/en.ts",
+    "./messages/pt-br": "./src/messages/pt-br.ts"
   },
   "scripts": {
     "test": "bun test src/",

@@ -31,10 +31,22 @@ interface DeletionJobStream {
   userId: string;
 }
 
-const DELETION_DEFERRED_ERROR = 'Deletion deadline not reached yet';
+/**
+ * Typed error thrown when a deletion job is deferred because the
+ * cooling-off deadline has not yet elapsed.  Worker-base will re-queue
+ * the message automatically.
+ */
+class DeferredDeletionError extends Error {
+  constructor() {
+    super('Deletion deadline not reached yet');
+    this.name = 'DeferredDeletionError';
+  }
+}
 
-function isDeferredDeletionError(error: unknown): boolean {
-  return error instanceof Error && error.message === DELETION_DEFERRED_ERROR;
+function isDeferredDeletionError(
+  error: unknown
+): error is DeferredDeletionError {
+  return error instanceof DeferredDeletionError;
 }
 
 /**
@@ -106,7 +118,7 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
           requestId,
           deadlineAt: request.deadlineAt.toISOString()
         });
-        throw new Error(DELETION_DEFERRED_ERROR); // Will be re-queued
+        throw new DeferredDeletionError(); // Will be re-queued
       }
 
       // 3. Mark as processing

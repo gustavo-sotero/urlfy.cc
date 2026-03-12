@@ -22,16 +22,21 @@ Feature-based backend modules implementing domain logic and HTTP controllers for
 
 Modules may import from two categories of shared code:
 
-### Shared Infrastructure (allowed cross-module imports)
-These services provide cross-cutting infrastructure concerns and are intentionally shared:
+### Shared Infrastructure (allowed)
+These services provide cross-cutting or shared-domain concerns and are intentionally shared:
 
 | Service | Purpose | Location |
 |---------|---------|----------|
 | `cache.service` | Redis cache operations (get/set/invalidate) | `src/server/services/` |
-| `audit.service` | Audit log recording | `src/server/services/` |
+| `audit.service` | App-local shim to canonical audit owner | `src/server/services/` → `@urlfy/data/services/audit-log` |
 | `metrics.service` | Request/performance metrics tracking | `src/server/services/` |
-| `email.service` | Transactional email sending | `src/server/services/` |
+| `email.service` | App-local shim to canonical email owner | `src/server/services/` → `@urlfy/email` |
 | `sanitizer.service` | Input sanitization (DOMPurify) | `src/server/services/` |
+
+Shared entrypoints may also expose a narrow module-owned surface for other
+features without allowing sibling-module imports. Current examples include
+`analytics-shared.service.ts`, `contact-shared.service.ts`, and
+`links-shared.service.ts` under `src/server/services/`.
 
 ### Domain Services (module-owned)
 Domain-specific logic should live inside the owning module's `services/` directory or `*.service.ts` file:
@@ -48,9 +53,12 @@ Domain-specific logic should live inside the owning module's `services/` directo
 | Anti-abuse detection | Shared (`anti-abuse.service`) | Used by multiple modules |
 
 ### Rules
-1. **Modules must not import from other modules' internal services** — only from their barrel `index.ts` exports or shared infrastructure services.
-2. **Shared infrastructure services** (`src/server/services/`) should be stateless utilities with narrow interfaces.
-3. **Domain logic migration**: When shared services contain domain-specific logic that belongs to a single module, prefer extracting it into the owning module over time.
+1. **Modules must not import sibling modules directly** — not through barrels and not through internal paths.
+2. **Cross-module reuse must flow through shared entrypoints** in `src/server/services/` or `packages/*`, with the owning module remaining the canonical implementation.
+3. **Shared infrastructure services** (`src/server/services/`) should be stateless utilities or narrow re-export shims with explicit ownership.
+4. **Domain logic migration**: When shared services contain domain-specific logic that belongs to a single module, prefer extracting it into the owning module over time.
+5. **Schema exports stay singular**: expose one Elysia `*Model` plugin per feature; do not keep legacy plain-object model dictionaries alongside it.
+6. **Model refs stay canonical**: registered `.model()` refs must use lower-case dot notation namespaced by the owning feature (`admin.growth.query`, `api-keys.created`). Do not keep fallback aliases such as `GrowthStatsQuery` or `AdminBanLinkBody` after migration.
 
 ## Adding New Files
 

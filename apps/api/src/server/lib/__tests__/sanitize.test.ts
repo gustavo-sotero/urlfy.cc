@@ -1,6 +1,10 @@
 // src/server/lib/__tests__/sanitize.test.ts
 import { describe, expect, it } from 'bun:test';
-import { sanitizeMetaTags } from '../sanitize';
+import {
+  escapeSqlLike,
+  sanitizeMetaTags,
+  sanitizeSearchQuery
+} from '../sanitize';
 
 describe('Sanitize', () => {
   describe('sanitizeMetaTags', () => {
@@ -88,6 +92,69 @@ describe('Sanitize', () => {
       expect(result.metaTitle).toBeNull();
       expect(result.metaDescription).toBeNull();
       expect(result.metaImage).toBeNull();
+    });
+  });
+
+  describe('escapeSqlLike', () => {
+    it('should escape % wildcard characters', () => {
+      expect(escapeSqlLike('100%')).toBe('100\\%');
+    });
+
+    it('should escape _ wildcard characters', () => {
+      expect(escapeSqlLike('user_name')).toBe('user\\_name');
+    });
+
+    it('should escape backslashes', () => {
+      expect(escapeSqlLike('path\\to')).toBe('path\\\\to');
+    });
+
+    it('should escape multiple wildcards in a single string', () => {
+      expect(escapeSqlLike('%admin_user%')).toBe('\\%admin\\_user\\%');
+    });
+
+    it('should leave normal text unchanged', () => {
+      expect(escapeSqlLike('hello world')).toBe('hello world');
+      expect(escapeSqlLike('example.com')).toBe('example.com');
+    });
+
+    it('should handle empty string', () => {
+      expect(escapeSqlLike('')).toBe('');
+    });
+  });
+
+  describe('sanitizeSearchQuery', () => {
+    it('should return empty string for null/undefined', () => {
+      expect(sanitizeSearchQuery(null)).toBe('');
+      expect(sanitizeSearchQuery(undefined)).toBe('');
+    });
+
+    it('should escape SQL LIKE wildcards in search input', () => {
+      const result = sanitizeSearchQuery('test%injection');
+      expect(result).toBe('test\\%injection');
+      expect(result).toContain('\\%');
+    });
+
+    it('should escape underscore wildcards in search input', () => {
+      const result = sanitizeSearchQuery('user_search');
+      expect(result).toBe('user\\_search');
+    });
+
+    it('should strip HTML while preserving text', () => {
+      const result = sanitizeSearchQuery('<b>bold</b> query');
+      expect(result).not.toContain('<b>');
+      expect(result).toContain('bold');
+      expect(result).toContain('query');
+    });
+
+    it('should limit query length to 200 characters', () => {
+      const longQuery = 'x'.repeat(300);
+      const result = sanitizeSearchQuery(longQuery);
+      expect(result.length).toBeLessThanOrEqual(200);
+    });
+
+    it('should handle normal search queries unchanged', () => {
+      expect(sanitizeSearchQuery('example.com')).toBe('example.com');
+      expect(sanitizeSearchQuery('my link')).toBe('my link');
     });
   });
 });

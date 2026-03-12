@@ -29,6 +29,9 @@ mock.module('@urlfy/telemetry', () => ({
     warn: mock(() => {}),
     error: errorLog
   }),
+  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
+    fn().catch(() => {});
+  },
   getClientIp: getClientIpMock,
   getClientIpFromHeaders: mock((_headers: unknown): string => '127.0.0.1'),
   isPrivateIp: mock(() => true),

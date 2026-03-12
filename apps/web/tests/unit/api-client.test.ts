@@ -1,6 +1,7 @@
 // tests/unit/api-client.test.ts
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import * as adminApi from '@/lib/api/admin';
 import * as api from '@/lib/api/links';
 import type { LinkResponse } from '@/types/links.types';
 
@@ -218,6 +219,37 @@ describe('API Client - Pagination Handling', () => {
         credentials: 'include'
       })
     );
+  });
+
+  it('should preserve queue degraded metadata from admin queue responses', async () => {
+    const mockResponse = {
+      success: true,
+      degraded: true,
+      data: {
+        analytics: {
+          name: 'analytics',
+          length: 10,
+          groups: 1,
+          pending: 2,
+          degraded: true
+        }
+      }
+    };
+
+    mockFetch.mockImplementationOnce(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(mockResponse), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+    );
+
+    const result = await adminApi.getQueueStats();
+
+    expect(result.degraded).toBe(true);
+    expect(result.data.analytics.degraded).toBe(true);
+    expect(result.data.analytics.length).toBe(10);
   });
 });
 

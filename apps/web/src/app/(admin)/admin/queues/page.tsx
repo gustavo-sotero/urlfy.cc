@@ -33,6 +33,14 @@ export default function AdminQueuesPage() {
     useQueueStats(autoRefresh);
 
   const getHealthStatus = (stats: StreamStats) => {
+    if (stats.degraded) {
+      return {
+        label: 'Degradado',
+        variant: 'destructive' as const,
+        icon: AlertCircle
+      };
+    }
+
     const pending = stats.pending ?? 0;
 
     if (pending > 100) {
@@ -87,7 +95,8 @@ export default function AdminQueuesPage() {
     );
   }
 
-  const streams = data ? Object.values(data) : [];
+  const streams = data ? Object.values(data.data) : [];
+  const isDegraded = data?.degraded === true;
   const totalLength = streams.reduce((sum, s) => sum + s.length, 0);
   const totalPending = streams.reduce((sum, s) => sum + (s.pending ?? 0), 0);
 
@@ -135,6 +144,21 @@ export default function AdminQueuesPage() {
         </div>
       )}
 
+      {isDegraded && (
+        <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+              Estatísticas parciais por indisponibilidade do Redis
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Alguns streams retornaram valores de fallback. Os números exibidos
+              podem estar incompletos até a recuperação da dependência.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -148,7 +172,7 @@ export default function AdminQueuesPage() {
               {totalLength.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Em {streams.length} streams
+              Em {streams.length} streams{isDegraded ? ' (parcial)' : ''}
             </p>
           </CardContent>
         </Card>
@@ -162,7 +186,7 @@ export default function AdminQueuesPage() {
               {totalPending.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Mensagens em processamento
+              Mensagens em processamento{isDegraded ? ' (parcial)' : ''}
             </p>
           </CardContent>
         </Card>
@@ -178,7 +202,7 @@ export default function AdminQueuesPage() {
               {streams.reduce((sum, s) => sum + s.groups, 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Grupos consumidores ativos
+              Grupos consumidores ativos{isDegraded ? ' (parcial)' : ''}
             </p>
           </CardContent>
         </Card>
@@ -190,6 +214,7 @@ export default function AdminQueuesPage() {
           <CardTitle>Detalhes dos Streams</CardTitle>
           <CardDescription>
             Estatísticas detalhadas de cada Redis Stream
+            {isDegraded ? ' com sinalização explícita de degradação' : ''}
           </CardDescription>
         </CardHeader>
         <CardContent>

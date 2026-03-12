@@ -102,10 +102,14 @@ meter
       observableResult.observe(cleanupCount, { queue: 'cleanup' });
       observableResult.observe(deletionCount, { queue: 'deletion' });
     } catch (error) {
-      // Silently fail - don't break metrics collection
       logger.error('Failed to collect queue metrics', {
         error: error instanceof Error ? error.message : String(error)
       });
+      // Emit -1 sentinel to signal degradation instead of silently omitting
+      observableResult.observe(-1, { queue: 'analytics', degraded: 'true' });
+      observableResult.observe(-1, { queue: 'aggregation', degraded: 'true' });
+      observableResult.observe(-1, { queue: 'cleanup', degraded: 'true' });
+      observableResult.observe(-1, { queue: 'deletion', degraded: 'true' });
     }
   });
 
@@ -131,10 +135,14 @@ meter
       observableResult.observe(cleanupLength, { queue: 'cleanup' });
       observableResult.observe(deletionLength, { queue: 'deletion' });
     } catch (error) {
-      // Silently fail - don't break metrics collection
       logger.error('Failed to collect stream length metrics', {
         error: error instanceof Error ? error.message : String(error)
       });
+      // Emit -1 sentinel to signal degradation instead of silently omitting
+      observableResult.observe(-1, { queue: 'analytics', degraded: 'true' });
+      observableResult.observe(-1, { queue: 'aggregation', degraded: 'true' });
+      observableResult.observe(-1, { queue: 'cleanup', degraded: 'true' });
+      observableResult.observe(-1, { queue: 'deletion', degraded: 'true' });
     }
   });
 // ═══════════════════════════════════════════════════════════════════

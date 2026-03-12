@@ -8,5 +8,5 @@
  */
 
 export { authController } from './auth.controller';
-export * from './auth.schema';
-export * from './auth.service';
+export { AuthModel } from './auth.schema';
+export { AuthService } from './auth.service';

@@ -24,9 +24,14 @@ import type { OpenAPIV3 } from 'openapi-types';
 
 let authShouldFail = false;
 
+const _realAuthModule = await import('@/lib/auth');
+
 mock.module('@/lib/auth', () => ({
+  ..._realAuthModule,
   auth: {
+    ..._realAuthModule.auth,
     api: {
+      ..._realAuthModule.auth.api,
       generateOpenAPISchema: async () => {
         if (authShouldFail) {
           throw new Error('Better-Auth schema generation failed');

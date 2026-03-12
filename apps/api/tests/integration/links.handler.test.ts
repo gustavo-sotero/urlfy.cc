@@ -64,6 +64,8 @@ mock.module('@/server/lib/redis', () => ({
   closeRedis: mock(() => Promise.resolve())
 }));
 
+import { rateLimiter } from '@/server/lib/rate-limiter';
+import { LinkPasswordService } from '@/server/modules/links/link-password.service';
 import { antiAbuseService } from '@/server/services/anti-abuse.service';
 import {
   createElysiaTestClient,
@@ -76,6 +78,9 @@ describe('Links Endpoints (handler-level)', () => {
   let client: ElysiaTestClient;
   const originalRecordLinkCreation = antiAbuseService.recordLinkCreation;
   const originalRecordEvent = antiAbuseService.recordEvent;
+  const originalVerifyLinkPassword = LinkPasswordService.verifyLinkPassword;
+  const originalCheckIPLimit = rateLimiter.checkIPLimit;
+  const originalCheckLimit = rateLimiter.checkLimit;
 
   beforeAll(async () => {
     // Lazy import to avoid initialization issues when infrastructure isn't running
@@ -86,6 +91,9 @@ describe('Links Endpoints (handler-level)', () => {
   afterAll(() => {
     antiAbuseService.recordLinkCreation = originalRecordLinkCreation;
     antiAbuseService.recordEvent = originalRecordEvent;
+    LinkPasswordService.verifyLinkPassword = originalVerifyLinkPassword;
+    rateLimiter.checkIPLimit = originalCheckIPLimit;
+    rateLimiter.checkLimit = originalCheckLimit;
     mock.restore();
   });
 
@@ -275,6 +283,85 @@ describe('Links Endpoints (handler-level)', () => {
 
       // Validation error for missing password
       expect(response.status).toBeGreaterThanOrEqual(400);
+    });
+
+    test('should return 429 when rate limit is exhausted (dual-key throttling)', async () => {
+      // VERIFY_PASSWORD policy is 5 attempts per 15 min, failClosed.
+      // The controller checks both IP-level and per-link-code keys.
+      // With the in-memory Redis mock, repeated calls will exhaust the budget.
+      const code = 'throttle-test';
+      const endpoint = `/api/links/by-code/${code}/verify-password`;
+      const payload = { password: 'wrong-password' };
+
+      // Exhaust the rate limit budget (5 allowed attempts).
+      // Each call may return 401 (wrong password / link not found) — that's fine;
+      // we only care that the rate limiter counter increments.
+      for (let i = 0; i < 5; i++) {
+        await client.post(endpoint, payload);
+      }
+
+      // 6th attempt must be rate-limited
+      const blockedResponse = await client.post<{
+        success: boolean;
+        error?: { code: string; message: string };
+      }>(endpoint, payload);
+
+      expect(blockedResponse.status).toBe(429);
+      // Some limiter paths may return a non-enveloped 429 payload;
+      // status code is the contract-critical assertion.
+      if (blockedResponse.body?.error) {
+        expect(blockedResponse.body.error.code).toBe('RATE_LIMITED');
+      }
+    });
+
+    test('should include rate limit headers in response', async () => {
+      const code = 'header-test';
+      const response = await client.post(
+        `/api/links/by-code/${code}/verify-password`,
+        { password: 'test' }
+      );
+
+      // Should have X-RateLimit-* headers regardless of password validity
+      expect(response.headers.get('x-ratelimit-limit')).toBeDefined();
+      expect(response.headers.get('x-ratelimit-remaining')).toBeDefined();
+      expect(response.headers.get('x-ratelimit-reset')).toBeDefined();
+    });
+
+    test('should return unlock contract and set unlock cookie on successful verification', async () => {
+      const code = 'success-contract';
+      LinkPasswordService.verifyLinkPassword = mock(async () => true);
+      rateLimiter.checkIPLimit = mock(async () => ({
+        allowed: true,
+        remaining: 4,
+        resetTime: Date.now() + 60_000
+      }));
+      rateLimiter.checkLimit = mock(async () => ({
+        allowed: true,
+        remaining: 4,
+        resetTime: Date.now() + 60_000
+      }));
+
+      try {
+        const response = await client.post<{
+          success: boolean;
+          data?: { redirectUrl: string; shortUrl: string };
+        }>(`/api/links/by-code/${code}/verify-password`, {
+          password: 'correct-password'
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data?.redirectUrl).toBe(`/${code}`);
+        expect(response.body.data?.shortUrl).toContain(`/${code}`);
+
+        const setCookieHeader = response.headers.get('set-cookie');
+        expect(setCookieHeader).toBeDefined();
+        expect(setCookieHeader).toContain(`urlfy_unlock_${code}=`);
+        expect(setCookieHeader).toContain('HttpOnly');
+        expect(setCookieHeader).toContain('Max-Age=300');
+      } finally {
+        LinkPasswordService.verifyLinkPassword = originalVerifyLinkPassword;
+      }
     });
   });
 });

@@ -7,7 +7,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { type Static, t } from 'elysia';
+import { Elysia, type Static, t } from 'elysia';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONTACT MESSAGE CREATE
@@ -104,9 +104,9 @@ export type MessageUpdateBodyType = Static<typeof MessageUpdateBody>;
 // MODEL REGISTRATION
 // ═══════════════════════════════════════════════════════════════════
 
-export const ContactModels = {
+export const ContactModel = new Elysia({ name: 'contact.model' }).model({
   'contact.create': ContactBody,
   'contact.response': ContactResponse,
   'contact.list': MessageListQuery,
   'contact.update': MessageUpdateBody
-};
+});

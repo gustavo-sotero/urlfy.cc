@@ -175,16 +175,18 @@ return Response.redirect(targetUrl, redirectType, {
       │        └─ Inválido → 401 + redirect /unlock/:code
       └─ Não → Redireciona
 
-2. POST /api/links/:code/verify-password
-   └─ Valida senha (bcrypt)
-      ├─ Sucesso → Set-Cookie (JWT, 5min TTL)
-      └─ Falha → 401
+2. POST /api/links/by-code/:code/verify-password
+  └─ Rate limit canônico por IP + link code
+    └─ Valida senha (bcrypt)
+      ├─ Sucesso → Set-Cookie (JWT, 5min TTL, `exp` obrigatório)
+      ├─ Senha inválida → 401
+      └─ Limite excedido → 429
 ```
 
 ### Implementação
 
 ```typescript
-import { sign, verify } from 'jsonwebtoken';
+import { sign } from 'jsonwebtoken';
 
 // Verificação de senha
 async function verifyPassword(code: string, password: string) {
@@ -200,10 +202,17 @@ async function verifyPassword(code: string, password: string) {
     throw new Error('INVALID_PASSWORD');
   }
 
-  // Gera JWT válido por 5 minutos
-  const token = sign({ code, type: 'unlock' }, process.env.JWT_SECRET!, {
-    expiresIn: '5m'
-  });
+  // Gera token de unlock válido por 5 minutos.
+  // O payload deve carregar `exp`; tokens sem esse claim,
+  // expirados, ou com assinatura inválida são rejeitados.
+  const token = sign(
+    {
+      code,
+      type: 'unlock',
+      exp: Math.floor(Date.now() / 1000) + 300
+    },
+    process.env.JWT_SECRET!
+  );
 
   return { token };
 }

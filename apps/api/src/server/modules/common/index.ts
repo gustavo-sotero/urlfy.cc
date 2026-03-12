@@ -4,4 +4,4 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-export * from './common.schema';
+export { CommonSchemas } from './common.schema';

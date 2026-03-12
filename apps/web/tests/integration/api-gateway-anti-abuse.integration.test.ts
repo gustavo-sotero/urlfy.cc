@@ -43,6 +43,12 @@ mock.module('@/server/services/metrics.service', () => ({
   }
 }));
 
+mock.module('@/server/lib/telemetry', () => ({
+  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
+    fn().catch(() => {});
+  }
+}));
+
 mock.module('@/server/lib/ip', () => ({
   getClientIp: mock(() => '203.0.113.1')
 }));
@@ -245,5 +251,52 @@ describe('API gateway anti-abuse wiring', () => {
     expect(body.success).toBe(false);
     expect(body.error?.code).toBe('API_TIMEOUT');
     expect(body.requestId).toBe('req-timeout-1');
+  });
+
+  test('preserves upstream 429 throttling semantics for verify-password route', async () => {
+    global.fetch = mock(
+      async () =>
+        new Response(
+          JSON.stringify({
+            success: false,
+            error: {
+              code: 'RATE_LIMITED',
+              message: 'Too many password attempts. Please try again later.'
+            }
+          }),
+          {
+            status: 429,
+            headers: {
+              'content-type': 'application/json',
+              'x-ratelimit-limit': '5',
+              'x-ratelimit-remaining': '0',
+              'x-ratelimit-reset': '1700000000'
+            }
+          }
+        )
+    ) as unknown as typeof fetch;
+
+    const response = await POST(
+      new Request(
+        'http://localhost/api/links/by-code/throttle/verify-password',
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-request-id': 'req-verify-throttle'
+          },
+          body: JSON.stringify({ password: 'wrong-password' })
+        }
+      ) as never
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('x-ratelimit-limit')).toBe('5');
+    expect(response.headers.get('x-ratelimit-remaining')).toBe('0');
+    expect(response.headers.get('x-ratelimit-reset')).toBe('1700000000');
+
+    const body = await response.json();
+    expect(body.success).toBe(false);
+    expect(body.error?.code).toBe('RATE_LIMITED');
   });
 });

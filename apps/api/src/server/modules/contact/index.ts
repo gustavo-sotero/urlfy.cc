@@ -5,5 +5,9 @@
  */
 
 export { contactController } from './contact.controller';
-export * from './contact.schema';
+export {
+  ContactModel,
+  MessageListQuery,
+  MessageUpdateBody
+} from './contact.schema';
 export { ContactService } from './contact.service';

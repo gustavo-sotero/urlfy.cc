@@ -19,7 +19,7 @@ import {
 } from '@urlfy/data/schema';
 import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
-import { usersAuditAdapter } from './adapters/audit-log.adapter';
+import { auditLogService } from '@/server/services/audit.service';
 
 /**
  * User Service - Handles user-related operations
@@ -230,7 +230,7 @@ export const UserService = {
 
     // Log audit event
     try {
-      await usersAuditAdapter.log({
+      await auditLogService.log({
         userId: adminId,
         action: 'ban_user',
         entityType: 'user',
@@ -263,7 +263,7 @@ export const UserService = {
 
     // Log audit event
     try {
-      await usersAuditAdapter.log({
+      await auditLogService.log({
         userId: adminId,
         action: 'unban_user',
         entityType: 'user',
@@ -296,7 +296,7 @@ export const UserService = {
 
     // Log audit event
     try {
-      await usersAuditAdapter.log({
+      await auditLogService.log({
         userId: adminId,
         action: 'update_user_role',
         entityType: 'user',
@@ -345,93 +345,6 @@ export const UserService = {
       activeUsers: Number(activeUsers),
       bannedUsers: Number(bannedUsers),
       adminUsers: Number(adminUsers)
-    };
-  },
-
-  // ═══════════════════════════════════════════════════════════════════
-  // LGPD/GDPR COMPLIANCE
-  // ═══════════════════════════════════════════════════════════════════
-
-  /**
-   * Export all user data (LGPD/GDPR)
-   */
-  async exportUserData(userId: string): Promise<Record<string, unknown>> {
-    // Get user data
-    const [user] = await db
-      .select()
-      .from(userTable)
-      .where(eq(userTable.id, userId))
-      .limit(1);
-
-    if (!user) {
-      throw new AppError(ErrorCode.USER_NOT_FOUND, 'User not found');
-    }
-
-    // Get sessions
-    const sessions = await db
-      .select()
-      .from(sessionTable)
-      .where(eq(sessionTable.userId, userId));
-
-    // Get OAuth accounts
-    const accounts = await db
-      .select()
-      .from(accountTable)
-      .where(eq(accountTable.userId, userId));
-
-    // Get 2FA data (without secrets)
-    const twoFactor = await db
-      .select({
-        id: twoFactorTable.id,
-        verified: twoFactorTable.verified,
-        createdAt: twoFactorTable.createdAt
-      })
-      .from(twoFactorTable)
-      .where(eq(twoFactorTable.userId, userId))
-      .limit(1);
-
-    // Get API keys (without hashes)
-    const apiKeys = await db
-      .select({
-        id: apiKeyTable.id,
-        name: apiKeyTable.name,
-        keyPrefix: apiKeyTable.prefix,
-        permissions: apiKeyTable.permissions,
-        createdAt: apiKeyTable.createdAt,
-        lastUsedAt: apiKeyTable.lastUsedAt
-      })
-      .from(apiKeyTable)
-      .where(eq(apiKeyTable.userId, userId));
-
-    // Note: Links and analytics data would be added from other services
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        emailVerified: user.emailVerified,
-        linksQuota: user.linksQuota,
-        linksCount: user.linksCount,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      },
-      sessions: sessions.map((s) => ({
-        id: s.id,
-        createdAt: s.createdAt,
-        expiresAt: s.expiresAt,
-        ipAddress: s.ipAddress,
-        userAgent: s.userAgent
-      })),
-      accounts: accounts.map((a) => ({
-        id: a.id,
-        providerId: a.providerId,
-        createdAt: a.createdAt
-      })),
-      twoFactor: twoFactor[0] || null,
-      apiKeys,
-      exportDate: new Date().toISOString()
     };
   },
 

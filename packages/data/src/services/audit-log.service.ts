@@ -1,0 +1,220 @@
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { db } from '../index';
+import {
+  type AuditAction,
+  type AuditLog as AuditLogType,
+  auditLog
+} from '../schema/audit';
+
+/**
+ * Serialized audit log type for API responses.
+ */
+export type SerializedAuditLog = Omit<AuditLogType, 'createdAt'> & {
+  createdAt: string;
+};
+
+export class AuditLogService {
+  private serialize(log: AuditLogType): SerializedAuditLog {
+    return {
+      ...log,
+      createdAt: log.createdAt.toISOString()
+    };
+  }
+
+  private serializeMany(logs: AuditLogType[]): SerializedAuditLog[] {
+    return logs.map((log) => this.serialize(log));
+  }
+
+  async log(params: {
+    userId: string | null;
+    action: AuditAction;
+    entityType: string;
+    entityId: string;
+    metadata?: Record<string, unknown>;
+    ipAddress?: string;
+    userAgent?: string;
+  }): Promise<AuditLogType> {
+    const [log] = await db
+      .insert(auditLog)
+      .values({
+        id: nanoid(),
+        userId: params.userId,
+        action: params.action,
+        entityType: params.entityType,
+        entityId: params.entityId,
+        metadata: params.metadata || {},
+        ipAddress: params.ipAddress,
+        userAgent: params.userAgent
+      })
+      .returning();
+
+    return log;
+  }
+
+  async getByUser(
+    userId: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<{ logs: SerializedAuditLog[]; total: number }> {
+    const limit = options?.limit || 50;
+    const offset = options?.offset || 0;
+
+    const logs = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.userId, userId))
+      .orderBy(desc(auditLog.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(auditLog)
+      .where(eq(auditLog.userId, userId));
+
+    return {
+      logs: this.serializeMany(logs),
+      total: count
+    };
+  }
+
+  async getByEntity(
+    entityType: string,
+    entityId: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<{ logs: SerializedAuditLog[]; total: number }> {
+    const limit = options?.limit || 50;
+    const offset = options?.offset || 0;
+
+    const logs = await db
+      .select()
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.entityType, entityType),
+          eq(auditLog.entityId, entityId)
+        )
+      )
+      .orderBy(desc(auditLog.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.entityType, entityType),
+          eq(auditLog.entityId, entityId)
+        )
+      );
+
+    return {
+      logs: this.serializeMany(logs),
+      total: count
+    };
+  }
+
+  async getRecent(options?: {
+    limit?: number;
+    offset?: number;
+    action?: AuditAction;
+  }): Promise<{ logs: SerializedAuditLog[]; total: number }> {
+    const limit = options?.limit || 100;
+    const offset = options?.offset || 0;
+
+    const query = db.select().from(auditLog);
+
+    if (options?.action) {
+      query.where(eq(auditLog.action, options.action));
+    }
+
+    const logs = await query
+      .orderBy(desc(auditLog.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(auditLog)
+      .where(options?.action ? eq(auditLog.action, options.action) : undefined);
+
+    return {
+      logs: this.serializeMany(logs),
+      total: count
+    };
+  }
+
+  async getById(id: string): Promise<SerializedAuditLog | null> {
+    const log = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.id, id))
+      .limit(1)
+      .then((results) => results[0] || null);
+
+    return log ? this.serialize(log) : null;
+  }
+
+  async getSummary(): Promise<{
+    totalLogs: number;
+    actionCounts: Record<string, number>;
+    entityTypeCounts: Record<string, number>;
+    topUsers: Array<{ userId: string; count: number }>;
+  }> {
+    const [totalResult, actionRows, entityRows, userRows] = await Promise.all([
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(auditLog)
+        .then((r) => r[0]),
+      db
+        .select({
+          action: auditLog.action,
+          count: sql<number>`count(*)::int`
+        })
+        .from(auditLog)
+        .groupBy(auditLog.action),
+      db
+        .select({
+          entityType: auditLog.entityType,
+          count: sql<number>`count(*)::int`
+        })
+        .from(auditLog)
+        .groupBy(auditLog.entityType),
+      db
+        .select({
+          userId: sql<string>`coalesce(${auditLog.userId}, 'system')`,
+          count: sql<number>`count(*)::int`
+        })
+        .from(auditLog)
+        .groupBy(sql`coalesce(${auditLog.userId}, 'system')`)
+        .orderBy(sql`count(*) desc`)
+        .limit(10)
+    ]);
+
+    const actionCounts: Record<string, number> = {};
+    for (const row of actionRows) {
+      actionCounts[row.action] = row.count;
+    }
+
+    const entityTypeCounts: Record<string, number> = {};
+    for (const row of entityRows) {
+      entityTypeCounts[row.entityType] = row.count;
+    }
+
+    return {
+      totalLogs: totalResult.count,
+      actionCounts,
+      entityTypeCounts,
+      topUsers: userRows.map((r) => ({ userId: r.userId, count: r.count }))
+    };
+  }
+}
+
+export const auditLogService = new AuditLogService();

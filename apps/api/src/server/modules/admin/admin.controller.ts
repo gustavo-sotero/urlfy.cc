@@ -8,8 +8,8 @@
  */
 
 import { Elysia, t } from 'elysia';
-import type { User } from '@/lib/auth';
 import { getClientIp } from '@/server/lib/ip';
+import { requireUserId } from '@/server/lib/require-user-id';
 import {
   ErrorRef,
   PaginatedResponse,
@@ -21,15 +21,15 @@ import {
   ADMIN_LINK_EXAMPLE,
   ADMIN_STATS_EXAMPLE,
   ADMIN_USER_EXAMPLE,
-  AdminModels,
+  AdminModel,
   AdminUserListQuery,
   AdminUserUpdateBody,
-  type AdminUserUpdateBodyType,
   GROWTH_STATS_EXAMPLE
 } from './admin.schema';
 import { AdminService } from './admin.service';
 
 const adminUserManagementController = new Elysia()
+  .use(requireAdmin)
   .use(adminRateLimits.userManagement)
   .get(
     '/users',
@@ -63,21 +63,14 @@ const adminUserManagementController = new Elysia()
   )
   .patch(
     '/users/:userId',
-    async (context) => {
-      const { params, body, request, user } = context as typeof context & {
-        body: AdminUserUpdateBodyType;
-        user: User;
-      };
-
-      const adminUser = user;
-
-      // Extract IP address for audit log using centralized helper
+    async ({ params, body, request, user }) => {
       const ipAddress = getClientIp(request);
+      const adminUserId = requireUserId(user);
 
       const updatedUser = await AdminService.updateUserStatus(
         params.userId,
         body,
-        adminUser.id,
+        adminUserId,
         ipAddress
       );
 
@@ -116,7 +109,7 @@ export const adminController = new Elysia({ prefix: '/admin' })
   // Apply general rate limiting to admin endpoints
   .use(adminRateLimits.general)
   // Inject models for type inference and OpenAPI
-  .use(AdminModels)
+  .use(AdminModel)
 
   // ─────────────────────────────────────────────────────────────────
   // GLOBAL STATS
@@ -169,7 +162,7 @@ export const adminController = new Elysia({ prefix: '/admin' })
         summary: 'Get growth analytics',
         description: 'Returns time series data for clicks and new users'
       },
-      query: 'GrowthStatsQuery',
+      query: 'admin.growth.query',
       response: {
         200: SuccessResponse(t.Array(t.Ref('admin.growth.response')), {
           description: 'Growth statistics time series',
@@ -278,7 +271,7 @@ export const adminController = new Elysia({ prefix: '/admin' })
   .patch(
     '/links/:linkId/ban',
     async ({ params, body, user, request }) => {
-      const adminUser = user as User;
+      const adminUserId = requireUserId(user);
 
       // Extract IP address for audit log using centralized helper
       const ipAddress = getClientIp(request);
@@ -286,7 +279,7 @@ export const adminController = new Elysia({ prefix: '/admin' })
       await AdminService.banLink(
         params.linkId,
         body.bannedReason || 'Banned by administrator',
-        adminUser.id,
+        adminUserId,
         ipAddress
       );
 
@@ -306,7 +299,7 @@ export const adminController = new Elysia({ prefix: '/admin' })
       params: t.Object({
         linkId: t.String()
       }),
-      body: 'AdminBanLinkBody',
+      body: 'admin.link.ban.body',
       response: {
         200: SuccessResponse(
           t.Object({
@@ -324,12 +317,12 @@ export const adminController = new Elysia({ prefix: '/admin' })
   .patch(
     '/links/:linkId/unban',
     async ({ params, user, request }) => {
-      const adminUser = user as User;
+      const adminUserId = requireUserId(user);
 
       // Extract IP address for audit log using centralized helper
       const ipAddress = getClientIp(request);
 
-      await AdminService.unbanLink(params.linkId, adminUser.id, ipAddress);
+      await AdminService.unbanLink(params.linkId, adminUserId, ipAddress);
 
       return {
         success: true as const,

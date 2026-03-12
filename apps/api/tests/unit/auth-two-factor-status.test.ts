@@ -39,9 +39,14 @@ mock.module('@/server/lib/redis', () => ({
   CACHE_TTL: {}
 }));
 
+const _realAuthModule = await import('@/lib/auth');
+
 mock.module('@/lib/auth', () => ({
+  ..._realAuthModule,
   auth: {
+    ..._realAuthModule.auth,
     api: {
+      ..._realAuthModule.auth.api,
       getSession: mock(async () => null)
     }
   }
@@ -62,7 +67,7 @@ mock.module('@/server/lib/telemetry', () => ({
 function createAuthTestApp() {
   return new Elysia({ prefix: '/api' })
     .use(ResponseModels)
-    .use(AuthModels)
+    .use(AuthModel)
     .use(authController)
     .derive(({ request }) => ({
       requestId: request.headers.get('x-request-id') || 'req-test'
@@ -99,7 +104,7 @@ function createAuthTestApp() {
 }
 
 import { ResponseModels } from '@/server/lib/response.schema';
-import { AuthModels, authController } from '@/server/modules/auth';
+import { AuthModel, authController } from '@/server/modules/auth';
 
 describe('auth controller 2FA status', () => {
   afterAll(() => {

@@ -39,7 +39,7 @@ export const InternalAcceptedResponse = t.Object({
 /**
  * Internal Models - Register schemas for type inference
  */
-export const InternalModel = new Elysia({ name: 'InternalModel' }).model({
+export const InternalModel = new Elysia({ name: 'internal.model' }).model({
   'internal.analytics.body': InternalAnalyticsEventBody,
   'internal.analytics.response': InternalAcceptedResponse
 });

@@ -26,6 +26,7 @@ import {
   PaginatedResponse,
   SuccessResponse
 } from '@/server/lib/response.schema';
+import { fireAndForget } from '@/server/lib/telemetry';
 import {
   recordLinkCreation,
   recordLinkCreationFailure
@@ -207,9 +208,11 @@ export const createLinkController = new Elysia()
           ipHash
         );
       } catch (error) {
-        recordLinkCreationFailure(user?.id ?? null, clientIp).catch(() => {
-          // Intentionally ignored
-        });
+        fireAndForget(
+          'anti-abuse-fail',
+          () => recordLinkCreationFailure(user?.id ?? null, clientIp),
+          { userId: user?.id }
+        );
 
         if (lockAcquired && idempotencyKey) {
           await releaseIdempotencyLock(
@@ -248,9 +251,11 @@ export const createLinkController = new Elysia()
 
       // Record link creation for abuse detection (fire-and-forget — must
       // never block or fail the primary request).
-      recordLinkCreation(user?.id ?? null, clientIp).catch(() => {
-        // Intentionally ignored
-      });
+      fireAndForget(
+        'anti-abuse-success',
+        () => recordLinkCreation(user?.id ?? null, clientIp),
+        { userId: user?.id }
+      );
 
       set.status = 201;
       return {

@@ -15,7 +15,7 @@ import {
   ContactService,
   MessageListQuery,
   MessageUpdateBody
-} from '@/server/modules/contact';
+} from '@/server/services/contact-shared.service';
 
 const logger = createLogger('admin-messages-controller');
 

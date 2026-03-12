@@ -159,6 +159,7 @@ mock.module('@/server/middleware/auth.middleware', () => ({
 // that import from this module path still get the real RateLimiter class
 // (mock.module is global and persists across test files in Bun).
 const _realRateLimiterModule = await import('@/server/lib/rate-limiter');
+const realRateLimiter = _realRateLimiterModule.rateLimiter;
 
 mock.module('@/server/lib/rate-limiter', () => ({
   // Preserve real exports for cross-file compatibility
@@ -166,6 +167,7 @@ mock.module('@/server/lib/rate-limiter', () => ({
   RATE_LIMIT_CONFIGS: _realRateLimiterModule.RATE_LIMIT_CONFIGS,
   // Override singleton with mock for this test's purposes
   rateLimiter: {
+    checkLimit: realRateLimiter.checkLimit.bind(realRateLimiter),
     checkIPLimit: mock(() =>
       Promise.resolve({
         allowed: true,
@@ -182,7 +184,9 @@ mock.module('@/server/lib/rate-limiter', () => ({
         retryAfter: undefined
       })
     ),
-    checkTokenLimit: checkTokenLimitMock
+    checkTokenLimit: checkTokenLimitMock,
+    blockIP: realRateLimiter.blockIP.bind(realRateLimiter),
+    isIPBlocked: realRateLimiter.isIPBlocked.bind(realRateLimiter)
   }
 }));
 

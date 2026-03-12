@@ -10,13 +10,24 @@
 
 import { Elysia, t } from 'elysia';
 import { jwtPlugin } from '@/server/config/plugins';
+import { getRateLimit } from '@/server/config/rate-limits';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
+import { getClientIp } from '@/server/lib/ip';
+import { rateLimiter } from '@/server/lib/rate-limiter';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
 import { optionalAuth } from '@/server/middleware/auth.middleware';
 import {
   buildErrorEnvelope,
   getOrCreateRequestId
 } from '@/server/middleware/error-response';
+
+const verifyPasswordLimit = getRateLimit('VERIFY_PASSWORD');
+const verifyPasswordConfig = {
+  points: verifyPasswordLimit.max,
+  duration: Math.floor(verifyPasswordLimit.windowMs / 1000),
+  failClosed: verifyPasswordLimit.failClosed
+};
+
 import { LinkPasswordService } from './link-password.service';
 import {
   LinkCodeParam,
@@ -114,7 +125,36 @@ export const publicLinksController = new Elysia()
   // ─────────────────────────────────────────────────────────────────
   .post(
     '/by-code/:code/verify-password',
-    async function verifyLinkPassword({ params, body, jwt, cookie }) {
+    async function verifyLinkPassword({
+      params,
+      body,
+      jwt,
+      cookie,
+      request,
+      set
+    }) {
+      // Brute-force protection: dual-key throttling (IP + link code)
+      const ip = getClientIp(request);
+      const [ipResult, linkResult] = await Promise.all([
+        rateLimiter.checkIPLimit(ip, verifyPasswordConfig),
+        rateLimiter.checkLimit(`verify-pw:${params.code}`, verifyPasswordConfig)
+      ]);
+
+      set.headers['X-RateLimit-Limit'] = String(verifyPasswordConfig.points);
+      set.headers['X-RateLimit-Remaining'] = String(
+        Math.min(ipResult.remaining, linkResult.remaining)
+      );
+      set.headers['X-RateLimit-Reset'] = String(
+        Math.floor(Math.max(ipResult.resetTime, linkResult.resetTime) / 1000)
+      );
+
+      if (!ipResult.allowed || !linkResult.allowed) {
+        throw new AppError(
+          ErrorCode.RATE_LIMITED,
+          'Too many password attempts. Please try again later.'
+        );
+      }
+
       const isValid = await LinkPasswordService.verifyLinkPassword(
         params.code,
         body.password
@@ -124,10 +164,12 @@ export const publicLinksController = new Elysia()
         throw new AppError(ErrorCode.UNAUTHORIZED, 'Invalid password');
       }
 
-      // Generate JWT token for unlock
+      // Generate JWT token for unlock (5-minute TTL)
+      const UNLOCK_TOKEN_TTL_SECONDS = 300;
       const token = await jwt.sign({
         code: params.code,
-        type: 'unlock'
+        type: 'unlock',
+        exp: Math.floor(Date.now() / 1000) + UNLOCK_TOKEN_TTL_SECONDS
       });
 
       // Set cookie with the token

@@ -11,24 +11,44 @@
 // ═══════════════════════════════════════════════════════════════════
 // MODULE EXPORTS
 // ═══════════════════════════════════════════════════════════════════
+// NOTE: This barrel is not consumed by any production code.
+// All imports target individual module paths  (e.g. @/server/modules/links).
+// Kept for tooling/IDE convenience with explicit re-exports only.
+// ═══════════════════════════════════════════════════════════════════
 
 // Admin Module
-export * from './admin';
+export {
+  AdminModel,
+  adminController,
+  adminMessagesController,
+  adminQueuesController,
+  auditController
+} from './admin';
 
 // Analytics Module
-export * from './analytics';
+export { AnalyticsModel, analyticsController } from './analytics';
 
 // Auth Module
-export * from './auth';
+export { AuthModel, authController } from './auth';
 
 // Common Schemas
-export * from './common';
+export { CommonSchemas } from './common';
 
 // Contact Module
-export * from './contact';
+export { ContactService, contactController } from './contact';
 
 // Links Module
-export * from './links';
+export {
+  LinkLifecycleService,
+  LinkService,
+  LinksModel,
+  linksController
+} from './links';
 
 // Users Module
-export * from './users';
+export {
+  consentController,
+  meController,
+  UsersModel,
+  usersController
+} from './users';

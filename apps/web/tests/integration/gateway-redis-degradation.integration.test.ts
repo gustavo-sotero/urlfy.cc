@@ -37,6 +37,12 @@ mock.module('@/server/lib/ip', () => ({
   maskIpForLog: mock((ip: string) => ip)
 }));
 
+mock.module('@/server/lib/telemetry', () => ({
+  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
+    fn().catch(() => {});
+  }
+}));
+
 const originalFetch = global.fetch;
 
 // ---------------------------------------------------------------------------

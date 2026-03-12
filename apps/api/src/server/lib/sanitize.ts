@@ -173,6 +173,14 @@ export function sanitizeNotes(notes: string | null | undefined): string | null {
 }
 
 /**
+ * Escape SQL LIKE wildcard characters (%, _) so user input
+ * is treated as literal text inside LIKE / ILIKE patterns.
+ */
+export function escapeSqlLike(value: string): string {
+  return value.replace(/[%_\\]/g, '\\$&');
+}
+
+/**
  * Sanitizes user input for search
  * Prevents injection and reduces noise
  */
@@ -185,7 +193,8 @@ export function sanitizeSearchQuery(query: string | null | undefined): string {
   // Limit size
   clean = clean.slice(0, 200).trim();
 
-  return clean;
+  // Escape SQL LIKE wildcards so user input is literal
+  return escapeSqlLike(clean);
 }
 
 /**

@@ -21,8 +21,8 @@ import { createLogger } from '@/server/lib/telemetry';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import { UsersModel } from '@/server/modules/users/users.schema';
 import { requestContext } from '@/server/plugins/request-context';
-import { usersAuditAdapter } from './adapters/audit-log.adapter';
-import { usersGdprAdapter } from './adapters/gdpr.adapter';
+import { auditLogService } from '@/server/services/audit.service';
+import { gdprService } from '@/server/services/gdpr.service';
 
 const logger = createLogger('user-data-controller');
 
@@ -114,10 +114,10 @@ export const meController = new Elysia({ prefix: '/me' })
       requireUser(user);
 
       // Export all user data
-      const exportData = await usersGdprAdapter.exportUserData(user.id);
+      const exportData = await gdprService.exportUserData(user.id);
 
       // Log the export action
-      await usersAuditAdapter.log({
+      await auditLogService.log({
         userId: user.id,
         action: 'export_user_data',
         entityType: 'user',
@@ -177,7 +177,7 @@ export const meController = new Elysia({ prefix: '/me' })
       requireUser(user);
 
       // Check if there's already a pending request
-      const existingRequest = await usersGdprAdapter.getPendingDeletionRequest(
+      const existingRequest = await gdprService.getPendingDeletionRequest(
         user.id
       );
 
@@ -193,12 +193,10 @@ export const meController = new Elysia({ prefix: '/me' })
         );
       }
 
-      const deletionRequest = await usersGdprAdapter.scheduleDataDeletion(
-        user.id
-      );
+      const deletionRequest = await gdprService.scheduleDataDeletion(user.id);
 
       // Log the deletion request
-      await usersAuditAdapter.log({
+      await auditLogService.log({
         userId: user.id,
         action: 'request_data_deletion',
         entityType: 'user',
@@ -338,7 +336,7 @@ export const consentController = new Elysia({ prefix: '/me' })
       );
 
       // Log the consent update
-      await usersAuditAdapter.log({
+      await auditLogService.log({
         userId: user.id,
         action: 'user_login', // Using existing action type
         entityType: 'consent',

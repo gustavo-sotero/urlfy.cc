@@ -21,18 +21,48 @@ export interface StreamStats {
   consumers?: number;
   pending?: number;
   lastGeneratedId?: string;
+  /** Indicates the data source was unavailable and values are stale/default. */
+  degraded?: boolean;
+}
+
+type RedisStreamLike = Pick<
+  typeof RedisStream,
+  'getLength' | 'groups' | 'info'
+>;
+
+interface AdminQueuesControllerDeps {
+  redisStream?: RedisStreamLike;
+  streamNames?: Record<string, string>;
 }
 
 /**
  * Get stats for a single stream
  */
-async function getStreamStats(stream: string): Promise<StreamStats> {
+async function getStreamStats(
+  stream: string,
+  redisStream: RedisStreamLike
+): Promise<StreamStats> {
   try {
-    const [info, groups, streamLength] = await Promise.all([
-      RedisStream.info(stream).catch(() => ({})),
-      RedisStream.groups(stream).catch(() => []),
-      RedisStream.getLength(stream).catch(() => 0)
+    const [infoResult, groupsResult, lengthResult] = await Promise.allSettled([
+      redisStream.info(stream),
+      redisStream.groups(stream),
+      redisStream.getLength(stream)
     ]);
+
+    const degraded =
+      infoResult.status === 'rejected' ||
+      groupsResult.status === 'rejected' ||
+      lengthResult.status === 'rejected';
+
+    if (degraded) {
+      logger.warn(`[getStreamStats] Redis dependency degraded for ${stream}`);
+    }
+
+    const info = infoResult.status === 'fulfilled' ? infoResult.value : {};
+    const groups =
+      groupsResult.status === 'fulfilled' ? groupsResult.value : [];
+    const streamLength =
+      lengthResult.status === 'fulfilled' ? lengthResult.value : 0;
 
     // Calculate total pending messages and consumers across all groups
     const totalPending = groups.reduce((acc, group) => {
@@ -51,7 +81,8 @@ async function getStreamStats(stream: string): Promise<StreamStats> {
       lastGeneratedId: (info as Record<string, unknown>)['last-generated-id']
         ? String((info as Record<string, unknown>)['last-generated-id'])
         : undefined,
-      pending: totalPending
+      pending: totalPending,
+      ...(degraded ? { degraded: true } : {})
     };
   } catch (error) {
     logger.error(`[getStreamStats] Failed to get stats for ${stream}`, {
@@ -61,7 +92,8 @@ async function getStreamStats(stream: string): Promise<StreamStats> {
       name: stream,
       length: 0,
       groups: 0,
-      pending: 0
+      pending: 0,
+      degraded: true
     };
   }
 }
@@ -69,53 +101,64 @@ async function getStreamStats(stream: string): Promise<StreamStats> {
 /**
  * Admin Queues Controller
  */
-export const adminQueuesController = new Elysia({ prefix: '/admin/queues' })
-  .use(requireAdmin)
-  .use(adminRateLimits.general)
-  .get(
-    '/',
-    async ({ user: _user }) => {
-      const streamNames = Object.values(STREAM_NAMES);
-      const stats = await Promise.all(
-        streamNames.map((stream) => getStreamStats(stream))
-      );
+export function createAdminQueuesController(
+  deps: AdminQueuesControllerDeps = {}
+) {
+  const redisStream = deps.redisStream ?? RedisStream;
+  const streamNames = Object.values(deps.streamNames ?? STREAM_NAMES);
 
-      const result: Record<string, StreamStats> = {};
-      for (const stat of stats) {
-        result[stat.name] = stat;
-      }
+  return new Elysia({ prefix: '/admin/queues' })
+    .use(requireAdmin)
+    .use(adminRateLimits.general)
+    .get(
+      '/',
+      async ({ user: _user }) => {
+        const stats = await Promise.all(
+          streamNames.map((stream) => getStreamStats(stream, redisStream))
+        );
 
-      return {
-        success: true,
-        data: result
-      };
-    },
-    {
-      detail: {
-        tags: ['Admin'],
-        summary: 'Get queue statistics',
-        description: 'Retrieve stats for all Redis Streams (admin only)'
-      }
-    }
-  )
-  .get(
-    '/:stream',
-    async ({ params, user: _user }) => {
-      const stats = await getStreamStats(params.stream);
+        const result: Record<string, StreamStats> = {};
+        let anyDegraded = false;
+        for (const stat of stats) {
+          result[stat.name] = stat;
+          if (stat.degraded) anyDegraded = true;
+        }
 
-      return {
-        success: true,
-        data: stats
-      };
-    },
-    {
-      params: t.Object({
-        stream: t.String()
-      }),
-      detail: {
-        tags: ['Admin'],
-        summary: 'Get stream statistics',
-        description: 'Retrieve stats for a specific Redis Stream (admin only)'
+        return {
+          success: true,
+          data: result,
+          ...(anyDegraded ? { degraded: true } : {})
+        };
+      },
+      {
+        detail: {
+          tags: ['Admin'],
+          summary: 'Get queue statistics',
+          description: 'Retrieve stats for all Redis Streams (admin only)'
+        }
       }
-    }
-  );
+    )
+    .get(
+      '/:stream',
+      async ({ params, user: _user }) => {
+        const stats = await getStreamStats(params.stream, redisStream);
+
+        return {
+          success: true,
+          data: stats
+        };
+      },
+      {
+        params: t.Object({
+          stream: t.String()
+        }),
+        detail: {
+          tags: ['Admin'],
+          summary: 'Get stream statistics',
+          description: 'Retrieve stats for a specific Redis Stream (admin only)'
+        }
+      }
+    );
+}
+
+export const adminQueuesController = createAdminQueuesController();

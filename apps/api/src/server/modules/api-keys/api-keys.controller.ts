@@ -64,7 +64,7 @@ export const apiKeysController = new Elysia({
         description: 'Get all API keys for the authenticated user'
       },
       response: {
-        200: SuccessResponse(t.Ref('apikeys.list'), {
+        200: SuccessResponse(t.Ref('api-keys.list'), {
           description: 'List of user API keys',
           example: API_KEY_LIST_EXAMPLE
         }),
@@ -106,12 +106,12 @@ export const apiKeysController = new Elysia({
         description: 'Get details of a specific API key'
       },
       response: {
-        200: SuccessResponse(t.Ref('apikeys.response'), {
+        200: SuccessResponse(t.Ref('api-keys.response'), {
           description: 'API key details',
           example: API_KEY_RESPONSE_EXAMPLE
         }),
         401: ErrorRef(401),
-        404: t.Ref('apikeys.error.notfound'),
+        404: t.Ref('api-keys.error.notfound'),
         500: ErrorRef(500)
       }
     }
@@ -144,14 +144,14 @@ export const apiKeysController = new Elysia({
       };
     },
     {
-      body: 'apikeys.create',
+      body: 'api-keys.create',
       detail: {
         summary: 'Create API Key',
         description:
           'Create a new API key. The full key is returned only once - save it securely!'
       },
       response: {
-        201: SuccessResponse(t.Ref('apikeys.created'), {
+        201: SuccessResponse(t.Ref('api-keys.created'), {
           description:
             'API key created successfully. Save the key value as it will not be shown again.',
           example: API_KEY_CREATED_EXAMPLE
@@ -193,7 +193,7 @@ export const apiKeysController = new Elysia({
       params: t.Object({
         id: t.String()
       }),
-      body: t.Optional(t.Ref('apikeys.revoke')),
+      body: t.Optional(t.Ref('api-keys.revoke')),
       detail: {
         summary: 'Revoke API Key',
         description: 'Revoke an API key (soft delete)'
@@ -206,7 +206,7 @@ export const apiKeysController = new Elysia({
           'API key revoked successfully'
         ),
         401: ErrorRef(401),
-        404: t.Ref('apikeys.error.notfound'),
+        404: t.Ref('api-keys.error.notfound'),
         500: ErrorRef(500)
       }
     }
@@ -245,13 +245,13 @@ export const apiKeysController = new Elysia({
           'Create a new key with the same configuration and revoke the old one'
       },
       response: {
-        200: SuccessResponse(t.Ref('apikeys.created'), {
+        200: SuccessResponse(t.Ref('api-keys.created'), {
           description:
             'New API key created and old key revoked. Save the new key value as it will not be shown again.',
           example: API_KEY_CREATED_EXAMPLE
         }),
         401: ErrorRef(401),
-        404: t.Ref('apikeys.error.notfound'),
+        404: t.Ref('api-keys.error.notfound'),
         500: ErrorRef(500)
       }
     }
@@ -294,7 +294,7 @@ export const apiKeysController = new Elysia({
           'API key permanently deleted'
         ),
         401: ErrorRef(401),
-        404: t.Ref('apikeys.error.notfound'),
+        404: t.Ref('api-keys.error.notfound'),
         500: ErrorRef(500)
       }
     }

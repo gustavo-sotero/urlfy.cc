@@ -12,6 +12,7 @@ import { auditLog } from '@urlfy/data/schema/audit';
 import { and, count, desc, eq, ilike, isNull, or } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
+import { sanitizeSearchQuery } from '@/server/lib/sanitize';
 import { createLogger } from '@/server/lib/telemetry';
 import type {
   AdminUserListQueryType,
@@ -46,7 +47,7 @@ export const AdminUsersService = {
       const conditions = [];
 
       if (query.search) {
-        const searchPattern = `%${query.search}%`;
+        const searchPattern = `%${sanitizeSearchQuery(query.search)}%`;
         conditions.push(
           or(
             ilike(userTable.name, searchPattern),

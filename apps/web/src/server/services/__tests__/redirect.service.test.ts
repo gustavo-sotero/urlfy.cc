@@ -13,12 +13,14 @@
  *  5. Redirect depth ≥ 3 → 421 Misdirected Request
  *  6. Rate-limited request → 429 with Retry-After header
  *  7. Analytics fire-and-forget — does NOT block the response
+ *  8. Unlock token lifecycle — exp enforcement, signature validation
  * ═════════════════════════════════════════════════════════════════════
  */
 
 // ── Module mocks (must be registered before the modules are imported) ─────────
 
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { createHmac } from 'node:crypto';
 
 // Silent logger
 mock.module('@urlfy/telemetry', () => ({
@@ -27,7 +29,10 @@ mock.module('@urlfy/telemetry', () => ({
     info: () => {},
     warn: () => {},
     error: () => {}
-  })
+  }),
+  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
+    fn().catch(() => {});
+  }
 }));
 
 // ip utilities (re-exported from @urlfy/telemetry; mock the shim directly)
@@ -344,5 +349,109 @@ describe('GET /r/[code] — redirect hot path', () => {
     await callGET('abc1234');
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(analyticsAddCalled).toBe(false);
+  });
+
+  // ── 8. Unlock token lifecycle ─────────────────────────────────────────────
+
+  describe('unlock token verification', () => {
+    /**
+     * Create an HS256 JWT with the given payload, using the test secret.
+     */
+    function createTestJwt(
+      payload: Record<string, unknown>,
+      secret = 'test-secret-minimum-32-characters-long!!'
+    ): string {
+      const header = Buffer.from(
+        JSON.stringify({ alg: 'HS256', typ: 'JWT' })
+      ).toString('base64url');
+      const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+      const sig = createHmac('sha256', secret)
+        .update(`${header}.${body}`)
+        .digest('base64url');
+      return `${header}.${body}.${sig}`;
+    }
+
+    // Password-protected link that succeeds when bypassPassword is true
+    const passwordProtectedSuccess: RedirectResult = {
+      success: true,
+      url: 'https://example.com/protected',
+      redirectType: 302,
+      linkId: 'link-pw',
+      cacheHit: false
+    };
+
+    it('accepts a valid unlock token with future exp', async () => {
+      const token = createTestJwt({
+        code: 'locked1',
+        type: 'unlock',
+        exp: Math.floor(Date.now() / 1000) + 300
+      });
+      mockCookieValue = token;
+      mockResolveResult = passwordProtectedSuccess;
+
+      const res = await callGET('locked1');
+      expect(res.status).toBe(302);
+      expect(res.headers.get('location')).toBe('https://example.com/protected');
+    });
+
+    it('rejects a token without exp claim', async () => {
+      const token = createTestJwt({
+        code: 'locked1',
+        type: 'unlock'
+        // no exp
+      });
+      mockCookieValue = token;
+      // Without valid bypass, the resolve returns PASSWORD_REQUIRED
+      mockResolveResult = { success: false, error: 'PASSWORD_REQUIRED' };
+
+      const res = await callGET('locked1');
+      expect(res.status).toBe(302);
+      expect(res.headers.get('location')).toContain('/unlock/locked1');
+    });
+
+    it('rejects a token with expired exp claim', async () => {
+      const token = createTestJwt({
+        code: 'locked1',
+        type: 'unlock',
+        exp: Math.floor(Date.now() / 1000) - 60 // expired 1 minute ago
+      });
+      mockCookieValue = token;
+      mockResolveResult = { success: false, error: 'PASSWORD_REQUIRED' };
+
+      const res = await callGET('locked1');
+      expect(res.status).toBe(302);
+      expect(res.headers.get('location')).toContain('/unlock/locked1');
+    });
+
+    it('rejects a token with invalid signature', async () => {
+      const token = createTestJwt(
+        {
+          code: 'locked1',
+          type: 'unlock',
+          exp: Math.floor(Date.now() / 1000) + 300
+        },
+        'wrong-secret-that-does-not-match-config!!'
+      );
+      mockCookieValue = token;
+      mockResolveResult = { success: false, error: 'PASSWORD_REQUIRED' };
+
+      const res = await callGET('locked1');
+      expect(res.status).toBe(302);
+      expect(res.headers.get('location')).toContain('/unlock/locked1');
+    });
+
+    it('rejects a token with mismatched code', async () => {
+      const token = createTestJwt({
+        code: 'othercode',
+        type: 'unlock',
+        exp: Math.floor(Date.now() / 1000) + 300
+      });
+      mockCookieValue = token;
+      mockResolveResult = { success: false, error: 'PASSWORD_REQUIRED' };
+
+      const res = await callGET('locked1');
+      expect(res.status).toBe(302);
+      expect(res.headers.get('location')).toContain('/unlock/locked1');
+    });
   });
 });

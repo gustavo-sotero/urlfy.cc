@@ -17,6 +17,8 @@
 
 import type { NextRequest } from 'next/server';
 import { getClientIp } from '@/server/lib/ip';
+import { createStreamingRequest } from '@/server/lib/streaming-request';
+import { fireAndForget } from '@/server/lib/telemetry';
 import {
   antiAbuseMiddleware,
   recordLoginFailure
@@ -73,10 +75,13 @@ async function handle(request: NextRequest): Promise<Response> {
   const requestId =
     request.headers.get('x-request-id') ||
     `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const requestPath = new URL(request.url).pathname;
 
   // Track request for RPS metrics (fire-and-forget, non-blocking)
-  MetricsService.trackRequest().catch(() => {
-    // Silently ignore tracking errors — metrics should never break requests
+  fireAndForget('gateway-track-request', () => MetricsService.trackRequest(), {
+    method: request.method,
+    path: requestPath,
+    requestId
   });
 
   const preflight = await corsMiddleware(request);
@@ -113,13 +118,11 @@ async function handle(request: NextRequest): Promise<Response> {
 
   let response: Response;
   try {
-    const proxyRequest = new Request(targetUrl, {
+    const proxyRequest = createStreamingRequest(targetUrl, {
       method: request.method,
       headers: proxyHeaders,
       body: request.body,
-      signal: abortController.signal,
-      // @ts-expect-error — duplex is required for streaming bodies
-      duplex: 'half'
+      signal: abortController.signal
     });
 
     response = await fetch(proxyRequest);
@@ -150,9 +153,15 @@ async function handle(request: NextRequest): Promise<Response> {
     (response.status === 401 || response.status === 403)
   ) {
     const clientIp = getClientIp(request);
-    recordLoginFailure(clientIp).catch(() => {
-      // Intentionally ignored — anti-abuse must never break requests
-    });
+    fireAndForget(
+      'gateway-record-login-failure',
+      () => recordLoginFailure(clientIp),
+      {
+        path: url.pathname,
+        requestId,
+        status: response.status
+      }
+    );
   }
 
   const finalResponse = addCORSHeaders(response, request);

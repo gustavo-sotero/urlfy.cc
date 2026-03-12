@@ -171,11 +171,11 @@ export const API_KEY_LIST_EXAMPLE = {
 
 // ─── Model Registration ───────────────────────────────────────────
 
-export const ApiKeysModel = new Elysia({ name: 'Model.ApiKeys' }).model({
-  'apikeys.create': CreateApiKeyBody,
-  'apikeys.response': ApiKeyResponse,
-  'apikeys.created': ApiKeyCreatedResponse,
-  'apikeys.list': ApiKeyListResponse,
-  'apikeys.revoke': RevokeApiKeyBody,
-  'apikeys.error.notfound': KeyNotFoundError
+export const ApiKeysModel = new Elysia({ name: 'api-keys.model' }).model({
+  'api-keys.create': CreateApiKeyBody,
+  'api-keys.response': ApiKeyResponse,
+  'api-keys.created': ApiKeyCreatedResponse,
+  'api-keys.list': ApiKeyListResponse,
+  'api-keys.revoke': RevokeApiKeyBody,
+  'api-keys.error.notfound': KeyNotFoundError
 });

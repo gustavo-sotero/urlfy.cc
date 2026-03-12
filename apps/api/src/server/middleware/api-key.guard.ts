@@ -10,12 +10,7 @@ import { db } from '@urlfy/data';
 import { apiKey as apiKeyTable } from '@urlfy/data/schema/auth';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Elysia } from 'elysia';
-import {
-  hasScopes,
-  parseScopes,
-  type Scope,
-  Scopes
-} from '@/server/config/scopes';
+import { hasScopes, parseScopes, type Scope } from '@/server/config/scopes';
 import { rateLimiter } from '@/server/lib/rate-limiter';
 import { createLogger } from '@/server/lib/telemetry';
 import type { ApiKeyContext, ApiKeyError } from '@/types/api-keys.types';
@@ -68,22 +63,44 @@ function errorResponse(
   );
 }
 
-// ─── Async Usage Increment ────────────────────────────────────────
+// ─── Atomic Quota Reservation ─────────────────────────────────────
 
-async function incrementUsage(keyId: string): Promise<void> {
+/**
+ * Atomically reserve one quota unit. Returns the updated remaining
+ * count, or null if the quota was already exhausted.
+ *
+ * The UPDATE predicate ensures no overshoot under concurrency:
+ * only rows where usageCount < remaining are eligible.
+ */
+async function reserveQuotaUnit(
+  keyId: string,
+  quotaLimit: number
+): Promise<{ remaining: number } | null> {
   try {
-    await db
+    const [updated] = await db
       .update(apiKeyTable)
       .set({
         usageCount: sql`${apiKeyTable.usageCount} + 1`,
         lastUsedAt: new Date()
       })
-      .where(eq(apiKeyTable.id, keyId));
+      .where(
+        and(
+          eq(apiKeyTable.id, keyId),
+          sql`${apiKeyTable.usageCount} < ${quotaLimit}`
+        )
+      )
+      .returning({ usageCount: apiKeyTable.usageCount });
+
+    if (!updated) return null;
+
+    return { remaining: Math.max(0, quotaLimit - (updated.usageCount ?? 0)) };
   } catch (error) {
-    logger.error('Failed to increment API key usage', {
+    logger.error('Failed to reserve API key quota unit', {
       keyId,
       error: error instanceof Error ? error.message : String(error)
     });
+    // Fail-open: allow the request but log the failure
+    return { remaining: 0 };
   }
 }
 
@@ -147,24 +164,9 @@ export function requireApiKey(options: RequireApiKeyOptions) {
       }
 
       // 5. Parse scopes and verify permissions
-      let keyScopes = parseScopes(keyRecord.permissions);
-      if (keyScopes.length === 0 && process.env.NODE_ENV === 'test') {
-        keyScopes = [Scopes.LINKS_READ];
-      }
+      const keyScopes = parseScopes(keyRecord.permissions);
 
-      if (
-        process.env.NODE_ENV === 'test' &&
-        request.method.toUpperCase() === 'GET'
-      ) {
-        const required = options.scopes ?? [];
-        keyScopes = Array.from(new Set([...keyScopes, ...required]));
-      }
-      const isTestEnv = process.env.NODE_ENV === 'test';
-      const requiresWrite = options.scopes.includes(Scopes.LINKS_WRITE);
-      const isTestReadBypass =
-        isTestEnv && request.method.toUpperCase() === 'GET' && !requiresWrite;
-
-      if (!hasScopes(keyScopes, options.scopes) && !isTestReadBypass) {
+      if (!hasScopes(keyScopes, options.scopes)) {
         logger.warn('Scope denied', {
           keyId: keyRecord.id,
           keyScopes,
@@ -210,32 +212,36 @@ export function requireApiKey(options: RequireApiKeyOptions) {
         );
       }
 
-      // 7. Check quota usage
-      if (
-        keyRecord.remaining !== null &&
-        keyRecord.remaining !== undefined &&
-        Number(keyRecord.remaining) <= 0
-      ) {
-        throw errorResponse('QUOTA_EXCEEDED', undefined, requestId);
+      // 7. Atomic quota reservation
+      const quotaLimit = keyRecord.remaining ?? keyRecord.rateLimitMax ?? 1000;
+
+      if (quotaLimit !== null && Number.isFinite(Number(quotaLimit))) {
+        if (!options.skipQuotaIncrement) {
+          const reservation = await reserveQuotaUnit(
+            keyRecord.id,
+            Number(quotaLimit)
+          );
+
+          if (!reservation) {
+            throw errorResponse('QUOTA_EXCEEDED', undefined, requestId);
+          }
+
+          const apiKey: ApiKeyContext['apiKey'] = {
+            id: keyRecord.id,
+            userId: keyRecord.userId,
+            scopes: keyScopes,
+            remaining: reservation.remaining
+          };
+
+          return { apiKey };
+        }
       }
 
-      const quotaLimit = Number(
-        keyRecord.remaining ?? keyRecord.rateLimitMax ?? 1000
-      );
+      // Read-only path (skipQuotaIncrement) — derive remaining from snapshot
       const usageCount = Number(keyRecord.usageCount ?? 0);
-
-      if (Number.isFinite(quotaLimit) && usageCount >= quotaLimit) {
-        throw errorResponse('QUOTA_EXCEEDED', undefined, requestId);
-      }
-
-      // 8. Increment usage count asynchronously (fire-and-forget)
-      if (!options.skipQuotaIncrement) {
-        incrementUsage(keyRecord.id);
-      }
-
-      // 9. Store in state for derive
-      const decrement = options.skipQuotaIncrement ? 0 : 1;
-      const remaining = Math.max(0, quotaLimit - usageCount - decrement);
+      const remaining = Number.isFinite(Number(quotaLimit))
+        ? Math.max(0, Number(quotaLimit) - usageCount)
+        : Number(quotaLimit);
 
       const apiKey: ApiKeyContext['apiKey'] = {
         id: keyRecord.id,

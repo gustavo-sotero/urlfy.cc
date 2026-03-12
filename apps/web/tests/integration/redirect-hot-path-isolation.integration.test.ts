@@ -48,7 +48,10 @@ mock.module('@urlfy/telemetry', () => ({
   createLogger: () => ({
     info: () => {},
     error: () => {}
-  })
+  }),
+  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
+    fn().catch(() => {});
+  }
 }));
 
 mock.module('next/headers', () => ({

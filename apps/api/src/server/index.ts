@@ -28,7 +28,7 @@ import {
 import { securityHeadersMiddleware } from '@/server/middleware/security-headers';
 // Feature-based modules
 import {
-  AdminModels,
+  AdminModel,
   adminController,
   adminMessagesController,
   adminQueuesController,
@@ -39,7 +39,7 @@ import {
   analyticsController
 } from '@/server/modules/analytics';
 import { ApiKeysModel, apiKeysController } from '@/server/modules/api-keys';
-import { AuthModels, authController } from '@/server/modules/auth';
+import { AuthModel, authController } from '@/server/modules/auth';
 import { contactController } from '@/server/modules/contact';
 import { healthController, InternalModel } from '@/server/modules/internal';
 import { LinksModel, linksController } from '@/server/modules/links';
@@ -181,10 +181,10 @@ export const api = new Elysia({ prefix: '/api' })
   // Register models for OpenAPI $ref support and type inference
   .use(ResponseModels)
   .use(LinksModel)
-  .use(AuthModels)
+  .use(AuthModel)
   .use(UsersModel)
   .use(AnalyticsModel)
-  .use(AdminModels)
+  .use(AdminModel)
   .use(ApiKeysModel)
   .use(InternalModel)
 

@@ -7,6 +7,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./services/audit-log": "./src/services/audit-log.service.ts",
     "./schema": "./src/schema.ts",
     "./schema/analytics": "./src/schema/analytics.ts",
     "./schema/audit": "./src/schema/audit.ts",
@@ -33,7 +34,8 @@
   "dependencies": {
     "@logtape/drizzle-orm": "^2.0.2",
     "@urlfy/telemetry": "workspace:*",
-    "drizzle-orm": "^0.45.1"
+    "drizzle-orm": "^0.45.1",
+    "nanoid": "^5.1.6"
   },
   "devDependencies": {
     "@urlfy/config-ts": "workspace:*",

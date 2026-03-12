@@ -9,5 +9,10 @@
 
 export { LinkLifecycleService } from './link-lifecycle.service';
 export { linksController } from './links.controller';
-export * from './links.schema';
-export * from './links.service';
+export {
+  LINK_RESPONSE_EXAMPLE,
+  LINK_STATS_EXAMPLE,
+  type LinkCreateBodyType,
+  LinksModel
+} from './links.schema';
+export { LinkService } from './links.service';
