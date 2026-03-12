@@ -60,6 +60,19 @@ Para evitar dupla cobrança de custo no mesmo request path:
 
 Com isso, o redirect hot-path não passa pelo limiter global de `/api/*`, enquanto rotas administrativas e internas continuam protegidas pela camada de gateway.
 
+## Canonical IP Derivation
+
+All runtime IP extraction must use the canonical helpers in `@urlfy/telemetry`:
+
+- `getClientIp(request: Request)` — for Elysia/Next.js route handlers with access to the full `Request` object.
+- `getClientIpFromHeaders(headers: Headers)` — for contexts where only a `Headers` object is available (e.g., Next.js server components via `headers()`).
+
+Direct parsing of proxy headers (`x-forwarded-for`, `x-real-ip`, etc.) in app-level code is forbidden and enforced by `scripts/validate-proxy-headers.ts` (run in CI).
+
+Approved exemptions:
+- `packages/telemetry/src/ip.ts` — the canonical implementation.
+- `apps/web/src/app/api/[[...slugs]]/route.ts` — the API gateway proxy, which *sets* (not parses) `x-forwarded-for` using `getClientIp()` for downstream forwarding.
+
 ## Runtime Secret Guards
 
 Os segredos de auth e env possuem sentinelas de build-time que nunca podem ser aceitas em runtime.

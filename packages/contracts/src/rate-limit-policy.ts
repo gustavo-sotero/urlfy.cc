@@ -60,7 +60,10 @@ export const RATE_LIMITS = {
   // ─── Health Checks ───────────────────────────────────────────────
   HEALTH_CHECK: { windowMs: 60 * 1000, max: 600 }, // 600/min
   HEALTH_READY: { windowMs: 60 * 1000, max: 300 }, // 300/min (readiness probe path)
-  HEALTH_DETAILED: { windowMs: 60 * 1000, max: 60 } // 60/min
+  HEALTH_DETAILED: { windowMs: 60 * 1000, max: 60 }, // 60/min
+
+  // ─── Client Monitor (telemetry ingestion) ────────────────────────
+  MONITOR_LOG: { windowMs: 60 * 1000, max: 10 } // 10/min per IP (client error reports)
 } as const satisfies Record<string, RateLimitEntry>;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;
@@ -179,6 +182,11 @@ export const ROUTE_RATE_LIMIT_CONFIGS: Record<string, RouteRateLimitEntry> = {
   'POST /api/keys*': {
     guest: null, // Requires authentication
     auth: toConfig(RATE_LIMITS.API_KEY_CREATE)
+  },
+  // ─── Client Monitor (telemetry ingestion) ────────────────────────
+  'POST /api/monitor/log': {
+    guest: toConfig(RATE_LIMITS.MONITOR_LOG),
+    auth: toConfig(RATE_LIMITS.MONITOR_LOG)
   }
 };
 
@@ -194,3 +202,11 @@ export const REDIRECT_RATE_LIMIT_CONFIG: {
   perIP: toConfig(RATE_LIMITS.REDIRECT_PER_IP),
   perLink: toConfig(RATE_LIMITS.REDIRECT_PER_LINK)
 };
+
+/**
+ * Rate limit config for the client monitor/log endpoint.
+ * Consumed directly by apps/web/src/app/api/monitor/log/route.ts.
+ */
+export const MONITOR_LOG_RATE_LIMIT_CONFIG: RateLimitConfig = toConfig(
+  RATE_LIMITS.MONITOR_LOG
+);

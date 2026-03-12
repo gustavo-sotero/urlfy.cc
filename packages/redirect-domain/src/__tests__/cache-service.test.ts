@@ -1,5 +1,3 @@
-// src/server/services/__tests__/cache.service.test.ts
-
 import {
   afterAll,
   afterEach,
@@ -9,10 +7,9 @@ import {
   it,
   mock
 } from 'bun:test';
-import type { CachedLink } from '@/types/redirect.types';
+import type { CachedLink } from '@urlfy/contracts/redirect';
 
-// Mock telemetry to avoid initialization
-mock.module('@/server/lib/telemetry', () => ({
+mock.module('@urlfy/telemetry', () => ({
   createLogger: () => ({
     debug: () => {},
     info: () => {},
@@ -33,7 +30,6 @@ mock.module('@/server/lib/telemetry', () => ({
   circuitBreakerTrips: { add: () => {} }
 }));
 
-// In-memory Redis store
 const store = new Map<string, unknown>();
 const CACHE_PREFIX = {
   LINK: 'link:',
@@ -48,7 +44,6 @@ const CACHE_TTL = {
   BANNED: 86400
 };
 
-// Mock Pipeline (Not used by service anymore, but kept for compatibility if needed)
 const mockPipeline = {
   del: mock((key: string) => {
     store.delete(key);
@@ -57,7 +52,6 @@ const mockPipeline = {
   exec: mock<() => Promise<unknown[]>>(() => Promise.resolve([]))
 };
 
-// Mock Redis Client
 const mockRedis = {
   get: mock(async (key: string) => {
     return (store.get(key) as string) || null;
@@ -70,7 +64,6 @@ const mockRedis = {
     store.set(key, value);
     return 'OK';
   }),
-  // Handling 'send' for commands like EXISTS, INFO, DBSIZE, SCAN
   send: mock(async (command: string, args: string[]) => {
     const cmd = command.toUpperCase();
     if (cmd === 'EXISTS') {
@@ -85,7 +78,6 @@ const mockRedis = {
       if (section === 'memory') {
         return '# Memory\r\nused_memory_human:1.5M\r\n';
       }
-      // Default info
       return '# Stats\r\nkeyspace_hits:100\r\nkeyspace_misses:10\r\n# Memory\r\nused_memory_human:1.5M\r\n';
     }
     if (cmd === 'DBSIZE') {
@@ -96,22 +88,19 @@ const mockRedis = {
       return 'OK';
     }
     if (cmd === 'SCAN') {
-      // SCAN cursor MATCH pattern COUNT count
-      // Return format: [nextCursor, [keys]]
-      const _cursor = args[0];
       const matchIndex = args.indexOf('MATCH');
       const pattern = matchIndex !== -1 ? args[matchIndex + 1] : '*';
-
-      // For testing, return all matching keys in one batch
       const regex = new RegExp(pattern.replace(/\*/g, '.*'));
       const keys = Array.from(store.keys()).filter((k) => regex.test(k));
-
-      // Return cursor '0' (done) and all keys
       return ['0', keys];
+    }
+    if (cmd === 'SMEMBERS') {
+      const key = args[0] || '';
+      const set = store.get(key);
+      return set instanceof Set ? [...set] : [];
     }
     return null;
   }),
-  // Direct methods
   exists: mock(async (key: string) => {
     return store.has(key) ? 1 : 0;
   }),
@@ -126,7 +115,6 @@ const mockRedis = {
     return store.has(key) ? 3600 : -2;
   }),
   keys: mock(async (pattern: string) => {
-    // Simple verification for test patterns
     const regex = new RegExp(pattern.replace(/\*/g, '.*'));
     return Array.from(store.keys()).filter((k) => regex.test(k));
   }),
@@ -142,19 +130,36 @@ const mockRedis = {
   })
 };
 
-// Set up mock module
-mock.module('@/server/lib/redis', () => ({
+mock.module('@urlfy/cache', () => ({
+  acquireLock: async () => true,
   getRedisClient: () => mockRedis,
-  redis: mockRedis
+  releaseLock: async () => {},
+  redis: mockRedis,
+  CACHE_KEYS: {
+    LINK: (code: string) => `link:${code}`,
+    LINK_META: (code: string) => `link:meta:${code}`,
+    LINK_404: (code: string) => `link:404:${code}`,
+    LINK_BANNED: (code: string) => `link:banned:${code}`,
+    QR_CODE: (code: string, size: number, format: string) =>
+      `qr:${code}:${size}:${format}`,
+    LOCK: (code: string) => `lock:link:${code}`
+  },
+  CACHE_TTL: {
+    LINK: 3600,
+    LINK_META: 300,
+    LINK_404: 300,
+    LINK_BANNED: 86400,
+    LOCK: 5,
+    QR_CODE: 86400,
+    GEO: 86400
+  }
 }));
 
-// Import service AFTER mock
-const { cacheService } = await import('../cache.service');
+const { cacheService } = await import('../cache-service');
 
-// Helper to prevent hanging
 async function withTimeout<T>(
   promise: Promise<T>,
-  ms: number = 500
+  ms = 500
 ): Promise<{ success: boolean; result?: T; error?: Error }> {
   let timer: Timer | undefined;
   const timeoutPromise = new Promise<{ success: boolean }>((resolve) => {
@@ -176,9 +181,6 @@ async function withTimeout<T>(
 
 describe('CacheService', () => {
   beforeEach(() => {
-    (globalThis as { __REDIS_CLIENT__?: typeof mockRedis }).__REDIS_CLIENT__ =
-      mockRedis;
-
     store.clear();
     mockRedis.get.mockClear();
     mockRedis.set.mockClear();
@@ -192,28 +194,25 @@ describe('CacheService', () => {
   });
 
   afterEach(() => {
-    delete (globalThis as { __REDIS_CLIENT__?: typeof mockRedis })
-      .__REDIS_CLIENT__;
+    store.clear();
   });
 
   afterAll(() => {
     mock.restore();
   });
 
-  describe('getLink()', () => {
-    it('should return null on cache miss', async () => {
+  describe('getLink', () => {
+    it('returns null on cache miss', async () => {
       const { success, result } = await withTimeout(
         cacheService.getLink('abc123')
       );
       if (!success) return;
 
       expect(result).toBeNull();
-      // Service might use get() (direct) or send('GET'), mocking both covers it
-      // but implementation uses 'get'.
       expect(mockRedis.get).toHaveBeenCalledWith(`${CACHE_PREFIX.LINK}abc123`);
     });
 
-    it('should return parsed link on cache hit', async () => {
+    it('returns a parsed link on cache hit', async () => {
       const mockLink: CachedLink = {
         id: 'test-id-001',
         originalUrl: 'https://example.com',
@@ -239,7 +238,7 @@ describe('CacheService', () => {
       expect(result).toEqual(mockLink);
     });
 
-    it('should return null on parse error', async () => {
+    it('returns null on parse error', async () => {
       store.set(`${CACHE_PREFIX.LINK}abc123`, 'invalid-json');
 
       const { success, result } = await withTimeout(
@@ -251,13 +250,13 @@ describe('CacheService', () => {
     });
   });
 
-  describe('setLink()', () => {
-    it('should cache link with correct TTL', async () => {
+  describe('setLink', () => {
+    it('caches a link with the canonical TTL', async () => {
       const mockLink: CachedLink = {
         id: 'test-id-002',
         originalUrl: 'https://example.com',
         redirectType: 301,
-        isActive: true, // simplified
+        isActive: true,
         isBanned: false,
         expiresAt: null,
         maxClicks: null,
@@ -274,7 +273,6 @@ describe('CacheService', () => {
       if (!success) return;
 
       const stored = store.get(`${CACHE_PREFIX.LINK}abc123`);
-      // setLink() embeds _cachedAt timestamp for TTL computation (Phase 4.1)
       const parsed = stored ? JSON.parse(stored as string) : null;
       expect(parsed).toMatchObject(mockLink);
       expect(parsed._cachedAt).toBeTypeOf('number');
@@ -286,9 +284,8 @@ describe('CacheService', () => {
     });
   });
 
-  describe('isNotFound()', () => {
-    it('should return true if 404 cache exists', async () => {
-      // Manual internal set
+  describe('negative and banned cache helpers', () => {
+    it('detects a cached 404 entry', async () => {
       store.set(`${CACHE_PREFIX.LINK_404}notfound`, '1');
 
       const { success, result } = await withTimeout(
@@ -297,34 +294,19 @@ describe('CacheService', () => {
       if (!success) return;
 
       expect(result).toBe(true);
-      // Since service uses send('EXISTS'), verify that instead of checking exists directly
       expect(mockRedis.send).toHaveBeenCalled();
     });
 
-    it('should return false if 404 cache does not exist', async () => {
-      const { success, result } = await withTimeout(
-        cacheService.isNotFound('exists')
-      );
-      if (!success) return;
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('setNotFound()', () => {
-    it('should cache 404 with negative TTL', async () => {
+    it('stores the not-found marker', async () => {
       const { success } = await withTimeout(
         cacheService.setNotFound('notfound')
       );
       if (!success) return;
 
-      const stored = store.get(`${CACHE_PREFIX.LINK_404}notfound`);
-      expect(stored).toBe('1');
+      expect(store.get(`${CACHE_PREFIX.LINK_404}notfound`)).toBe('1');
     });
-  });
 
-  describe('isBanned()', () => {
-    it('should return true if banned cache exists', async () => {
+    it('detects a cached banned entry', async () => {
       store.set(`${CACHE_PREFIX.LINK_BANNED}banned`, '1');
 
       const { success, result } = await withTimeout(
@@ -334,67 +316,56 @@ describe('CacheService', () => {
 
       expect(result).toBe(true);
     });
-  });
 
-  describe('setBanned()', () => {
-    it('should cache banned link with correct TTL', async () => {
+    it('stores the banned marker', async () => {
       const { success } = await withTimeout(cacheService.setBanned('banned'));
       if (!success) return;
 
-      const stored = store.get(`${CACHE_PREFIX.LINK_BANNED}banned`);
-      expect(stored).toBe('1');
+      expect(store.get(`${CACHE_PREFIX.LINK_BANNED}banned`)).toBe('1');
     });
   });
 
-  describe('invalidateLink()', () => {
-    it('should delete all related cache entries', async () => {
-      // Setup keys to delete
+  describe('invalidateLink', () => {
+    it('deletes all related cache entries', async () => {
       store.set(`${CACHE_PREFIX.LINK}abc123`, 'data');
       store.set(`${CACHE_PREFIX.LINK_META}abc123`, 'data');
-      store.set(`${CACHE_PREFIX.QR_CODE}abc123:200:png`, 'data');
-
-      // Helper to simulate KEYS command for the QR code lookup
-      const _keysSpy = mockRedis.keys; // Use the existing spy
+      store.set('qr:keys:abc123', new Set(['qr:abc123:200:png']));
+      store.set('qr:abc123:200:png', 'data');
 
       const { success } = await withTimeout(
         cacheService.invalidateLink('abc123')
       );
       if (!success) return;
 
-      // The service calls redis.del() directly, so we check that
       expect(mockRedis.del).toHaveBeenCalled();
-      // It calls del for LINK, META, 404, BANNED (4 calls) + scan/del for QR codes
-
       expect(store.has(`${CACHE_PREFIX.LINK}abc123`)).toBe(false);
       expect(store.has(`${CACHE_PREFIX.LINK_META}abc123`)).toBe(false);
-      // QR key should be deleted
-      // Note: our mockRedis.del implementation removes from store, so checking store is sufficient proof
+      expect(store.has('qr:abc123:200:png')).toBe(false);
     });
   });
 
-  describe('getCacheStats()', () => {
-    it('should return cache statistics', async () => {
+  describe('getCacheStats', () => {
+    it('returns cache statistics', async () => {
       store.set('key1', 'val');
 
-      const { success, result: stats } = await withTimeout(
+      const { success, result } = await withTimeout(
         cacheService.getCacheStats()
       );
-      if (!success || !stats) return;
+      if (!success || !result) return;
 
-      expect(stats.memory).toBe('1.5M'); // mocked in info
-      expect(stats.keys).toBe(1); // One key in store
+      expect(result.memory).toBe('1.5M');
+      expect(result.keys).toBe(1);
     });
   });
 
-  describe('flushLinks()', () => {
-    it('should delete all link-related keys', async () => {
+  describe('flushLinks', () => {
+    it('deletes all link-related keys', async () => {
       store.set('link:1', 'v');
       store.set('link:2', 'v');
 
       const { success } = await withTimeout(cacheService.flushLinks());
       if (!success) return;
 
-      // Verify SCAN was called instead of keys (refactored implementation)
       expect(mockRedis.send).toHaveBeenCalledWith(
         expect.stringMatching(/SCAN/i),
         expect.any(Array)

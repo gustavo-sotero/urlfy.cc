@@ -80,6 +80,35 @@ export function getClientIp(request: Request): string {
 }
 
 /**
+ * Extracts client IP from a `Headers` object using the same trust model
+ * as `getClientIp`. Useful in contexts where only a `Headers` instance
+ * is available (e.g. Next.js server components via `headers()`).
+ */
+export function getClientIpFromHeaders(headers: Headers): string {
+  const trustProxy = process.env.TRUST_PROXY === 'true';
+
+  if (trustProxy) {
+    const cfConnectingIp = headers.get('cf-connecting-ip');
+    if (cfConnectingIp) return cfConnectingIp.trim();
+
+    const realIp = headers.get('x-real-ip');
+    if (realIp) return realIp.trim();
+
+    const forwardedFor = headers.get('x-forwarded-for');
+    if (forwardedFor) {
+      const clientIP = forwardedFor.split(',')[0]?.trim();
+      if (clientIP) return clientIP;
+    }
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    return '127.0.0.1';
+  }
+
+  return '127.0.0.1';
+}
+
+/**
  * Validates if an IP address is in valid IPv4 or IPv6 format
  */
 export function isValidIp(ip: string): boolean {

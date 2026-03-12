@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { AdminHeader } from '@/components/admin/layout/admin-header';
 import { AdminSidebar } from '@/components/admin/layout/admin-sidebar';
 import { auth } from '@/lib/auth';
+import { getClientIpFromHeaders } from '@/server/lib/ip';
 import { auditLogService } from '@/server/services/audit.service';
 
 export default async function AdminLayout({
@@ -34,6 +35,9 @@ export default async function AdminLayout({
   const userEmail = user.email;
   const twoFactorEnabled = user.twoFactorEnabled;
 
+  // Derive client IP once using the canonical trust-aware helper
+  const clientIp = getClientIpFromHeaders(requestHeaders);
+
   // ═══════════════════════════════════════════════════════════════════
   // GUARD 2: Role Authorization Check
   // ═══════════════════════════════════════════════════════════════════
@@ -49,7 +53,7 @@ export default async function AdminLayout({
         userRole,
         requiredRole: 'admin'
       },
-      ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,
+      ipAddress: clientIp,
       userAgent: requestHeaders.get('user-agent') ?? undefined
     });
 
@@ -76,7 +80,7 @@ export default async function AdminLayout({
         twoFactorEnabled,
         timestamp: new Date().toISOString()
       },
-      ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,
+      ipAddress: clientIp,
       userAgent: requestHeaders.get('user-agent') ?? undefined
     });
 
@@ -96,7 +100,7 @@ export default async function AdminLayout({
       role: userRole,
       has2FA: true
     },
-    ipAddress: requestHeaders.get('x-forwarded-for') ?? undefined,
+    ipAddress: clientIp,
     userAgent: requestHeaders.get('user-agent') ?? undefined
   });
 

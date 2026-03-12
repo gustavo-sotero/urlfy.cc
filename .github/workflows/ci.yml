@@ -49,6 +49,9 @@ jobs:
       - name: Validate API module boundaries
         run: bun run scripts/validate-module-boundaries.ts
 
+      - name: Validate no direct proxy-header parsing
+        run: bun run scripts/validate-proxy-headers.ts
+
   # ─── Security Audit ─────────────────────────────────────────────
   security:
     name: Security Audit

@@ -106,6 +106,10 @@ mock.module('../cache-service', () => ({
 // ─── Mutable lock state ────────────────────────────────────────────────────────
 
 const lockState = { acquired: true };
+const redisMock = {
+  get: async () => null,
+  set: async () => 'OK'
+};
 
 mock.module('@urlfy/cache', () => ({
   CACHE_KEYS: {
@@ -115,6 +119,8 @@ mock.module('@urlfy/cache', () => ({
     LOCK: 5 // seconds — LOCK_TTL_MS = 5 * 1000 = 5000ms
   },
   acquireLock: async () => lockState.acquired,
+  getRedisClient: () => redisMock,
+  redis: redisMock,
   releaseLock: async () => {}
 }));
 

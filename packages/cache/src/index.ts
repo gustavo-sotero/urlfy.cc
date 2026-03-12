@@ -3,6 +3,8 @@
  * Redis client, cache key builders, distributed locks and streaming utilities
  */
 
+// Anti-abuse service (degradation-aware abuse detection)
+export { AntiAbuseService, antiAbuseService } from './anti-abuse-service';
 // Circuit breaker
 export type { CircuitBreakerConfig } from './circuit-breaker';
 export {
@@ -35,6 +37,8 @@ export {
 } from './distributed-lock';
 // Cache keys and TTLs
 export { CACHE_KEYS, CACHE_TTL } from './keys';
+// Metrics service (degradation-aware RPS tracking)
+export { MetricsService } from './metrics-service';
 // In-memory Redis mock (for testing)
 export { createInMemoryRedisClient } from './mock';
 // Canonical rate limiter core

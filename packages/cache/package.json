@@ -13,9 +13,13 @@
     "./circuit-breaker": "./src/circuit-breaker.ts",
     "./distributed-lock": "./src/distributed-lock.ts",
     "./mock": "./src/mock.ts",
+    "./metrics-service": "./src/metrics-service.ts",
+    "./anti-abuse-service": "./src/anti-abuse-service.ts",
     "./types": "./src/types.ts"
   },
   "scripts": {
+    "test": "bun test src/",
+    "test:unit": "bun test src/__tests__/",
     "type-check": "bunx tsc --noEmit",
     "lint": "bunx biome check . --write"
   },

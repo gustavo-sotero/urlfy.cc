@@ -94,9 +94,24 @@ function setZSet(key: string, entries: ZSetEntry[]): void {
 export function createInMemoryRedisClient(): RedisClient {
   const client = {
     get: async (key: string) => getStoreValue(key),
-    set: async (key: string, value: string) => {
-      setStoreValue(key, value);
+    set: async (key: string, value: string, ...args: string[]) => {
+      const exIndex = args.findIndex((arg) => arg.toUpperCase() === 'EX');
+      const ttlSeconds =
+        exIndex !== -1
+          ? Number.parseInt(args[exIndex + 1] ?? '', 10)
+          : undefined;
+
+      setStoreValue(
+        key,
+        value,
+        Number.isFinite(ttlSeconds) ? ttlSeconds : undefined
+      );
       return 'OK';
+    },
+    getset: async (key: string, value: string) => {
+      const previous = getStoreValue(key);
+      setStoreValue(key, value);
+      return previous;
     },
     setex: async (key: string, ttl: number, value: string) => {
       setStoreValue(key, value, ttl);

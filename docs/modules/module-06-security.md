@@ -205,14 +205,15 @@ export async function rateLimit(
 ```typescript
 // src/server/middleware/rate-limit.middleware.ts
 import { Elysia } from 'elysia';
+import { getClientIp } from '@urlfy/telemetry';
 import { rateLimit } from './rate-limit';
 
 export const rateLimitMiddleware = new Elysia({ name: 'rate-limit' })
   .derive(({ request, headers }) => {
-    const ip =
-      headers['x-forwarded-for']?.split(',')[0] ??
-      headers['x-real-ip'] ??
-      'unknown';
+    // All IP derivation uses the canonical helper in @urlfy/telemetry.
+    // Direct proxy-header parsing (x-forwarded-for, x-real-ip) is forbidden
+    // in runtime code and enforced by scripts/validate-proxy-headers.ts.
+    const ip = getClientIp(request);
 
     const token = headers['authorization']?.replace('Bearer ', '') ?? null;
     const apiKey = headers['x-api-key'] ?? null;

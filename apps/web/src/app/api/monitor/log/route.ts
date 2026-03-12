@@ -1,49 +1,21 @@
 /**
  * Client Error Monitoring API
- * Receives and logs client-side errors for debugging
+ * Receives and logs client-side errors for debugging.
+ *
+ * IP derivation uses the canonical trust-aware helper.
+ * Rate limiting uses the shared distributed (Redis) limiter.
  */
 
+import { MONITOR_LOG_RATE_LIMIT_CONFIG } from '@urlfy/contracts';
 import { createLogger } from '@urlfy/telemetry';
 import { type NextRequest, NextResponse } from 'next/server';
 import type { BrowserLogPayload } from '@/lib/browser-log-contract';
+import { getClientIp } from '@/server/lib/ip';
+import { rateLimiter } from '@/server/lib/rate-limiter';
 
 const logger = createLogger('client-error-monitor');
 
-// ═══════════════════════════════════════════════════════════════════
-// RATE LIMITER (in-memory, per-IP, 10 req/min)
-// ═══════════════════════════════════════════════════════════════════
-
-const MAX_REQUESTS = 10;
-const WINDOW_MS = 60_000;
 const MAX_BODY_SIZE = 10 * 1024; // 10 KB
-
-const rateLimitMap = new Map<string, number[]>();
-
-// Periodically clean old entries to prevent memory leak
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, timestamps] of rateLimitMap) {
-    const recent = timestamps.filter((t) => now - t < WINDOW_MS);
-    if (recent.length === 0) rateLimitMap.delete(ip);
-    else rateLimitMap.set(ip, recent);
-  }
-}, WINDOW_MS);
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const timestamps = (rateLimitMap.get(ip) ?? []).filter(
-    (t) => now - t < WINDOW_MS
-  );
-
-  if (timestamps.length >= MAX_REQUESTS) {
-    rateLimitMap.set(ip, timestamps);
-    return true;
-  }
-
-  timestamps.push(now);
-  rateLimitMap.set(ip, timestamps);
-  return false;
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPERS
@@ -112,13 +84,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Rate limiting by IP
-    const clientIp =
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      request.headers.get('x-real-ip') ||
-      'unknown';
+    // Rate limiting by IP (canonical trust-aware derivation + distributed limiter)
+    const clientIp = getClientIp(request);
 
-    if (isRateLimited(clientIp)) {
+    const rateLimitResult = await rateLimiter.checkIPLimit(
+      clientIp,
+      MONITOR_LOG_RATE_LIMIT_CONFIG
+    );
+
+    if (!rateLimitResult.allowed) {
       return NextResponse.json(
         {
           success: false,

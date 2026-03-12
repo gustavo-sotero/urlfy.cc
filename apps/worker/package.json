@@ -17,6 +17,7 @@
     "@urlfy/contracts": "workspace:*",
     "@urlfy/data": "workspace:*",
     "@urlfy/geoip": "workspace:*",
+    "@urlfy/redirect-domain": "workspace:*",
     "@urlfy/telemetry": "workspace:*",
     "ua-parser-js": "^2.0.9",
     "zod": "^4.3.6"

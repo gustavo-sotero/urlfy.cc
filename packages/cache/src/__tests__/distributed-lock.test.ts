@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { redisHealth } from '../client';
 
 const setCalls: Array<Array<string>> = [];
 const delCalls: Array<Array<string>> = [];
@@ -29,17 +30,16 @@ const redisMock = {
   pttl: async () => pttlResult
 };
 
-mock.module('../client', () => ({
-  getRedisClient: () => redisMock
-}));
-
 mock.module('@urlfy/telemetry', () => ({
   createLogger: () => ({
     debug: () => {},
     info: () => {},
     warn: () => {},
     error: () => {}
-  })
+  }),
+  circuitBreakerTrips: {
+    add: () => {}
+  }
 }));
 
 const { acquireLock, getLockTTL, hasLock, releaseLock } = await import(
@@ -48,6 +48,12 @@ const { acquireLock, getLockTTL, hasLock, releaseLock } = await import(
 
 describe('distributed-lock', () => {
   beforeEach(() => {
+    (globalThis as { __REDIS_CLIENT__?: typeof redisMock }).__REDIS_CLIENT__ =
+      redisMock;
+    redisHealth.isDegraded = false;
+    redisHealth.degradedUntil = null;
+    redisHealth.consecutiveFailures = 0;
+    redisHealth.lastError = null;
     setCalls.length = 0;
     delCalls.length = 0;
     sendCalls.length = 0;
@@ -56,6 +62,12 @@ describe('distributed-lock', () => {
     evalResult = 1;
     existsResult = 1;
     pttlResult = 4200;
+  });
+
+  afterAll(() => {
+    delete (globalThis as { __REDIS_CLIENT__?: typeof redisMock })
+      .__REDIS_CLIENT__;
+    mock.restore();
   });
 
   it('acquires lock with PX and millisecond TTL', async () => {

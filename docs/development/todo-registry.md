@@ -19,6 +19,27 @@
 
 ---
 
+## Codebase Analysis Remediation (2026-03-12)
+
+- **Tracking ID:** TODO-CODEBASE-ANALYSIS-REMEDIATION-2026-03-12
+- **Status:** Resolved
+- **Resolved date:** 2026-03-12
+- **Changes delivered:**
+  1. **requireAuth hardening** — Catch block now throws `AppError(SERVICE_UNAVAILABLE)` instead of silently treating auth subsystem failures as unauthenticated.
+  2. **optionalAuth observability** — Auth subsystem failures are now logged at `error` level while preserving anonymous continuation.
+  3. **Monitor log rate limiting** — `/api/monitor/log` switched from spoofable in-memory rate limiter to distributed Redis-backed rate limiting via canonical `rateLimiter` and `getClientIp()`.
+  4. **Admin audit IP derivation** — Admin layout now uses `getClientIpFromHeaders()` from `@urlfy/telemetry` instead of direct proxy-header parsing.
+  5. **Security-report classifier** — Added `isUpstreamUnavailable()` helper; 503-type responses are now classified as `'skipped'` instead of false control failures.
+  6. **CacheService consolidation** — Canonical in `packages/redirect-domain/src/cache-service.ts`; API and worker shims.
+  7. **MetricsService consolidation** — Canonical in `packages/cache/src/metrics-service.ts`; API, web, and worker shims.
+  8. **AntiAbuseService consolidation** — Canonical in `packages/cache/src/anti-abuse-service.ts`; API and web shims.
+  9. **Email runtime consolidation** — New `packages/email` package owns rendering, transport, locale resolution, and email service orchestration; API and web have 5 shims each.
+  10. **Proxy-header guardrail** — `scripts/validate-proxy-headers.ts` prevents direct proxy-header parsing in runtime code (enforced in CI).
+  11. **Parity tests** — `apps/api/tests/unit/shared-runtime-parity.test.ts` mechanically detects drift in 17 shim files.
+  12. **CI hardening** — Proxy-header validator added to CI `quality` job and `bun run lint`.
+
+---
+
 ## Analytics Provider Selection
 
 - **Location:** `src/lib/hooks/use-analytics-consent.ts`
@@ -60,8 +81,7 @@
   As a consequence, `apps/web` directly holds `DATABASE_URL`, `BETTER_AUTH_SECRET`, and OAuth credentials.
 - **Trade-offs to revisit:**
   - Secret surface in web container (database credential + auth secret required in addition to API client).
-  - Two email service instances (`apps/web/src/server/lib/email.ts` and `apps/api/src/lib/email.ts`)
-    that must be kept in sync when email templates or providers change.
-  - Any new Better-Auth plugin must be added to both `auth.ts` files.
+  - ~~Two email service instances that must be kept in sync~~ — **Resolved (2026-03-12):** email runtime consolidated into `packages/email`; both apps use re-export shims.
+  - Any new Better-Auth plugin must be added to both `auth.ts` files (parity enforced by `auth-runtime-parity.test.ts`).
 - **Revisit when:** Performance budget allows an API call for session validation, or when auth
   complexity warrants isolating all auth state to `apps/api`.

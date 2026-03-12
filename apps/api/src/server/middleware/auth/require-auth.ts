@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia';
 import type { Session, User } from '@/lib/auth';
 import { auth } from '@/lib/auth';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { sanitizeHeaders } from '@/server/lib/log-sanitizer';
 import { createLogger } from '@/server/lib/telemetry';
 import { buildErrorEnvelope, getOrCreateRequestId } from '../error-response';
@@ -73,16 +74,16 @@ export const requireAuth = new Elysia({ name: 'require-auth' })
         isTestAuth: false as const
       };
     } catch (err) {
-      // If session validation throws unexpected error, treat as unauthenticated
-      logger.debug('Session fetch failed, treating as unauthenticated', {
+      // Unexpected auth subsystem failure must NOT be silently downgraded
+      // to an unauthenticated path. Surface as a typed operational error
+      // so it reaches the global onError handler as a 503.
+      logger.error('Auth subsystem failure in requireAuth', {
         error: err instanceof Error ? err.message : String(err)
       });
-      return {
-        user: null,
-        session: null,
-        isAuthenticated: false as const,
-        isTestAuth: false as const
-      };
+      throw new AppError(
+        ErrorCode.SERVICE_UNAVAILABLE,
+        'Authentication service temporarily unavailable'
+      );
     }
   })
   .onBeforeHandle(async ({ user, session, set, isTestAuth, request }) => {

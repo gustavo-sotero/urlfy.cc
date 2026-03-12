@@ -5,6 +5,7 @@
  */
 export {
   getClientIp,
+  getClientIpFromHeaders,
   isPrivateIp,
   isValidIp,
   maskIpForLog

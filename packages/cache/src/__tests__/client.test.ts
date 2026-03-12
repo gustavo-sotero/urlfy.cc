@@ -6,7 +6,10 @@ mock.module('@urlfy/telemetry', () => ({
     info: mock(() => {}),
     warn: mock(() => {}),
     error: mock(() => {})
-  })
+  }),
+  circuitBreakerTrips: {
+    add: mock(() => {})
+  }
 }));
 
 import {

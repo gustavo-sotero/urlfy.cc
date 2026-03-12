@@ -1,7 +1,10 @@
 import { Elysia } from 'elysia';
 import type { Session, User } from '@/lib/auth';
 import { auth } from '@/lib/auth';
+import { createLogger } from '@/server/lib/telemetry';
 import { getTestUserFromHeaders } from './helpers';
+
+const logger = createLogger('optional-auth');
 
 export const optionalAuth = new Elysia({ name: 'optional-auth' })
   .derive({ as: 'scoped' }, async ({ request }) => {
@@ -28,8 +31,12 @@ export const optionalAuth = new Elysia({ name: 'optional-auth' })
           isTestAuth: false as const
         };
       }
-    } catch {
-      // Session validation failed, continue as unauthenticated
+    } catch (err) {
+      // Best-effort: continue as anonymous but log the subsystem failure
+      // so it is distinguishable from a normal unauthenticated request.
+      logger.error('Auth subsystem failure in optionalAuth', {
+        error: err instanceof Error ? err.message : String(err)
+      });
     }
 
     return {

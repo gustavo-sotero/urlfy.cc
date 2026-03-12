@@ -1,0 +1,9 @@
+{
+  "extends": "@urlfy/config-ts/base",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "paths": {}
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}

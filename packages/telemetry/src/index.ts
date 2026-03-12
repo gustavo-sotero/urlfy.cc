@@ -6,7 +6,13 @@
 // SDK lifecycle
 export { configureLogging, initTelemetry, shutdownTelemetry } from './init';
 // IP extraction utilities (shared across API and web runtimes)
-export { getClientIp, isPrivateIp, isValidIp, maskIpForLog } from './ip';
+export {
+  getClientIp,
+  getClientIpFromHeaders,
+  isPrivateIp,
+  isValidIp,
+  maskIpForLog
+} from './ip';
 // Log sanitization utilities (shared across API and web runtimes)
 export { maskValue, sanitizeHeaders, sanitizeIP } from './log-sanitizer';
 export type { LogContext, Logger } from './logger';

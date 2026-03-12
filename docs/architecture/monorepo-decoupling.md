@@ -113,3 +113,35 @@ Additional hardening completed in this cycle:
 - `biome.json` extended with `css.parser.tailwindDirectives: true` to support Tailwind v4 syntax.
 - `apps/web/src/server/init.ts` now calls `validateEnv()` at startup to surface misconfiguration early.
 - Browser-side error reporting centralized in `apps/web/src/lib/browser-logger.ts`.
+
+## Shared Runtime Service Consolidation (2026-03-12)
+
+The following runtime services were consolidated from per-app duplicates into canonical shared packages. App-local files are now thin re-export shims. Parity is enforced by `apps/api/tests/unit/shared-runtime-parity.test.ts`.
+
+| Previous location (duplicated)                                   | Canonical source                                   |
+| ---------------------------------------------------------------- | -------------------------------------------------- |
+| `apps/api/src/server/services/cache.service.ts`                 | `packages/redirect-domain/src/cache-service.ts`    |
+| `apps/worker/src/server/services/cache.service.ts`              | `packages/redirect-domain/src/cache-service.ts`    |
+| `apps/api/src/server/services/metrics.service.ts`               | `packages/cache/src/metrics-service.ts`            |
+| `apps/web/src/server/services/metrics.service.ts`               | `packages/cache/src/metrics-service.ts`            |
+| `apps/worker/src/server/services/metrics.service.ts`            | `packages/cache/src/metrics-service.ts`            |
+| `apps/api/src/server/services/anti-abuse.service.ts`            | `packages/cache/src/anti-abuse-service.ts`         |
+| `apps/web/src/server/services/anti-abuse.service.ts`            | `packages/cache/src/anti-abuse-service.ts`         |
+| `apps/api/src/emails/types.ts`                                  | `packages/email/src/types.ts`                      |
+| `apps/web/src/emails/types.ts`                                  | `packages/email/src/types.ts`                      |
+| `apps/api/src/emails/render.ts`                                 | `packages/email/src/render.ts`                     |
+| `apps/web/src/emails/render.ts`                                 | `packages/email/src/render.ts`                     |
+| `apps/api/src/server/lib/email.ts`                              | `packages/email/src/transport.ts`                  |
+| `apps/web/src/server/lib/email.ts`                              | `packages/email/src/transport.ts`                  |
+| `apps/api/src/server/lib/locale.ts`                             | `packages/email/src/locale.ts`                     |
+| `apps/web/src/server/lib/locale.ts`                             | `packages/email/src/locale.ts`                     |
+| `apps/api/src/server/services/email.service.ts`                 | `packages/email/src/email-service.ts`              |
+| `apps/web/src/server/services/email.service.ts`                 | `packages/email/src/email-service.ts`              |
+
+Additional hardening in this cycle:
+- `requireAuth` middleware now throws `AppError(SERVICE_UNAVAILABLE)` on auth subsystem failure instead of silently treating it as unauthenticated.
+- `optionalAuth` middleware now logs auth subsystem failures while preserving anonymous continuation.
+- Monitor log endpoint (`/api/monitor/log`) switched from in-memory rate limiter to distributed Redis-backed rate limiting via canonical `rateLimiter`.
+- Admin layout IP extraction uses canonical `getClientIpFromHeaders()` instead of direct proxy-header parsing.
+- `security-report.ts` classifier distinguishes upstream unavailability (503) from actual control failures.
+- Proxy-header guardrail script (`scripts/validate-proxy-headers.ts`) added to CI.

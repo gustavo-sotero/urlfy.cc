@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'bun:test';
-import { renderEmail } from '@/emails/render';
+import { renderEmail } from '../render';
 import type {
   AppLocale,
   EmailVerificationPayload,
   PasswordResetPayload,
   WelcomeEmailPayload
-} from '@/emails/types';
+} from '../types';
 
-describe('Email i18n Rendering', () => {
-  describe('Welcome Email', () => {
-    it('should render in English', async () => {
+describe('Email rendering', () => {
+  describe('welcome email', () => {
+    it('renders in English', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'welcome',
@@ -25,7 +25,7 @@ describe('Email i18n Rendering', () => {
       expect(result.html).not.toContain('Olá');
     });
 
-    it('should render in Portuguese', async () => {
+    it('renders in Portuguese', async () => {
       const result = await renderEmail({
         locale: 'pt-br',
         template: 'welcome',
@@ -41,7 +41,7 @@ describe('Email i18n Rendering', () => {
       expect(result.html).not.toContain('Hello');
     });
 
-    it('should interpolate firstName in subject', async () => {
+    it('interpolates firstName in the subject', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'welcome',
@@ -55,8 +55,8 @@ describe('Email i18n Rendering', () => {
     });
   });
 
-  describe('Email Verification', () => {
-    it('should render in English', async () => {
+  describe('email verification', () => {
+    it('renders in English', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'emailVerification',
@@ -73,7 +73,7 @@ describe('Email i18n Rendering', () => {
       expect(result.html).toContain('https://urlfy.cc/verify?token=abc');
     });
 
-    it('should render in Portuguese', async () => {
+    it('renders in Portuguese', async () => {
       const result = await renderEmail({
         locale: 'pt-br',
         template: 'emailVerification',
@@ -90,7 +90,7 @@ describe('Email i18n Rendering', () => {
       expect(result.html).toContain('https://urlfy.cc/verify?token=xyz');
     });
 
-    it('should interpolate expiration time', async () => {
+    it('interpolates expiration time', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'emailVerification',
@@ -105,8 +105,8 @@ describe('Email i18n Rendering', () => {
     });
   });
 
-  describe('Password Reset', () => {
-    it('should render in English', async () => {
+  describe('password reset', () => {
+    it('renders in English', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'passwordReset',
@@ -122,7 +122,7 @@ describe('Email i18n Rendering', () => {
       expect(result.html).toContain('Reset My Password');
     });
 
-    it('should render in Portuguese', async () => {
+    it('renders in Portuguese', async () => {
       const result = await renderEmail({
         locale: 'pt-br',
         template: 'passwordReset',
@@ -139,8 +139,8 @@ describe('Email i18n Rendering', () => {
     });
   });
 
-  describe('Data Deletion Confirmation', () => {
-    it('should render in English', async () => {
+  describe('data deletion confirmation', () => {
+    it('renders in English', async () => {
       const requestDate = new Date('2026-01-28');
       const deadlineDate = new Date('2026-01-31');
 
@@ -160,7 +160,7 @@ describe('Email i18n Rendering', () => {
       expect(result.html).toContain('https://urlfy.cc/export');
     });
 
-    it('should render in Portuguese', async () => {
+    it('renders in Portuguese', async () => {
       const requestDate = new Date('2026-01-28');
       const deadlineDate = new Date('2026-01-31');
 
@@ -181,8 +181,8 @@ describe('Email i18n Rendering', () => {
     });
   });
 
-  describe('Link Banned Notification', () => {
-    it('should render in English', async () => {
+  describe('link banned notification', () => {
+    it('renders in English', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'linkBanned',
@@ -202,7 +202,7 @@ describe('Email i18n Rendering', () => {
       expect(result.html).toContain('Spam content');
     });
 
-    it('should render in Portuguese', async () => {
+    it('renders in Portuguese', async () => {
       const result = await renderEmail({
         locale: 'pt-br',
         template: 'linkBanned',
@@ -223,8 +223,8 @@ describe('Email i18n Rendering', () => {
     });
   });
 
-  describe('Quota Warning', () => {
-    it('should render in English with interpolated percentage', async () => {
+  describe('quota warning', () => {
+    it('renders in English with interpolated percentage', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'quotaWarning',
@@ -244,7 +244,7 @@ describe('Email i18n Rendering', () => {
       expect(result.html).toContain('links');
     });
 
-    it('should render in Portuguese with interpolated percentage', async () => {
+    it('renders in Portuguese with interpolated percentage', async () => {
       const result = await renderEmail({
         locale: 'pt-br',
         template: 'quotaWarning',
@@ -265,8 +265,8 @@ describe('Email i18n Rendering', () => {
     });
   });
 
-  describe('Locale Resolution', () => {
-    it('should handle all valid locales', async () => {
+  describe('locale resolution', () => {
+    it('handles all valid locales', async () => {
       const locales: AppLocale[] = ['en', 'pt-br'];
 
       for (const locale of locales) {
@@ -285,7 +285,7 @@ describe('Email i18n Rendering', () => {
       }
     });
 
-    it('should generate valid HTML for all templates and locales', async () => {
+    it('generates valid HTML for all templates and locales', async () => {
       const templates: Array<{
         template: 'welcome' | 'emailVerification' | 'passwordReset';
         payload:
@@ -316,7 +316,6 @@ describe('Email i18n Rendering', () => {
         for (const locale of locales) {
           const result = await renderEmail({ locale, template, payload });
 
-          // Basic HTML structure validation
           expect(result.html).toContain('<!DOCTYPE html');
           expect(result.html).toContain('</html>');
           expect(result.subject).toBeTruthy();

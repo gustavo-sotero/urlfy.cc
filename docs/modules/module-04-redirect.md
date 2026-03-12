@@ -352,6 +352,7 @@ export const redirectService = new RedirectService();
 ```typescript
 // apps/web/src/app/r/[code]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { getClientIp } from '@urlfy/telemetry';
 import { redirectService } from '@/server/services/redirect.service';
 import { analyticsQueue } from '@/server/lib/queue';
 import { verify } from 'jsonwebtoken';
@@ -462,7 +463,7 @@ async function enqueueClickEvent(
       {
         shortCode,
         requestId,
-        ip: request.ip ?? request.headers.get('x-forwarded-for'),
+        ip: getClientIp(request),
         userAgent: request.headers.get('user-agent'),
         referer: request.headers.get('referer'),
         acceptLanguage: request.headers.get('accept-language'),

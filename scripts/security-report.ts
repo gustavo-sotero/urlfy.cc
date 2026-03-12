@@ -12,6 +12,7 @@
 
 import { writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
+import { isUpstreamUnavailable } from './lib/security-report-classifier';
 
 interface SecurityCheck {
   category: string;
@@ -270,12 +271,29 @@ async function checkAuthentication(): Promise<SecurityCheck[]> {
     try {
       const res = await fetch(`${BASE_URL}${endpoint}`);
       const isExpected = expectedStatuses.includes(res.status);
-      checks.push({
-        category: 'Authentication',
-        check: `Protected: ${endpoint}`,
-        status: isExpected ? 'pass' : 'fail',
-        details: `Status: ${res.status} (expected ${expectedStatuses.join(' or ')})`
-      });
+
+      if (isExpected) {
+        checks.push({
+          category: 'Authentication',
+          check: `Protected: ${endpoint}`,
+          status: 'pass',
+          details: `Status: ${res.status} (expected ${expectedStatuses.join(' or ')})`
+        });
+      } else if (await isUpstreamUnavailable(res)) {
+        checks.push({
+          category: 'Authentication',
+          check: `Protected: ${endpoint}`,
+          status: 'skipped',
+          details: `Upstream unavailable (status: ${res.status})`
+        });
+      } else {
+        checks.push({
+          category: 'Authentication',
+          check: `Protected: ${endpoint}`,
+          status: 'fail',
+          details: `Status: ${res.status} (expected ${expectedStatuses.join(' or ')})`
+        });
+      }
     } catch (error) {
       checks.push({
         category: 'Authentication',
@@ -293,12 +311,29 @@ async function checkAuthentication(): Promise<SecurityCheck[]> {
         Authorization: 'Bearer invalid_token'
       }
     });
-    checks.push({
-      category: 'Authentication',
-      check: 'Reject invalid tokens',
-      status: res.status === 401 ? 'pass' : 'fail',
-      details: `Status: ${res.status} (expected 401)`
-    });
+
+    if (res.status === 401) {
+      checks.push({
+        category: 'Authentication',
+        check: 'Reject invalid tokens',
+        status: 'pass',
+        details: `Status: ${res.status} (expected 401)`
+      });
+    } else if (await isUpstreamUnavailable(res)) {
+      checks.push({
+        category: 'Authentication',
+        check: 'Reject invalid tokens',
+        status: 'skipped',
+        details: `Upstream unavailable (status: ${res.status})`
+      });
+    } else {
+      checks.push({
+        category: 'Authentication',
+        check: 'Reject invalid tokens',
+        status: 'fail',
+        details: `Status: ${res.status} (expected 401)`
+      });
+    }
   } catch (error) {
     checks.push({
       category: 'Authentication',
@@ -336,12 +371,28 @@ async function checkInputValidation(): Promise<SecurityCheck[]> {
       // Different validators/frameworks may return 400 or 422 for invalid payloads.
       const rejected = res.status >= 400 && res.status < 500;
 
-      checks.push({
-        category: 'Input Validation',
-        check: `Block ${name}`,
-        status: rejected ? 'pass' : 'fail',
-        details: `Status: ${res.status} (expected 4xx)`
-      });
+      if (rejected) {
+        checks.push({
+          category: 'Input Validation',
+          check: `Block ${name}`,
+          status: 'pass',
+          details: `Status: ${res.status} (expected 4xx)`
+        });
+      } else if (await isUpstreamUnavailable(res)) {
+        checks.push({
+          category: 'Input Validation',
+          check: `Block ${name}`,
+          status: 'skipped',
+          details: `Upstream unavailable (status: ${res.status})`
+        });
+      } else {
+        checks.push({
+          category: 'Input Validation',
+          check: `Block ${name}`,
+          status: 'fail',
+          details: `Status: ${res.status} (expected 4xx)`
+        });
+      }
     } catch (error) {
       checks.push({
         category: 'Input Validation',

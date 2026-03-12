@@ -12,17 +12,18 @@ describe('Email Service i18n Integration', () => {
       let capturedSubject: string | undefined;
       let capturedLocale: string | undefined;
 
-      // Mock modules antes de importar o emailService
-      mock.module('@/server/lib/locale', () => ({
+      // Mock canonical email package modules
+      mock.module('@urlfy/email/locale', () => ({
         getUserLocale: mock(async (_userId: string) => {
           capturedLocale = 'pt-br';
           return 'pt-br';
         }),
         getLocaleByEmail: mock(async () => 'en'),
+        resolveLocale: mock(async () => 'pt-br'),
         DEFAULT_LOCALE: 'en'
       }));
 
-      mock.module('@/server/lib/email', () => ({
+      mock.module('@urlfy/email/transport', () => ({
         sendEmail: mock(
           async (options: { subject: string; to: string; react?: unknown }) => {
             capturedSubject = options.subject;
@@ -31,9 +32,9 @@ describe('Email Service i18n Integration', () => {
         )
       }));
 
-      // Re-importa o emailService após os mocks
+      // Re-import emailService after mocks
       const { emailService: mockEmailService } = await import(
-        '@/server/services/email.service'
+        '@urlfy/email/email-service'
       );
 
       await mockEmailService.sendWelcomeEmail({
@@ -55,17 +56,18 @@ describe('Email Service i18n Integration', () => {
       let capturedSubject: string | undefined;
       let capturedLocale: string | undefined;
 
-      // Mock modules
-      mock.module('@/server/lib/locale', () => ({
+      // Mock canonical email package modules
+      mock.module('@urlfy/email/locale', () => ({
         getUserLocale: mock(async (_userId: string) => {
           capturedLocale = 'en';
           return 'en';
         }),
         getLocaleByEmail: mock(async () => 'en'),
+        resolveLocale: mock(async () => 'en'),
         DEFAULT_LOCALE: 'en'
       }));
 
-      mock.module('@/server/lib/email', () => ({
+      mock.module('@urlfy/email/transport', () => ({
         sendEmail: mock(
           async (options: { subject: string; to: string; react?: unknown }) => {
             capturedSubject = options.subject;
@@ -75,7 +77,7 @@ describe('Email Service i18n Integration', () => {
       }));
 
       const { emailService: mockEmailService } = await import(
-        '@/server/services/email.service'
+        '@urlfy/email/email-service'
       );
 
       await mockEmailService.sendEmailVerification({
@@ -97,17 +99,18 @@ describe('Email Service i18n Integration', () => {
       let capturedSubject: string | undefined;
       let capturedLocale: string | undefined;
 
-      // Mock modules
-      mock.module('@/server/lib/locale', () => ({
+      // Mock canonical email package modules
+      mock.module('@urlfy/email/locale', () => ({
         getUserLocale: mock(async (_userId: string) => {
           capturedLocale = 'pt-br';
           return 'pt-br';
         }),
         getLocaleByEmail: mock(async () => 'en'),
+        resolveLocale: mock(async () => 'pt-br'),
         DEFAULT_LOCALE: 'en'
       }));
 
-      mock.module('@/server/lib/email', () => ({
+      mock.module('@urlfy/email/transport', () => ({
         sendEmail: mock(
           async (options: { subject: string; to: string; react?: unknown }) => {
             capturedSubject = options.subject;
@@ -117,7 +120,7 @@ describe('Email Service i18n Integration', () => {
       }));
 
       const { emailService: mockEmailService } = await import(
-        '@/server/services/email.service'
+        '@urlfy/email/email-service'
       );
 
       await mockEmailService.sendPasswordResetEmail({
