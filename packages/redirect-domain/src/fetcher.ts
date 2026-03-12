@@ -1,5 +1,10 @@
 import { trace } from '@opentelemetry/api';
-import { acquireLock, releaseLock } from '@urlfy/cache';
+import {
+  acquireLock,
+  CACHE_KEYS,
+  CACHE_TTL as CANONICAL_CACHE_TTL,
+  releaseLock
+} from '@urlfy/cache';
 import { CircuitBreaker } from '@urlfy/cache/circuit-breaker';
 import type { CachedLink } from '@urlfy/contracts/redirect';
 import { db } from '@urlfy/data';
@@ -13,7 +18,7 @@ import {
   stampedeLocksWaited
 } from '@urlfy/telemetry';
 import { eq } from 'drizzle-orm';
-import { CACHE_PREFIX, CACHE_TTL, cacheService } from './cache-service';
+import { CACHE_TTL, cacheService } from './cache-service';
 import type { LinkFetchResult, RedirectFetcherDependencies } from './types';
 
 const { links } = schema;
@@ -21,8 +26,8 @@ const { links } = schema;
 const logger = createLogger('redirect-fetcher');
 const tracer = trace.getTracer('redirect-fetcher');
 
-// Lock TTL for stampede protection (5 seconds)
-const LOCK_TTL = 5000;
+// Lock TTL for stampede protection — derived from canonical CACHE_TTL.LOCK (seconds) converted to ms
+const LOCK_TTL_MS = CANONICAL_CACHE_TTL.LOCK * 1000;
 
 // Circuit breaker for PostgreSQL
 const dbCircuitBreaker = new CircuitBreaker({
@@ -95,7 +100,7 @@ export const defaultRedirectFetcherDependencies: RedirectFetcherDependencies = {
     isCodeAvailable: checkCodeAvailabilityInDatabase
   },
   lock: {
-    acquire: (key, options) => acquireLock(key, options),
+    acquire: (key, ttlMs) => acquireLock(key, ttlMs),
     release: (key) => releaseLock(key)
   },
   circuitBreaker: dbCircuitBreaker,
@@ -231,10 +236,11 @@ async function fetchWithStampedeProtection(
   code: string,
   dependencies: RedirectFetcherDependencies
 ): Promise<CachedLink | null> {
-  const lockKey = `${CACHE_PREFIX.LOCK}${code}`;
+  // Use canonical key builder: 'lock:{code}' — avoids double-prefix from local CACHE_PREFIX.LOCK
+  const lockKey = CACHE_KEYS.LOCK(code);
 
-  // Tries to acquire the lock
-  const acquired = await dependencies.lock.acquire(lockKey, { ttl: LOCK_TTL });
+  // Tries to acquire the lock (ttlMs: explicit milliseconds)
+  const acquired = await dependencies.lock.acquire(lockKey, LOCK_TTL_MS);
 
   if (acquired) {
     // This request won the lock - fetch from database

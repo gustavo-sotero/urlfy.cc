@@ -26,10 +26,24 @@ const logger = createLogger('openapi-merger');
 interface CachedSpec {
   spec: OpenAPIV3.Document;
   timestamp: number;
+  /** Whether the spec was generated in a degraded state (Better-Auth schema failed) */
+  degraded: boolean;
 }
 
 let cachedMergedSpec: CachedSpec | null = null;
 const CACHE_TTL_MS = 60_000; // 60 seconds
+
+/** Tracks the most recent degraded-generation state for health endpoints */
+let lastMergeWasDegraded = false;
+
+/**
+ * Returns whether the most recently cached spec was generated in a degraded
+ * state (i.e., Better-Auth schema generation failed). Use this in health
+ * endpoints or monitoring so operators are not left to inspect logs manually.
+ */
+export function getOpenAPIDegradedState(): boolean {
+  return lastMergeWasDegraded;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // SPEC FETCHING
@@ -37,25 +51,38 @@ const CACHE_TTL_MS = 60_000; // 60 seconds
 
 /**
  * Fetch Better-Auth OpenAPI spec using auth.api.generateOpenAPISchema()
+ * Returns a tuple: [spec, degraded]. When degraded=true the full auth spec
+ * could not be generated and a minimal placeholder was used instead.
  */
-async function getBetterAuthSpec(): Promise<OpenAPIV3.Document> {
+async function getBetterAuthSpec(): Promise<[OpenAPIV3.Document, boolean]> {
   try {
     const schema = await auth.api.generateOpenAPISchema();
-    return schema as OpenAPIV3.Document;
+    return [schema as OpenAPIV3.Document, false];
   } catch (error) {
-    logger.warn('Failed to fetch Better-Auth OpenAPI spec', {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    // Return minimal spec if Better-Auth spec generation fails
-    return {
-      openapi: '3.0.0',
-      info: {
-        title: 'Better-Auth API (Error)',
-        version: '1.0.0',
-        description: 'Failed to load Better-Auth API specification'
-      },
-      paths: {}
-    };
+    logger.warn(
+      'Failed to fetch Better-Auth OpenAPI spec — serving degraded docs',
+      {
+        error: error instanceof Error ? error.message : String(error)
+      }
+    );
+    // Return minimal spec so the docs route stays available.
+    // Callers receive degraded=true to surface this via health/metrics.
+    return [
+      {
+        openapi: '3.0.0',
+        info: {
+          title: 'Better-Auth API (Degraded)',
+          version: '1.0.0',
+          description:
+            'Better-Auth API specification unavailable — generation failed at startup'
+        },
+        paths: {},
+        'x-docs-degraded': true,
+        'x-docs-degraded-reason':
+          error instanceof Error ? error.message : String(error)
+      } as unknown as OpenAPIV3.Document,
+      true
+    ];
   }
 }
 
@@ -172,39 +199,62 @@ function updateRefsInObject(
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Get merged OpenAPI spec with caching
+ * Get merged OpenAPI spec with caching.
  * @param getElysiaSpec - Function to get Elysia spec (avoids circular deps)
+ * @returns merged spec — check getOpenAPIDegradedState() to see if the spec is complete
  */
 export async function getMergedOpenAPISpec(
   getElysiaSpec: GetElysiaSpecFn
 ): Promise<OpenAPIV3.Document> {
-  // Check cache
+  // Check cache (serve stale spec but do not hide recovery beyond cache TTL)
   const now = Date.now();
   if (cachedMergedSpec && now - cachedMergedSpec.timestamp < CACHE_TTL_MS) {
     return cachedMergedSpec.spec;
   }
 
   // Fetch both specs in parallel
-  const [elysiaSpec, betterAuthSpec] = await Promise.all([
+  const [elysiaSpec, [betterAuthSpec, degraded]] = await Promise.all([
     getElysiaSpec(),
     getBetterAuthSpec()
   ]);
 
+  // Update the degraded state before caching so health endpoints see the change
+  lastMergeWasDegraded = degraded;
+
+  if (degraded) {
+    logger.warn(
+      'Merged OpenAPI spec is in degraded state — auth docs incomplete',
+      {
+        cacheRefreshAt: new Date(now).toISOString()
+      }
+    );
+  }
+
   // Merge specs
   const mergedSpec = mergeSpecs(elysiaSpec, betterAuthSpec);
+
+  // Annotate the root spec with degraded state so API consumers can detect it
+  if (degraded) {
+    (mergedSpec as unknown as Record<string, unknown>)['x-docs-degraded'] =
+      true;
+  }
 
   // Cache result
   cachedMergedSpec = {
     spec: mergedSpec,
-    timestamp: now
+    timestamp: now,
+    degraded
   };
 
   return mergedSpec;
 }
 
 /**
- * Invalidate cache (useful for development/testing)
+ * Invalidate cache (useful for development/testing).
+ * Also resets the degraded-state flag so health endpoints reflect fresh state
+ * after the next merge rather than carrying the stale flag indefinitely.
  */
 export function invalidateCache(): void {
   cachedMergedSpec = null;
+  lastMergeWasDegraded = false;
 }

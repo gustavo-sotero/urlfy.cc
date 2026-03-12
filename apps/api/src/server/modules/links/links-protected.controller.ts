@@ -8,7 +8,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { createHash, createHmac } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { Elysia, t } from 'elysia';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import {
@@ -35,6 +35,10 @@ import {
   buildErrorEnvelope,
   getOrCreateRequestId
 } from '@/server/middleware/error-response';
+import {
+  buildGuestIdCookieHeader,
+  getGuestIdFromCookie
+} from './guest-identity';
 import { LinkLifecycleService } from './link-lifecycle.service';
 import {
   LinkBulkCreateBody,
@@ -47,72 +51,14 @@ import {
 import { LinkService } from './links.service';
 import { validateUrlSafe } from './services/url-validator';
 
-const GUEST_ID_COOKIE_NAME = 'urlfy_guest_id';
-const GUEST_ID_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
-
-function parseCookieHeader(
-  cookieHeader: string | null
-): Record<string, string> {
-  if (!cookieHeader) return {};
-
-  return cookieHeader
-    .split(';')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .reduce<Record<string, string>>((accumulator, part) => {
-      const separatorIndex = part.indexOf('=');
-      if (separatorIndex <= 0) return accumulator;
-
-      const key = part.slice(0, separatorIndex).trim();
-      const value = part.slice(separatorIndex + 1).trim();
-
-      if (!key || !value) return accumulator;
-
-      accumulator[key] = value;
-      return accumulator;
-    }, {});
-}
-
-function signGuestId(guestId: string): string {
-  const secret =
-    process.env.IDEMPOTENCY_GUEST_SECRET ||
-    process.env.JWT_SECRET ||
-    'urlfy-guest-id';
-
-  return createHmac('sha256', secret)
-    .update(guestId)
-    .digest('hex')
-    .slice(0, 24);
-}
-
-function getGuestIdFromCookie(request: Request): string | null {
-  const cookies = parseCookieHeader(request.headers.get('cookie'));
-  const rawValue = cookies[GUEST_ID_COOKIE_NAME];
-
-  if (!rawValue) return null;
-
-  const decoded = decodeURIComponent(rawValue);
-  const [guestId, signature] = decoded.split('.');
-
-  if (!guestId || !signature) return null;
-  if (!/^[a-f0-9]{32}$/i.test(guestId)) return null;
-
-  const expectedSignature = signGuestId(guestId);
-  if (expectedSignature !== signature) return null;
-
-  return guestId;
-}
-
 function setGuestIdCookie(
   set: { headers: Record<string, string | number> },
   guestId: string
 ): void {
-  const signature = signGuestId(guestId);
-  const value = encodeURIComponent(`${guestId}.${signature}`);
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-
-  set.headers['set-cookie'] =
-    `${GUEST_ID_COOKIE_NAME}=${value}; Path=/; Max-Age=${GUEST_ID_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax${secure}`;
+  set.headers['set-cookie'] = buildGuestIdCookieHeader(
+    guestId,
+    process.env.NODE_ENV === 'production'
+  );
 }
 
 function resolveGuestPrincipal(

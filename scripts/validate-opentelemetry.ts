@@ -189,28 +189,38 @@ try {
 
 // Step 5: Check telemetry initialization
 try {
-  const telemetryLib = readFileSync(
+  const apiTelemetryShim = readFileSync(
     resolve(process.cwd(), 'apps/api/src/server/lib/telemetry.ts'),
     'utf-8'
   );
   const telemetryInit = readFileSync(
-    resolve(process.cwd(), 'apps/api/src/server/lib/telemetry/init.ts'),
+    resolve(process.cwd(), 'packages/telemetry/src/init.ts'),
     'utf-8'
   );
 
-  const hasOtelSdk =
-    telemetryLib.includes('@opentelemetry/sdk-node') ||
-    telemetryInit.includes('@opentelemetry/sdk-node');
+  const hasCanonicalReexport = apiTelemetryShim.includes(
+    "export * from '@urlfy/telemetry'"
+  );
   validate(
-    'Step 5',
+    'Step 5a',
+    hasCanonicalReexport,
+    'API telemetry shim re-exports canonical package',
+    hasCanonicalReexport
+      ? 'apps/api now points to @urlfy/telemetry as the single source'
+      : 'apps/api telemetry shim is not re-exporting @urlfy/telemetry'
+  );
+
+  const hasOtelSdk = telemetryInit.includes('@opentelemetry/sdk-node');
+  validate(
+    'Step 5b',
     hasOtelSdk,
     'Global OpenTelemetry SDK configured',
     hasOtelSdk
-      ? 'SDK initialization found in apps/api/src/server/lib/telemetry/init.ts'
+      ? 'SDK initialization found in packages/telemetry/src/init.ts'
       : 'SDK not found'
   );
 } catch (error) {
-  validate('Step 5', false, 'Failed to read telemetry.ts', String(error));
+  validate('Step 5', false, 'Failed to read telemetry files', String(error));
 }
 
 // Step 6: Check LogTape packages
@@ -269,10 +279,10 @@ try {
   validate('Step 6', false, 'Failed to check LogTape packages', String(error));
 }
 
-// Step 7: Check LogTape configuration in init.ts
+// Step 7: Check LogTape configuration in canonical init.ts
 try {
   const initTs = readFileSync(
-    resolve(process.cwd(), 'apps/api/src/server/lib/telemetry/init.ts'),
+    resolve(process.cwd(), 'packages/telemetry/src/init.ts'),
     'utf-8'
   );
 
@@ -375,7 +385,7 @@ console.log('└─────────────────────�
 if (failCount === 0 && warnCount === 0) {
   console.log('🎉 All checks passed! OpenTelemetry is properly configured.\n');
   console.log('Next steps:');
-  console.log('  1. Start infrastructure: bun run docker:up:full');
+  console.log('  1. Start infrastructure: bun run docker:up');
   console.log('  2. Start application: bun dev');
   console.log('  3. Generate traces: curl http://localhost:3000/api/health');
   console.log('  4. View in SigNoz: http://localhost:3301\n');

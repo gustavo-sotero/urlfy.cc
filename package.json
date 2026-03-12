@@ -188,7 +188,8 @@
     "@hono/node-server": "^1.19.11",
     "dompurify": "^3.3.2",
     "esbuild": "^0.25.0",
-    "hono": "^4.12.5",
+    "file-type": "^21.3.1",
+    "hono": "^4.12.7",
     "lodash": "^4.17.23",
     "mailparser": "^3.9.3"
   }

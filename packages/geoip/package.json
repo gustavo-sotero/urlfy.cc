@@ -1,14 +1,12 @@
 {
-  "name": "@urlfy/auth-shared",
+  "name": "@urlfy/geoip",
   "version": "0.0.0",
   "private": true,
-  "description": "Cross-service auth utilities (scopes, roles) for urlfy.cc",
+  "description": "Shared GeoIP lookup with Redis caching for urlfy.cc",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./auth-config": "./src/auth-config.ts",
-    "./scopes": "./src/scopes.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "type-check": "bunx tsc --noEmit",
@@ -16,7 +14,9 @@
     "test:unit": "bun test src/"
   },
   "dependencies": {
-    "better-auth": "1.5.4"
+    "@maxmind/geoip2-node": "^6.3.4",
+    "@urlfy/cache": "workspace:*",
+    "@urlfy/telemetry": "workspace:*"
   },
   "devDependencies": {
     "@urlfy/config-ts": "workspace:*"

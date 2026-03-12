@@ -11,6 +11,7 @@
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { CachedLink } from '@urlfy/contracts/redirect';
+import type { RedirectFetcherDependencies } from '../types';
 
 // ─── NoOp OpenTelemetry ────────────────────────────────────────────────────────
 
@@ -107,6 +108,12 @@ mock.module('../cache-service', () => ({
 const lockState = { acquired: true };
 
 mock.module('@urlfy/cache', () => ({
+  CACHE_KEYS: {
+    LOCK: (code: string) => `lock:${code}`
+  },
+  CACHE_TTL: {
+    LOCK: 5 // seconds — LOCK_TTL_MS = 5 * 1000 = 5000ms
+  },
   acquireLock: async () => lockState.acquired,
   releaseLock: async () => {}
 }));
@@ -374,6 +381,105 @@ describe('getLink', () => {
       expect(result.link?.utmMedium).toBe('email');
       expect(result.link?.utmCampaign).toBe('spring2026');
       expect(result.cacheHit).toBe(false);
+    });
+  });
+
+  // ── Lock contract regression ──────────────────────────────────────────────
+
+  describe('Lock contract regression', () => {
+    function makeTestDeps(
+      overrides: Partial<RedirectFetcherDependencies> = {}
+    ): RedirectFetcherDependencies {
+      return {
+        cache: {
+          getLinkState: async () => ({
+            isNotFound: false,
+            isBanned: false,
+            link: null
+          }),
+          getLink: async () => null,
+          setLink: async () => {},
+          setNotFound: async () => {},
+          getCacheStats: async () => ({ memory: '0', keys: 0, hitRate: null })
+        },
+        links: {
+          findByCode: async () => null,
+          isCodeAvailable: async () => true
+        },
+        lock: {
+          acquire: async () => true,
+          release: async () => {}
+        },
+        circuitBreaker: {
+          execute: async <T>(fn: () => Promise<T>) => fn(),
+          getStatus: () => 'CLOSED'
+        },
+        random: () => 0,
+        sleep: async () => {},
+        ...overrides
+      };
+    }
+
+    it('acquires lock with key pattern lock:{code} — no double prefix', async () => {
+      const capturedKeys: string[] = [];
+
+      await getLink(
+        'abc1234',
+        makeTestDeps({
+          lock: {
+            acquire: async (key) => {
+              capturedKeys.push(key);
+              return true;
+            },
+            release: async () => {}
+          }
+        })
+      );
+
+      expect(capturedKeys).toHaveLength(1);
+      expect(capturedKeys[0]).toBe('lock:abc1234');
+      expect(capturedKeys[0]).not.toContain('lock:lock:');
+      expect(capturedKeys[0]).not.toContain('lock:link:');
+    });
+
+    it('passes lock TTL in milliseconds — LOCK_TTL_MS = CACHE_TTL.LOCK * 1000', async () => {
+      const capturedTtls: number[] = [];
+
+      await getLink(
+        'abc1234',
+        makeTestDeps({
+          lock: {
+            acquire: async (_key, ttlMs) => {
+              capturedTtls.push(ttlMs);
+              return true;
+            },
+            release: async () => {}
+          }
+        })
+      );
+
+      expect(capturedTtls).toHaveLength(1);
+      // CACHE_TTL.LOCK = 5 (mocked), so LOCK_TTL_MS = 5 * 1000 = 5000
+      expect(capturedTtls[0]).toBe(5000);
+      // Sanity check: confirm it never exceeds 1 minute in ms (5000s would be 5_000_000ms)
+      expect(capturedTtls[0]).toBeLessThan(60_000);
+    });
+
+    it('different codes produce distinct lock keys', async () => {
+      const capturedKeys: string[] = [];
+      const lockDep = {
+        acquire: async (key: string) => {
+          capturedKeys.push(key);
+          return true;
+        },
+        release: async () => {}
+      };
+
+      await getLink('code-aaa', makeTestDeps({ lock: lockDep }));
+      await getLink('code-bbb', makeTestDeps({ lock: lockDep }));
+
+      expect(capturedKeys[0]).toBe('lock:code-aaa');
+      expect(capturedKeys[1]).toBe('lock:code-bbb');
     });
   });
 });

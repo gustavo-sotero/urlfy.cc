@@ -10,6 +10,7 @@
 
 import { checkDatabaseHealth } from '@urlfy/data';
 import { Elysia, t } from 'elysia';
+import { getOpenAPIDegradedState } from '@/server/lib/openapi-merger';
 import { checkRedisHealth } from '@/server/lib/redis';
 import { ResponseModels } from '@/server/lib/response.schema';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
@@ -139,6 +140,7 @@ const healthDetailed = new Elysia()
       const totalLatency = Math.round(performance.now() - startTime);
 
       const isHealthy = dbHealth.status === 'ok' && redisHealth.status === 'ok';
+      const docsDegraded = getOpenAPIDegradedState();
 
       return {
         status: isHealthy ? ('healthy' as const) : ('degraded' as const),
@@ -154,6 +156,9 @@ const healthDetailed = new Elysia()
             latencyMs: redisHealth.latencyMs,
             error: redisHealth.error
           }
+        },
+        docs: {
+          degraded: docsDegraded
         },
         uptime: process.uptime(),
         memory: {
@@ -194,6 +199,13 @@ const healthDetailed = new Elysia()
                 error: t.Optional(
                   t.String({ examples: ['Connection refused'] })
                 )
+              })
+            }),
+            docs: t.Object({
+              degraded: t.Boolean({
+                description:
+                  'True if Better-Auth OpenAPI schema generation failed and a minimal stub is served instead',
+                examples: [false]
               })
             }),
             uptime: t.Number({ examples: [86400] }),

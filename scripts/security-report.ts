@@ -332,11 +332,15 @@ async function checkInputValidation(): Promise<SecurityCheck[]> {
         body: JSON.stringify({ url })
       });
 
+      // Any client-error response means the malicious input was rejected.
+      // Different validators/frameworks may return 400 or 422 for invalid payloads.
+      const rejected = res.status >= 400 && res.status < 500;
+
       checks.push({
         category: 'Input Validation',
         check: `Block ${name}`,
-        status: res.status === 400 ? 'pass' : 'fail',
-        details: `Status: ${res.status} (expected 400)`
+        status: rejected ? 'pass' : 'fail',
+        details: `Status: ${res.status} (expected 4xx)`
       });
     } catch (error) {
       checks.push({

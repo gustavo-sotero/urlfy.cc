@@ -4,7 +4,8 @@
  *
  * NOTE: These are integration tests that require a running server.
  * Run with: bun dev & bun test tests/security/headers.test.ts
- * Or use the CI/CD workflow which starts the server automatically.
+ * CI may run these without a live server; tests soft-skip when unavailable.
+ * For full end-to-end coverage, start web+api locally (or in CI) before running.
  */
 
 import { beforeAll, describe, expect, it } from 'bun:test';

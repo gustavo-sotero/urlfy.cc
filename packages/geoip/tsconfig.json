@@ -1,0 +1,8 @@
+{
+  "extends": "@urlfy/config-ts/base",
+  "compilerOptions": {
+    "paths": {}
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

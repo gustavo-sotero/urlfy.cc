@@ -9,7 +9,6 @@
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
     "./keys": "./src/keys.ts",
-    "./lock": "./src/lock.ts",
     "./stream": "./src/stream.ts",
     "./circuit-breaker": "./src/circuit-breaker.ts",
     "./distributed-lock": "./src/distributed-lock.ts",

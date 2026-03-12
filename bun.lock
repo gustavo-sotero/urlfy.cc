@@ -131,7 +131,6 @@
         "@labzzhq/compressor": "^1.1.1",
         "@logtape/drizzle-orm": "^2.0.4",
         "@logtape/elysia": "^2.0.4",
-        "@maxmind/geoip2-node": "^6.3.4",
         "@node-rs/argon2": "^2.0.2",
         "@opentelemetry/api": "^1.9.0",
         "@opentelemetry/instrumentation-pg": "^0.65.0",
@@ -141,9 +140,11 @@
         "@urlfy/cache": "workspace:*",
         "@urlfy/contracts": "workspace:*",
         "@urlfy/data": "workspace:*",
+        "@urlfy/geoip": "workspace:*",
         "@urlfy/telemetry": "workspace:*",
         "better-auth": "1.5.4",
         "elysia": "^1.4.27",
+        "file-type": "^21.3.1",
         "isomorphic-dompurify": "^3.1.0",
         "jose": "^6.2.1",
         "nanoid": "^5.1.6",
@@ -260,27 +261,30 @@
       "name": "worker",
       "version": "0.1.0",
       "dependencies": {
-        "@maxmind/geoip2-node": "latest",
         "@urlfy/cache": "workspace:*",
         "@urlfy/contracts": "workspace:*",
         "@urlfy/data": "workspace:*",
+        "@urlfy/geoip": "workspace:*",
         "@urlfy/telemetry": "workspace:*",
-        "ua-parser-js": "latest",
-        "zod": "latest",
+        "ua-parser-js": "^2.0.9",
+        "zod": "^4.3.6",
       },
       "devDependencies": {
-        "@biomejs/biome": "latest",
-        "@types/bun": "latest",
-        "@types/node": "latest",
-        "@types/ua-parser-js": "latest",
+        "@biomejs/biome": "2.4.6",
+        "@types/bun": "^1.3.10",
+        "@types/node": "^25.4.0",
+        "@types/ua-parser-js": "^0.7.39",
         "@urlfy/config-ts": "workspace:*",
-        "bun-types": "latest",
-        "typescript": "latest",
+        "bun-types": "^1.3.10",
+        "typescript": "^5.9.3",
       },
     },
     "packages/auth-shared": {
       "name": "@urlfy/auth-shared",
       "version": "0.0.0",
+      "dependencies": {
+        "better-auth": "1.5.4",
+      },
       "devDependencies": {
         "@urlfy/config-ts": "workspace:*",
       },
@@ -326,6 +330,18 @@
         "@urlfy/config-ts": "workspace:*",
         "drizzle-kit": "^0.31.8",
         "postgres": "^3.4.8",
+      },
+    },
+    "packages/geoip": {
+      "name": "@urlfy/geoip",
+      "version": "0.0.0",
+      "dependencies": {
+        "@maxmind/geoip2-node": "^6.3.4",
+        "@urlfy/cache": "workspace:*",
+        "@urlfy/telemetry": "workspace:*",
+      },
+      "devDependencies": {
+        "@urlfy/config-ts": "workspace:*",
       },
     },
     "packages/redirect-domain": {
@@ -378,7 +394,8 @@
     "@hono/node-server": "^1.19.11",
     "dompurify": "^3.3.2",
     "esbuild": "^0.25.0",
-    "hono": "^4.12.5",
+    "file-type": "^21.3.1",
+    "hono": "^4.12.7",
     "lodash": "^4.17.23",
     "mailparser": "^3.9.3",
   },
@@ -1273,6 +1290,8 @@
 
     "@urlfy/data": ["@urlfy/data@workspace:packages/data"],
 
+    "@urlfy/geoip": ["@urlfy/geoip@workspace:packages/geoip"],
+
     "@urlfy/redirect-domain": ["@urlfy/redirect-domain@workspace:packages/redirect-domain"],
 
     "@urlfy/telemetry": ["@urlfy/telemetry@workspace:packages/telemetry"],
@@ -1493,7 +1512,7 @@
 
     "fetch-blob": ["fetch-blob@3.2.0", "", { "dependencies": { "node-domexception": "^1.0.0", "web-streams-polyfill": "^3.0.3" } }, "sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ=="],
 
-    "file-type": ["file-type@21.3.0", "", { "dependencies": { "@tokenizer/inflate": "^0.4.1", "strtok3": "^10.3.4", "token-types": "^6.1.1", "uint8array-extras": "^1.4.0" } }, "sha512-8kPJMIGz1Yt/aPEwOsrR97ZyZaD1Iqm8PClb1nYFclUCkBi0Ma5IsYNQzvSFS9ib51lWyIw5mIT9rWzI/xjpzA=="],
+    "file-type": ["file-type@21.3.1", "", { "dependencies": { "@tokenizer/inflate": "^0.4.1", "strtok3": "^10.3.4", "token-types": "^6.1.1", "uint8array-extras": "^1.4.0" } }, "sha512-SrzXX46I/zsRDjTb82eucsGg0ODq2NpGDp4HcsFKApPy8P8vACjpJRDoGGMfEzhFC0ry61ajd7f72J3603anBA=="],
 
     "find-up": ["find-up@4.1.0", "", { "dependencies": { "locate-path": "^5.0.0", "path-exists": "^4.0.0" } }, "sha512-PpOwAdQ/YlXQ2vj8a3h8IipDuYRi3wceVQQGYWxNINccq40Anw7BlsEXCMbt1Zt+OLA6Fq9suIpIWD0OsnISlw=="],
 
@@ -1545,7 +1564,7 @@
 
     "hasown": ["hasown@2.0.2", "", { "dependencies": { "function-bind": "^1.1.2" } }, "sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ=="],
 
-    "hono": ["hono@4.12.5", "", {}, "sha512-3qq+FUBtlTHhtYxbxheZgY8NIFnkkC/MR8u5TTsr7YZ3wixryQ3cCwn3iZbg8p8B88iDBBAYSfZDS75t8MN7Vg=="],
+    "hono": ["hono@4.12.7", "", {}, "sha512-jq9l1DM0zVIvsm3lv9Nw9nlJnMNPOcAtsbsgiUhWcFzPE99Gvo6yRTlszSLLYacMeQ6quHD6hMfId8crVHvexw=="],
 
     "html-encoding-sniffer": ["html-encoding-sniffer@6.0.0", "", { "dependencies": { "@exodus/bytes": "^1.6.0" } }, "sha512-CV9TW3Y3f8/wT0BRFc1/KAVQ3TUHiXmaAb6VW9vtiMFf7SLoMd1PdAc4W3KFOFETBJUb90KatHqlsZMWV+R9Gg=="],
 

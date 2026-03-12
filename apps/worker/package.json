@@ -16,8 +16,8 @@
     "@urlfy/cache": "workspace:*",
     "@urlfy/contracts": "workspace:*",
     "@urlfy/data": "workspace:*",
+    "@urlfy/geoip": "workspace:*",
     "@urlfy/telemetry": "workspace:*",
-    "@maxmind/geoip2-node": "^6.3.4",
     "ua-parser-js": "^2.0.9",
     "zod": "^4.3.6"
   },

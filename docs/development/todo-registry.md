@@ -28,6 +28,25 @@
 - **Context:** Script injection is intentionally deferred until a production analytics vendor is selected.
 ---
 
+## Temporary Security Overrides Ownership
+
+- **Location:** `package.json` (`overrides`)
+- **Owner:** gustavo-sotero
+- **Tracking ID:** TODO-SECURITY-OVERRIDES-LIFECYCLE
+- **Status:** Open
+- **Context:** Top-level Bun overrides are currently used to pin patched transitive versions while upstream dependency trees converge.
+- **Current tracked overrides and exit criteria:**
+  - `file-type@^21.3.1` (malformed ASF parser advisory): remove when all direct/transitive dependents declare fixed ranges and lockfile resolves patched version without override.
+  - `hono@^4.12.7` (parseBody prototype pollution advisory): remove when Better-Auth and Drizzle transitive graph resolves to fixed version natively.
+  - `dompurify@^3.3.2`: remove when all consuming packages resolve this minimum version without override.
+  - `esbuild@^0.25.0`: remove when transitive tooling converges and `bun audit --production` remains clean without override.
+  - `@hono/node-server@^1.19.11`, `lodash@^4.17.23`, `mailparser@^3.9.3`: remove once lockfile naturally pins patched versions and CI security job remains green after override dry-run removal.
+- **Validation gate before each removal attempt:**
+  - `bun run security:audit`
+  - `bun run check:secrets`
+  - `bun run test:security`
+---
+
 ## Dual Better-Auth Instantiation (Architectural Decision)
 
 - **Location:** `apps/web/src/lib/auth.ts`, `apps/api/src/lib/auth.ts`

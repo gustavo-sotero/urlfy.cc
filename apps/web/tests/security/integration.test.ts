@@ -7,7 +7,8 @@
  *
  * NOTE: These are integration tests that require a running server.
  * Run with: bun dev & bun test tests/security/integration.test.ts
- * Or use the CI/CD workflow which starts the server automatically.
+ * CI may run these without a live server; tests soft-skip when unavailable.
+ * For full end-to-end coverage, start web+api locally (or in CI) before running.
  *
  * Module: Security & Compliance (Module 6)
  * ═════════════════════════════════════════════════════════════════════

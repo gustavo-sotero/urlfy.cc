@@ -5,6 +5,14 @@ import { getRedisClient } from './client';
 
 const logger = createLogger('distributed-lock');
 
+// Track lock ownership tokens for safe compare-and-delete unlock semantics.
+// Keyed by Redis lock key, value is the token written at acquisition time.
+const heldLockTokens = new Map<string, string>();
+
+// Atomic unlock script: delete only when the lock value matches our token.
+const RELEASE_LOCK_SCRIPT =
+  "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end";
+
 // Lazy accessor — resolves the singleton at call time rather than at module
 // import time, so that closeRedis() + re-init does not leave this module
 // holding a reference to a closed client.
@@ -29,13 +37,21 @@ export async function acquireLock(
 ): Promise<boolean> {
   let attempts = 0;
   const maxAttempts = retries + 1;
+  const token = crypto.randomUUID();
 
   while (attempts < maxAttempts) {
     try {
       // SET NX PX: Set if Not eXists + Expiration in milliseconds
-      const result = await getRedis().set(key, '1', 'PX', String(ttlMs), 'NX');
+      const result = await getRedis().set(
+        key,
+        token,
+        'PX',
+        String(ttlMs),
+        'NX'
+      );
 
       if (result === 'OK') {
+        heldLockTokens.set(key, token);
         logger.debug('Lock acquired', { key, ttlMs, attempt: attempts + 1 });
         return true;
       }
@@ -68,12 +84,29 @@ export async function acquireLock(
  */
 export async function releaseLock(key: string): Promise<void> {
   try {
-    const result = await getRedis().del(key);
+    const token = heldLockTokens.get(key);
+
+    if (!token) {
+      logger.warn('Lock token missing when releasing; skipping unsafe DEL', {
+        key
+      });
+      return;
+    }
+
+    const result = (await getRedis().send('EVAL', [
+      RELEASE_LOCK_SCRIPT,
+      '1',
+      key,
+      token
+    ])) as number;
+
     if (result === 1) {
       logger.debug('Lock released', { key });
     } else {
-      logger.warn('Lock not found when releasing', { key });
+      logger.warn('Lock not released (token mismatch or expired)', { key });
     }
+
+    heldLockTokens.delete(key);
   } catch (error) {
     logger.error('Error releasing lock', {
       key,

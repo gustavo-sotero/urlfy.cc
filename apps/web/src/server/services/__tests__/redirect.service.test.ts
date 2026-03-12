@@ -30,6 +30,14 @@ mock.module('@urlfy/telemetry', () => ({
   })
 }));
 
+// ip utilities (re-exported from @urlfy/telemetry; mock the shim directly)
+mock.module('@/server/lib/ip', () => ({
+  getClientIp: () => '127.0.0.1',
+  maskIpForLog: (ip: string) => `ip:${ip.slice(0, 4)}`,
+  isValidIp: () => true,
+  isPrivateIp: () => true
+}));
+
 // Controllable redirectService
 type RedirectResult =
   | {

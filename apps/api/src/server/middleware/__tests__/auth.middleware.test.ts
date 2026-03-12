@@ -37,8 +37,8 @@ let twoFactorTable: typeof import('@urlfy/data/schema/auth').twoFactor | null =
   null;
 let userTable: typeof import('@urlfy/data/schema/auth').user | null = null;
 let auth: typeof import('@/lib/auth').auth | null = null;
-let apiKeyAuth:
-  | typeof import('@/server/middleware/auth.middleware').apiKeyAuth
+let requireApiKey:
+  | typeof import('@/server/middleware/api-key.guard').requireApiKey
   | null = null;
 let optionalAuth:
   | typeof import('@/server/middleware/auth.middleware').optionalAuth
@@ -73,7 +73,8 @@ if (runAuthIntegration) {
     const middlewareModule = await import(
       '@/server/middleware/auth.middleware'
     );
-    apiKeyAuth = middlewareModule.apiKeyAuth;
+    const guardModule = await import('@/server/middleware/api-key.guard');
+    requireApiKey = guardModule.requireApiKey;
     optionalAuth = middlewareModule.optionalAuth;
     requireAdmin = middlewareModule.requireAdmin;
     requireAuth = middlewareModule.requireAuth;
@@ -234,11 +235,13 @@ describe('Auth Middleware', () => {
       // Never store plaintext keys; store hash only.
       keyHash,
       prefix: testApiKey.slice(0, 15),
-      permissions: JSON.stringify({
-        links: { create: true, read: true, update: true, delete: true },
-        analytics: { read: true }
-      }),
+      permissions: JSON.stringify([
+        'links:read',
+        'links:write',
+        'analytics:read'
+      ]),
       rateLimit: true,
+      rateLimitEnabled: true,
       rateLimitMax: 1000
     });
   });
@@ -359,14 +362,17 @@ describe('Auth Middleware', () => {
   // API KEY AUTH MIDDLEWARE
   // ═══════════════════════════════════════════════════════════════════
 
-  describe('apiKeyAuth middleware', () => {
+  describe('requireApiKey guard', () => {
     function createApp() {
-      if (!apiKeyAuth) throw new Error('Middleware not available');
-      return new Elysia().use(apiKeyAuth).get('/test', (context) => ({
-        userId: (context as unknown as { user: { id: string } }).user.id,
-        keyName: (context as unknown as { apiKey?: { name: string } }).apiKey
-          ?.name
-      }));
+      if (!requireApiKey) throw new Error('Guard not available');
+      return new Elysia()
+        .use(requireApiKey({ scopes: [] }))
+        .get('/test', (context) => {
+          const ctx = context as unknown as {
+            apiKey: { id: string; userId: string; scopes: string[] };
+          };
+          return { userId: ctx.apiKey.userId, scopes: ctx.apiKey.scopes };
+        });
     }
 
     it('should authenticate with valid API key', async () => {
@@ -382,7 +388,6 @@ describe('Auth Middleware', () => {
       expect(response.status).toBe(200);
       const data = (await response.json()) as Record<string, unknown>;
       expect(data.userId).toBe(testUser.id);
-      expect(data.keyName).toBe('Test API Key');
     });
 
     it('should reject requests without API key', async () => {

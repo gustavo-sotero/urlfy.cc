@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ═════════════════════════════════════════════════════════════════════
  * AUTH RUNTIME CONFIGURATION
  * ═════════════════════════════════════════════════════════════════════
@@ -15,9 +15,9 @@ import type {
   User as DbUser
 } from '@urlfy/data/schema/auth';
 import * as schema from '@urlfy/data/schema/auth';
+import { createLogger } from '@urlfy/telemetry';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { createLogger } from '@/server/lib/telemetry';
 import { auditLogService } from '@/server/services/audit.service';
 import { emailService } from '@/server/services/email.service';
 import {

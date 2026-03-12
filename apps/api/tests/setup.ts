@@ -36,10 +36,20 @@ function loadEnvFile(envPath: string): void {
 // Root .env.test is 3 levels up: tests/ → api/ → apps/ → root/
 loadEnvFile(resolve(__dirname, '../../../.env.test'));
 
+// Keep integration tests aligned with production guest-id hardening:
+// guest identity signing requires INTERNAL_API_SECRET (or dedicated guest secret).
+// For legacy test env files that only define AUTH_SECRET/BETTER_AUTH_SECRET,
+// derive INTERNAL_API_SECRET so guest flows do not fail with 500.
+if (!process.env.INTERNAL_API_SECRET) {
+  process.env.INTERNAL_API_SECRET =
+    process.env.AUTH_SECRET || process.env.BETTER_AUTH_SECRET || '';
+}
+
 const requiredSecrets = [
   'JWT_SECRET',
   'BETTER_AUTH_SECRET',
-  'AUTH_SECRET'
+  'AUTH_SECRET',
+  'INTERNAL_API_SECRET'
 ] as const;
 
 for (const secret of requiredSecrets) {

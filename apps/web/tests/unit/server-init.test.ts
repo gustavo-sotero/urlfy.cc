@@ -11,7 +11,17 @@ mock.module('@/lib/env', () => ({
 
 mock.module('@urlfy/telemetry', () => ({
   configureLogging,
-  initTelemetry
+  initTelemetry,
+  // Include createLogger so the mock is a superset of all callsite expectations.
+  // Without it, Bun caches a "missing binding" for createLogger that affects
+  // subsequent test files even when they provide a complete mock.
+  createLogger: () => ({
+    debug: () => {},
+    info: () => {},
+    warn: () => {},
+    error: () => {}
+  }),
+  shutdownTelemetry: async () => {}
 }));
 
 const mutableEnv = process.env as Record<string, string | undefined>;
@@ -23,7 +33,8 @@ afterEach(() => {
   configureLogging.mockClear();
   mutableEnv.NEXT_PHASE = originalNextPhase;
   globalThis.window = originalWindow;
-  mock.restore();
+  // Do NOT call mock.restore() here — it wipes all module mocks globally and
+  // corrupts the module registry for test files that run after this one.
 });
 
 describe('server init', () => {

@@ -99,26 +99,56 @@ export const circuitBreakerTrips = meter.createCounter(
 // Cache Hit Rate Observable Gauge
 // ═══════════════════════════════════════════════════════════════════
 
+/**
+ * Rolling-window cache-hit-rate tracker using 1-minute time buckets.
+ * By default the window is 5 minutes; older buckets are discarded on each read
+ * so the gauge always reflects recent behaviour rather than process-lifetime totals.
+ * No timers are used — bucket expiry is lazy (evaluated on each recordHit/Miss/getHitRate call).
+ */
 class CacheMetricsTracker {
-  private hits = 0;
-  private misses = 0;
+  private readonly windowMs: number;
+  private readonly bucketMs = 60_000; // 1-minute bucket granularity
+  private buckets: Array<{ ts: number; hits: number; misses: number }> = [];
+
+  constructor(windowMs = 5 * 60_000) {
+    this.windowMs = windowMs;
+  }
+
+  private currentBucket(): { ts: number; hits: number; misses: number } {
+    const now = Date.now();
+    const bucketTs = Math.floor(now / this.bucketMs) * this.bucketMs;
+    let bucket = this.buckets.find((b) => b.ts === bucketTs);
+    if (!bucket) {
+      bucket = { ts: bucketTs, hits: 0, misses: 0 };
+      this.buckets.push(bucket);
+    }
+    return bucket;
+  }
+
+  private evictExpired(): void {
+    const cutoff = Date.now() - this.windowMs;
+    this.buckets = this.buckets.filter((b) => b.ts >= cutoff);
+  }
 
   recordHit(): void {
-    this.hits++;
+    this.evictExpired();
+    this.currentBucket().hits++;
   }
 
   recordMiss(): void {
-    this.misses++;
+    this.evictExpired();
+    this.currentBucket().misses++;
   }
 
   getHitRate(): number {
-    const total = this.hits + this.misses;
-    return total > 0 ? (this.hits / total) * 100 : 0;
+    this.evictExpired();
+    const hits = this.buckets.reduce((s, b) => s + b.hits, 0);
+    const total = hits + this.buckets.reduce((s, b) => s + b.misses, 0);
+    return total > 0 ? (hits / total) * 100 : 0;
   }
 
   reset(): void {
-    this.hits = 0;
-    this.misses = 0;
+    this.buckets = [];
   }
 }
 
@@ -149,13 +179,15 @@ export function recordCacheMiss(
 }
 
 /**
- * Observable gauge for cache hit rate.
- * Auto-calculates from tracked hits/misses.
+ * Observable gauge for the 5-minute rolling cache hit rate.
+ * Backed by CacheMetricsTracker which expires buckets older than 5 minutes.
+ * For longer-window analysis use rate(redirect.cache.hits_total[…]) in SigNoz/Prometheus.
  */
 export const cacheHitRate = meter.createObservableGauge(
   'redirect.cache.hit_rate',
   {
-    description: 'Calculated cache hit rate (0-100%)',
+    description:
+      'Cache hit rate over the last 5 minutes (0–100%). Rolling-window; NOT process-lifetime cumulative.',
     unit: '%'
   }
 );

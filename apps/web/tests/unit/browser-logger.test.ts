@@ -14,7 +14,8 @@ afterEach(() => {
   global.fetch = originalFetch;
   console.error = originalConsoleError;
   mutableEnv.NODE_ENV = originalNodeEnv;
-  mock.restore();
+  // No mock.restore() here — this file doesn't register any mock.module() calls.
+  // Calling mock.restore() globally would wipe the preloaded @logtape/* mocks from setup.ts.
 });
 
 describe('browser logger', () => {

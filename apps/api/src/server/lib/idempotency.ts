@@ -57,7 +57,7 @@ interface IdempotencyRecord {
  * Format: `idempotency:{principal}:{route}:{key}`
  *
  * @param key       - Caller-supplied idempotency key
- * @param principal - User ID, API key ID, or 'guest:<ipHash>'
+ * @param principal - User ID, API key ID, or 'guest:<guestId>'
  * @param route     - Logical route identifier (e.g. 'POST /links')
  */
 function buildScopedKey(key: string, principal: string, route: string): string {
@@ -112,7 +112,7 @@ export type IdempotencyCheckResult =
  * the IETF Idempotency-Key draft).
  *
  * @param key                - Caller-supplied idempotency key
- * @param principal          - User ID, API key ID, or `guest:<ipHash>`
+ * @param principal          - User ID, API key ID, or `guest:<guestId>`
  * @param route              - Logical route identifier
  * @param currentPayloadHash - SHA-256 of the current request body (optional)
  */
@@ -271,7 +271,7 @@ export async function releaseIdempotencyLock(
  *
  * @param key            - Idempotency key
  * @param resourceId     - Created resource ID
- * @param principal      - User ID, API key ID, or `guest:<ipHash>`
+ * @param principal      - User ID, API key ID, or `guest:<guestId>`
  * @param route          - Logical route identifier
  * @param payloadHash    - SHA-256 of the request body (optional but recommended)
  */

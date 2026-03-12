@@ -1,30 +1,39 @@
 // src/server/services/cache.service.ts
 
-import { getRedisClient } from '@urlfy/cache';
+import {
+  CACHE_KEYS,
+  CACHE_TTL as CANONICAL_CACHE_TTL,
+  getRedisClient
+} from '@urlfy/cache';
 import type { CachedLink } from '@urlfy/contracts/redirect';
 import { createLogger } from '@urlfy/telemetry';
 
 const logger = createLogger('cache-service');
 
-// Cache TTLs (in seconds)
+// Cache TTLs — canonical values sourced from @urlfy/cache to avoid drift
 export const CACHE_TTL = {
-  LINK: 3600, // 1 hour
-  LINK_META: 300, // 5 minutes
-  NEGATIVE: 300, // 5 minutes (not found cache)
-  BANNED: 86400, // 24 hours
-  QR_CODE: 86400, // 24 hours
-  GEO: 86400 // 24 hours
+  LINK: CANONICAL_CACHE_TTL.LINK,
+  LINK_META: CANONICAL_CACHE_TTL.LINK_META,
+  NEGATIVE: CANONICAL_CACHE_TTL.LINK_404,
+  BANNED: CANONICAL_CACHE_TTL.LINK_BANNED,
+  QR_CODE: CANONICAL_CACHE_TTL.QR_CODE,
+  GEO: CANONICAL_CACHE_TTL.GEO
 } as const;
 
-// Key prefixes
+function derivePrefix(buildKey: (token: string) => string): string {
+  const token = '__token__';
+  return buildKey(token).replace(token, '');
+}
+
+// Key prefixes (derived from canonical key builders)
 export const CACHE_PREFIX = {
-  LINK: 'link:',
-  LINK_META: 'link:meta:',
-  LINK_404: 'link:404:',
-  LINK_BANNED: 'link:banned:',
+  LINK: derivePrefix(CACHE_KEYS.LINK),
+  LINK_META: derivePrefix(CACHE_KEYS.LINK_META),
+  LINK_404: derivePrefix(CACHE_KEYS.LINK_404),
+  LINK_BANNED: derivePrefix(CACHE_KEYS.LINK_BANNED),
   QR_CODE: 'qr:',
-  GEO: 'geo:',
-  LOCK: 'lock:link:'
+  GEO: 'geo:'
+  // LOCK prefix removed: fetcher.ts now uses CACHE_KEYS.LOCK() from @urlfy/cache directly
 } as const;
 
 /**
@@ -85,7 +94,7 @@ export class CacheService {
   ): Promise<CachedLink | null> {
     try {
       const redis = this.getRedis();
-      const key = `${CACHE_PREFIX.LINK}${code}`;
+      const key = CACHE_KEYS.LINK(code);
       const cached = await redis.get(key);
 
       if (!cached) {
@@ -145,7 +154,7 @@ export class CacheService {
   async setLink(code: string, link: CachedLink): Promise<void> {
     try {
       const redis = this.getRedis();
-      const key = `${CACHE_PREFIX.LINK}${code}`;
+      const key = CACHE_KEYS.LINK(code);
       const withTimestamp = { ...link, _cachedAt: Date.now() };
       await redis.setex(key, CACHE_TTL.LINK, JSON.stringify(withTimestamp));
       logger.debug('Link cached', { code, ttl: CACHE_TTL.LINK });
@@ -164,7 +173,7 @@ export class CacheService {
   async isNotFound(code: string): Promise<boolean> {
     try {
       const redis = this.getRedis();
-      const key = `${CACHE_PREFIX.LINK_404}${code}`;
+      const key = CACHE_KEYS.LINK_404(code);
       const exists = (await redis.send('EXISTS', [key])) as number;
       return exists === 1;
     } catch (error) {
@@ -182,7 +191,7 @@ export class CacheService {
   async setNotFound(code: string): Promise<void> {
     try {
       const redis = this.getRedis();
-      const key = `${CACHE_PREFIX.LINK_404}${code}`;
+      const key = CACHE_KEYS.LINK_404(code);
       await redis.setex(key, CACHE_TTL.NEGATIVE, '1');
       logger.debug('404 cached', { code, ttl: CACHE_TTL.NEGATIVE });
     } catch (error) {
@@ -199,7 +208,7 @@ export class CacheService {
   async isBanned(code: string): Promise<boolean> {
     try {
       const redis = this.getRedis();
-      const key = `${CACHE_PREFIX.LINK_BANNED}${code}`;
+      const key = CACHE_KEYS.LINK_BANNED(code);
       const exists = (await redis.send('EXISTS', [key])) as number;
       return exists === 1;
     } catch (error) {
@@ -217,7 +226,7 @@ export class CacheService {
   async setBanned(code: string): Promise<void> {
     try {
       const redis = this.getRedis();
-      const key = `${CACHE_PREFIX.LINK_BANNED}${code}`;
+      const key = CACHE_KEYS.LINK_BANNED(code);
       await redis.setex(key, CACHE_TTL.BANNED, '1');
       logger.debug('Banned link cached', { code, ttl: CACHE_TTL.BANNED });
     } catch (error) {
@@ -238,9 +247,9 @@ export class CacheService {
     link: CachedLink | null;
   }> {
     const redis = this.getRedis();
-    const notFoundKey = `${CACHE_PREFIX.LINK_404}${code}`;
-    const bannedKey = `${CACHE_PREFIX.LINK_BANNED}${code}`;
-    const linkKey = `${CACHE_PREFIX.LINK}${code}`;
+    const notFoundKey = CACHE_KEYS.LINK_404(code);
+    const bannedKey = CACHE_KEYS.LINK_BANNED(code);
+    const linkKey = CACHE_KEYS.LINK(code);
 
     const [notFoundExists, bannedExists, linkData] = await Promise.all([
       redis.send('EXISTS', [notFoundKey]) as Promise<number>,
@@ -268,10 +277,10 @@ export class CacheService {
       const redis = this.getRedis();
       // Execute commands sequentially (Bun RedisClient doesn't support pipeline)
       const commands = [
-        redis.del(`${CACHE_PREFIX.LINK}${code}`),
-        redis.del(`${CACHE_PREFIX.LINK_META}${code}`),
-        redis.del(`${CACHE_PREFIX.LINK_404}${code}`),
-        redis.del(`${CACHE_PREFIX.LINK_BANNED}${code}`)
+        redis.del(CACHE_KEYS.LINK(code)),
+        redis.del(CACHE_KEYS.LINK_META(code)),
+        redis.del(CACHE_KEYS.LINK_404(code)),
+        redis.del(CACHE_KEYS.LINK_BANNED(code))
       ];
 
       // Remove related QR codes using the tracking Set (O(M) vs O(N) SCAN)
@@ -437,7 +446,7 @@ return link.clicksCount
   async incrementClicksCount(code: string, amount = 1): Promise<number | null> {
     try {
       const redis = this.getRedis();
-      const key = `${CACHE_PREFIX.LINK}${code}`;
+      const key = CACHE_KEYS.LINK(code);
 
       const result = await redis.send('EVAL', [
         CacheService.INCREMENT_CLICKS_LUA,

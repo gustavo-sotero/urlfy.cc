@@ -67,6 +67,9 @@ const envSchema = z.object({
   // Internal API security
   INTERNAL_API_SECRET: z.string().min(16),
 
+  // Guest idempotency cookie signing (falls back to INTERNAL_API_SECRET when absent)
+  IDEMPOTENCY_GUEST_SECRET: z.string().min(32).optional(),
+
   // Internal Analytics API security (separate from BETTER_AUTH_SECRET)
   INTERNAL_ANALYTICS_SECRET: z.string().min(16).optional(),
 

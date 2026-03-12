@@ -40,7 +40,8 @@ export interface RedirectLinkRepository {
 }
 
 export interface RedirectLockAdapter {
-  acquire(key: string, options: { ttl: number }): Promise<boolean>;
+  /** Acquire a distributed lock. @param ttlMs - lock time-to-live in milliseconds */
+  acquire(key: string, ttlMs: number): Promise<boolean>;
   release(key: string): Promise<void>;
 }
 
