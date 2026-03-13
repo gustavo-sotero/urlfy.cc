@@ -5,7 +5,9 @@ import {
   sanitizeNotes,
   sanitizeTags
 } from '@/server/lib/sanitize';
+import { createLogger } from '@/server/lib/telemetry';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
+import { cacheService } from '@/server/services/cache.service';
 import type { CreateLinkInput, Link } from '@/types/links.types';
 import {
   generateUniqueCode,
@@ -13,6 +15,8 @@ import {
   validateCustomAlias
 } from './shortcode.service';
 import { validateUrlSafe } from './url-validator';
+
+const logger = createLogger('create-link');
 
 /** PostgreSQL error code for unique constraint violation. */
 const PG_UNIQUE_VIOLATION = '23505';
@@ -150,6 +154,18 @@ export async function createLink(
 
   if (!link) {
     throw createLinkAppError('SHORTCODE_GENERATION_FAILED');
+  }
+
+  // Best-effort: clear any stale negative redirect cache (NOT_FOUND / banned)
+  // for this shortcode. Non-fatal — link creation must succeed even if Redis
+  // is temporarily unavailable.
+  try {
+    await cacheService.invalidateLink(shortCode);
+  } catch (err) {
+    logger.warn('Failed to invalidate redirect cache after create', {
+      shortCode,
+      error: err instanceof Error ? err.message : String(err)
+    });
   }
 
   return {

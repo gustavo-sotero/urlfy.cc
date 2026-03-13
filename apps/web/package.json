@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NODE_ENV=development bun --bun next dev",
+    "dev": "NODE_ENV=development bun --env-file=../../.env --bun next dev",
     "build": "SKIP_ENV_VALIDATION=1 bun --bun next build && bun ../../scripts/post-build.ts",
-    "start": "bun --bun next start",
+    "start": "bun --env-file=../../.env --bun next start",
     "lint": "bunx biome check . --write",
     "type-check": "bunx tsc --noEmit",
     "test": "bun test src/ tests/unit tests/integration tests/perf tests/security",

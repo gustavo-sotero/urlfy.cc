@@ -214,7 +214,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 
 | Variable                      | Required | Default                         | Description                              |
 | ----------------------------- | -------- | ------------------------------- | ---------------------------------------- |
-| `DATABASE_URL`                | Yes      | —                               | PostgreSQL connection string             |
+| `DATABASE_URL`                | Yes      | —                               | PostgreSQL connection string (used by both `api` and `web`) |
 | `BETTER_AUTH_SECRET`          | Yes      | —                               | Auth secret (min 32 chars)               |
 | `INTERNAL_API_SECRET`         | Yes      | —                               | Internal API security key (min 16 chars) |
 | `REDIS_URL`                   | No       | `redis://localhost:6379`        | Redis connection string                  |
@@ -420,7 +420,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 cd docker && docker compose -f docker-compose.prod.yml up -d
 ```
 
-The web image validates runtime env on startup. CI smoke-tests that it fails fast without required secrets and serves `/api/health` when booted with valid runtime env.
+The web image validates runtime env on startup. CI smoke-tests that it fails fast without required secrets and serves `/api/health` when booted with valid runtime env. Docker and Compose health checks use `/api/health/ready` to verify the full redirect dependency set, including API, Redis, and database reachability.
 
 ### Backup & Recovery
 

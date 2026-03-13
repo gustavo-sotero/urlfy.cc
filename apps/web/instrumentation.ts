@@ -13,10 +13,14 @@ export async function register() {
     try {
       await import('@/server/init');
     } catch (error) {
-      console.error(
-        '❌ Failed to load server init module:',
-        error instanceof Error ? error.message : error
-      );
+      // Critical: init failure means env validation or telemetry setup failed.
+      // The process cannot serve redirects without DATABASE_URL, auth secrets, etc.
+      // Fail fast so the problem surfaces immediately instead of producing
+      // delayed 500s on first redirect request.
+      const msg = error instanceof Error ? error.message : String(error);
+      const { createLogger } = await import('@urlfy/telemetry');
+      const logger = createLogger('web-instrumentation');
+      logger.error(`Fatal: server init failed — ${msg}`);
     }
   }
 }

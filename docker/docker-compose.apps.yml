@@ -71,8 +71,14 @@ services:
       - API_INTERNAL_URL=http://api:3001
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - DATABASE_URL=${DATABASE_URL:-postgresql://urlfy:urlfy@postgres:5432/urlfy}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
       - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     volumes:
       - geoip_data:/app/geoip:ro
     ports:

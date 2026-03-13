@@ -1,4 +1,5 @@
 import { checkRedisHealth } from '@urlfy/cache';
+import { checkDatabaseHealth } from '@urlfy/data';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,12 +37,16 @@ async function checkApiHealth(): Promise<{
 }
 
 export async function GET(): Promise<Response> {
-  const [apiHealth, redisHealth] = await Promise.all([
+  const [apiHealth, redisHealth, dbHealth] = await Promise.all([
     checkApiHealth(),
-    checkRedisHealth()
+    checkRedisHealth(),
+    checkDatabaseHealth()
   ]);
 
-  const isReady = apiHealth.status === 'ok' && redisHealth.status === 'ok';
+  const isReady =
+    apiHealth.status === 'ok' &&
+    redisHealth.status === 'ok' &&
+    dbHealth.status === 'ok';
 
   return Response.json(
     {
@@ -50,7 +55,8 @@ export async function GET(): Promise<Response> {
       timestamp: new Date().toISOString(),
       services: {
         api: apiHealth,
-        redis: redisHealth
+        redis: redisHealth,
+        database: dbHealth
       }
     },
     {

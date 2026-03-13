@@ -186,6 +186,33 @@ describe('Links Endpoints (handler-level)', () => {
       expect(response.status).toBeGreaterThanOrEqual(400);
     });
 
+    test('should return public shortUrl as bare /{code} path (never /r/{code})', async () => {
+      const response = await client.post<{
+        success: boolean;
+        data?: {
+          shortCode: string;
+          shortUrl: string;
+        };
+      }>('/api/links', { url: 'https://example.com' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+
+      const shortCode = response.body.data?.shortCode;
+      const shortUrl = response.body.data?.shortUrl;
+
+      expect(shortCode).toBeDefined();
+      expect(shortUrl).toBeDefined();
+
+      if (!shortCode || !shortUrl) {
+        return;
+      }
+
+      const parsedShortUrl = new URL(shortUrl);
+      expect(parsedShortUrl.pathname).toBe(`/${shortCode}`);
+      expect(parsedShortUrl.pathname.startsWith('/r/')).toBe(false);
+    });
+
     test('should invoke anti-abuse success recorder after successful creation', async () => {
       const recordLinkCreationSpy = mock(async () => false);
       const recordEventSpy = mock(async () => {});

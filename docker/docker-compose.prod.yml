@@ -117,6 +117,8 @@ services:
       # Internal service routing — no need to change in Dokploy
       - API_INTERNAL_URL=http://api:3001
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      # Database (needed for redirect cache-miss fallback)
+      - DATABASE_URL=${DATABASE_URL}
       # Auth (needed for session/cookie middleware)
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-${NEXT_PUBLIC_APP_URL}}
@@ -127,6 +129,8 @@ services:
       - REDIS_PORT=${REDIS_PORT:-6379}
       # Internal API for gateway anti-abuse
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      # GeoIP (needed for redirect analytics)
+      - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
       # OpenTelemetry (SigNoz)
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-urlfy-web}
