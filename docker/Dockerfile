@@ -2,7 +2,7 @@
 # STAGE 1: Dependencies
 # ═══════════════════════════════════════════════════════════════════
 # hadolint ignore=DL3006
-ARG BUN_VERSION=1.3.10
+ARG BUN_VERSION=1.3.11
 FROM oven/bun:${BUN_VERSION}-slim AS dependencies
 
 # Labels OCI padrão

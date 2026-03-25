@@ -3,7 +3,7 @@
 # Build context: repo root (docker build -f docker/api.Dockerfile .)
 # ═══════════════════════════════════════════════════════════════════
 # hadolint ignore=DL3006
-ARG BUN_VERSION=1.3.10
+ARG BUN_VERSION=1.3.11
 FROM oven/bun:${BUN_VERSION}-slim AS dependencies
 
 LABEL org.opencontainers.image.source="https://github.com/urlfy/urlfy.cc"
@@ -36,6 +36,8 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json bun.lock* bunfig.toml turbo.json ./
 COPY apps/api ./apps/api
 COPY packages ./packages
+
+RUN bun install --frozen-lockfile --filter=@urlfy/api
 
 WORKDIR /app/apps/api
 RUN bun build src/index.ts --outdir dist --target bun --minify
