@@ -316,14 +316,23 @@ jobs:
           for attempt in $(seq 1 30); do
             if curl -fsS http://localhost:3000/api/health > /dev/null; then
               echo "✅ Web container started and served /api/health"
-              exit 0
+              break
             fi
 
             sleep 2
           done
 
-          echo "❌ Web container did not become reachable on /api/health"
-          exit 1
+          if ! curl -fsS http://localhost:3000/api/health > /dev/null; then
+            echo "❌ Web container did not become reachable on /api/health"
+            exit 1
+          fi
+
+          if ! docker exec urlfy-web-smoke curl -fsS http://localhost:3000/api/health > /dev/null; then
+            echo "❌ Web container did not bind on localhost inside the container"
+            exit 1
+          fi
+
+          echo "✅ Web container also serves localhost inside the container"
 
       - name: Build API Docker image
         uses: docker/build-push-action@v6
