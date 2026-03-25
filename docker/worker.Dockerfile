@@ -33,6 +33,7 @@ FROM oven/bun:${BUN_VERSION}-slim AS runner
 WORKDIR /app
 
 COPY --from=dependencies /app/node_modules ./node_modules
+COPY --from=dependencies /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY package.json bun.lock* bunfig.toml ./
 COPY apps/worker ./apps/worker
 COPY packages ./packages
