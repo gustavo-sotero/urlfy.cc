@@ -26,7 +26,7 @@ COPY packages/geoip/package.json ./packages/geoip/
 COPY packages/redirect-domain/package.json ./packages/redirect-domain/
 COPY packages/telemetry/package.json ./packages/telemetry/
 
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --filter=@urlfy/api
 
 # ═══════════════════════════════════════════════════════════════════
 FROM oven/bun:${BUN_VERSION}-slim AS builder
@@ -36,8 +36,6 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json bun.lock* bunfig.toml turbo.json ./
 COPY apps/api ./apps/api
 COPY packages ./packages
-
-RUN bun install --frozen-lockfile --filter=@urlfy/api
 
 WORKDIR /app/apps/api
 RUN bun build src/index.ts --outdir dist --target bun --minify

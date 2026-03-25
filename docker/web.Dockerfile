@@ -27,7 +27,7 @@ COPY packages/geoip/package.json ./packages/geoip/
 COPY packages/redirect-domain/package.json ./packages/redirect-domain/
 COPY packages/telemetry/package.json ./packages/telemetry/
 
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --filter=web
 
 # ═══════════════════════════════════════════════════════════════════
 FROM oven/bun:${BUN_VERSION}-slim AS builder
@@ -38,8 +38,6 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json bun.lock* bunfig.toml turbo.json ./
 COPY apps/web ./apps/web
 COPY packages ./packages
-
-RUN bun install --frozen-lockfile --filter=web
 
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
 ENV NEXT_TELEMETRY_DISABLED=1

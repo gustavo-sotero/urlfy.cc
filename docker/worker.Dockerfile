@@ -26,7 +26,7 @@ COPY packages/geoip/package.json ./packages/geoip/
 COPY packages/redirect-domain/package.json ./packages/redirect-domain/
 COPY packages/telemetry/package.json ./packages/telemetry/
 
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --filter=worker
 
 # ═══════════════════════════════════════════════════════════════════
 FROM oven/bun:${BUN_VERSION}-slim AS runner
@@ -36,8 +36,6 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json bun.lock* bunfig.toml ./
 COPY apps/worker ./apps/worker
 COPY packages ./packages
-
-RUN bun install --frozen-lockfile --filter=worker
 
 RUN groupadd --system --gid 1001 urlfy && \
     useradd --system --uid 1001 --gid urlfy --no-create-home --shell /usr/sbin/nologin urlfy && \
