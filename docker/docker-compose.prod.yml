@@ -116,8 +116,8 @@ services:
         condition: service_healthy
     environment:
       - NODE_ENV=production
-      # Internal service routing — no need to change in Dokploy
-      - API_INTERNAL_URL=http://api:3001
+        # Internal service routing — override when topology differs
+      - API_INTERNAL_URL=${API_INTERNAL_URL:-http://api:3001}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
       # Database (needed for redirect cache-miss fallback)
       - DATABASE_URL=${DATABASE_URL}

@@ -222,7 +222,7 @@ services:
   web:
     build: { dockerfile: docker/web.Dockerfile }
     depends_on: { api: { condition: service_healthy } }
-    environment: [API_INTERNAL_URL=http://api:3001, DATABASE_URL, REDIS_URL, BETTER_AUTH_SECRET, INTERNAL_API_SECRET, JWT_SECRET, ...]
+    environment: [API_INTERNAL_URL=${API_INTERNAL_URL:-http://api:3001}, DATABASE_URL, REDIS_URL, BETTER_AUTH_SECRET, INTERNAL_API_SECRET, JWT_SECRET, ...]
 
   worker:
     build: { dockerfile: docker/worker.Dockerfile }
@@ -251,7 +251,7 @@ docker/
 - **Networking:** Dokploy coloca todos os serviços do projeto na mesma Docker network interna
 - **SSL/TLS:** Gerenciado pelo Traefik integrado ao Dokploy (Let's Encrypt automático)
 - **GeoIP:** Usa mirror público (jsDelivr CDN), sem necessidade de credenciais
-- **API Gateway:** `apps/web` proxia `/api/*` para `apps/api` via `API_INTERNAL_URL` (sem hop extra no redirect)
+- **API Gateway:** `apps/web` proxia `/api/*` para `apps/api` via `API_INTERNAL_URL`; em Docker/Compose o padrão interno é `http://api:3001`, mas o valor pode ser sobrescrito por ambiente (sem hop extra no redirect)
 - **Redirect Runtime Dependency:** `apps/web` resolve shortlinks localmente e depende de `DATABASE_URL` para fallback no cache miss (via `@urlfy/redirect-domain` -> `@urlfy/data`).
 - **Startup validation:** `docker/web.Dockerfile` usa `SKIP_ENV_VALIDATION=1` apenas no build; o container final valida env real no boot. O CI smoke-testa `/api/health` para provar boot e fail-fast de env, enquanto Docker/Compose usam `/api/health/ready` para validar API, Redis e database.
 

@@ -68,7 +68,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - API_INTERNAL_URL=http://api:3001
+        - API_INTERNAL_URL=${API_INTERNAL_URL:-http://api:3001}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - DATABASE_URL=${DATABASE_URL:-postgresql://urlfy:urlfy@postgres:5432/urlfy}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
