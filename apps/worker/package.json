@@ -13,12 +13,15 @@
     "test:unit": "bun test src/"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
     "@urlfy/cache": "workspace:*",
     "@urlfy/contracts": "workspace:*",
     "@urlfy/data": "workspace:*",
     "@urlfy/geoip": "workspace:*",
     "@urlfy/redirect-domain": "workspace:*",
     "@urlfy/telemetry": "workspace:*",
+    "cron": "^4.4.0",
+    "drizzle-orm": "^0.45.1",
     "ua-parser-js": "^2.0.9",
     "zod": "^4.3.6"
   },
