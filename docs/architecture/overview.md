@@ -210,7 +210,8 @@ O `docker-compose.prod.yml` define a ordem de inicialização:
 services:
   migrate:
     build: { dockerfile: docker/worker.Dockerfile }
-    command: ['bun', 'run', 'packages/data/src/scripts/migrate.ts']
+    working_dir: /app
+    command: ['bun', 'run', 'db:migrate:prod']
     restart: 'no'
 
   api:

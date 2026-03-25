@@ -24,7 +24,8 @@ services:
     build:
       context: ..
       dockerfile: docker/worker.Dockerfile
-    command: ['bun', 'run', 'packages/data/src/scripts/migrate.ts']
+    working_dir: /app
+    command: ['bun', 'run', 'db:migrate:prod']
     init: true
     environment:
       - NODE_ENV=production
