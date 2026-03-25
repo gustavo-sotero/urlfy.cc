@@ -59,13 +59,15 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     groupadd --system --gid 1001 urlfy && \
     useradd --system --uid 1001 --gid urlfy --no-create-home --shell /usr/sbin/nologin urlfy && \
-    mkdir -p .next/cache /app/geoip && \
-    chown -R urlfy:urlfy .next /app/geoip
+  mkdir -p /app/apps/web/.next/cache /app/geoip && \
+  chown -R urlfy:urlfy /app/apps/web/.next /app/geoip
 
 COPY --from=builder --chown=urlfy:urlfy /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=urlfy:urlfy /app/apps/web/.next/static ./.next/static
+COPY --from=builder --chown=urlfy:urlfy /app/apps/web/.next/static ./apps/web/.next/static
 
 VOLUME /app/geoip
+
+WORKDIR /app/apps/web
 
 USER urlfy
 EXPOSE 3000
