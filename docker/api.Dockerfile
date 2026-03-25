@@ -13,12 +13,18 @@ WORKDIR /app
 
 COPY package.json bun.lock* bunfig.toml turbo.json ./
 COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+COPY apps/worker/package.json ./apps/worker/
+COPY packages/auth-shared/package.json ./packages/auth-shared/
+COPY packages/cache/package.json ./packages/cache/
+COPY packages/config-biome/package.json ./packages/config-biome/
 COPY packages/config-ts/package.json ./packages/config-ts/
 COPY packages/contracts/package.json ./packages/contracts/
-COPY packages/telemetry/package.json ./packages/telemetry/
-COPY packages/cache/package.json ./packages/cache/
 COPY packages/data/package.json ./packages/data/
-COPY packages/auth-shared/package.json ./packages/auth-shared/
+COPY packages/email/package.json ./packages/email/
+COPY packages/geoip/package.json ./packages/geoip/
+COPY packages/redirect-domain/package.json ./packages/redirect-domain/
+COPY packages/telemetry/package.json ./packages/telemetry/
 
 RUN bun install --frozen-lockfile
 
@@ -29,12 +35,7 @@ WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json bun.lock* bunfig.toml turbo.json ./
 COPY apps/api ./apps/api
-COPY packages/config-ts ./packages/config-ts
-COPY packages/contracts ./packages/contracts
-COPY packages/telemetry ./packages/telemetry
-COPY packages/cache ./packages/cache
-COPY packages/data ./packages/data
-COPY packages/auth-shared ./packages/auth-shared
+COPY packages ./packages
 
 WORKDIR /app/apps/api
 RUN bun build src/index.ts --outdir dist --target bun --minify

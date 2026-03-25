@@ -12,12 +12,19 @@ LABEL org.opencontainers.image.description="urlfy.cc — background workers"
 WORKDIR /app
 
 COPY package.json bun.lock* bunfig.toml turbo.json ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
 COPY apps/worker/package.json ./apps/worker/
+COPY packages/auth-shared/package.json ./packages/auth-shared/
+COPY packages/config-biome/package.json ./packages/config-biome/
 COPY packages/config-ts/package.json ./packages/config-ts/
 COPY packages/contracts/package.json ./packages/contracts/
-COPY packages/telemetry/package.json ./packages/telemetry/
 COPY packages/cache/package.json ./packages/cache/
 COPY packages/data/package.json ./packages/data/
+COPY packages/email/package.json ./packages/email/
+COPY packages/geoip/package.json ./packages/geoip/
+COPY packages/redirect-domain/package.json ./packages/redirect-domain/
+COPY packages/telemetry/package.json ./packages/telemetry/
 
 RUN bun install --frozen-lockfile
 
@@ -28,11 +35,7 @@ WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json bun.lock* bunfig.toml ./
 COPY apps/worker ./apps/worker
-COPY packages/config-ts ./packages/config-ts
-COPY packages/contracts ./packages/contracts
-COPY packages/telemetry ./packages/telemetry
-COPY packages/cache ./packages/cache
-COPY packages/data ./packages/data
+COPY packages ./packages
 
 RUN groupadd --system --gid 1001 urlfy && \
     useradd --system --uid 1001 --gid urlfy --no-create-home --shell /usr/sbin/nologin urlfy && \

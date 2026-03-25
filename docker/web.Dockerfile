@@ -13,15 +13,19 @@ WORKDIR /app
 
 # Workspace manifests — install all workspace deps at root
 COPY package.json bun.lock* bunfig.toml turbo.json ./
+COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
-COPY packages/config-ts/package.json ./packages/config-ts/
-COPY packages/config-biome/package.json ./packages/config-biome/
-COPY packages/contracts/package.json ./packages/contracts/
-COPY packages/telemetry/package.json ./packages/telemetry/
-COPY packages/cache/package.json ./packages/cache/
-COPY packages/data/package.json ./packages/data/
-COPY packages/redirect-domain/package.json ./packages/redirect-domain/
+COPY apps/worker/package.json ./apps/worker/
 COPY packages/auth-shared/package.json ./packages/auth-shared/
+COPY packages/cache/package.json ./packages/cache/
+COPY packages/config-biome/package.json ./packages/config-biome/
+COPY packages/config-ts/package.json ./packages/config-ts/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY packages/data/package.json ./packages/data/
+COPY packages/email/package.json ./packages/email/
+COPY packages/geoip/package.json ./packages/geoip/
+COPY packages/redirect-domain/package.json ./packages/redirect-domain/
+COPY packages/telemetry/package.json ./packages/telemetry/
 
 RUN bun install --frozen-lockfile
 
