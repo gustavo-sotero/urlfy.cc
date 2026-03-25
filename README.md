@@ -216,11 +216,11 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 | ----------------------------- | -------- | ------------------------------- | ---------------------------------------- |
 | `DATABASE_URL`                | Yes      | —                               | PostgreSQL connection string (used by both `api` and `web`) |
 | `BETTER_AUTH_SECRET`          | Yes      | —                               | Auth secret (min 32 chars)               |
-| `INTERNAL_API_SECRET`         | Yes      | —                               | Internal API security key (min 16 chars) |
+| `INTERNAL_API_SECRET`         | Yes      | —                               | Internal API security key injected into `api`, `web` and `worker` (min 16 chars) |
 | `REDIS_URL`                   | No       | `redis://localhost:6379`        | Redis connection string                  |
 | `NEXT_PUBLIC_APP_URL`         | No       | `http://localhost:3000`         | Public application URL                   |
 | `JWT_SECRET`                  | Prod     | —                               | JWT secret for password-protected links  |
-| `INTERNAL_ANALYTICS_SECRET`   | Prod     | —                               | Separate secret for analytics API        |
+| `INTERNAL_ANALYTICS_SECRET`   | Prod     | —                               | Separate analytics secret required by `api` and `worker` in production |
 | `GOOGLE_CLIENT_ID`            | No       | —                               | Google OAuth client ID                   |
 | `GOOGLE_CLIENT_SECRET`        | No       | —                               | Google OAuth client secret               |
 | `GITHUB_CLIENT_ID`            | No       | —                               | GitHub OAuth client ID                   |
@@ -420,7 +420,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 cd docker && docker compose -f docker-compose.prod.yml up -d
 ```
 
-The web image validates runtime env on startup. CI smoke-tests that it fails fast without required secrets and serves `/api/health` when booted with valid runtime env. Docker and Compose health checks use `/api/health/ready` to verify the full redirect dependency set, including API, Redis, and database reachability.
+The web image validates runtime env on startup, and the worker validates its own runtime secret set before consuming Redis Streams. CI smoke-tests that required services fail fast without mandatory secrets and serve `/api/health` when booted with valid runtime env. Docker and Compose health checks use `/api/health/ready` to verify the full redirect dependency set, including API, Redis, and database reachability.
 
 ### Backup & Recovery
 

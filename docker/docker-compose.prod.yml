@@ -6,7 +6,8 @@
 #
 # Variáveis de ambiente configuradas no Dokploy:
 #   DATABASE_URL, REDIS_URL, BETTER_AUTH_SECRET, JWT_SECRET,
-#   INTERNAL_API_SECRET, NEXT_PUBLIC_APP_URL, OTEL_EXPORTER_OTLP_ENDPOINT
+#   INTERNAL_API_SECRET, INTERNAL_ANALYTICS_SECRET,
+#   NEXT_PUBLIC_APP_URL, OTEL_EXPORTER_OTLP_ENDPOINT
 #
 # Arquitetura de serviços:
 #   migrate → roda migrações e sai (depends_on: service_completed_successfully)
@@ -172,6 +173,8 @@ services:
       - REDIS_HOST=${REDIS_HOST:-}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - INTERNAL_ANALYTICS_SECRET=${INTERNAL_ANALYTICS_SECRET:-}
       # OpenTelemetry (SigNoz)
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-urlfy-worker}

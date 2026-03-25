@@ -109,6 +109,8 @@ services:
       - DATABASE_URL=${DATABASE_URL:-postgresql://urlfy:urlfy@postgres:5432/urlfy}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - INTERNAL_ANALYTICS_SECRET=${INTERNAL_ANALYTICS_SECRET}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       - TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
     volumes:
