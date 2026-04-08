@@ -61,7 +61,7 @@ CREATE TABLE "link_clicks_daily" (
 --> statement-breakpoint
 CREATE TABLE "audit_log" (
 	"id" text PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
+	"user_id" text,
 	"action" varchar(50) NOT NULL,
 	"entity_type" varchar(50) NOT NULL,
 	"entity_id" text NOT NULL,
@@ -73,7 +73,8 @@ CREATE TABLE "audit_log" (
 --> statement-breakpoint
 CREATE TABLE "data_deletion_request" (
 	"id" text PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
+	"user_id" text,
+	"user_id_snapshot" text NOT NULL,
 	"status" varchar(20) DEFAULT 'pending' NOT NULL,
 	"requested_at" timestamp DEFAULT now() NOT NULL,
 	"deadline_at" timestamp NOT NULL,
@@ -247,8 +248,8 @@ ALTER TABLE "analytics_country_breakdown" ADD CONSTRAINT "analytics_country_brea
 ALTER TABLE "analytics_device_breakdown" ADD CONSTRAINT "analytics_device_breakdown_link_id_links_id_fk" FOREIGN KEY ("link_id") REFERENCES "public"."links"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "analytics_events" ADD CONSTRAINT "analytics_events_link_id_links_id_fk" FOREIGN KEY ("link_id") REFERENCES "public"."links"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "link_clicks_daily" ADD CONSTRAINT "link_clicks_daily_link_id_links_id_fk" FOREIGN KEY ("link_id") REFERENCES "public"."links"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "audit_log" ADD CONSTRAINT "audit_log_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "data_deletion_request" ADD CONSTRAINT "data_deletion_request_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "audit_log" ADD CONSTRAINT "audit_log_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "data_deletion_request" ADD CONSTRAINT "data_deletion_request_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "data_deletion_request" ADD CONSTRAINT "data_deletion_request_processed_by_user_id_fk" FOREIGN KEY ("processed_by") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "apikey" ADD CONSTRAINT "apikey_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -256,9 +257,9 @@ ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("
 ALTER TABLE "two_factor" ADD CONSTRAINT "two_factor_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "banned_urls" ADD CONSTRAINT "banned_urls_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "links" ADD CONSTRAINT "links_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "idx_browser_primary" ON "analytics_browser_breakdown" USING btree ("link_id","date","browser");--> statement-breakpoint
-CREATE INDEX "idx_breakdown_primary" ON "analytics_country_breakdown" USING btree ("link_id","date","country");--> statement-breakpoint
-CREATE INDEX "idx_device_primary" ON "analytics_device_breakdown" USING btree ("link_id","date","device_type");--> statement-breakpoint
+CREATE UNIQUE INDEX "uniq_browser_link_date_name" ON "analytics_browser_breakdown" USING btree ("link_id","date","browser");--> statement-breakpoint
+CREATE UNIQUE INDEX "uniq_breakdown_link_date_country" ON "analytics_country_breakdown" USING btree ("link_id","date","country");--> statement-breakpoint
+CREATE UNIQUE INDEX "uniq_device_link_date_type" ON "analytics_device_breakdown" USING btree ("link_id","date","device_type");--> statement-breakpoint
 CREATE INDEX "idx_analytics_link_id" ON "analytics_events" USING btree ("link_id");--> statement-breakpoint
 CREATE INDEX "idx_analytics_created_at" ON "analytics_events" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "idx_analytics_link_time" ON "analytics_events" USING btree ("link_id","created_at");--> statement-breakpoint
@@ -266,14 +267,14 @@ CREATE INDEX "idx_analytics_country" ON "analytics_events" USING btree ("country
 CREATE INDEX "idx_analytics_not_bot" ON "analytics_events" USING btree ("link_id","is_bot");--> statement-breakpoint
 CREATE INDEX "idx_analytics_referrer" ON "analytics_events" USING btree ("referrer_domain");--> statement-breakpoint
 CREATE INDEX "idx_analytics_utm" ON "analytics_events" USING btree ("utm_source","utm_medium","utm_campaign");--> statement-breakpoint
-CREATE INDEX "idx_clicks_daily_primary" ON "link_clicks_daily" USING btree ("link_id","date");--> statement-breakpoint
+CREATE UNIQUE INDEX "uniq_clicks_daily_link_date" ON "link_clicks_daily" USING btree ("link_id","date");--> statement-breakpoint
 CREATE INDEX "idx_clicks_daily_date" ON "link_clicks_daily" USING btree ("date");--> statement-breakpoint
-CREATE INDEX "idx_clicks_daily_link_date" ON "link_clicks_daily" USING btree ("link_id","date");--> statement-breakpoint
 CREATE INDEX "auditLog_userId_idx" ON "audit_log" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "auditLog_action_idx" ON "audit_log" USING btree ("action");--> statement-breakpoint
 CREATE INDEX "auditLog_entityType_entityId_idx" ON "audit_log" USING btree ("entity_type","entity_id");--> statement-breakpoint
 CREATE INDEX "auditLog_createdAt_idx" ON "audit_log" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "dataDeletionRequest_userId_idx" ON "data_deletion_request" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "dataDeletionRequest_userIdSnapshot_idx" ON "data_deletion_request" USING btree ("user_id_snapshot");--> statement-breakpoint
 CREATE INDEX "dataDeletionRequest_status_idx" ON "data_deletion_request" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "dataDeletionRequest_deadlineAt_idx" ON "data_deletion_request" USING btree ("deadline_at");--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
@@ -295,4 +296,7 @@ CREATE INDEX "idx_links_user_active" ON "links" USING btree ("user_id","deleted_
 CREATE INDEX "idx_links_created_at" ON "links" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "idx_links_expires" ON "links" USING btree ("expires_at");--> statement-breakpoint
 CREATE INDEX "idx_links_tags" ON "links" USING btree ("tags");--> statement-breakpoint
-CREATE INDEX "idx_links_validation" ON "links" USING btree ("is_active","is_banned","expires_at");
+CREATE INDEX "idx_links_validation" ON "links" USING btree ("is_active","is_banned","expires_at");--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS pg_trgm;--> statement-breakpoint
+CREATE INDEX "idx_links_short_code_trgm" ON "links" USING gin ("short_code" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "idx_links_original_url_trgm" ON "links" USING gin ("original_url" gin_trgm_ops);

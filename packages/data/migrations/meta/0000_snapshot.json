@@ -1,5 +1,5 @@
 {
-  "id": "34c706cb-a1cd-4486-9810-01dfda779ecb",
+  "id": "dba0d14d-43f4-480b-b6f8-8568b459e4a0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -42,8 +42,8 @@
         }
       },
       "indexes": {
-        "idx_browser_primary": {
-          "name": "idx_browser_primary",
+        "uniq_browser_link_date_name": {
+          "name": "uniq_browser_link_date_name",
           "columns": [
             {
               "expression": "link_id",
@@ -64,7 +64,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -75,8 +75,12 @@
           "name": "analytics_browser_breakdown_link_id_links_id_fk",
           "tableFrom": "analytics_browser_breakdown",
           "tableTo": "links",
-          "columnsFrom": ["link_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "link_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -125,8 +129,8 @@
         }
       },
       "indexes": {
-        "idx_breakdown_primary": {
-          "name": "idx_breakdown_primary",
+        "uniq_breakdown_link_date_country": {
+          "name": "uniq_breakdown_link_date_country",
           "columns": [
             {
               "expression": "link_id",
@@ -147,7 +151,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -158,8 +162,12 @@
           "name": "analytics_country_breakdown_link_id_links_id_fk",
           "tableFrom": "analytics_country_breakdown",
           "tableTo": "links",
-          "columnsFrom": ["link_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "link_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -209,8 +217,8 @@
         }
       },
       "indexes": {
-        "idx_device_primary": {
-          "name": "idx_device_primary",
+        "uniq_device_link_date_type": {
+          "name": "uniq_device_link_date_type",
           "columns": [
             {
               "expression": "link_id",
@@ -231,7 +239,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -242,8 +250,12 @@
           "name": "analytics_device_breakdown_link_id_links_id_fk",
           "tableFrom": "analytics_device_breakdown",
           "tableTo": "links",
-          "columnsFrom": ["link_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "link_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -525,8 +537,12 @@
           "name": "analytics_events_link_id_links_id_fk",
           "tableFrom": "analytics_events",
           "tableTo": "links",
-          "columnsFrom": ["link_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "link_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -594,8 +610,8 @@
         }
       },
       "indexes": {
-        "idx_clicks_daily_primary": {
-          "name": "idx_clicks_daily_primary",
+        "uniq_clicks_daily_link_date": {
+          "name": "uniq_clicks_daily_link_date",
           "columns": [
             {
               "expression": "link_id",
@@ -610,7 +626,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -629,27 +645,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "idx_clicks_daily_link_date": {
-          "name": "idx_clicks_daily_link_date",
-          "columns": [
-            {
-              "expression": "link_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -657,8 +652,12 @@
           "name": "link_clicks_daily_link_id_links_id_fk",
           "tableFrom": "link_clicks_daily",
           "tableTo": "links",
-          "columnsFrom": ["link_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "link_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -683,7 +682,7 @@
           "name": "user_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "action": {
           "name": "action",
@@ -802,9 +801,13 @@
           "name": "audit_log_user_id_user_id_fk",
           "tableFrom": "audit_log",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -826,6 +829,12 @@
         },
         "user_id": {
           "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id_snapshot": {
+          "name": "user_id_snapshot",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -892,6 +901,21 @@
           "method": "btree",
           "with": {}
         },
+        "dataDeletionRequest_userIdSnapshot_idx": {
+          "name": "dataDeletionRequest_userIdSnapshot_idx",
+          "columns": [
+            {
+              "expression": "user_id_snapshot",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "dataDeletionRequest_status_idx": {
           "name": "dataDeletionRequest_status_idx",
           "columns": [
@@ -928,17 +952,25 @@
           "name": "data_deletion_request_user_id_user_id_fk",
           "tableFrom": "data_deletion_request",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "data_deletion_request_processed_by_user_id_fk": {
           "name": "data_deletion_request_processed_by_user_id_fk",
           "tableFrom": "data_deletion_request",
           "tableTo": "user",
-          "columnsFrom": ["processed_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "processed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1055,8 +1087,12 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1283,8 +1319,12 @@
           "name": "apikey_user_id_user_id_fk",
           "tableFrom": "apikey",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1294,7 +1334,9 @@
         "apikey_key_hash_unique": {
           "name": "apikey_key_hash_unique",
           "nullsNotDistinct": false,
-          "columns": ["key_hash"]
+          "columns": [
+            "key_hash"
+          ]
         }
       },
       "policies": {},
@@ -1383,8 +1425,12 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1394,7 +1440,9 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["token"]
+          "columns": [
+            "token"
+          ]
         }
       },
       "policies": {},
@@ -1481,8 +1529,12 @@
           "name": "two_factor_user_id_user_id_fk",
           "tableFrom": "two_factor",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1622,7 +1674,9 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         }
       },
       "policies": {},
@@ -1800,8 +1854,12 @@
           "name": "banned_urls_created_by_user_id_fk",
           "tableFrom": "banned_urls",
           "tableTo": "user",
-          "columnsFrom": ["created_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2228,6 +2286,36 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_links_short_code_trgm": {
+          "name": "idx_links_short_code_trgm",
+          "columns": [
+            {
+              "expression": "\"short_code\" gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "idx_links_original_url_trgm": {
+          "name": "idx_links_original_url_trgm",
+          "columns": [
+            {
+              "expression": "\"original_url\" gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -2235,8 +2323,12 @@
           "name": "links_user_id_user_id_fk",
           "tableFrom": "links",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2246,7 +2338,9 @@
         "links_short_code_unique": {
           "name": "links_short_code_unique",
           "nullsNotDistinct": false,
-          "columns": ["short_code"]
+          "columns": [
+            "short_code"
+          ]
         }
       },
       "policies": {},
@@ -2283,12 +2377,20 @@
     "public.device_type": {
       "name": "device_type",
       "schema": "public",
-      "values": ["desktop", "mobile", "tablet"]
+      "values": [
+        "desktop",
+        "mobile",
+        "tablet"
+      ]
     },
     "public.banned_url_match_type": {
       "name": "banned_url_match_type",
       "schema": "public",
-      "values": ["exact", "domain", "prefix"]
+      "values": [
+        "exact",
+        "domain",
+        "prefix"
+      ]
     }
   },
   "schemas": {},
