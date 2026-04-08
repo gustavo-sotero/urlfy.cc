@@ -181,7 +181,7 @@ export function recordCacheMiss(
 /**
  * Observable gauge for the 5-minute rolling cache hit rate.
  * Backed by CacheMetricsTracker which expires buckets older than 5 minutes.
- * For longer-window analysis use rate(redirect.cache.hits_total[…]) in SigNoz/Prometheus.
+ * For longer-window analysis use rate(redirect.cache.hits_total[…]) in Grafana / Prometheus.
  */
 export const cacheHitRate = meter.createObservableGauge(
   'redirect.cache.hit_rate',

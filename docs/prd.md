@@ -26,7 +26,7 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 | Type-Safety    | End-to-end com ElysiaJS + Drizzle           |
 | Throughput     | Redis nativo + rate limiting sliding window |
 | Analytics      | Event sourcing com agregações diárias       |
-| Observability  | SigNoz (OpenTelemetry nativo)               |
+| Observability  | Grafana LGTM + OTLP (OpenTelemetry nativo)  |
 | Compliance     | LGPD/GDPR (anonimização imediata de IPs)    |
 
 > 📚 **Detalhes técnicos:** Ver [architecture/overview.md](./architecture/overview.md)
@@ -199,7 +199,7 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 - [ ] Rate limiting (sliding window)
 - [ ] Circuit breaker
 - [x] Redis Streams (filas + DLQ) - Native Bun implementation
-- [ ] SigNoz (observability)
+- [ ] Grafana LGTM / OTLP (observability)
 - [x] GeoIP auto-download (geo-location)
 - [ ] CI/CD + testes de carga
 

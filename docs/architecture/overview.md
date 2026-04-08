@@ -8,7 +8,7 @@
 
 ## Visão Geral
 
-O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços independentes: `apps/web` (Next.js 16), `apps/api` (ElysiaJS) e `apps/worker` (Bun workers). Os serviços de infra (PostgreSQL, Redis, SigNoz) são provisionados separadamente via **Dokploy** (self-hosted PaaS).
+O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços independentes: `apps/web` (Next.js 16), `apps/api` (ElysiaJS) e `apps/worker` (Bun workers). Os serviços de infra (PostgreSQL, Redis e collector OTLP baseado em Grafana LGTM) são provisionados separadamente via **Dokploy** (self-hosted PaaS).
 
 ```
 ┌────────────────── Dokploy (VPS) ─────────────────────────────────────┐
@@ -43,14 +43,14 @@ O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços ind
 │                                                                       │
 │  ┌─── Serviços Dokploy (Templates) ─────────────────────────────┐   │
 │  │  ┌──────────────┐  ┌──────────┐  ┌────────────────────────┐  │   │
-│  │  │ PostgreSQL   │  │  Redis   │  │        SigNoz          │  │   │
-│  │  │     16       │  │    7     │  │   (Observability)      │  │   │
+│  │  │ PostgreSQL   │  │  Redis   │  │  OTLP Collector /      │  │   │
+│  │  │     16       │  │    7     │  │   Grafana LGTM         │  │   │
 │  │  └──────────────┘  └──────────┘  └────────────────────────┘  │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 │                                                                       │
 │  ┌─ Traefik (Dokploy) ─────────────────────────────────────────┐    │
 │  │  urlfy.cc:443        → web:3000                              │    │
-│  │  signoz.urlfy.cc:443 → signoz-frontend:3301                  │    │
+│  │  collector.urlfy.cc:443 → lgtm:4318                          │    │
 │  └─────────────────────────────────────────────────────────────┘    │
 └───────────────────────────────────────────────────────────────────────┘
 ```
@@ -93,7 +93,7 @@ O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços ind
 | **ORM**           | Drizzle                  | Type-safe, compatível com Bun SQL (`@urlfy/data`)           |
 | **Auth**          | Better-Auth              | Plugins: `twoFactor`, `admin`, `apiKey`, `openAPI`          |
 | **Geo**           | GeoLite2 (jsDelivr CDN)  | Auto-download via public mirror, no credentials required    |
-| **Observability** | SigNoz                   | OpenTelemetry nativo, logs/traces/métricas unificados       |
+| **Observability** | Grafana LGTM + OTLP      | OpenTelemetry nativo, logs/traces/métricas unificados       |
 | **Styling**       | TailwindCSS + Shadcn/UI  | Componentes acessíveis, design system                       |
 
 ## Runtime Compartilhado
@@ -196,7 +196,7 @@ Em produção, o deploy é feito via **Dokploy** (self-hosted PaaS). Cada servi�
 | ------------- | ------------------- | --------------------------- | ----- |
 | PostgreSQL 16 | Database (template) | Dokploy managed             | —     |
 | Redis 7       | Database (template) | Dokploy managed             | —     |
-| SigNoz        | Compose (template)  | Dokploy managed             | —     |
+| OTLP Collector / LGTM | Compose (template)  | Dokploy managed             | —     |
 | web           | Compose (Git)       | `docker/web.Dockerfile`     | 3000  |
 | api           | Compose (Git)       | `docker/api.Dockerfile`     | 3001  |
 | worker        | Compose (Git)       | `docker/worker.Dockerfile`  | —     |
@@ -247,7 +247,7 @@ docker/
 
 ### Notas de Produção
 
-- **PostgreSQL, Redis, SigNoz:** Provisionados como serviços separados no Dokploy (templates nativos)
+- **PostgreSQL, Redis, collector OTLP (LGTM):** Provisionados como serviços separados no Dokploy (templates nativos)
 - **Networking:** Dokploy coloca todos os serviços do projeto na mesma Docker network interna
 - **SSL/TLS:** Gerenciado pelo Traefik integrado ao Dokploy (Let's Encrypt automático)
 - **GeoIP:** Usa mirror público (jsDelivr CDN), sem necessidade de credenciais
@@ -324,7 +324,7 @@ Key settings:
 
 After adding PgBouncer, update `DATABASE_URL` to point to PgBouncer (port 6432) instead of PostgreSQL directly.
 
-## Observability (SigNoz)
+## Observability (Grafana LGTM / OTLP)
 
 ### Integração OpenTelemetry
 
@@ -333,9 +333,11 @@ import { trace } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 
 const exporter = new OTLPTraceExporter({
-  url: 'http://signoz-otel-collector:4318/traces'
+  url: 'https://collector.urlfy.cc/v1/traces'
 });
 ```
+
+Em runtime, a aplicação usa `@urlfy/telemetry` como entrypoint canônico e deriva automaticamente `/v1/logs`, `/v1/metrics` e `/v1/traces` a partir de `OTEL_EXPORTER_OTLP_ENDPOINT`, com suporte a overrides por sinal e headers por sinal.
 
 ### Logs Estruturados
 
@@ -347,8 +349,8 @@ Formato JSON com campos padronizados:
 
 ### Retention
 
-- Logs detalhados: 30 dias
-- Métricas agregadas: 90 dias
+- Logs detalhados: definidos pelo backend OTLP/Loki
+- Métricas agregadas: definidas pelo backend OTLP/Mimir ou Prometheus
 
 ## Backup & Disaster Recovery
 

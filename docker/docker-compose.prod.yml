@@ -2,7 +2,9 @@
 # PRODUCTION (Dokploy) - Multi-Service: web + api + worker + GeoIP
 # ═══════════════════════════════════════════════════════════════════
 # Usado no Dokploy como serviço do tipo "Compose".
-# PostgreSQL, Redis e SigNoz vêm de templates separados do Dokploy.
+# PostgreSQL e Redis vêm de templates separados do Dokploy.
+# O collector OTLP (e.g. grafana/otel-lgtm) é provisionado separadamente
+# e exposto na rede dokploy-network.
 #
 # Variáveis de ambiente configuradas no Dokploy:
 #   DATABASE_URL, REDIS_URL, BETTER_AUTH_SECRET, JWT_SECRET,
@@ -75,8 +77,19 @@ services:
       # Email (optional)
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - RESEND_FROM=${RESEND_FROM:-}
-      # OpenTelemetry (SigNoz)
+      # OpenTelemetry — base URL for OTLP HTTP collector (grafana/otel-lgtm or any OTLP backend).
+      # Set to the base URL WITHOUT /v1/* signal suffix; the app appends it automatically.
+      # Trailing slashes are normalized: 'https://collector.urlfy.cc/' works correctly.
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      # Optional per-signal overrides — used as-is when set (no suffix appended).
+      - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      # Optional comma-separated OTLP headers (e.g. for Grafana Cloud auth).
+      - OTEL_EXPORTER_OTLP_HEADERS=${OTEL_EXPORTER_OTLP_HEADERS:-}
+      - OTEL_EXPORTER_OTLP_LOGS_HEADERS=${OTEL_EXPORTER_OTLP_LOGS_HEADERS:-}
+      - OTEL_EXPORTER_OTLP_METRICS_HEADERS=${OTEL_EXPORTER_OTLP_METRICS_HEADERS:-}
+      - OTEL_EXPORTER_OTLP_TRACES_HEADERS=${OTEL_EXPORTER_OTLP_TRACES_HEADERS:-}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-urlfy-api}
       - OTEL_SERVICE_VERSION=${OTEL_SERVICE_VERSION:-0.1.0}
       - TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
@@ -133,8 +146,15 @@ services:
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
       # GeoIP (needed for redirect analytics)
       - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
-      # OpenTelemetry (SigNoz)
+      # OpenTelemetry — same collector base URL as API service.
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_HEADERS=${OTEL_EXPORTER_OTLP_HEADERS:-}
+      - OTEL_EXPORTER_OTLP_LOGS_HEADERS=${OTEL_EXPORTER_OTLP_LOGS_HEADERS:-}
+      - OTEL_EXPORTER_OTLP_METRICS_HEADERS=${OTEL_EXPORTER_OTLP_METRICS_HEADERS:-}
+      - OTEL_EXPORTER_OTLP_TRACES_HEADERS=${OTEL_EXPORTER_OTLP_TRACES_HEADERS:-}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-urlfy-web}
       - OTEL_SERVICE_VERSION=${OTEL_SERVICE_VERSION:-0.1.0}
       - TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
@@ -175,8 +195,15 @@ services:
       - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
       - INTERNAL_ANALYTICS_SECRET=${INTERNAL_ANALYTICS_SECRET:-}
-      # OpenTelemetry (SigNoz)
+      # OpenTelemetry — same collector base URL as API service.
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_HEADERS=${OTEL_EXPORTER_OTLP_HEADERS:-}
+      - OTEL_EXPORTER_OTLP_LOGS_HEADERS=${OTEL_EXPORTER_OTLP_LOGS_HEADERS:-}
+      - OTEL_EXPORTER_OTLP_METRICS_HEADERS=${OTEL_EXPORTER_OTLP_METRICS_HEADERS:-}
+      - OTEL_EXPORTER_OTLP_TRACES_HEADERS=${OTEL_EXPORTER_OTLP_TRACES_HEADERS:-}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-urlfy-worker}
       - OTEL_SERVICE_VERSION=${OTEL_SERVICE_VERSION:-0.1.0}
       - TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}

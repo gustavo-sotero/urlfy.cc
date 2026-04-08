@@ -4,7 +4,7 @@
 # Starts PostgreSQL + Redis for local development.
 # The app runs outside Docker via "bun run dev".
 #
-# Production (Dokploy): PostgreSQL, Redis and SigNoz are separate
+# Production (Dokploy): PostgreSQL, Redis and the OTLP collector / LGTM stack are separate
 # services in Dokploy (templates). Only the app Dockerfile and
 # geoip-downloader are used from this repository.
 # ═══════════════════════════════════════════════════════════════════

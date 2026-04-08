@@ -49,7 +49,7 @@ BASE_URL=http://localhost:3000 SHORT_CODE=mycode EXPECTED_LOCATION_PREFIX=https:
 - k6 output with `http_req_duration` P95/P99 and failure rate
 - `urlfy_redirect_cache_hit_rate` from the k6 script
 - sample redirect response headers: `X-Request-Id`, `X-Redirect-Depth`, `X-Cache-Status`
-- any SigNoz charts used during validation (`urlfy.redirect.latency`, cache hit rate, error rate)
+- any Grafana / OTLP backend charts used during validation (`urlfy.redirect.latency`, cache hit rate, error rate)
 
 ## Notes
 

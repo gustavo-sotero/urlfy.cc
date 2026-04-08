@@ -41,7 +41,43 @@ function warn(step: string, message: string, details?: string) {
   });
 }
 
-console.log('🔍 Validating @elysiajs/opentelemetry Implementation\n');
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function findLockfileVersion(
+  lockText: string,
+  lockKey: string,
+  resolvedPackageName: string
+): string | undefined {
+  const match = lockText.match(
+    new RegExp(
+      `"${escapeRegExp(lockKey)}": \\["${escapeRegExp(resolvedPackageName)}@([^"]+)"`
+    )
+  );
+
+  return match?.[1];
+}
+
+function findNestedLockfileVersions(
+  lockText: string,
+  prefix: string,
+  resolvedPackageName: string
+): string[] {
+  const regex = new RegExp(
+    `"${escapeRegExp(prefix + resolvedPackageName)}": \\["${escapeRegExp(resolvedPackageName)}@([^"]+)"`,
+    'g'
+  );
+  const versions = new Set<string>();
+
+  for (const match of lockText.matchAll(regex)) {
+    if (match[1]) versions.add(match[1]);
+  }
+
+  return [...versions];
+}
+
+console.log('🔍 Validating OpenTelemetry / LogTape implementation\n');
 
 // Step 1: Check package.json
 try {
@@ -174,7 +210,7 @@ try {
       'Step 4',
       true,
       'Named function handlers detected',
-      `Named functions will improve trace readability in SigNoz`
+      'Named functions will improve trace readability in the observability backend'
     );
   } else if (hasAnonymousFunctions) {
     warn(
@@ -352,6 +388,202 @@ try {
   validate('Step 9', false, 'Failed to check Drizzle logging', String(error));
 }
 
+// Step 10: Check for OTel / LogTape version skew between telemetry package and root.
+// The shared telemetry package must declare the same runtime family as the root
+// to prevent split observability paths for logs.
+try {
+  const rootPkg = JSON.parse(
+    readFileSync(resolve(process.cwd(), 'package.json'), 'utf-8')
+  );
+  const telemetryPkg = JSON.parse(
+    readFileSync(
+      resolve(process.cwd(), 'packages/telemetry/package.json'),
+      'utf-8'
+    )
+  );
+
+  const observabilityPackages = [
+    '@opentelemetry/sdk-node',
+    '@opentelemetry/sdk-logs',
+    '@opentelemetry/exporter-logs-otlp-http',
+    '@opentelemetry/exporter-metrics-otlp-http',
+    '@opentelemetry/exporter-trace-otlp-http',
+    '@opentelemetry/resources',
+    '@opentelemetry/sdk-metrics',
+    '@opentelemetry/semantic-conventions',
+    '@logtape/logtape',
+    '@logtape/otel',
+    '@logtape/redaction'
+  ];
+
+  const skewedPackages: string[] = [];
+
+  for (const pkg of observabilityPackages) {
+    const rootVersion: string | undefined =
+      rootPkg.dependencies?.[pkg] ?? rootPkg.devDependencies?.[pkg];
+    const telemetryVersion: string | undefined =
+      telemetryPkg.dependencies?.[pkg] ?? telemetryPkg.devDependencies?.[pkg];
+
+    if (!rootVersion || !telemetryVersion) continue;
+
+    // Extract the semver range prefix (e.g. "^0.213.0" → "0.213")
+    const rootMinor = rootVersion
+      .replace(/[\^~>=<]/g, '')
+      .split('.')
+      .slice(0, 2)
+      .join('.');
+    const telemetryMinor = telemetryVersion
+      .replace(/[\^~>=<]/g, '')
+      .split('.')
+      .slice(0, 2)
+      .join('.');
+
+    if (rootMinor !== telemetryMinor) {
+      skewedPackages.push(
+        `${pkg}: root=${rootVersion}, telemetry=${telemetryVersion}`
+      );
+    }
+  }
+
+  if (skewedPackages.length === 0) {
+    validate(
+      'Step 10',
+      true,
+      'No OTel / LogTape version skew between root and packages/telemetry',
+      'Root and telemetry package declare the same observability minor families'
+    );
+  } else {
+    validate(
+      'Step 10',
+      false,
+      'OTel / LogTape version skew detected between root and packages/telemetry',
+      `Skewed packages (creates split runtime families, especially risky for logs):\n     ${skewedPackages.join('\n     ')}\n     Fix: align packages/telemetry dependencies to match root package.json versions.`
+    );
+  }
+} catch (error) {
+  validate(
+    'Step 10',
+    false,
+    'Failed to check OTel / LogTape version skew',
+    String(error)
+  );
+}
+
+// Step 11: Ensure the shared telemetry package does not resolve its own nested OTel family.
+// If bun.lock contains @urlfy/telemetry/@opentelemetry/* entries for the logging path,
+// the shared provider/exporter path is split and can behave differently from the root runtime.
+try {
+  const lockText = readFileSync(resolve(process.cwd(), 'bun.lock'), 'utf-8');
+  const criticalPackages = [
+    '@opentelemetry/sdk-node',
+    '@opentelemetry/sdk-logs',
+    '@opentelemetry/exporter-logs-otlp-http'
+  ];
+
+  const nestedTelemetryPackages: string[] = [];
+
+  for (const pkg of criticalPackages) {
+    const rootVersion = findLockfileVersion(lockText, pkg, pkg);
+    const nestedVersions = findNestedLockfileVersions(
+      lockText,
+      '@urlfy/telemetry/',
+      pkg
+    );
+
+    for (const version of nestedVersions) {
+      nestedTelemetryPackages.push(
+        `${pkg}: nested=${version}, root=${rootVersion ?? 'missing'}`
+      );
+    }
+  }
+
+  if (nestedTelemetryPackages.length === 0) {
+    validate(
+      'Step 11',
+      true,
+      'Shared telemetry path resolves root OTel packages directly',
+      'bun.lock contains no nested @urlfy/telemetry OTel logging-path packages'
+    );
+  } else {
+    validate(
+      'Step 11',
+      false,
+      'Shared telemetry path resolves nested OTel packages',
+      `Nested packages found under @urlfy/telemetry:\n     ${nestedTelemetryPackages.join('\n     ')}\n     Fix: dedupe the shared telemetry package onto the root OTel family.`
+    );
+  }
+} catch (error) {
+  validate(
+    'Step 11',
+    false,
+    'Failed to inspect bun.lock for shared telemetry path',
+    String(error)
+  );
+}
+
+// Step 12: Nested OTel families inside adapters/plugins are acceptable only if the
+// shared logging path is explicitly isolated from them.
+try {
+  const lockText = readFileSync(resolve(process.cwd(), 'bun.lock'), 'utf-8');
+  const initTs = readFileSync(
+    resolve(process.cwd(), 'packages/telemetry/src/init.ts'),
+    'utf-8'
+  );
+  const criticalPackages = [
+    '@opentelemetry/sdk-node',
+    '@opentelemetry/sdk-logs',
+    '@opentelemetry/exporter-logs-otlp-http'
+  ];
+
+  const usesExplicitLoggerProvider =
+    initTs.includes('getOpenTelemetrySink({') &&
+    initTs.includes('loggerProvider,');
+
+  const logtapeVersions = new Set<string>();
+  const elysiaVersions = new Set<string>();
+
+  for (const pkg of criticalPackages) {
+    for (const version of findNestedLockfileVersions(
+      lockText,
+      '@logtape/otel/',
+      pkg
+    )) {
+      logtapeVersions.add(version);
+    }
+
+    for (const version of findNestedLockfileVersions(
+      lockText,
+      '@elysiajs/opentelemetry/',
+      pkg
+    )) {
+      elysiaVersions.add(version);
+    }
+  }
+
+  if (logtapeVersions.size > 0 && !usesExplicitLoggerProvider) {
+    validate(
+      'Step 12',
+      false,
+      'Nested @logtape/otel OTel family is not isolated',
+      `@logtape/otel resolves OTel versions ${[...logtapeVersions].join(', ')}, but packages/telemetry does not pass an explicit loggerProvider to getOpenTelemetrySink().`
+    );
+  } else {
+    validate(
+      'Step 12',
+      true,
+      'Nested adapter/plugin OTel families are isolated from the shared logging path',
+      `@logtape/otel=${[...logtapeVersions].join(', ') || 'none'} (isolated via explicit loggerProvider), @elysiajs/opentelemetry=${[...elysiaVersions].join(', ') || 'none'} (API tracing plugin only)`
+    );
+  }
+} catch (error) {
+  validate(
+    'Step 12',
+    false,
+    'Failed to verify nested adapter/plugin isolation',
+    String(error)
+  );
+}
+
 // Print results
 console.log('┌─────────────────────────────────────────────────────────┐');
 console.log('│              VALIDATION RESULTS                         │');
@@ -388,7 +620,9 @@ if (failCount === 0 && warnCount === 0) {
   console.log('  1. Start infrastructure: bun run docker:up');
   console.log('  2. Start application: bun dev');
   console.log('  3. Generate traces: curl http://localhost:3000/api/health');
-  console.log('  4. View in SigNoz: http://localhost:3301\n');
+  console.log(
+    '  4. View telemetry in Grafana (self-hosted LGTM) or your OTLP backend\n'
+  );
   process.exit(0);
 } else if (failCount === 0) {
   console.log('⚠️  Implementation complete with warnings. Review above.\n');

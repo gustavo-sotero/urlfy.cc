@@ -409,7 +409,7 @@ x-api-key: urlfy_sk_live_abc123...
 
 ## Alertas de Segurança
 
-Configurados no SigNoz:
+Configurados no backend de observabilidade (Grafana LGTM / OTLP):
 
 | Alerta           | Condição                        | Ação                  |
 | ---------------- | ------------------------------- | --------------------- |

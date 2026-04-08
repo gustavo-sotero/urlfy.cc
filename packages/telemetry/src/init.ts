@@ -10,7 +10,15 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { configure, getConsoleSink, type Sink } from '@logtape/logtape';
 import { getOpenTelemetrySink } from '@logtape/otel';
 import { DEFAULT_REDACT_FIELDS, redactByField } from '@logtape/redaction';
-import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
+import {
+  context,
+  DiagConsoleLogger,
+  DiagLogLevel,
+  diag,
+  metrics,
+  propagation,
+  trace
+} from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
@@ -32,7 +40,120 @@ import {
 function getTelemetryEnv() {
   return {
     TELEMETRY_ENABLED: process.env.TELEMETRY_ENABLED === 'true',
-    OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || ''
+    // Base endpoint: trailing slashes are normalized before signal path append.
+    OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || '',
+    // Per-signal endpoint overrides: used as-is when set (no suffix appended).
+    OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:
+      process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT || '',
+    OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:
+      process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT || '',
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:
+      process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT || '',
+    // Shared headers for all OTLP exporters (format: "key1=value1,key2=value2").
+    OTEL_EXPORTER_OTLP_HEADERS: process.env.OTEL_EXPORTER_OTLP_HEADERS || '',
+    // Per-signal headers override shared headers with the same key.
+    OTEL_EXPORTER_OTLP_LOGS_HEADERS:
+      process.env.OTEL_EXPORTER_OTLP_LOGS_HEADERS || '',
+    OTEL_EXPORTER_OTLP_METRICS_HEADERS:
+      process.env.OTEL_EXPORTER_OTLP_METRICS_HEADERS || '',
+    OTEL_EXPORTER_OTLP_TRACES_HEADERS:
+      process.env.OTEL_EXPORTER_OTLP_TRACES_HEADERS || '',
+    // Service version: standard env takes priority over npm package version.
+    OTEL_SERVICE_VERSION:
+      process.env.OTEL_SERVICE_VERSION ||
+      process.env.npm_package_version ||
+      '0.1.0'
+  };
+}
+
+/**
+ * Normalize a base OTLP endpoint by trimming whitespace and removing trailing slashes.
+ *
+ * Example:
+ *   'https://collector.urlfy.cc/'  → 'https://collector.urlfy.cc'
+ *   'http://localhost:4318/'       → 'http://localhost:4318'
+ *
+ * @internal exported for unit testing only
+ */
+export function normalizeBaseEndpoint(base: string): string {
+  return base.trim().replace(/\/+$/, '');
+}
+
+/**
+ * Detect when a base endpoint is misconfigured with a signal-specific OTLP path.
+ * The base OTLP endpoint must not end with /v1/logs, /v1/metrics, or /v1/traces.
+ *
+ * @internal exported for unit testing only
+ */
+export function isSignalEndpointBase(base: string): boolean {
+  return /\/v1\/(logs|metrics|traces)$/.test(normalizeBaseEndpoint(base));
+}
+
+/**
+ * Resolve the effective OTLP signal endpoint.
+ *
+ * Priority:
+ *   1. Per-signal override (e.g. OTEL_EXPORTER_OTLP_LOGS_ENDPOINT) — used as-is.
+ *   2. Normalized base endpoint with signal suffix appended.
+ *   3. Undefined when neither the per-signal override nor base endpoint is set.
+ *
+ * Per-signal overrides are assumed to be full path URLs pointing directly at the
+ * signal receiver. No suffix is added. Base endpoint is normalized to strip trailing
+ * slashes before suffix append so 'https://collector.urlfy.cc/' correctly becomes
+ * 'https://collector.urlfy.cc/v1/logs' rather than 'https://collector.urlfy.cc//v1/logs'.
+ *
+ * @internal exported for unit testing only
+ */
+export function resolveSignalEndpoint(
+  base: string,
+  signalOverride: string,
+  suffix: '/v1/logs' | '/v1/metrics' | '/v1/traces'
+): string | undefined {
+  const trimmedOverride = signalOverride.trim();
+  if (trimmedOverride) return trimmedOverride;
+
+  const normalizedBase = normalizeBaseEndpoint(base);
+  if (!normalizedBase) return undefined;
+
+  return `${normalizedBase}${suffix}`;
+}
+
+/**
+ * Parse OTEL_EXPORTER_OTLP_HEADERS into a Record<string, string>.
+ * Standard format: "key1=value1,key2=value2"
+ * Returns an empty object if the raw string is empty.
+ *
+ * @internal exported for unit testing only
+ */
+export function parseOtlpHeaders(raw: string): Record<string, string> {
+  if (!raw) return {};
+  const result: Record<string, string> = {};
+  for (const pair of raw.split(',')) {
+    const trimmed = pair.trim();
+    if (!trimmed) continue;
+    const idx = trimmed.indexOf('=');
+    if (idx === -1) {
+      result[trimmed] = '';
+    } else {
+      result[trimmed.slice(0, idx).trim()] = trimmed.slice(idx + 1).trim();
+    }
+  }
+  return result;
+}
+
+/**
+ * Resolve effective OTLP headers for a signal by merging shared headers with
+ * signal-specific headers. Signal-specific keys take precedence.
+ *
+ * @internal exported for unit testing only
+ */
+export function resolveSignalHeaders(
+  sharedRaw: string,
+  signalRaw: string
+): Record<string, string> {
+  return {
+    ...parseOtlpHeaders(sharedRaw),
+    ...parseOtlpHeaders(signalRaw)
   };
 }
 
@@ -51,15 +172,22 @@ if (
 
 const resource = resourceFromAttributes({
   [SEMRESATTRS_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'urlfy-api',
-  [SEMRESATTRS_SERVICE_VERSION]: process.env.npm_package_version || '0.1.0',
+  [SEMRESATTRS_SERVICE_VERSION]:
+    process.env.OTEL_SERVICE_VERSION ||
+    process.env.npm_package_version ||
+    '0.1.0',
   [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development'
 });
+
+function createLoggerProvider() {
+  return new LoggerProvider({ resource });
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // LOGGER PROVIDER
 // ═══════════════════════════════════════════════════════════════════
 
-export let loggerProvider = new LoggerProvider({ resource });
+export let loggerProvider = createLoggerProvider();
 
 // Generic type to allow access to addLogRecordProcessor
 type LoggerProviderWithProcessor = LoggerProvider & {
@@ -117,27 +245,109 @@ export function initTelemetry() {
     return;
   }
 
-  if (!env.OTEL_EXPORTER_OTLP_ENDPOINT) {
-    writeBootstrap('warn', 'Telemetry enabled but endpoint is missing', {
-      reason: 'OTEL_EXPORTER_OTLP_ENDPOINT not set'
-    });
+  const hasAnyEndpoint =
+    !!env.OTEL_EXPORTER_OTLP_ENDPOINT ||
+    !!env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT ||
+    !!env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT ||
+    !!env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+
+  if (!hasAnyEndpoint) {
+    writeBootstrap(
+      'warn',
+      'Telemetry enabled but no OTLP endpoint configured',
+      {
+        reason:
+          'Set OTEL_EXPORTER_OTLP_ENDPOINT or per-signal endpoint env vars'
+      }
+    );
     telemetryInitialized = true;
     return;
   }
 
-  const traceExporter = new OTLPTraceExporter({
-    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`
+  if (
+    env.OTEL_EXPORTER_OTLP_ENDPOINT &&
+    isSignalEndpointBase(env.OTEL_EXPORTER_OTLP_ENDPOINT)
+  ) {
+    writeBootstrap(
+      'warn',
+      'OTLP base endpoint appears to include a signal path',
+      {
+        configuredBase: normalizeBaseEndpoint(env.OTEL_EXPORTER_OTLP_ENDPOINT),
+        reason:
+          'Use the collector base URL without /v1/logs, /v1/metrics, or /v1/traces'
+      }
+    );
+  }
+
+  const traceHeaders = resolveSignalHeaders(
+    env.OTEL_EXPORTER_OTLP_HEADERS,
+    env.OTEL_EXPORTER_OTLP_TRACES_HEADERS
+  );
+  const metricHeaders = resolveSignalHeaders(
+    env.OTEL_EXPORTER_OTLP_HEADERS,
+    env.OTEL_EXPORTER_OTLP_METRICS_HEADERS
+  );
+  const logHeaders = resolveSignalHeaders(
+    env.OTEL_EXPORTER_OTLP_HEADERS,
+    env.OTEL_EXPORTER_OTLP_LOGS_HEADERS
+  );
+
+  const traceHeaderCount = Object.keys(traceHeaders).length;
+  const metricHeaderCount = Object.keys(metricHeaders).length;
+  const logHeaderCount = Object.keys(logHeaders).length;
+
+  const tracesEndpoint = resolveSignalEndpoint(
+    env.OTEL_EXPORTER_OTLP_ENDPOINT,
+    env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+    '/v1/traces'
+  );
+  const metricsEndpoint = resolveSignalEndpoint(
+    env.OTEL_EXPORTER_OTLP_ENDPOINT,
+    env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+    '/v1/metrics'
+  );
+  const logsEndpoint = resolveSignalEndpoint(
+    env.OTEL_EXPORTER_OTLP_ENDPOINT,
+    env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+    '/v1/logs'
+  );
+
+  writeBootstrap('info', 'Resolved OTLP signal endpoints', {
+    traces: tracesEndpoint ?? 'disabled',
+    metrics: metricsEndpoint ?? 'disabled',
+    logs: logsEndpoint ?? 'disabled',
+    headers:
+      traceHeaderCount === 0 && metricHeaderCount === 0 && logHeaderCount === 0
+        ? 'none'
+        : `traces=${traceHeaderCount}, metrics=${metricHeaderCount}, logs=${logHeaderCount}`
   });
 
-  const metricExporter = new OTLPMetricExporter({
-    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/metrics`
-  });
+  const traceExporter = tracesEndpoint
+    ? new OTLPTraceExporter({
+        url: tracesEndpoint,
+        ...(traceHeaderCount > 0 ? { headers: traceHeaders } : {})
+      })
+    : undefined;
 
-  const logExporter = new OTLPLogExporter({
-    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/logs`
-  });
+  const metricReader = metricsEndpoint
+    ? new PeriodicExportingMetricReader({
+        exporter: new OTLPMetricExporter({
+          url: metricsEndpoint,
+          ...(metricHeaderCount > 0 ? { headers: metricHeaders } : {})
+        }),
+        exportIntervalMillis:
+          process.env.NODE_ENV === 'development' ? 10000 : 60000
+      })
+    : undefined;
 
-  if (!logProcessorConfigured) {
+  const logExporter = logsEndpoint
+    ? new OTLPLogExporter({
+        url: logsEndpoint,
+        ...(logHeaderCount > 0 ? { headers: logHeaders } : {})
+      })
+    : undefined;
+
+  if (logExporter && !logProcessorConfigured) {
     const logProcessor = new BatchLogRecordProcessor(logExporter, {
       maxQueueSize: 2048,
       maxExportBatchSize: 512,
@@ -161,18 +371,10 @@ export function initTelemetry() {
     logProcessorConfigured = true;
   }
 
-  const metricExportIntervalMillis =
-    process.env.NODE_ENV === 'development' ? 10000 : 60000;
-
   sdk = new NodeSDK({
     resource,
-    traceExporter,
-    metricReaders: [
-      new PeriodicExportingMetricReader({
-        exporter: metricExporter,
-        exportIntervalMillis: metricExportIntervalMillis
-      })
-    ],
+    ...(traceExporter ? { traceExporter } : {}),
+    ...(metricReader ? { metricReaders: [metricReader] } : {}),
     instrumentations: [
       getNodeAutoInstrumentations({
         '@opentelemetry/instrumentation-fs': {
@@ -187,8 +389,8 @@ export function initTelemetry() {
   telemetryShuttingDown = false;
 
   writeBootstrap('info', 'Telemetry initialized', {
-    endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
-    service: process.env.OTEL_SERVICE_NAME || 'urlfy-api'
+    service: process.env.OTEL_SERVICE_NAME || 'urlfy-api',
+    version: env.OTEL_SERVICE_VERSION
   });
 
   const bootstrapLogger = loggerProvider.getLogger('telemetry-bootstrap');
@@ -206,9 +408,18 @@ export function initTelemetry() {
     }
   });
 
-  void loggerProvider.forceFlush().catch(() => {
-    // Best effort: telemetry should never crash app startup
-  });
+  if (logProcessorConfigured && logsEndpoint) {
+    void loggerProvider.forceFlush().catch((err: unknown) => {
+      writeBootstrap(
+        'warn',
+        'Bootstrap log forceFlush failed – logs may not export initially',
+        {
+          error: err instanceof Error ? err.message : String(err),
+          logsEndpoint
+        }
+      );
+    });
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -216,27 +427,65 @@ export function initTelemetry() {
 // ═══════════════════════════════════════════════════════════════════
 
 export async function shutdownTelemetry() {
+  if (!telemetryInitialized || !sdk) return;
+  if (telemetryShuttingDown) return;
+
+  telemetryShuttingDown = true;
+
+  const activeSdk = sdk;
+
   try {
-    if (!telemetryInitialized || !sdk) return;
-    if (telemetryShuttingDown) return;
-
-    telemetryShuttingDown = true;
-
     // Reset LogTape before shutting down the OTel provider so any
     // in-flight log records are flushed through the OTel sink first.
     if (loggingConfigured) {
-      const { reset } = await import('@logtape/logtape');
-      await reset();
-      loggingConfigured = false;
+      try {
+        const { reset } = await import('@logtape/logtape');
+        await reset();
+      } catch (error) {
+        writeBootstrap('error', 'Failed to reset LogTape during shutdown', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      } finally {
+        loggingConfigured = false;
+      }
     }
 
-    await loggerProvider.forceFlush();
-    await loggerProvider.shutdown();
-    await sdk.shutdown();
+    try {
+      await loggerProvider.forceFlush();
+    } catch (error) {
+      writeBootstrap('error', 'Telemetry forceFlush failed during shutdown', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+
+    try {
+      await loggerProvider.shutdown();
+    } catch (error) {
+      writeBootstrap('error', 'Telemetry logger provider shutdown failed', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+
+    try {
+      await activeSdk.shutdown();
+    } catch (error) {
+      writeBootstrap('error', 'Telemetry SDK shutdown failed', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+
+    // Reset OTel globals so tests and other controlled re-init paths can
+    // register fresh providers after shutdown.
+    trace.disable();
+    metrics.disable();
+    propagation.disable();
+    context.disable();
 
     sdk = null;
     telemetryInitialized = false;
     telemetryShuttingDown = false;
+    logProcessorConfigured = false;
+    loggerProvider = createLoggerProvider();
 
     writeBootstrap('info', 'Telemetry shut down gracefully');
   } catch (error) {
@@ -280,7 +529,7 @@ const URLFY_REDACT_PATTERNS: (string | RegExp)[] = [
  * already configured in this module — zero duplication of exporters.
  *
  * Sinks:
- * - otel: Sends logs via the existing OTel LoggerProvider to SigNoz
+ * - otel: Sends logs via the existing OTel LoggerProvider to the OTLP collector
  * - console: Structured console output (dev only), wrapped with field redaction
  *
  * Categories:
@@ -293,10 +542,10 @@ const URLFY_REDACT_PATTERNS: (string | RegExp)[] = [
 export async function configureLogging(): Promise<void> {
   if (loggingConfigured) return;
 
-  const env = getTelemetryEnv();
   const isDev = process.env.NODE_ENV === 'development';
-  const telemetryActive =
-    env.TELEMETRY_ENABLED && !!env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  // Use the module-level logProcessorConfigured flag rather than re-reading env vars.
+  // This accurately reflects whether the OTel log pipeline was set up in initTelemetry().
+  const telemetryActive = logProcessorConfigured;
 
   // Build sinks
   const sinks: Record<string, Sink> = {};
@@ -365,6 +614,17 @@ export async function configureLogging(): Promise<void> {
       telemetryActive,
       isDev
     });
+
+    if (telemetryActive) {
+      // Emit a single pipeline probe log through LogTape → OTel sink to confirm
+      // the end-to-end path is wired. Distinguishes "pipeline initialized" from
+      // "no log records were ever produced at runtime".
+      const { getLogger: getLogTapeLogger } = await import('@logtape/logtape');
+      getLogTapeLogger(['urlfy', 'telemetry']).info(
+        'Telemetry logging pipeline active',
+        { event: 'telemetry.logging.ready', sinks: appSinks }
+      );
+    }
   } catch (error) {
     writeBootstrap('error', 'Failed to configure LogTape', {
       error: error instanceof Error ? error.message : String(error)

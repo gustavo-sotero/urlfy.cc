@@ -248,7 +248,7 @@ Idempotency-Key: idem_550e8400-e29b-41d4-a716-446655440000
 ### Monitoramento
 
 ```typescript
-// Instrumentação para SigNoz
+// Instrumentação para o backend OTLP (Grafana LGTM, SigNoz, etc.)
 import { metrics } from '@opentelemetry/api';
 
 const cacheHitCounter = metrics.createCounter('cache.hits');
@@ -282,7 +282,7 @@ async function getLinkWithFallback(code: string) {
       // Redis down - fallback direto para PostgreSQL
       console.warn('Redis unavailable, falling back to PostgreSQL');
 
-      // Alerta para SigNoz
+      // Alerta para o backend de observabilidade
       recordEvent('redis_fallback', { code });
 
       return await db.query.links.findFirst({

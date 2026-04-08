@@ -1,494 +1,244 @@
-# SigNoz Observability Setup
+# Observability Setup (Grafana LGTM / OTLP Collector)
 
 > 📖 [← Voltar ao Overview](./overview.md) | [Caching →](./caching-strategy.md)
 
-**Navegação:** [Overview](./overview.md) · [Database](./database-schema.md) · [Caching](./caching-strategy.md) · [Security](./security.md) · [SigNoz](#) · [API](../api/endpoints.md)
+**Navegação:** [Overview](./overview.md) · [Database](./database-schema.md) · [Caching](./caching-strategy.md) · [Security](./security.md) · [Observability](#) · [API](../api/endpoints.md)
+
+> **Note:** This document previously described a self-hosted SigNoz setup. The current production backend is self-hosted **Grafana LGTM** (`grafana/otel-lgtm` Docker image). The application telemetry client (OTLP HTTP) is collector-agnostic — any OTLP-compatible backend (SigNoz, Grafana Cloud, Honeycomb, etc.) works with the same env vars.
 
 ---
 
 ## Overview
 
-urlfy.cc uses [SigNoz](https://signoz.io) for unified observability (traces, metrics, logs).
-The application includes full OpenTelemetry instrumentation out of the box.
+urlfy.cc uses [OpenTelemetry](https://opentelemetry.io/) for unified observability (traces, metrics, logs). All three signals are exported via **OTLP HTTP** from the shared `@urlfy/telemetry` package.
 
-### Architecture
+The shared telemetry package (`packages/telemetry/`) is the single canonical entrypoint for all observability across API, web, and worker services.
+
+### Production Collector Topology
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           SIGNOZ STACK                                  │
+│                    GRAFANA LGTM STACK (self-hosted)                     │
 │                                                                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                  │
-│  │  Zookeeper   │  │  ClickHouse  │  │   SigNoz     │                  │
-│  │   (3.7.1)    │◄─┤   (25.5.6)   │◄─┤  Query Svc   │                  │
-│  └──────────────┘  └──────────────┘  └──────┬───────┘                  │
-│                                              │                          │
-│                    ┌─────────────────────────┼─────────────────────┐   │
-│                    │                         ▼                     │   │
-│                    │  ┌──────────────────────────────────────┐    │   │
-│                    │  │       OTEL Collector                 │    │   │
-│                    │  │  ┌─────────┐  ┌─────────┐            │    │   │
-│                    │  │  │  :4317  │  │  :4318  │            │    │   │
-│                    │  │  │  gRPC   │  │  HTTP   │            │    │   │
-│                    │  │  └────▲────┘  └────▲────┘            │    │   │
-│                    │  └───────┼────────────┼─────────────────┘    │   │
-│                    │          │            │                       │   │
-│                    └──────────┼────────────┼───────────────────────┘   │
-│                               │            │                           │
-│  ┌────────────────────────────┼────────────┼───────────────────────┐  │
-│  │                    signoz-net           │                       │  │
-│  └────────────────────────────┼────────────┼───────────────────────┘  │
-│                               │            │                           │
-└───────────────────────────────┼────────────┼───────────────────────────┘
-                                │            │
-┌───────────────────────────────┼────────────┼───────────────────────────┐
-│                       URLFY STACK          │                           │
-│                               │            │                           │
-│  ┌────────────────────────────▼────────────▼───────────────────────┐  │
-│  │                        APP (Next.js + Elysia)                   │  │
-│  │  OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318  │  │
-│  └─────────────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                   grafana/otel-lgtm container                    │   │
+│  │                                                                  │   │
+│  │  ┌──────────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐  │   │
+│  │  │  OTel Coll.  │  │  Loki    │  │  Mimir   │  │   Tempo    │  │   │
+│  │  │  :4317 gRPC  │  │  (logs)  │  │ (metrics)│  │  (traces)  │  │   │
+│  │  │  :4318 HTTP  │  └──────────┘  └──────────┘  └────────────┘  │   │
+│  │  └──────┬───────┘                                               │   │
+│  │         │  ingests all signals                                  │   │
+│  │  ┌──────▼───────────────────────────────┐                      │   │
+│  │  │           Grafana UI (:3000)          │                      │   │
+│  │  └───────────────────────────────────────┘                      │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                            dokploy-network                              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ▲
+                         OTLP HTTP (port 4318)
+                                    │
+┌───────────────────────────────────┴───────────────────────────────────┐
+│                         URLFY APPLICATION                              │
 │                                                                         │
-│  ┌──────────────┐  ┌──────────────┐                                    │
-│  │  PostgreSQL  │  │    Redis     │                                    │
-│  └──────────────┘  └──────────────┘                                    │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────────────┐   │
+│  │  Next.js (web) │  │ Elysia (api)   │  │  Bun Workers (worker)  │   │
+│  │  @urlfy/telemetry  @urlfy/telemetry   @urlfy/telemetry          │   │
+│  └────────────────┘  └────────────────┘  └────────────────────────┘   │
 │                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐  │
-│  │                    urlfy-network                                │  │
-│  └─────────────────────────────────────────────────────────────────┘  │
-│                                                                         │
+│  OTEL_EXPORTER_OTLP_ENDPOINT=https://collector.urlfy.cc                │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Port Mapping:**
+### Signal Paths
 
-| Service        | Port   | Protocol | Purpose                          |
-| -------------- | ------ | -------- | -------------------------------- |
-| SigNoz UI      | `8080` | HTTP     | Dashboard & alerting             |
-| OTEL Collector | `4317` | gRPC     | OTLP gRPC receiver               |
-| OTEL Collector | `4318` | HTTP     | OTLP HTTP receiver (used by app) |
-| ClickHouse     | `9000` | TCP      | Internal DB (not exposed)        |
-
----
-
-## Prerequisites
-
-- Docker with minimum **4GB RAM** allocated
-- Docker Compose v2.x
-- ~3GB disk space for ClickHouse data
-
-> ⚠️ **Windows Users:** SigNoz is not officially supported on Windows.
-> Use WSL2 with Docker Desktop configured to use WSL2 backend.
+| Signal  | Endpoint Path | Receiver              |
+| ------- | ------------- | --------------------- |
+| Logs    | `/v1/logs`    | OTel Collector → Loki |
+| Metrics | `/v1/metrics` | OTel Collector → Mimir|
+| Traces  | `/v1/traces`  | OTel Collector → Tempo|
 
 ---
 
-## Quick Start
+## Important: `ENABLE_LOGS_ALL` is NOT an Application Flag
 
-### 1. One-command setup (recommended)
+The `grafana/otel-lgtm` Docker image supports an `ENABLE_LOGS_ALL=true` environment variable. This controls **internal component logging** (Grafana/Loki/Tempo/OTel Collector internal logs piped to stdout) for container-level troubleshooting.
+
+It does **not** enable or disable application OTLP log ingestion.
+
+Application logs arrive via the standard OTLP HTTP path (`POST /v1/logs`) regardless of `ENABLE_LOGS_ALL`. Setting `ENABLE_LOGS_ALL=true` will produce more verbose container logs in `docker logs lgtm` but will not fix missing application logs.
+
+---
+
+## Environment Variables
+
+| Variable                                | Required | Default     | Description                                                  |
+| --------------------------------------- | -------- | ----------- | ------------------------------------------------------------ |
+| `TELEMETRY_ENABLED`                     | Yes      | `false`     | Enable OTLP export (traces, metrics, logs)                   |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`           | Yes*     | —           | **Base URL** of OTLP HTTP collector, WITHOUT `/v1/*` suffix  |
+| `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`      | No       | —           | Per-signal override for logs (full URL, used as-is)          |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`   | No       | —           | Per-signal override for metrics (full URL, used as-is)       |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`    | No       | —           | Per-signal override for traces (full URL, used as-is)        |
+| `OTEL_EXPORTER_OTLP_HEADERS`            | No       | —           | Comma-separated `key=value` HTTP headers for all exporters   |
+| `OTEL_EXPORTER_OTLP_LOGS_HEADERS`       | No       | —           | Extra headers for logs only; overrides matching shared keys  |
+| `OTEL_EXPORTER_OTLP_METRICS_HEADERS`    | No       | —           | Extra headers for metrics only; overrides matching shared keys |
+| `OTEL_EXPORTER_OTLP_TRACES_HEADERS`     | No       | —           | Extra headers for traces only; overrides matching shared keys |
+| `OTEL_SERVICE_NAME`                     | No       | `urlfy-api` | Service name in telemetry backend                            |
+| `OTEL_SERVICE_VERSION`                  | No       | npm version | Service version (overrides embedded npm package version)     |
+| `OTEL_DEBUG`                            | No       | `false`     | Enable OTel SDK internal diagnostics (dev only)              |
+
+> *At least one of the base endpoint or a per-signal endpoint must be set when `TELEMETRY_ENABLED=true`.
+
+### Endpoint Format
+
+The base endpoint must be the **collector HTTP base URL** without any `/v1/*` signal path suffix. The application appends `/v1/logs`, `/v1/metrics`, and `/v1/traces` automatically. Trailing slashes are normalized.
 
 ```bash
-bun run observability:up
+# ✅ Correct — trailing slash is normalized automatically
+OTEL_EXPORTER_OTLP_ENDPOINT=https://collector.urlfy.cc/
+
+# ✅ Also correct — no trailing slash
+OTEL_EXPORTER_OTLP_ENDPOINT=https://collector.urlfy.cc
+
+# ✅ Correct — local dev with grafana/otel-lgtm on port 4318
+OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+
+# ❌ Wrong — do not include the signal suffix in the base endpoint
+OTEL_EXPORTER_OTLP_ENDPOINT=https://collector.urlfy.cc/v1/logs
 ```
 
-> ⚠️ **Windows note:** Docker Desktop must be running with WSL2 backend enabled, otherwise the command will fail.
+### Per-Signal Override
 
-This command:
-
-1. Clones SigNoz (if missing)
-2. Starts the SigNoz stack
-3. Starts urlfy with the SigNoz override compose
-
-To stop everything:
+Per-signal endpoint overrides are used **as-is** (no suffix is appended). Use these when different signals go to different backends:
 
 ```bash
-bun run observability:down
+# Send logs to a dedicated endpoint, traces/metrics to the base
+OTEL_EXPORTER_OTLP_ENDPOINT=https://collector.urlfy.cc
+OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=https://logs-only.collector.urlfy.cc/v1/logs
+```
+
+### Header Overrides
+
+Use `OTEL_EXPORTER_OTLP_HEADERS` for headers shared by all signals. When a signal needs additional headers or a different value for the same header key, use the signal-specific header env var for that signal. Signal-specific values override matching shared keys.
+
+```bash
+OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic <base64>,X-Scope-OrgID=default
+OTEL_EXPORTER_OTLP_LOGS_HEADERS=X-Scope-OrgID=logs
 ```
 
 ---
 
-### 2. Clone SigNoz Repository (manual)
+## Production Collector Configuration (grafana/otel-lgtm)
 
-```bash
-# From urlfy.cc root directory
-git clone https://github.com/SigNoz/signoz.git ../signoz
-```
-
-Or use the convenience script:
-
-```bash
-bun run signoz:clone
-```
-
-### 3. Start SigNoz Stack
-
-```bash
-cd ../signoz/deploy/docker
-docker compose up -d
-```
-
-Or use the convenience script:
-
-```bash
-bun run signoz:up
-```
-
-Wait for all services to be healthy (~2-3 minutes on first run):
-
-```bash
-docker compose ps
-```
-
-Expected output:
-
-```
-NAME                    STATUS
-signoz-clickhouse       Up (healthy)
-signoz-otel-collector   Up
-signoz-signoz           Up (healthy)
-signoz-zookeeper-1      Up (healthy)
-```
-
-### 4. Start urlfy with SigNoz Integration
-
-```bash
-cd /path/to/urlfy.cc/docker
-docker compose -f docker-compose.yml -f docker-compose.signoz.yml up -d
-```
-
-Or use the convenience script:
-
-```bash
-bun run docker:up:observability
-```
-
-### 5. Access SigNoz Dashboard
-
-Open [http://localhost:8080](http://localhost:8080) in your browser.
-
-Default credentials: Create on first access.
-
-### 6. Validation Checklist
-
-After starting both SigNoz and urlfy, verify the integration is working:
-
-**Step 1: Check Telemetry Initialization**
-
-```bash
-# View app startup logs
-docker compose logs app | grep -i telemetry
-
-# Expected output:
-# [Telemetry] ✅ Initialized with endpoint: http://signoz-otel-collector:4318
-# [Telemetry] Service: urlfy-api
-```
-
-**Step 2: Generate Test Traffic**
-
-```bash
-# Make a request to generate telemetry data
-curl http://localhost:3000/api/health
-
-# Or visit http://localhost:3000 in your browser
-```
-
-**Step 3: Verify in SigNoz UI**
-
-1. Open [http://localhost:8080](http://localhost:8080)
-2. Navigate to **Services** tab (left sidebar)
-3. Look for `urlfy-api` in the services list
-4. Click on `urlfy-api` to view traces
-
-**Expected:** You should see traces appearing within 10-30 seconds of making requests.
-
-**Step 4: Check Metrics**
-
-1. In SigNoz UI, go to **Dashboard** tab
-2. Create a new panel with metric: `http.server.request.duration`
-3. Filter by `service.name = urlfy-api`
-
-**Step 5: Check Logs**
-
-1. Go to **Logs** tab
-2. Filter by `service.name = urlfy-api`
-3. You should see structured logs from the application
-
-**If No Data Appears:** See [Troubleshooting](#troubleshooting) section below.
-
----
-
-## Telemetry Configuration
-
-### Environment Variables
-
-| Variable                      | Default     | Description             |
-| ----------------------------- | ----------- | ----------------------- |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | -           | SigNoz collector URL    |
-| `OTEL_SERVICE_NAME`           | `urlfy-api` | Service name in traces  |
-| `OTEL_SERVICE_VERSION`        | `0.0.0`     | Semantic version        |
-| `TELEMETRY_ENABLED`           | `false`     | Enable OTel export      |
-| `OTEL_TRACES_SAMPLER_ARG`     | `1.0`       | Sampling rate (0.0-1.0) |
-| `OTEL_DEBUG`                  | `false`     | Enable verbose logging  |
-
-### Custom Metrics Exported
-
-| Metric                   | Type      | Labels                | Description            |
-| ------------------------ | --------- | --------------------- | ---------------------- |
-| `urlfy.redirect.latency` | Histogram | `cache_hit`, `status` | Redirect latency in ms |
-| `urlfy.cache.operations` | Counter   | `operation`, `result` | Cache hits/misses      |
-| `urlfy.queue.pending`    | Gauge     | `queue_name`          | Pending jobs in queue  |
-| `urlfy.db.query.latency` | Histogram | `operation`           | Database query latency |
-| `urlfy.links.created`    | Counter   | `user_type`           | Links created          |
-
----
-
-## Production Considerations
-
-### Sampling Strategy
-
-For high-traffic production, reduce sampling rate:
+Minimal recommended compose for the LGTM collector service in Dokploy:
 
 ```yaml
-# docker-compose.signoz.yml
-environment:
-  - OTEL_TRACES_SAMPLER_ARG=0.1 # Sample 10% of traces
+services:
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    volumes:
+      - lgtm-data:/data
+    environment:
+      # This controls internal component logging (Grafana/Loki/Tempo/OTel Collector
+      # internal diagnostics), NOT application OTLP log ingestion.
+      - ENABLE_LOGS_ALL=true
+    networks:
+      - dokploy-network
+    ports:
+      - "3000"   # Grafana UI
+      - "4318"   # OTLP HTTP receiver (app sends to this port)
+networks:
+  dokploy-network:
+    external: true
+volumes:
+  lgtm-data:
 ```
 
-### Resource Limits
+Set `OTEL_EXPORTER_OTLP_ENDPOINT` in the urlfy services to point at this collector:
 
-SigNoz ClickHouse can grow significantly. Set limits:
-
-```yaml
-# In signoz/deploy/docker/docker-compose.yaml
-clickhouse:
-  deploy:
-    resources:
-      limits:
-        memory: 4G
+```bash
+# In Dokploy environment variables
+TELEMETRY_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=https://collector.urlfy.cc
 ```
 
-### Data Retention
+---
 
-Default retention: 7 days (traces/logs), 30 days (metrics).
+## Bootstrap Diagnostics
 
-Configure in SigNoz UI: Settings → General → Retention Period.
+When telemetry starts, the application emits structured bootstrap log lines to stdout/stderr (before the LogTape pipeline is available). These are always present regardless of log level settings:
+
+```json
+{"level":"info","message":"Resolved OTLP signal endpoints","logger":"telemetry-bootstrap","timestamp":"...","traces":"https://collector.urlfy.cc/v1/traces","metrics":"https://collector.urlfy.cc/v1/metrics","logs":"https://collector.urlfy.cc/v1/logs","headers":"none"}
+{"level":"info","message":"Telemetry initialized","logger":"telemetry-bootstrap","timestamp":"...","service":"urlfy-api","version":"0.1.0"}
+{"level":"info","message":"LogTape logging configured","logger":"telemetry-bootstrap","timestamp":"...","sinks":["otel"],"telemetryActive":true,"isDev":false}
+```
+
+If `forceFlush()` fails during startup (e.g., collector unreachable at boot):
+
+```json
+{"level":"warn","message":"Bootstrap log forceFlush failed – logs may not export initially","logger":"telemetry-bootstrap","logsEndpoint":"https://collector.urlfy.cc/v1/logs","error":"..."}
+```
+
+After the LogTape pipeline is active, a pipeline probe record is emitted through the OTel sink to distinguish "pipeline initialized" from "no log records were ever produced":
+```
+logger: urlfy.telemetry | message: "Telemetry logging pipeline active"
+```
+
+---
+
+## Custom Metrics Exported
+
+| Metric                       | Type      | Labels                | Description               |
+| ---------------------------- | --------- | --------------------- | ------------------------- |
+| `urlfy.redirect.latency`     | Histogram | `cache_hit`, `status` | Redirect latency in ms    |
+| `urlfy.cache.hits`           | Counter   | —                     | Cache hits                |
+| `urlfy.cache.misses`         | Counter   | —                     | Cache misses              |
+| `urlfy.circuit_breaker.trips`| Counter   | —                     | Circuit breaker trips     |
+| `urlfy.redirect.errors`      | Counter   | —                     | Redirect errors           |
+| `urlfy.stampede.locks`       | Counter   | —                     | Stampede lock acquisitions|
 
 ---
 
 ## Troubleshooting
 
-### No Data in SigNoz
+### Logs appear in Grafana but are missing fields
 
-**Symptoms:** SigNoz dashboard shows no services or traces after starting the application.
+Check that `OTEL_SERVICE_NAME` is set per service in the compose file. Each service (`api`, `web`, `worker`) should have a distinct name so logs can be filtered by service in Grafana Explore.
 
-**Root Causes & Solutions:**
+### No logs in Grafana despite traces and metrics working
 
-#### 1. OTLP Endpoint URL Misconfiguration
+Traces and metrics can be healthy while logs fail silently because logs rely on a separate `LoggerProvider` pipeline (LogTape → OTel sink → `BatchLogRecordProcessor` → `OTLPLogExporter`).
 
-The OTLP/HTTP specification requires `/v1/` prefix for all signal types. Verify the exporter URLs in `packages/telemetry/src/init.ts` include:
+Checklist:
+1. Check bootstrap diagnostics for `"Resolved OTLP signal endpoints"` — confirm the logs endpoint is correct and has no double-slash (e.g., `https://collector.urlfy.cc//v1/logs` would be wrong).
+2. Check for `"Bootstrap log forceFlush failed"` in container startup logs — this means the collector was unreachable at boot and the first batch may have been lost.
+3. Run `bun run scripts/validate-opentelemetry.ts` — Step 10 checks for OTel version skew between `packages/telemetry` and root; skew silently breaks the log pipeline.
+4. Verify the LGTM collector is receiving POST requests to `/v1/logs` — not getting there at all points to a proxy/ingress issue, not an app-side issue.
+5. In Grafana Explore, check Loki and query `{service_name="urlfy-api"}` (or the exporter attribute label) — Loki may be receiving logs but displaying them under unexpected labels.
 
-- Traces: `/v1/traces`
-- Metrics: `/v1/metrics`
-- Logs: `/v1/logs`
+### `ENABLE_LOGS_ALL` not working as expected
 
-**Correct Configuration:**
+`ENABLE_LOGS_ALL=true` on the `grafana/otel-lgtm` container only increases verbosity of the **internal** LGTM stack components in the container's stdout. It is not a switch for application OTLP ingestion. Application logs sent via OTLP HTTP will still be ingested regardless.
 
-```typescript
-const traceExporter = new OTLPTraceExporter({
-  url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`
-});
-```
+### Endpoint construction produces double-slash URLs
 
-**Verification:**
+The application normalizes trailing slashes on the base endpoint before appending signal suffixes. If you see `//v1/logs` in error logs, ensure you are running the current version of `packages/telemetry/src/init.ts` (post-2026-04-08).
 
-```bash
-# Check app startup logs for successful telemetry initialization
-docker compose logs app | grep -i telemetry
-# Expected: [Telemetry] ✅ Initialized with endpoint: http://signoz-otel-collector:4318
-```
+Verify: `bun run scripts/validate-opentelemetry.ts` — Step 10 must pass.
 
-#### 2. Network Connectivity Issues
+### Collector receiving logs but they do not appear in Grafana
 
-**Verify Docker Network Configuration:**
-
-```bash
-# 1. Check if signoz-net network exists
-docker network ls | grep signoz
-
-# Expected output (name may vary):
-# abc123def456   signoz-net   bridge   local
-# OR
-# abc123def456   docker_default   bridge   local
-```
-
-If the network name differs from `signoz-net`, update `docker/docker-compose.signoz.yml`:
-
-```yaml
-networks:
-  signoz-net:
-    external: true
-    name: <ACTUAL_NETWORK_NAME> # Use the name from docker network ls
-```
-
-**Verify App is Connected to Both Networks:**
-
-```bash
-# Inspect app container networks
-docker inspect docker-app-1 | grep -A 10 "Networks"
-
-# Expected output should show both:
-# - urlfy-network
-# - signoz-net (or the actual network name)
-```
-
-**Test Connectivity:**
-
-```bash
-# From app container to SigNoz collector
-docker compose exec app ping -c 3 signoz-otel-collector
-
-# If ping fails, restart both stacks:
-cd ../signoz/deploy/docker && docker compose restart
-cd /path/to/urlfy.cc/docker && docker compose -f docker-compose.yml -f docker-compose.signoz.yml restart
-```
-
-#### 3. Environment Variable Validation
-
-**For Docker (Container-to-Container):**
-
-```bash
-# Verify OTEL_EXPORTER_OTLP_ENDPOINT is set correctly
-docker compose exec app env | grep OTEL
-
-# Expected for Docker:
-# OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
-# TELEMETRY_ENABLED=true
-```
-
-**For Local Development (`bun dev`):**
-
-```bash
-# Check .env file has localhost endpoint
-cat .env | grep OTEL
-
-# Expected for local dev:
-# OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-# TELEMETRY_ENABLED=true
-```
-
-#### 4. Check Exporter Logs
-
-```bash
-# Application logs
-docker compose logs app | grep -i otel
-
-# Look for:
-# ✅ [Telemetry] ✅ Initialized with endpoint: ...
-# ❌ Connection refused (wrong endpoint)
-# ❌ 404 Not Found (missing /v1/ prefix)
-```
-
-#### 5. Verify SigNoz Collector is Running
-
-```bash
-# Check collector status
-docker logs signoz-otel-collector 2>&1 | tail -50
-
-# Expected: "Everything is ready. Begin running and processing data."
-
-# Check if collector is receiving data
-docker logs signoz-otel-collector 2>&1 | grep "TracesExporter"
-```
-
-### High Memory Usage
-
-ClickHouse uses significant memory for queries. Recommendations:
-
-- Increase Docker memory limit to 6GB+
-- Reduce retention period
-- Enable trace sampling
-
-### Connection Refused Errors
-
-If the app can't reach the SigNoz collector:
-
-1. Ensure SigNoz is running: `docker compose ps` in signoz directory
-2. Verify the `signoz-net` network exists: `docker network ls | grep signoz`
-3. Check app is connected to both networks: `docker inspect docker-app-1`
+This is typically a Loki label or stream configuration issue, not an ingestion failure. Verify:
+- The collector is running the latest `grafana/otel-lgtm` image.
+- Query Grafana Explore → Loki with `{}` (no filters) to see all streams currently indexed.
+- Check if logs are indexed with a different resource attribute label than expected.
 
 ---
 
-## Alert Rules (SLO-based)
+## Historical Note: SigNoz
 
-Configure these alerts in SigNoz UI (Alerts → New Alert):
+Prior to 2026-04-08, urlfy.cc used a self-hosted [SigNoz](https://signoz.io) instance as the observability backend. SigNoz also accepts OTLP HTTP traffic and would work with the same `OTEL_EXPORTER_OTLP_ENDPOINT` env var — just point it at the SigNoz OTel Collector endpoint instead (typically `http://signoz-otel-collector:4318`).
 
-### Redirect Latency P99
+The application telemetry client is fully collector-agnostic. Any OTLP-compatible backend works.
 
-```yaml
-alert: HighRedirectLatency
-expr: histogram_quantile(0.99, sum(rate(urlfy_redirect_latency_bucket[5m])) by (le)) > 300
-for: 5m
-severity: warning
-annotations:
-  summary: 'Redirect P99 latency exceeds 300ms'
-```
-
-### Error Rate
-
-```yaml
-alert: HighErrorRate
-expr: sum(rate(urlfy_http_requests_total{status=~"5.."}[5m])) / sum(rate(urlfy_http_requests_total[5m])) > 0.01
-for: 5m
-severity: critical
-annotations:
-  summary: 'Error rate exceeds 1%'
-```
-
-### Cache Hit Rate
-
-```yaml
-alert: LowCacheHitRate
-expr: sum(rate(urlfy_cache_operations_total{result="hit"}[10m])) / sum(rate(urlfy_cache_operations_total[10m])) < 0.7
-for: 10m
-severity: warning
-annotations:
-  summary: 'Cache hit rate below 70%'
-```
-
----
-
-## NPM Scripts Reference
-
-| Script                              | Description                              |
-| ----------------------------------- | ---------------------------------------- |
-| `bun run signoz:clone`              | Clone SigNoz repository to ../signoz     |
-| `bun run signoz:up`                 | Start SigNoz stack                       |
-| `bun run signoz:down`               | Stop SigNoz stack                        |
-| `bun run signoz:logs`               | Tail SigNoz logs                         |
-| `bun run observability:up`          | One-command setup (clone + up both)      |
-| `bun run observability:down`        | Stop urlfy + SigNoz stacks               |
-| `bun run docker:up:observability`   | Start urlfy with SigNoz integration      |
-| `bun run docker:down:observability` | Stop urlfy with SigNoz integration       |
-| `bun run docker:logs:observability` | Tail logs for urlfy with SigNoz override |
-| `bun run docker:up:signoz`          | Alias for observability up               |
-| `bun run docker:down:signoz`        | Alias for observability down             |
-| `bun run docker:logs:signoz`        | Alias for observability logs             |
-
----
-
-## Security Considerations
-
-1. **Network isolation:** SigNoz services should not be exposed externally in production. Use reverse proxy (nginx/traefik) with authentication.
-
-2. **Retention policy:** Configure appropriate retention in SigNoz UI to prevent disk exhaustion. Default: 7 days traces, 30 days metrics.
-
-3. **Sampling in production:** Set `OTEL_TRACES_SAMPLER_ARG=0.1` (10% sampling) for high-traffic scenarios to reduce storage costs.
-
-4. **Sensitive data:** Ensure no PII is included in trace attributes. The current implementation hashes IPs before logging.
-
----
-
-## References
-
-- [SigNoz Docker Installation](https://signoz.io/docs/install/docker/)
-- [OpenTelemetry Node.js SDK](https://opentelemetry.io/docs/languages/js/getting-started/nodejs/)
-- [SigNoz Alert Configuration](https://signoz.io/docs/alerts/)
-- [urlfy.cc Architecture Overview](./overview.md)

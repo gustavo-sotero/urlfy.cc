@@ -50,7 +50,7 @@ export const ProjectPage = {
     },
     observability: {
       title: 'Observability',
-      subtitle: 'SigNoz + OpenTelemetry',
+      subtitle: 'Grafana LGTM + OpenTelemetry',
       feature1: 'Distributed traces',
       feature2: 'Performance metrics (SLOs)',
       feature3: 'Structured logs'

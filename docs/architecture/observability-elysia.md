@@ -2,7 +2,7 @@
 
 > 📖 [← Back to Overview](./overview.md)
 
-**Last Updated:** 2026-03-06
+**Last Updated:** 2026-04-08
 
 ---
 
@@ -47,7 +47,7 @@ The urlfy.cc API now uses the official `@elysiajs/opentelemetry` plugin to provi
 │  ┌────────────────────────────────────────────────────────────┐│
 │  │ Global OpenTelemetry SDK (@urlfy/telemetry)               ││
 │  │ Initialized by apps/api/src/server/init.ts                ││
-│  │ - OTLP Exporter → SigNoz                                  ││
+│  │ - OTLP HTTP exporter → collector / Grafana LGTM           ││
 │  │ - Auto-instrumentations (HTTP, pg, Redis)                 ││
 │  └────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────┘
@@ -118,11 +118,11 @@ Critical handlers are refactored to use named functions for better trace visibil
 
 ---
 
-## Viewing Traces in SigNoz
+## Viewing Traces in Grafana
 
 ### 1. Start Infrastructure
 
-Use the local infrastructure plus app services, or point the OTLP exporter at an existing SigNoz deployment:
+Use the local infrastructure plus app services, or point the OTLP exporter at an existing Grafana LGTM or other OTLP-compatible deployment:
 
 ```bash
 bun run docker:up
@@ -138,9 +138,9 @@ curl -X POST http://localhost:3000/api/links \
   -d '{"url": "https://example.com"}'
 ```
 
-### 3. Access SigNoz UI
+### 3. Access Grafana UI
 
-1. Open `http://localhost:3301`
+1. Open your Grafana UI (`grafana/otel-lgtm` defaults to `http://localhost:3000`)
 2. Navigate to **Traces**
 3. Filter by `service.name = urlfy-api`
 4. Click on a trace to see:
@@ -190,7 +190,7 @@ const link = await record('LinkService.create', async () => {
 
 - **Overhead:** < 1ms per request (negligible)
 - **Memory:** ~50KB per 1000 spans (buffered before export)
-- **Network:** Spans exported in batches to SigNoz
+- **Network:** Spans exported in batches to the OTLP collector
 
 ---
 
@@ -210,9 +210,9 @@ const link = await record('LinkService.create', async () => {
    curl http://localhost:4318/v1/traces
    ```
 
-3. **Check SigNoz logs:**
+3. **Check collector logs:**
    ```bash
-   docker compose -f docker/docker-compose.yml --profile observability logs -f signoz-otel-collector
+  docker logs lgtm
    ```
 
 ### Anonymous Span Names
@@ -226,7 +226,8 @@ Ensure handlers are named functions, not arrow functions.
 - [Elysia OpenTelemetry Plugin](https://elysiajs.com/plugins/opentelemetry.html)
 - [Elysia OpenTelemetry Patterns](https://elysiajs.com/patterns/opentelemetry.html)
 - [OpenTelemetry JS SDK](https://opentelemetry.io/docs/instrumentation/js/)
-- [SigNoz Documentation](https://signoz.io/docs/)
+- [Grafana docker-otel-lgtm](https://github.com/grafana/docker-otel-lgtm)
+- [Collector Setup](./signoz-setup.md)
 
 ---
 

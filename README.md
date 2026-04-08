@@ -45,7 +45,7 @@
 | **Cache**         | Redis 7                  | Hot-path caching, rate limiting, queues         |
 | **Queue**         | Redis Streams            | Async analytics ingestion, background jobs      |
 | **Auth**          | Better-Auth              | OAuth, 2FA, API keys, admin roles               |
-| **Observability** | SigNoz (OpenTelemetry)   | Distributed traces, metrics, structured logs    |
+| **Observability** | Grafana LGTM + OTLP      | Distributed traces, metrics, structured logs    |
 | **GeoIP**         | MaxMind GeoLite2         | Credential-free auto-download (jsDelivr CDN)    |
 | **UI**            | TailwindCSS + shadcn/ui  | Accessible component library, responsive design |
 | **Validation**    | TypeBox + Zod            | Runtime schema validation, type inference       |
@@ -118,7 +118,7 @@ apps/worker (no port / Bun)
 │                              └──────────────────────────────┘ │
 │                                                              │
 │  ┌────────────────────────────────────────────────────────┐  │
-│  │         GeoIP Downloader + SigNoz (optional)          │  │
+│  │   GeoIP Downloader + local OTLP collector (optional)  │  │
 │  └────────────────────────────────────────────────────────┘  │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
@@ -229,8 +229,8 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 | `RESEND_FROM`                 | No       | —                               | Sender email address                     |
 | `TELEGRAM_BOT_TOKEN`          | No       | —                               | Telegram bot token for contact alerts    |
 | `TELEGRAM_CHAT_ID`            | No       | —                               | Telegram chat ID for notifications       |
-| `TELEMETRY_ENABLED`           | No       | `false`                         | Enable OpenTelemetry tracing             |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | No       | —                               | SigNoz/OTLP collector endpoint           |
+| `TELEMETRY_ENABLED`           | No       | `false`                         | Enable OpenTelemetry traces, metrics, and logs |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | No       | —                               | OTLP HTTP collector base endpoint (no `/v1/*` suffix) |
 | `GEOIP_DB_PATH`               | No       | `/app/geoip/GeoLite2-City.mmdb` | Path to GeoLite2 MMDB file               |
 | `TRUSTED_ORIGINS`             | No       | —                               | Comma-separated list of trusted origins  |
 | `API_INTERNAL_URL`            | No       | `http://localhost:3001`         | URL apps/web proxies API calls to        |
@@ -442,7 +442,7 @@ The web image validates runtime env on startup, and the worker validates its own
 | [Caching Strategy](docs/architecture/caching-strategy.md)  | Redis cache-aside, stampede protection |
 | [Security](docs/architecture/security.md)                  | Rate limiting, CORS, CSRF, LGPD        |
 | [API Endpoints](docs/api/endpoints.md)                     | Full REST API reference                |
-| [Observability](docs/architecture/observability-elysia.md) | OpenTelemetry + SigNoz setup           |
+| [Observability](docs/architecture/observability-elysia.md) | OpenTelemetry + LGTM / OTLP collector setup |
 | [Best Practices](docs/development/best-practices.md)       | Code conventions and patterns          |
 | [Decoupling Status](docs/architecture/monorepo-decoupling.md) | Monorepo split implementation status |
 | [Redirect Performance Baseline](docs/development/redirect-performance-baseline.md) | Baseline and k6 validation flow |
