@@ -57,11 +57,11 @@
 - **Status:** Open
 - **Context:** Top-level Bun overrides are currently used to pin patched transitive versions while upstream dependency trees converge.
 - **Current tracked overrides and exit criteria:**
-  - `file-type@^21.3.1` (malformed ASF parser advisory): remove when all direct/transitive dependents declare fixed ranges and lockfile resolves patched version without override.
-  - `hono@^4.12.7` (parseBody prototype pollution advisory): remove when Better-Auth and Drizzle transitive graph resolves to fixed version natively.
+  - `file-type@^21.3.2` (ZIP decompression bomb advisory): remove when all direct/transitive dependents declare fixed ranges and lockfile resolves patched version without override.
+  - `hono@^4.12.12` (cookie handling and repeated-slash middleware advisories): remove when Better-Auth and Drizzle transitive graph resolves to fixed version natively.
   - `dompurify@^3.3.2`: remove when all consuming packages resolve this minimum version without override.
   - `esbuild@^0.25.0`: remove when transitive tooling converges and `bun audit --production` remains clean without override.
-  - `@hono/node-server@^1.19.11`, `lodash@^4.17.23`, `mailparser@^3.9.3`: remove once lockfile naturally pins patched versions and CI security job remains green after override dry-run removal.
+  - `@hono/node-server@^1.19.13`, `defu@^6.1.7`, `effect@^3.21.0`, `kysely@^0.28.15`, `lodash@^4.18.1`, `mailparser@^3.9.3`, `picomatch@^4.0.4`, `yaml@^2.8.3`: remove once lockfile naturally pins patched versions and CI security job remains green after override dry-run removal.
 - **Validation gate before each removal attempt:**
   - `bun run security:audit`
   - `bun run check:secrets`

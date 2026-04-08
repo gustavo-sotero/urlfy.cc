@@ -32,14 +32,14 @@
     "db:seed:analytics": "bun run src/scripts/seed-analytics.ts"
   },
   "dependencies": {
-    "@logtape/drizzle-orm": "^2.0.2",
+    "@logtape/drizzle-orm": "catalog:",
     "@urlfy/telemetry": "workspace:*",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "catalog:",
     "nanoid": "^5.1.6"
   },
   "devDependencies": {
     "@urlfy/config-ts": "workspace:*",
-    "drizzle-kit": "^0.31.8",
+    "drizzle-kit": "catalog:tooling",
     "postgres": "^3.4.8"
   }
 }

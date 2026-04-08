@@ -16,7 +16,7 @@
     "test:unit": "bun test src/"
   },
   "dependencies": {
-    "better-auth": "1.5.4"
+    "better-auth": "catalog:"
   },
   "devDependencies": {
     "@urlfy/config-ts": "workspace:*"

@@ -24,8 +24,8 @@
     "@urlfy/contracts": "workspace:*",
     "@urlfy/data": "workspace:*",
     "@urlfy/telemetry": "workspace:*",
-    "@opentelemetry/api": "^1.9.0",
-    "drizzle-orm": "^0.45.1"
+    "@opentelemetry/api": "catalog:",
+    "drizzle-orm": "catalog:"
   },
   "devDependencies": {
     "@urlfy/config-ts": "workspace:*"
