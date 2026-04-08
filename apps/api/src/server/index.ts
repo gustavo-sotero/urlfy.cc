@@ -16,6 +16,7 @@ import { auth } from '@/lib/auth';
 // Plugins
 import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
 import { ErrorCode, isAppError } from '@/server/lib/error-handler';
+import { shouldSkipHttpLog } from '@/server/lib/http-log';
 import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 import { ResponseModels } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
@@ -163,10 +164,7 @@ export const api = new Elysia({ prefix: '/api' })
       category: ['urlfy', 'http'],
       level: 'info',
       format: 'short',
-      skip: (ctx) =>
-        ctx.path === '/api/health' ||
-        ctx.path === '/api/health/ready' ||
-        ctx.path.startsWith('/api/internal/docs')
+      skip: shouldSkipHttpLog
     })
   )
 
