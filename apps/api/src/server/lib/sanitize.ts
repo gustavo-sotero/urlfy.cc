@@ -3,7 +3,6 @@
  * Prevents XSS, injection attacks, and enforces security policies
  */
 
-import DOMPurify from 'isomorphic-dompurify';
 import { createLogger } from './telemetry';
 
 const logger = createLogger('sanitizer');
@@ -14,6 +13,22 @@ const IMAGE_URL_MAX = 500;
 const TAGS_MAX_LENGTH = 50;
 const TAGS_MAX_COUNT = 10;
 const NOTES_MAX = 500;
+const SEARCH_QUERY_MAX = 200;
+
+const DANGEROUS_PROTOCOL_PATTERN =
+  /\b(?:javascript|data|vbscript|file|about)\s*:/gi;
+
+const BLOCKED_HTML_TAGS = new Set([
+  'script',
+  'style',
+  'iframe',
+  'object',
+  'embed',
+  'svg',
+  'math',
+  'noscript',
+  'template'
+]);
 
 // Allowed CDNs for OG images
 const ALLOWED_IMAGE_HOSTS = new Set([
@@ -28,6 +43,152 @@ const ALLOWED_IMAGE_HOSTS = new Set([
   'platform.twitter.com'
 ]);
 
+function findTagEnd(input: string, startIndex: number): number {
+  let quote: '"' | "'" | null = null;
+
+  for (let index = startIndex; index < input.length; index++) {
+    const char = input[index];
+
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char === '>') {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function getTagName(tagBody: string): string | null {
+  const normalized = tagBody.trim().replace(/^\/+/, '');
+  const match = normalized.match(/^[a-zA-Z][\w:-]*/);
+
+  return match ? match[0].toLowerCase() : null;
+}
+
+function removeBlockedTag(tagStack: string[], tagName: string): void {
+  for (let index = tagStack.length - 1; index >= 0; index--) {
+    if (tagStack[index] === tagName) {
+      tagStack.splice(index, 1);
+      return;
+    }
+  }
+}
+
+function stripHtmlToPlainText(input: string): string {
+  let output = '';
+  let index = 0;
+  const blockedTagStack: string[] = [];
+
+  while (index < input.length) {
+    const char = input[index];
+
+    if (char !== '<') {
+      if (blockedTagStack.length === 0) {
+        output += char;
+      }
+      index++;
+      continue;
+    }
+
+    if (input.startsWith('<!--', index)) {
+      const commentEnd = input.indexOf('-->', index + 4);
+      index = commentEnd === -1 ? input.length : commentEnd + 3;
+      continue;
+    }
+
+    const nextChar = input[index + 1];
+    if (nextChar === undefined) {
+      if (blockedTagStack.length === 0) {
+        output += char;
+      }
+      break;
+    }
+
+    const isTagStart =
+      nextChar === '/' || nextChar === '!' || /[a-zA-Z]/.test(nextChar);
+    if (!isTagStart) {
+      if (blockedTagStack.length === 0) {
+        output += char;
+      }
+      index++;
+      continue;
+    }
+
+    const tagEnd = findTagEnd(input, index + 1);
+    if (tagEnd === -1) {
+      if (blockedTagStack.length === 0) {
+        output += input.slice(index);
+      }
+      break;
+    }
+
+    const tagBody = input.slice(index + 1, tagEnd);
+    const trimmedTagBody = tagBody.trim();
+    const isClosingTag = trimmedTagBody.startsWith('/');
+    const isSelfClosingTag = /\/\s*$/.test(trimmedTagBody);
+    const tagName = getTagName(tagBody);
+
+    if (tagName && BLOCKED_HTML_TAGS.has(tagName)) {
+      if (isClosingTag) {
+        removeBlockedTag(blockedTagStack, tagName);
+      } else if (!isSelfClosingTag) {
+        blockedTagStack.push(tagName);
+      }
+    }
+
+    index = tagEnd + 1;
+  }
+
+  return output;
+}
+
+function removeDisallowedControlChars(value: string): string {
+  let cleaned = '';
+
+  for (const char of value) {
+    const code = char.charCodeAt(0);
+    const isDisallowedControlChar =
+      (code >= 0 && code <= 8) ||
+      code === 11 ||
+      code === 12 ||
+      (code >= 14 && code <= 31) ||
+      code === 127;
+
+    if (!isDisallowedControlChar) {
+      cleaned += char;
+    }
+  }
+
+  return cleaned;
+}
+
+function sanitizePlainText(
+  text: string | null | undefined,
+  maxLength: number
+): string | null {
+  if (!text) return null;
+
+  const cleaned = removeDisallowedControlChars(
+    stripHtmlToPlainText(text).replace(DANGEROUS_PROTOCOL_PATTERN, '')
+  )
+    .trim()
+    .slice(0, maxLength)
+    .trim();
+
+  return cleaned.length > 0 ? cleaned : null;
+}
+
 /**
  * Sanitize custom OG meta tags
  * Removes HTML, limits lengths, and validates image URLs
@@ -38,17 +199,8 @@ export function sanitizeMetaTags(input: {
   image?: string | null;
 }) {
   return {
-    metaTitle: input.title?.trim()
-      ? DOMPurify.sanitize(input.title, { ALLOWED_TAGS: [] })
-          .slice(0, TITLE_MAX)
-          .trim() || null
-      : null,
-
-    metaDescription: input.description?.trim()
-      ? DOMPurify.sanitize(input.description, { ALLOWED_TAGS: [] })
-          .slice(0, DESC_MAX)
-          .trim() || null
-      : null,
+    metaTitle: sanitizePlainText(input.title, TITLE_MAX),
+    metaDescription: sanitizePlainText(input.description, DESC_MAX),
 
     metaImage: input.image ? validateImageUrl(input.image) : null
   };
@@ -107,28 +259,7 @@ export function sanitizeText(
   text: string | null | undefined,
   maxLength: number
 ): string | null {
-  if (!text) return null;
-
-  // Remove dangerous protocols first
-  const dangerousProtocols = [
-    /javascript:/gi,
-    /data:/gi,
-    /vbscript:/gi,
-    /file:/gi,
-    /about:/gi
-  ];
-
-  let cleaned = text;
-  for (const protocol of dangerousProtocols) {
-    cleaned = cleaned.replace(protocol, '');
-  }
-
-  // Then sanitize with DOMPurify
-  cleaned = DOMPurify.sanitize(cleaned, { ALLOWED_TAGS: [] })
-    .slice(0, maxLength)
-    .trim();
-
-  return cleaned.length > 0 ? cleaned : null;
+  return sanitizePlainText(text, maxLength);
 }
 
 /**
@@ -185,13 +316,8 @@ export function escapeSqlLike(value: string): string {
  * Prevents injection and reduces noise
  */
 export function sanitizeSearchQuery(query: string | null | undefined): string {
-  if (!query) return '';
-
-  // Remove dangerous special characters
-  let clean = DOMPurify.sanitize(query, { ALLOWED_TAGS: [] });
-
-  // Limit size
-  clean = clean.slice(0, 200).trim();
+  const clean = sanitizePlainText(query, SEARCH_QUERY_MAX);
+  if (!clean) return '';
 
   // Escape SQL LIKE wildcards so user input is literal
   return escapeSqlLike(clean);

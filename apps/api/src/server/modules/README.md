@@ -31,7 +31,7 @@ These services provide cross-cutting or shared-domain concerns and are intention
 | `audit.service` | App-local shim to canonical audit owner | `src/server/services/` → `@urlfy/data/services/audit-log` |
 | `metrics.service` | Request/performance metrics tracking | `src/server/services/` |
 | `email.service` | App-local shim to canonical email owner | `src/server/services/` → `@urlfy/email` |
-| `sanitizer.service` | Input sanitization (DOMPurify) | `src/server/services/` |
+| `sanitizer.service` | Input sanitization (server-safe plain text + URL policy) | `src/server/services/` |
 
 Shared entrypoints may also expose a narrow module-owned surface for other
 features without allowing sibling-module imports. Current examples include

@@ -295,7 +295,17 @@ const cookieConfig = {
 OG tags customizados devem ser sanitizados:
 
 ```typescript
-import DOMPurify from 'isomorphic-dompurify';
+function sanitizePlainText(value: string, maxLength: number): string | null {
+  const stripped = value
+    .replace(/<(script|style|iframe|object|embed|svg|math|noscript|template)[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\b(?:javascript|data|vbscript|file|about)\s*:/gi, '')
+    .trim()
+    .slice(0, maxLength)
+    .trim();
+
+  return stripped.length > 0 ? stripped : null;
+}
 
 function sanitizeMetaTags(input: {
   metaTitle?: string;
@@ -304,11 +314,11 @@ function sanitizeMetaTags(input: {
 }) {
   return {
     metaTitle: input.metaTitle
-      ? DOMPurify.sanitize(input.metaTitle).slice(0, 60)
+      ? sanitizePlainText(input.metaTitle, 60)
       : null,
 
     metaDescription: input.metaDescription
-      ? DOMPurify.sanitize(input.metaDescription).slice(0, 160)
+      ? sanitizePlainText(input.metaDescription, 160)
       : null,
 
     metaImage: input.metaImage ? validateImageUrl(input.metaImage) : null

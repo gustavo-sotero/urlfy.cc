@@ -226,8 +226,8 @@ describe('SQL Injection Prevention', () => {
       image: "admin'--"
     });
 
-    // Should be sanitized or null
-    expect(result.metaTitle).toBe("'; DROP TABLE--"); // DOMPurify removes SQL chars
+    // Should be preserved as plain text, with only HTML/protocol content removed
+    expect(result.metaTitle).toBe("'; DROP TABLE--");
     expect(result.metaDescription).toBe("1' OR '1'='1");
   });
 });
@@ -254,7 +254,7 @@ describe('XSS Prevention', () => {
         description: payload
       });
 
-      // DOMPurify should remove script tags
+      // Plain-text sanitizer should strip HTML and blocked tag contents
       if (result.metaTitle) {
         expect(result.metaTitle).not.toContain('<script');
         expect(result.metaTitle).not.toContain('onerror');

@@ -3,7 +3,8 @@ import { describe, expect, it } from 'bun:test';
 import {
   escapeSqlLike,
   sanitizeMetaTags,
-  sanitizeSearchQuery
+  sanitizeSearchQuery,
+  sanitizeText
 } from '../sanitize';
 
 describe('Sanitize', () => {
@@ -24,9 +25,6 @@ describe('Sanitize', () => {
       expect(result.metaTitle?.length).toBe(60);
     });
 
-    // Note: happy-dom has known limitations with HTML parsing in test environments
-    // DOMPurify correctly removes all HTML tags in production (jsdom or browser)
-    // This test uses a simpler case that works with happy-dom
     it('should remove HTML tags from description', () => {
       // Test with simple script tag (critical security test)
       const resultScript = sanitizeMetaTags({
@@ -92,6 +90,23 @@ describe('Sanitize', () => {
       expect(result.metaTitle).toBeNull();
       expect(result.metaDescription).toBeNull();
       expect(result.metaImage).toBeNull();
+    });
+  });
+
+  describe('sanitizeText', () => {
+    it('should remove blocked tag contents instead of keeping script payload text', () => {
+      const result = sanitizeText(
+        '<script>alert("xss")</script>visible text',
+        200
+      );
+
+      expect(result).toBe('visible text');
+    });
+
+    it('should preserve literal angle brackets that are not HTML tags', () => {
+      const result = sanitizeText('1 < 2 and 3 > 2', 200);
+
+      expect(result).toBe('1 < 2 and 3 > 2');
     });
   });
 
