@@ -7,7 +7,7 @@ import { VerificationWarning } from '@/components/dashboard/verification-warning
 import { Header } from '@/components/layout/header';
 import { Sidebar } from '@/components/layout/sidebar';
 import { redirect } from '@/i18n/routing';
-import { auth } from '@/lib/auth';
+import { getServerSession } from '@/lib/server-session';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -21,9 +21,9 @@ export default async function DashboardLayout({
   await params; // Consume params to avoid Next.js warnings
   const locale = await getLocale();
   const headersList = await headers();
-  const session = await auth.api.getSession({
+  const session = await getServerSession({
     headers: headersList,
-    query: { disableCookieCache: true }
+    disableCookieCache: true
   });
 
   if (!session?.user) {

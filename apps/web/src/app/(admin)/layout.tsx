@@ -4,7 +4,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AdminHeader } from '@/components/admin/layout/admin-header';
 import { AdminSidebar } from '@/components/admin/layout/admin-sidebar';
-import { auth } from '@/lib/auth';
+import { getServerSession } from '@/lib/server-session';
 import { getClientIpFromHeaders } from '@/server/lib/ip';
 import { auditLogService } from '@/server/services/audit.service';
 
@@ -18,10 +18,9 @@ export default async function AdminLayout({
   // ═══════════════════════════════════════════════════════════════════
   const requestHeaders = await headers();
 
-  // Force fresh session check (bypass cache) for admin routes
-  const session = await auth.api.getSession({
+  const session = await getServerSession({
     headers: requestHeaders,
-    query: { disableCookieCache: true }
+    disableCookieCache: true
   });
 
   if (!session?.user) {

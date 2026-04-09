@@ -13,7 +13,7 @@ import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { LanguageSwitcher } from '@/components/shared/language-switcher';
 import { Link } from '@/i18n/routing';
-import { auth } from '@/lib/auth';
+import { getServerSession } from '@/lib/server-session';
 
 type AuthLayoutProps = {
   children: ReactNode;
@@ -25,8 +25,9 @@ export default async function AuthLayout({
   params
 }: AuthLayoutProps) {
   const { locale } = await params;
-  const session = await auth.api.getSession({
-    headers: await headers()
+  const session = await getServerSession({
+    headers: await headers(),
+    disableCookieCache: true
   });
 
   // If user is already authenticated, redirect to dashboard

@@ -1,19 +1,36 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-const headersMock = mock(async () => new Headers());
+const headersMock = mock(
+  async () => new Headers({ cookie: 'urlfy.session_token=abc123' })
+);
 const getLocaleMock = mock(async () => 'pt-br');
 const redirectMock = mock((_args: { href: string; locale: string }) => {
   throw new Error('REDIRECT');
 });
-const getSessionMock = mock(async () => ({
-  user: {
-    name: 'Test User',
-    email: 'test@example.com',
-    image: null,
-    emailVerified: true
-  }
-}));
+const fetchMock = mock(
+  async () =>
+    new Response(
+      JSON.stringify({
+        user: {
+          name: 'Test User',
+          email: 'test@example.com',
+          image: null,
+          emailVerified: true
+        },
+        session: {
+          id: 'session-1',
+          userId: 'user-1'
+        }
+      }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      }
+    )
+);
+const originalFetch = global.fetch;
+const originalApiInternalUrl = process.env.API_INTERNAL_URL;
 
 mock.module('next/headers', () => ({
   headers: headersMock
@@ -25,14 +42,6 @@ mock.module('next-intl/server', () => ({
 
 mock.module('@/i18n/routing', () => ({
   redirect: redirectMock
-}));
-
-mock.module('@/lib/auth', () => ({
-  auth: {
-    api: {
-      getSession: getSessionMock
-    }
-  }
 }));
 
 mock.module('@/components/dashboard/verification-warning', () => ({
@@ -51,13 +60,18 @@ mock.module('@/components/layout/sidebar', () => ({
 
 describe('DashboardLayout', () => {
   afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.API_INTERNAL_URL = originalApiInternalUrl;
     headersMock.mockClear();
     getLocaleMock.mockClear();
     redirectMock.mockClear();
-    getSessionMock.mockClear();
+    fetchMock.mockClear();
   });
 
   it('forces a fresh session lookup before rendering the dashboard', async () => {
+    global.fetch = fetchMock as unknown as typeof fetch;
+    process.env.API_INTERNAL_URL = 'http://api:3001';
+
     const { default: DashboardLayout } = await import(
       '@/app/[locale]/(dashboard)/layout'
     );
@@ -69,16 +83,15 @@ describe('DashboardLayout', () => {
 
     const markup = renderToStaticMarkup(element);
 
-    expect(getSessionMock).toHaveBeenCalledWith({
-      headers: expect.any(Headers),
-      query: { disableCookieCache: true }
-    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(markup).toContain('Dashboard content');
     expect(markup).toContain('Test User');
   });
 
   it('redirects unauthenticated users to the localized login page', async () => {
-    getSessionMock.mockResolvedValueOnce(null);
+    global.fetch = fetchMock as unknown as typeof fetch;
+    process.env.API_INTERNAL_URL = 'http://api:3001';
+    headersMock.mockResolvedValueOnce(new Headers());
 
     const { default: DashboardLayout } = await import(
       '@/app/[locale]/(dashboard)/layout'
@@ -95,17 +108,32 @@ describe('DashboardLayout', () => {
       href: '/login',
       locale: 'pt-br'
     });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('renders the verification warning for unverified users', async () => {
-    getSessionMock.mockResolvedValueOnce({
-      user: {
-        name: 'Test User',
-        email: 'test@example.com',
-        image: null,
-        emailVerified: false
-      }
-    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    process.env.API_INTERNAL_URL = 'http://api:3001';
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: {
+            name: 'Test User',
+            email: 'test@example.com',
+            image: null,
+            emailVerified: false
+          },
+          session: {
+            id: 'session-1',
+            userId: 'user-1'
+          }
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      )
+    );
 
     const { default: DashboardLayout } = await import(
       '@/app/[locale]/(dashboard)/layout'
