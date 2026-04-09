@@ -3,10 +3,16 @@ import { RedisClient } from 'bun';
 import { createInMemoryRedisClient } from './mock';
 
 const logger = createLogger('redis');
+const DEFAULT_REDIS_URL = 'redis://localhost:6379';
+const DEFAULT_REDIS_HOST = 'localhost';
+const DEFAULT_REDIS_PORT = '6379';
 const REDIS_DEGRADED_BASE_MS = 5_000;
 const REDIS_DEGRADED_MAX_MS = 30_000;
 const REDIS_FAILURE_LOG_INTERVAL_MS = 10_000;
 const REDIS_HEALTHCHECK_RETRY_DELAYS_MS = [0, 100, 250, 500];
+
+type RedisEnv = Record<string, string | undefined>;
+type RedisUrlSource = 'REDIS_URL' | 'REDIS_HOST_PORT' | 'default';
 
 // Singleton do cliente Redis
 let redisInstance: RedisClient | null = null;
@@ -92,6 +98,75 @@ export function shouldLogRedisFailure(now: number = Date.now()): boolean {
   return false;
 }
 
+function getNonBlankEnvValue(env: RedisEnv, key: string): string | null {
+  const value = env[key];
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeRedisHost(host: string): string {
+  if (host.includes(':') && !host.startsWith('[') && !host.endsWith(']')) {
+    return `[${host}]`;
+  }
+
+  return host;
+}
+
+function resolveRedisConfigFromEnv(env: RedisEnv = process.env): {
+  redisUrl: string;
+  source: RedisUrlSource;
+} {
+  const explicitRedisUrl = getNonBlankEnvValue(env, 'REDIS_URL');
+
+  if (explicitRedisUrl) {
+    return {
+      redisUrl: explicitRedisUrl,
+      source: 'REDIS_URL'
+    };
+  }
+
+  const redisHost = getNonBlankEnvValue(env, 'REDIS_HOST');
+  const redisPort = getNonBlankEnvValue(env, 'REDIS_PORT');
+
+  if (redisHost || redisPort) {
+    return {
+      redisUrl: `redis://${normalizeRedisHost(redisHost ?? DEFAULT_REDIS_HOST)}:${redisPort ?? DEFAULT_REDIS_PORT}`,
+      source: 'REDIS_HOST_PORT'
+    };
+  }
+
+  return {
+    redisUrl: DEFAULT_REDIS_URL,
+    source: 'default'
+  };
+}
+
+export function resolveRedisUrlFromEnv(env: RedisEnv = process.env): string {
+  return resolveRedisConfigFromEnv(env).redisUrl;
+}
+
+function getRedisConnectionLogContext(
+  redisUrl: string,
+  source: RedisUrlSource
+) {
+  try {
+    const parsed = new URL(redisUrl);
+
+    return {
+      source,
+      host: parsed.hostname,
+      port: parsed.port || DEFAULT_REDIS_PORT
+    };
+  } catch {
+    return { source };
+  }
+}
+
 // Get or create the Redis client instance (singleton)
 export function getRedisClient(): RedisClient {
   const override = (globalThis as { __REDIS_CLIENT__?: RedisClient })
@@ -115,9 +190,14 @@ export function getRedisClient(): RedisClient {
     return redisInstance;
   }
 
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  const { redisUrl, source } = resolveRedisConfigFromEnv();
 
   try {
+    logger.info(
+      'Configuring Redis client',
+      getRedisConnectionLogContext(redisUrl, source)
+    );
+
     // Bun's native Redis client.
     // autopipelining is OFF: prevents mismatched response ordering during reconnects.
     // offlineQueue is OFF: callers get an immediate error instead of silently queuing

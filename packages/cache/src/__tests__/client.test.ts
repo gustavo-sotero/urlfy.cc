@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 mock.module('@urlfy/telemetry', () => ({
   createLogger: () => ({
@@ -20,8 +20,15 @@ import {
   markRedisCommandFailure,
   markRedisCommandSuccess,
   redisHealth,
+  resolveRedisUrlFromEnv,
   shouldLogRedisFailure
 } from '../client';
+
+const originalRedisEnv = {
+  REDIS_URL: process.env.REDIS_URL,
+  REDIS_HOST: process.env.REDIS_HOST,
+  REDIS_PORT: process.env.REDIS_PORT
+};
 
 function resetRedisHealthState() {
   redisHealth.isHealthy = false;
@@ -42,6 +49,12 @@ function resetRedisHealthState() {
 describe('redis client health state', () => {
   beforeEach(() => {
     resetRedisHealthState();
+  });
+
+  afterEach(() => {
+    process.env.REDIS_URL = originalRedisEnv.REDIS_URL;
+    process.env.REDIS_HOST = originalRedisEnv.REDIS_HOST;
+    process.env.REDIS_PORT = originalRedisEnv.REDIS_PORT;
   });
 
   it('enters a degraded window after command failure and recovers after the window expires', () => {
@@ -136,6 +149,40 @@ describe('redis client health state', () => {
     } finally {
       globalScope.__REDIS_CLIENT__ = previousOverride;
     }
+  });
+});
+
+describe('resolveRedisUrlFromEnv', () => {
+  afterEach(() => {
+    process.env.REDIS_URL = originalRedisEnv.REDIS_URL;
+    process.env.REDIS_HOST = originalRedisEnv.REDIS_HOST;
+    process.env.REDIS_PORT = originalRedisEnv.REDIS_PORT;
+  });
+
+  it('prefers a non-blank REDIS_URL when present', () => {
+    process.env.REDIS_URL = 'redis://managed-redis.internal:6380';
+    process.env.REDIS_HOST = 'ignored-host';
+    process.env.REDIS_PORT = '6390';
+
+    expect(resolveRedisUrlFromEnv()).toBe(
+      'redis://managed-redis.internal:6380'
+    );
+  });
+
+  it('falls back to REDIS_HOST and REDIS_PORT when REDIS_URL is blank', () => {
+    process.env.REDIS_URL = '   ';
+    process.env.REDIS_HOST = 'dokploy-redis';
+    process.env.REDIS_PORT = '6379';
+
+    expect(resolveRedisUrlFromEnv()).toBe('redis://dokploy-redis:6379');
+  });
+
+  it('falls back to localhost defaults when no Redis env is configured', () => {
+    delete process.env.REDIS_URL;
+    delete process.env.REDIS_HOST;
+    delete process.env.REDIS_PORT;
+
+    expect(resolveRedisUrlFromEnv()).toBe('redis://localhost:6379');
   });
 });
 
