@@ -43,14 +43,13 @@ export async function GET(): Promise<Response> {
     checkDatabaseHealth()
   ]);
 
-  const isReady =
-    apiHealth.status === 'ok' &&
-    redisHealth.status === 'ok' &&
-    dbHealth.status === 'ok';
+  const isReady = apiHealth.status === 'ok' && dbHealth.status === 'ok';
+  const isDegraded = redisHealth.status !== 'ok';
 
   return Response.json(
     {
       status: isReady ? 'ready' : 'not_ready',
+      degraded: isDegraded,
       component: 'web',
       timestamp: new Date().toISOString(),
       services: {

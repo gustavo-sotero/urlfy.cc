@@ -323,7 +323,7 @@ The ElysiaJS API runs as a standalone Bun service in `apps/api`. The web app pro
 | GET    | `/api/me/export`           | LGPD data export              | Required |
 | DELETE | `/api/me/data`             | LGPD data deletion request    | Required |
 | GET    | `/api/health`              | Health check                  | —        |
-| GET    | `/api/health/ready`        | Readiness check (DB + Redis)  | —        |
+| GET    | `/api/health/ready`        | Readiness check (DB required, Redis degraded allowed) | —        |
 
 > Full API reference: [docs/api/endpoints.md](docs/api/endpoints.md)
 
@@ -420,7 +420,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 cd docker && docker compose -f docker-compose.prod.yml up -d
 ```
 
-The web image validates runtime env on startup, and the worker validates its own runtime secret set before consuming Redis Streams. CI smoke-tests that required services fail fast without mandatory secrets and serve `/api/health` when booted with valid runtime env. Docker and Compose health checks use `/api/health/ready` to verify the full redirect dependency set, including API, Redis, and database reachability.
+The web image validates runtime env on startup, and the worker validates its own runtime secret set before consuming Redis Streams. CI smoke-tests that required services fail fast without mandatory secrets and serve `/api/health` when booted with valid runtime env. Docker and Compose health checks use `/api/health/ready` to verify traffic readiness: database and upstream API remain mandatory, while Redis degradation is surfaced without blocking startup.
 
 ### Backup & Recovery
 

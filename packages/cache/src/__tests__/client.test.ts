@@ -150,6 +150,60 @@ describe('redis client health state', () => {
       globalScope.__REDIS_CLIENT__ = previousOverride;
     }
   });
+
+  it('skips the Redis round-trip while the client is in a degraded window', async () => {
+    const globalScope = globalThis as {
+      __REDIS_CLIENT__?: {
+        send: (command: string, args: string[]) => Promise<string>;
+      };
+    };
+    const previousOverride = globalScope.__REDIS_CLIENT__;
+    const send = mock(() => Promise.resolve('PONG'));
+
+    globalScope.__REDIS_CLIENT__ = { send };
+    markRedisCommandFailure(new Error('redis unavailable'));
+
+    try {
+      const health = await checkRedisHealth();
+
+      expect(health.status).toBe('error');
+      expect(health.error).toContain('degraded window');
+      expect(health.error).toContain('redis unavailable');
+      expect(send).not.toHaveBeenCalled();
+    } finally {
+      globalScope.__REDIS_CLIENT__ = previousOverride;
+    }
+  });
+
+  it('bounds Redis health probe latency when ping hangs', async () => {
+    const globalScope = globalThis as {
+      __REDIS_CLIENT__?: {
+        send: (command: string, args: string[]) => Promise<string>;
+      };
+    };
+    const previousOverride = globalScope.__REDIS_CLIENT__;
+    const send = mock(
+      () =>
+        new Promise<string>(() => {
+          // Intentionally unresolved to simulate a stalled Redis ping.
+        })
+    );
+
+    globalScope.__REDIS_CLIENT__ = { send };
+
+    try {
+      const start = performance.now();
+      const health = await checkRedisHealth();
+      const elapsedMs = performance.now() - start;
+
+      expect(health.status).toBe('error');
+      expect(health.error).toContain('timed out');
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(elapsedMs).toBeLessThan(2_500);
+    } finally {
+      globalScope.__REDIS_CLIENT__ = previousOverride;
+    }
+  });
 });
 
 describe('resolveRedisUrlFromEnv', () => {

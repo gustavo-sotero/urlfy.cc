@@ -121,12 +121,15 @@ GET /api/health/ready
 ```json
 {
   "status": "ready",
+  "degraded": false,
   "services": {
     "database": "ok",
     "redis": "ok"
   }
 }
 ```
+
+`database` is the hard readiness dependency. If Redis is unavailable, the endpoint still returns `200 ready` with `degraded: true` so the app can start in graceful-degradation mode.
 
 ---
 

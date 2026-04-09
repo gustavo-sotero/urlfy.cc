@@ -61,14 +61,16 @@ const healthSimple = new Elysia()
         checkRedisHealth()
       ]);
 
-      const isReady = dbHealth.status === 'ok' && redisHealth.status === 'ok';
+      const isDatabaseReady = dbHealth.status === 'ok';
+      const isRedisDegraded = redisHealth.status !== 'ok';
 
-      if (!isReady) {
+      if (!isDatabaseReady) {
         set.status = 503;
       }
 
       return {
-        status: isReady ? ('ready' as const) : ('not_ready' as const),
+        status: isDatabaseReady ? ('ready' as const) : ('not_ready' as const),
+        degraded: isRedisDegraded,
         services: {
           database: dbHealth.status,
           redis: redisHealth.status
@@ -78,29 +80,46 @@ const healthSimple = new Elysia()
     {
       detail: {
         summary: 'Readiness check',
-        description: 'Checks if all required services are available',
+        description:
+          'Checks whether the API can serve traffic. Database is required; Redis degradation is reported without blocking readiness.',
         tags: ['Health'],
         security: [] // Public endpoint - no authentication required
       },
       response: {
         200: t.Object(
           {
-            status: t.Union([t.Literal('ready'), t.Literal('not_ready')]),
+            status: t.Literal('ready'),
+            degraded: t.Boolean({
+              description:
+                'True when optional Redis-backed features are degraded but the API can still serve traffic',
+              examples: [false]
+            }),
             services: t.Object({
               database: t.String({ examples: ['ok'] }),
               redis: t.String({ examples: ['ok'] })
             })
           },
           {
-            description: 'All services ready',
+            description:
+              'Database is ready; Redis status is reported separately',
             examples: [
-              { status: 'ready', services: { database: 'ok', redis: 'ok' } }
+              {
+                status: 'ready',
+                degraded: false,
+                services: { database: 'ok', redis: 'ok' }
+              },
+              {
+                status: 'ready',
+                degraded: true,
+                services: { database: 'ok', redis: 'error' }
+              }
             ]
           }
         ),
         503: t.Object(
           {
             status: t.Literal('not_ready'),
+            degraded: t.Boolean({ examples: [false] }),
             services: t.Object({
               database: t.String({ examples: ['error'] }),
               redis: t.String({ examples: ['ok'] })

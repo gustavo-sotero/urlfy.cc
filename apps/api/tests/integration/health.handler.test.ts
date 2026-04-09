@@ -52,6 +52,7 @@ describe('Health Endpoints (handler-level)', () => {
 
       const response = await client.get<{
         status: string;
+        degraded: boolean;
         services: {
           database: string;
           redis: string;
@@ -60,6 +61,7 @@ describe('Health Endpoints (handler-level)', () => {
 
       // Status can be 'ready' or 'not_ready' depending on services
       expect(['ready', 'not_ready']).toContain(response.body.status);
+      expect(typeof response.body.degraded).toBe('boolean');
       expect(response.body.services).toBeDefined();
       expect(response.body.services.database).toBeDefined();
       expect(response.body.services.redis).toBeDefined();

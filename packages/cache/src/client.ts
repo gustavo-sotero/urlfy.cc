@@ -10,6 +10,7 @@ const REDIS_DEGRADED_BASE_MS = 5_000;
 const REDIS_DEGRADED_MAX_MS = 30_000;
 const REDIS_FAILURE_LOG_INTERVAL_MS = 10_000;
 const REDIS_HEALTHCHECK_RETRY_DELAYS_MS = [0, 100, 250, 500];
+const REDIS_HEALTHCHECK_TIMEOUT_MS = 1_500;
 
 type RedisEnv = Record<string, string | undefined>;
 type RedisUrlSource = 'REDIS_URL' | 'REDIS_HOST_PORT' | 'default';
@@ -268,6 +269,29 @@ async function pingRedisWithRetry(redis: RedisClient): Promise<void> {
   throw lastError;
 }
 
+async function runWithTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(timeoutMessage));
+        }, timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 /**
  * Health check do Redis
  */
@@ -277,10 +301,26 @@ export async function checkRedisHealth(): Promise<{
   error?: string;
 }> {
   const start = performance.now();
+
+  if (!canAttemptRedisCommand()) {
+    const latencyMs = Math.round(performance.now() - start);
+    const lastError = redisHealth.lastError ? `: ${redisHealth.lastError}` : '';
+
+    return {
+      status: 'error',
+      latencyMs,
+      error: `Redis health check skipped during degraded window${lastError}`
+    };
+  }
+
   const redis = getRedisClient();
 
   try {
-    await pingRedisWithRetry(redis);
+    await runWithTimeout(
+      pingRedisWithRetry(redis),
+      REDIS_HEALTHCHECK_TIMEOUT_MS,
+      `Redis health check timed out after ${REDIS_HEALTHCHECK_TIMEOUT_MS}ms`
+    );
     markRedisCommandSuccess();
 
     const latencyMs = Math.round(performance.now() - start);

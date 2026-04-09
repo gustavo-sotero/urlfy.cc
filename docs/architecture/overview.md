@@ -253,7 +253,7 @@ docker/
 - **GeoIP:** Usa mirror público (jsDelivr CDN), sem necessidade de credenciais
 - **API Gateway:** `apps/web` proxia `/api/*` para `apps/api` via `API_INTERNAL_URL`; em Docker/Compose o padrão interno é `http://api:3001`, mas o valor pode ser sobrescrito por ambiente (sem hop extra no redirect)
 - **Redirect Runtime Dependency:** `apps/web` resolve shortlinks localmente e depende de `DATABASE_URL` para fallback no cache miss (via `@urlfy/redirect-domain` -> `@urlfy/data`).
-- **Startup validation:** `docker/web.Dockerfile` usa `SKIP_ENV_VALIDATION=1` apenas no build; o container final valida env real no boot. O CI smoke-testa `/api/health` para provar boot e fail-fast de env, enquanto Docker/Compose usam `/api/health/ready` para validar API, Redis e database.
+- **Startup validation:** `docker/web.Dockerfile` usa `SKIP_ENV_VALIDATION=1` apenas no build; o container final valida env real no boot. O CI smoke-testa `/api/health` para provar boot e fail-fast de env, enquanto Docker/Compose usam `/api/health/ready` para validar dependências mandatórias de tráfego. Database e API upstream permanecem obrigatórios; indisponibilidade de Redis é reportada como degradação sem bloquear o boot.
 
 ### GeoIP Auto-Download
 
