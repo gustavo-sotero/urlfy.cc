@@ -92,7 +92,10 @@ export function compressionMiddleware(options?: CompressionOptions) {
     async ({ request, response, set }) => {
       const fallbackStatus = typeof set.status === 'number' ? set.status : 200;
 
-      if (!response) return normalizeResponse(response, fallbackStatus);
+      // Elysia may pass `undefined` here when an error response has already been
+      // prepared via onError/onBeforeHandle. Returning `undefined` preserves the
+      // original response instead of replacing it with an empty body.
+      if (response === undefined) return response;
 
       const normalizedResponse = normalizeResponse(response, fallbackStatus);
 

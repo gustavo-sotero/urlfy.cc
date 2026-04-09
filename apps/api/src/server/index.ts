@@ -368,13 +368,15 @@ export const api = new Elysia({ prefix: '/api' })
   })
 
   // Set response header with request ID
-  .onAfterHandle(({ set, requestId }) => {
-    set.headers['x-request-id'] = requestId;
+  .onAfterHandle(({ set, request, requestId }) => {
+    set.headers['x-request-id'] = requestId ?? getOrCreateRequestId(request);
   })
 
   // Global error handler
-  .onError(({ code, error, set, requestId }) => {
-    set.headers['x-request-id'] = requestId;
+  .onError(({ code, error, set, request, requestId }) => {
+    const resolvedRequestId = requestId ?? getOrCreateRequestId(request);
+
+    set.headers['x-request-id'] = resolvedRequestId;
     set.headers['content-type'] = 'application/json; charset=utf-8';
 
     if (isAppError(error)) {
@@ -383,7 +385,7 @@ export const api = new Elysia({ prefix: '/api' })
       // Always log internal error details server-side for debugging
       if (isInternalCode && error.details) {
         logger.error('Internal AppError details (redacted from response)', {
-          requestId,
+          requestId: resolvedRequestId,
           code: error.code,
           details: error.details
         });
@@ -398,7 +400,7 @@ export const api = new Elysia({ prefix: '/api' })
           // Never expose details for internal/server-side errors
           ...(!isInternalCode && error.details && { details: error.details })
         },
-        requestId
+        requestId: resolvedRequestId
       };
     }
 
@@ -410,7 +412,7 @@ export const api = new Elysia({ prefix: '/api' })
           code: 'NOT_FOUND',
           message: 'Endpoint not found'
         },
-        requestId
+        requestId: resolvedRequestId
       };
     }
 
@@ -423,13 +425,13 @@ export const api = new Elysia({ prefix: '/api' })
           message: error.message || 'Validation failed',
           details: error.all || undefined
         },
-        requestId
+        requestId: resolvedRequestId
       };
     }
 
     // Log error with request ID for correlation (redact stack in production)
     logger.error('API Error', {
-      requestId,
+      requestId: resolvedRequestId,
       error: error instanceof Error ? error.message : String(error),
       ...(process.env.NODE_ENV === 'development' && {
         stack: error instanceof Error ? error.stack : undefined
@@ -443,7 +445,7 @@ export const api = new Elysia({ prefix: '/api' })
         code: 'INTERNAL_ERROR',
         message: 'Internal server error'
       },
-      requestId
+      requestId: resolvedRequestId
     };
   });
 

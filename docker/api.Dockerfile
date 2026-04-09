@@ -40,7 +40,9 @@ COPY apps/api ./apps/api
 COPY packages ./packages
 
 WORKDIR /app/apps/api
-RUN bun build src/index.ts --outdir dist --target bun --minify
+# Bun 1.3.11 identifier minification breaks the Elysia API bundle at runtime.
+# Keep syntax/whitespace minification for size without mangling identifiers.
+RUN bun build src/index.ts --outdir dist --target bun --minify-syntax --minify-whitespace
 
 # ═══════════════════════════════════════════════════════════════════
 FROM oven/bun:${BUN_VERSION}-slim AS runner
