@@ -21,7 +21,10 @@ export default async function DashboardLayout({
   await params; // Consume params to avoid Next.js warnings
   const locale = await getLocale();
   const headersList = await headers();
-  const session = await auth.api.getSession({ headers: headersList });
+  const session = await auth.api.getSession({
+    headers: headersList,
+    query: { disableCookieCache: true }
+  });
 
   if (!session?.user) {
     redirect({ href: '/login', locale });
