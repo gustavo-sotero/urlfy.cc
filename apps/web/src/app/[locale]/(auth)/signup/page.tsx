@@ -32,6 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Link, useRouter } from '@/i18n/routing';
 import { authClient } from '@/lib/auth.client';
+import { buildEmailVerificationCallbackUrl } from '@/lib/email-verification';
 
 export default function SignupPage() {
   const t = useTranslations('Auth.signup');
@@ -61,6 +62,9 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  const buildEmailVerificationCallbackURL = (): string =>
+    buildEmailVerificationCallbackUrl(window.location.origin, locale);
+
   const buildDashboardCallbackURL = (): string =>
     `${window.location.origin}/${locale}/dashboard?welcome=true`;
 
@@ -84,7 +88,7 @@ export default function SignupPage() {
         email: data.email,
         password: data.password,
         name: data.name,
-        callbackURL: buildDashboardCallbackURL()
+        callbackURL: buildEmailVerificationCallbackURL()
       });
 
       if (result.error) {

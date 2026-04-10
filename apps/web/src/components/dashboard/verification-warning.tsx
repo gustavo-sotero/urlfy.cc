@@ -6,6 +6,7 @@ import { useCallback, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth.client';
+import { buildEmailVerificationCallbackUrl } from '@/lib/email-verification';
 
 export function VerificationWarning() {
   const [isResending, setIsResending] = useState<boolean>(false);
@@ -29,7 +30,10 @@ export function VerificationWarning() {
     try {
       await authClient.sendVerificationEmail({
         email: session.user.email,
-        callbackURL: `${window.location.origin}/${locale}/dashboard`
+        callbackURL: buildEmailVerificationCallbackUrl(
+          window.location.origin,
+          locale
+        )
       });
       setResendSuccess(true);
     } catch (error) {

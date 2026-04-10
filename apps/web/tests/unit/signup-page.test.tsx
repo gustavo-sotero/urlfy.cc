@@ -19,6 +19,13 @@ async function readSignupPageSource(): Promise<string> {
 }
 
 describe('SignupPage — localized auth callbackURL contract', () => {
+  it('imports the email verification callback helper', async () => {
+    const source = await readSignupPageSource();
+
+    expect(source).toContain('@/lib/email-verification');
+    expect(source).toContain('buildEmailVerificationCallbackUrl');
+  });
+
   it('imports and uses useLocale from next-intl', async () => {
     const source = await readSignupPageSource();
 
@@ -26,11 +33,11 @@ describe('SignupPage — localized auth callbackURL contract', () => {
     expect(source).toMatch(/const\s+locale\s*=\s*useLocale\(\)/);
   });
 
-  it('builds an absolute localized dashboard callback URL', async () => {
+  it('builds an absolute localized public verification callback URL', async () => {
     const source = await readSignupPageSource();
 
     expect(source).toMatch(
-      /`\$\{window\.location\.origin\}\/\$\{locale\}\/dashboard\?welcome=true`/
+      /buildEmailVerificationCallbackUrl\(window\.location\.origin, locale\)/
     );
   });
 
@@ -38,13 +45,18 @@ describe('SignupPage — localized auth callbackURL contract', () => {
     const source = await readSignupPageSource();
 
     expect(source).toMatch(
-      /signUp\.email\s*\(\s*\{[\s\S]*callbackURL:\s*buildDashboardCallbackURL\(\)/
+      /signUp\.email\s*\(\s*\{[\s\S]*callbackURL:\s*buildEmailVerificationCallbackURL\(\)/
     );
   });
 
-  it('does not keep a bare /dashboard callbackURL in the signup flow', async () => {
+  it('keeps the protected dashboard callback only for social signup', async () => {
     const source = await readSignupPageSource();
+    const protectedDashboardCallbacks =
+      source.match(/callbackURL:\s*buildDashboardCallbackURL\(\)/g) ?? [];
 
-    expect(source).not.toContain("callbackURL: '/dashboard?welcome=true'");
+    expect(protectedDashboardCallbacks).toHaveLength(1);
+    expect(source).toMatch(
+      /signIn\.social\s*\(\s*\{[\s\S]*callbackURL:\s*buildDashboardCallbackURL\(\)/
+    );
   });
 });

@@ -7,9 +7,9 @@
  *
  * Behaviour verified:
  *  1. Component uses `useLocale()` to obtain the active locale.
- *  2. The callbackURL passed to sendVerificationEmail includes the locale
- *     segment, not a bare /dashboard path that would be swallowed by the
- *     shortlink proxy or cause a 404.
+ *  2. The callbackURL passed to sendVerificationEmail uses the shared
+ *     public email verification callback helper instead of pointing at the
+ *     protected dashboard.
  */
 
 import { describe, expect, it } from 'bun:test';
@@ -25,6 +25,12 @@ async function readComponentSource(): Promise<string> {
 }
 
 describe('VerificationWarning — locale-aware callbackURL contract', () => {
+  it('imports the email verification callback helper', async () => {
+    const source = await readComponentSource();
+    expect(source).toContain('@/lib/email-verification');
+    expect(source).toContain('buildEmailVerificationCallbackUrl');
+  });
+
   it('imports useLocale from next-intl', async () => {
     const source = await readComponentSource();
     expect(source).toContain('useLocale');
@@ -38,17 +44,15 @@ describe('VerificationWarning — locale-aware callbackURL contract', () => {
     expect(source).toMatch(/const\s+locale\s*=\s*useLocale\(\)/);
   });
 
-  it('uses locale variable in the callbackURL passed to sendVerificationEmail', async () => {
+  it('uses locale variable in the callback helper passed to sendVerificationEmail', async () => {
     const source = await readComponentSource();
-    // The callbackURL must contain the locale segment before /dashboard
-    // Pattern: `/${locale}/dashboard` or `${...}/${locale}/dashboard`
-    expect(source).toMatch(/`.*\$\{.*locale.*\}.*\/dashboard`/);
+    expect(source).toMatch(
+      /callbackURL:\s*buildEmailVerificationCallbackUrl\(\s*window\.location\.origin,\s*locale\s*\)/
+    );
   });
 
-  it('does not use a bare /dashboard callbackURL', async () => {
+  it('does not point the verification callback directly at /dashboard', async () => {
     const source = await readComponentSource();
-    // The old broken pattern was `${window.location.origin}/dashboard` (no locale).
-    // After the fix, the locale variable must appear between the origin and /dashboard.
-    expect(source).not.toContain('origin}/dashboard`');
+    expect(source).not.toContain('/dashboard`');
   });
 });

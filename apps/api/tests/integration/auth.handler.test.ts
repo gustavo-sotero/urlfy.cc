@@ -150,7 +150,7 @@ describe('Auth Endpoints (handler-level)', () => {
       // Better Auth handles the request and redirects (302/303) to the
       // callbackURL with an error param — it should never produce a 404.
       const callbackURL = encodeURIComponent(
-        'http://localhost:3000/en/dashboard?welcome=true'
+        'http://localhost:3000/en/email-verification?verified=1'
       );
       const response = await client.get(
         `/api/auth/verify-email?token=invalid-token-for-test&callbackURL=${callbackURL}`
@@ -160,7 +160,8 @@ describe('Auth Endpoints (handler-level)', () => {
     });
 
     test('invalid token redirects to callbackURL and preserves existing query params', async () => {
-      const callbackURL = 'http://localhost:3000/en/dashboard?welcome=true';
+      const callbackURL =
+        'http://localhost:3000/en/email-verification?verified=1';
       const response = await client.get(
         `/api/auth/verify-email?token=invalid-token-for-test&callbackURL=${encodeURIComponent(callbackURL)}`
       );
@@ -173,8 +174,8 @@ describe('Auth Endpoints (handler-level)', () => {
 
       const redirectUrl = new URL(location || '', 'http://localhost:3000');
       expect(redirectUrl.origin).toBe('http://localhost:3000');
-      expect(redirectUrl.pathname).toBe('/en/dashboard');
-      expect(redirectUrl.searchParams.get('welcome')).toBe('true');
+      expect(redirectUrl.pathname).toBe('/en/email-verification');
+      expect(redirectUrl.searchParams.get('verified')).toBe('1');
       expect(redirectUrl.searchParams.get('error')).toBeTruthy();
     });
   });

@@ -97,5 +97,32 @@ export const Auth = {
       newPassword: '••••••••',
       confirmPassword: '••••••••'
     }
+  },
+
+  emailVerificationResult: {
+    metaTitle: 'Verificação de e-mail',
+    metaDescription:
+      'Confirme o status da verificação do seu e-mail e continue com segurança para a sua conta.',
+    successBadge: 'E-mail verificado',
+    successTitle: 'Seu e-mail foi confirmado',
+    successDescription:
+      'O token de verificação foi aceito e seu endereço agora está verificado.',
+    successHint:
+      'Se você abriu este link em um navegador onde ainda não está autenticado, continue para o login e nós o levaremos de volta ao seu dashboard.',
+    errorBadge: 'Falha na verificação',
+    errorTitle: 'Este link de verificação não é mais válido',
+    errorDescription: 'O token é inválido, expirou ou já foi utilizado.',
+    errorHint:
+      'Entre na sua conta e solicite um novo e-mail de verificação pelo dashboard se ainda precisar concluir a confirmação.',
+    pendingBadge: 'Status da verificação',
+    pendingTitle: 'Status da verificação atualizado',
+    pendingDescription:
+      'Continue para a sua conta para confirmar o status mais recente de verificação deste endereço de e-mail.',
+    pendingHint:
+      'Se você ainda não está autenticado neste navegador, continue para o login e depois abra o dashboard.',
+    continueCta: 'Continuar para o login',
+    retryCta: 'Abrir login',
+    homeCta: 'Voltar para a home',
+    errorCodeLabel: 'Código do erro:'
   }
 } as const;
