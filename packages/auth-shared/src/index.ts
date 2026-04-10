@@ -4,9 +4,11 @@
  * that don't require a runtime-specific auth instance.
  */
 
+export type { BuildPublicEmailVerificationUrlInput } from './auth-config';
 export {
   assertRuntimeAuthConfigSafe,
   baseAuthConfig,
+  buildPublicEmailVerificationUrl,
   getAuthSecret,
   getPlugins
 } from './auth-config';

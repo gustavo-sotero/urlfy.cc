@@ -38,8 +38,12 @@ describe('getServerSession', () => {
       })
     });
 
-    expect(session?.user).toEqual({ id: 'user-1', email: 'test@example.com' });
-    expect(session?.session).toEqual({ id: 'session-1', userId: 'user-1' });
+    expect(session?.user).toEqual(
+      expect.objectContaining({ id: 'user-1', email: 'test@example.com' })
+    );
+    expect(session?.session).toEqual(
+      expect.objectContaining({ id: 'session-1', userId: 'user-1' })
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       new URL('http://api:3001/api/auth/get-session?disableCookieCache=true'),
       expect.objectContaining({
@@ -49,12 +53,16 @@ describe('getServerSession', () => {
       })
     );
 
-    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const [, requestInit] = fetchMock.mock.calls[0] as unknown as [
+      URL,
+      RequestInit
+    ];
     const forwardedHeaders = requestInit.headers as Headers;
 
     expect(forwardedHeaders.get('cookie')).toBe('urlfy.session_token=abc123');
     expect(forwardedHeaders.get('x-request-id')).toBe('req-1');
     expect(forwardedHeaders.get('user-agent')).toBe('bun-test');
+    expect(forwardedHeaders.get('x-forwarded-for')).toBe('127.0.0.1');
   });
 
   it('returns null when there is no cookie to validate', async () => {

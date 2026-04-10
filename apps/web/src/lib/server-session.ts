@@ -1,3 +1,4 @@
+import { getClientIpFromHeaders } from '@/server/lib/ip';
 import type { Session as AppSession, InternalUser } from '@/types/auth.types';
 
 interface ServerSession {
@@ -32,7 +33,6 @@ function buildForwardedHeaders(requestHeaders: Headers): Headers {
     'cookie',
     'user-agent',
     'x-request-id',
-    'x-forwarded-for',
     'x-forwarded-host',
     'x-forwarded-proto',
     'host'
@@ -45,6 +45,11 @@ function buildForwardedHeaders(requestHeaders: Headers): Headers {
       forwardedHeaders.set(headerName, value);
     }
   }
+
+  forwardedHeaders.set(
+    'x-forwarded-for',
+    getClientIpFromHeaders(requestHeaders)
+  );
 
   return forwardedHeaders;
 }

@@ -4,14 +4,24 @@ process.env.DATABASE_URL =
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
 
-const checkDatabaseHealthMock = mock(async () => ({
-  status: 'ok' as const,
-  latencyMs: 2
-}));
-const checkRedisHealthMock = mock(async () => ({
-  status: 'ok' as const,
-  latencyMs: 1
-}));
+type DependencyHealthResult = {
+  status: 'ok' | 'error';
+  latencyMs?: number;
+  error?: string;
+};
+
+const checkDatabaseHealthMock = mock(
+  async (): Promise<DependencyHealthResult> => ({
+    status: 'ok' as const,
+    latencyMs: 2
+  })
+);
+const checkRedisHealthMock = mock(
+  async (): Promise<DependencyHealthResult> => ({
+    status: 'ok' as const,
+    latencyMs: 1
+  })
+);
 
 describe('healthController readiness', () => {
   beforeEach(() => {

@@ -11,7 +11,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Github, Loader2, UserPlus } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -37,6 +37,7 @@ export default function SignupPage() {
   const t = useTranslations('Auth.signup');
   const tErrors = useTranslations('Auth.errors');
   const tOAuth = useTranslations('Auth.oauth');
+  const locale = useLocale();
 
   // Define schema with translated messages
   const schema = z
@@ -60,6 +61,9 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  const buildDashboardCallbackURL = (): string =>
+    `${window.location.origin}/${locale}/dashboard?welcome=true`;
+
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -79,7 +83,8 @@ export default function SignupPage() {
       const result = await authClient.signUp.email({
         email: data.email,
         password: data.password,
-        name: data.name
+        name: data.name,
+        callbackURL: buildDashboardCallbackURL()
       });
 
       if (result.error) {
@@ -101,7 +106,7 @@ export default function SignupPage() {
     try {
       await authClient.signIn.social({
         provider,
-        callbackURL: '/dashboard?welcome=true'
+        callbackURL: buildDashboardCallbackURL()
       });
     } catch {
       setError(tErrors('tryAgain'));

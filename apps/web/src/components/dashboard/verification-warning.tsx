@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertCircle, Mail } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ export function VerificationWarning() {
   const [resendError, setResendError] = useState<string | null>(null);
 
   const t = useTranslations('Dashboard.verification');
+  const locale = useLocale();
   const { data: session } = authClient.useSession();
 
   const handleResendEmail = useCallback(async (): Promise<void> => {
@@ -28,7 +29,7 @@ export function VerificationWarning() {
     try {
       await authClient.sendVerificationEmail({
         email: session.user.email,
-        callbackURL: `${window.location.origin}/dashboard`
+        callbackURL: `${window.location.origin}/${locale}/dashboard`
       });
       setResendSuccess(true);
     } catch (error) {
@@ -38,7 +39,7 @@ export function VerificationWarning() {
     } finally {
       setIsResending(false);
     }
-  }, [session?.user?.email, t]);
+  }, [session?.user?.email, locale, t]);
 
   return (
     <Alert

@@ -102,4 +102,17 @@ describe('auth runtime parity contract (api vs web)', () => {
     expect(pluginContractRegex.test(apiSource)).toBe(true);
     expect(pluginContractRegex.test(webSource)).toBe(true);
   });
+
+  it('uses buildPublicEmailVerificationUrl with token in both runtimes', async () => {
+    const [apiSource, webSource] = await Promise.all([
+      readWorkspaceFile('src/lib/auth.ts'),
+      readFromTestDir('../../../web/src/lib/auth.ts')
+    ]);
+
+    const helperUsageRegex =
+      /buildPublicEmailVerificationUrl\s*\(\s*\{\s*token[^}]+\}\s*\)/;
+
+    expect(helperUsageRegex.test(apiSource)).toBe(true);
+    expect(helperUsageRegex.test(webSource)).toBe(true);
+  });
 });

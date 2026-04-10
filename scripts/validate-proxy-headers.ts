@@ -25,7 +25,10 @@ const SCAN_DIRS = [
 const APPROVED_FILES = new Set([
   'packages/telemetry/src/ip.ts',
   // API gateway sets x-forwarded-for using canonical getClientIp() when proxying
-  'apps/web/src/app/api/[[...slugs]]/route.ts'
+  'apps/web/src/app/api/[[...slugs]]/route.ts',
+  // Server-side auth session fetch forwards a normalized client IP via
+  // getClientIpFromHeaders() when proxying cookies to the API.
+  'apps/web/src/lib/server-session.ts'
 ]);
 
 // ── Patterns that indicate direct proxy-header parsing ───────────────────────

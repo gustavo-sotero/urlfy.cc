@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import {
   assertRuntimeAuthConfigSafe,
   baseAuthConfig,
+  buildPublicEmailVerificationUrl,
   getAuthSecret,
   getPlugins
 } from '../auth-config';
@@ -234,5 +235,81 @@ describe('assertRuntimeAuthConfigSafe', () => {
     mutableEnv.NEXT_PHASE = 'phase-production-build';
     mutableEnv.NODE_ENV = 'production';
     expect(() => assertRuntimeAuthConfigSafe()).not.toThrow();
+  });
+});
+
+// ─── buildPublicEmailVerificationUrl ────────────────────────────────────────
+
+describe('buildPublicEmailVerificationUrl — public URL construction', () => {
+  it('targets /api/auth/verify-email as the path', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://example.com';
+    const result = buildPublicEmailVerificationUrl({ token: 'tok123' });
+    const url = new URL(result);
+    expect(url.pathname).toBe('/api/auth/verify-email');
+  });
+
+  it('uses the correct origin from BETTER_AUTH_URL', () => {
+    mutableEnv.BETTER_AUTH_URL = 'https://urlfy.cc';
+    delete mutableEnv.NEXT_PUBLIC_APP_URL;
+    const result = buildPublicEmailVerificationUrl({ token: 'tok456' });
+    expect(result.startsWith('https://urlfy.cc/')).toBe(true);
+  });
+
+  it('prefers BETTER_AUTH_URL over NEXT_PUBLIC_APP_URL', () => {
+    mutableEnv.BETTER_AUTH_URL = 'https://api.urlfy.cc';
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc';
+    const result = buildPublicEmailVerificationUrl({ token: 'tok789' });
+    expect(result.startsWith('https://api.urlfy.cc/')).toBe(true);
+  });
+
+  it('strips accidental path suffix from the base URL', () => {
+    mutableEnv.BETTER_AUTH_URL = 'https://urlfy.cc/some/stray/path';
+    const result = buildPublicEmailVerificationUrl({ token: 'tok-strip' });
+    const url = new URL(result);
+    expect(url.pathname).toBe('/api/auth/verify-email');
+    expect(url.origin).toBe('https://urlfy.cc');
+  });
+
+  it('includes the token in the query string', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://example.com';
+    const result = buildPublicEmailVerificationUrl({ token: 'my-token-abc' });
+    const url = new URL(result);
+    expect(url.searchParams.get('token')).toBe('my-token-abc');
+  });
+
+  it('includes callbackURL in the query string when provided', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://example.com';
+    const result = buildPublicEmailVerificationUrl({
+      token: 'tok',
+      callbackURL: 'https://example.com/en/dashboard'
+    });
+    const url = new URL(result);
+    expect(url.searchParams.get('callbackURL')).toBe(
+      'https://example.com/en/dashboard'
+    );
+  });
+
+  it('omits callbackURL when not provided', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://example.com';
+    const result = buildPublicEmailVerificationUrl({ token: 'tok' });
+    const url = new URL(result);
+    expect(url.searchParams.has('callbackURL')).toBe(false);
+  });
+
+  it('omits callbackURL when null', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://example.com';
+    const result = buildPublicEmailVerificationUrl({
+      token: 'tok',
+      callbackURL: null
+    });
+    const url = new URL(result);
+    expect(url.searchParams.has('callbackURL')).toBe(false);
+  });
+
+  it('falls back to localhost:3000 when no env var is set', () => {
+    delete mutableEnv.BETTER_AUTH_URL;
+    delete mutableEnv.NEXT_PUBLIC_APP_URL;
+    const result = buildPublicEmailVerificationUrl({ token: 'tok-local' });
+    expect(result.startsWith('http://localhost:3000/')).toBe(true);
   });
 });

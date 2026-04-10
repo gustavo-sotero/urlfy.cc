@@ -144,4 +144,38 @@ describe('Auth Endpoints (handler-level)', () => {
       expectUnauthorized(response);
     });
   });
+
+  describe('GET /api/auth/verify-email', () => {
+    test('endpoint exists and does not 404 with an invalid token', async () => {
+      // Better Auth handles the request and redirects (302/303) to the
+      // callbackURL with an error param — it should never produce a 404.
+      const callbackURL = encodeURIComponent(
+        'http://localhost:3000/en/dashboard?welcome=true'
+      );
+      const response = await client.get(
+        `/api/auth/verify-email?token=invalid-token-for-test&callbackURL=${callbackURL}`
+      );
+
+      expect(response.status).not.toBe(404);
+    });
+
+    test('invalid token redirects to callbackURL and preserves existing query params', async () => {
+      const callbackURL = 'http://localhost:3000/en/dashboard?welcome=true';
+      const response = await client.get(
+        `/api/auth/verify-email?token=invalid-token-for-test&callbackURL=${encodeURIComponent(callbackURL)}`
+      );
+
+      expect(response.status).toBeGreaterThanOrEqual(300);
+      expect(response.status).toBeLessThan(400);
+
+      const location = response.headers.get('location');
+      expect(location).toBeTruthy();
+
+      const redirectUrl = new URL(location || '', 'http://localhost:3000');
+      expect(redirectUrl.origin).toBe('http://localhost:3000');
+      expect(redirectUrl.pathname).toBe('/en/dashboard');
+      expect(redirectUrl.searchParams.get('welcome')).toBe('true');
+      expect(redirectUrl.searchParams.get('error')).toBeTruthy();
+    });
+  });
 });

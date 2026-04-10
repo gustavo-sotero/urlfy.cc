@@ -189,6 +189,47 @@ export const baseAuthConfig = {
   trustedOrigins: process.env.TRUSTED_ORIGINS?.split(',') || []
 } satisfies Partial<BetterAuthOptions>;
 
+// ─── Public email verification URL builder ──────────────────────────────────
+
+export interface BuildPublicEmailVerificationUrlInput {
+  token: string;
+  callbackURL?: string | null;
+}
+
+/**
+ * Builds the public-facing verification URL that is sent to users in emails.
+ *
+ * Better Auth generates links relative to its internal baseURL + basePath
+ * (e.g. https://example.com/auth/verify-email).  The public API surface
+ * of this project is mounted at /api/auth/*, so the generated URL does not
+ * match what the domain actually serves.
+ *
+ * This helper derives the correct public URL by:
+ *  - taking only the origin from BETTER_AUTH_URL / NEXT_PUBLIC_APP_URL
+ *    (ignoring any accidental path suffix in the env var)
+ *  - always targeting /api/auth/verify-email as the public endpoint
+ *  - preserving the token and optional callbackURL in the query string
+ */
+export function buildPublicEmailVerificationUrl(
+  input: BuildPublicEmailVerificationUrlInput
+): string {
+  const rawBase =
+    process.env.BETTER_AUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'http://localhost:3000';
+
+  // Use only the origin so that any accidental path in the env var is ignored
+  const origin = new URL(rawBase).origin;
+  const verificationUrl = new URL('/api/auth/verify-email', origin);
+  verificationUrl.searchParams.set('token', input.token);
+
+  if (input.callbackURL) {
+    verificationUrl.searchParams.set('callbackURL', input.callbackURL);
+  }
+
+  return verificationUrl.toString();
+}
+
 export function getPlugins(
   options: { disableAdmin?: boolean; disableOpenAPI?: boolean } = {}
 ) {

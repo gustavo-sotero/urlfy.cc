@@ -23,6 +23,7 @@ import { emailService } from '@/server/services/email.service';
 import {
   assertRuntimeAuthConfigSafe,
   baseAuthConfig,
+  buildPublicEmailVerificationUrl,
   getPlugins
 } from './auth.config';
 
@@ -130,16 +131,23 @@ export const auth = betterAuth({
   emailVerification: {
     sendVerificationEmail: async ({
       user,
-      url
+      url,
+      token
     }: {
       user: { email: string; name?: string };
       url: string;
+      token: string;
     }) => {
+      const rawCallbackURL = new URL(url).searchParams.get('callbackURL');
+      const verificationUrl = buildPublicEmailVerificationUrl({
+        token,
+        callbackURL: rawCallbackURL
+      });
       void emailService
         .sendEmailVerification({
           to: user.email,
           firstName: user.name?.split(' ')[0] || 'User',
-          verificationUrl: url
+          verificationUrl
         })
         .catch((error) => {
           logger.warn('Failed to send verification email', {

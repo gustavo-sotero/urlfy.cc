@@ -23,10 +23,37 @@ import { emailService } from '@/server/services/email.service';
 import {
   assertRuntimeAuthConfigSafe,
   baseAuthConfig,
+  buildPublicEmailVerificationUrl,
   getPlugins
 } from './auth.config';
 
 const logger = createLogger('auth-runtime');
+
+type BunPasswordRuntime = {
+  hash(
+    password: string,
+    options: {
+      algorithm: 'argon2id';
+      memoryCost: number;
+      timeCost: number;
+    }
+  ): Promise<string>;
+  verify(password: string, hash: string): Promise<boolean>;
+};
+
+// Resolve Bun lazily so Node-based Next build evaluation can import this module
+// without trying to load the Bun runtime up front.
+function getBunPasswordRuntime(): BunPasswordRuntime {
+  const bunRuntime = Reflect.get(globalThis as object, 'Bun') as
+    | { password?: BunPasswordRuntime }
+    | undefined;
+
+  if (!bunRuntime?.password) {
+    throw new Error('Bun.password is unavailable in this runtime');
+  }
+
+  return bunRuntime.password;
+}
 
 assertRuntimeAuthConfigSafe();
 
@@ -60,7 +87,7 @@ export const auth = betterAuth({
     ...baseAuthConfig.emailAndPassword,
     password: {
       hash: async (password: string) => {
-        return Bun.password.hash(password, {
+        return getBunPasswordRuntime().hash(password, {
           algorithm: 'argon2id',
           memoryCost: 65536,
           timeCost: 3
@@ -73,7 +100,7 @@ export const auth = betterAuth({
         hash: string;
         password: string;
       }) => {
-        return Bun.password.verify(password, hash);
+        return getBunPasswordRuntime().verify(password, hash);
       }
     },
     sendResetPassword: async ({
@@ -104,16 +131,23 @@ export const auth = betterAuth({
   emailVerification: {
     sendVerificationEmail: async ({
       user,
-      url
+      url,
+      token
     }: {
       user: { email: string; name?: string };
       url: string;
+      token: string;
     }) => {
+      const rawCallbackURL = new URL(url).searchParams.get('callbackURL');
+      const verificationUrl = buildPublicEmailVerificationUrl({
+        token,
+        callbackURL: rawCallbackURL
+      });
       void emailService
         .sendEmailVerification({
           to: user.email,
           firstName: user.name?.split(' ')[0] || 'User',
-          verificationUrl: url
+          verificationUrl
         })
         .catch((error) => {
           logger.warn('Failed to send verification email', {
