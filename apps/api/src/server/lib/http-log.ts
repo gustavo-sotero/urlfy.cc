@@ -1,7 +1,12 @@
 import type { ElysiaContext } from '@logtape/elysia';
 
+type HttpLogRequestLike = Request | { url?: string | URL };
+
 type HttpLogContext =
-  | Partial<Pick<ElysiaContext, 'path' | 'request'>>
+  | {
+      path?: ElysiaContext['path'];
+      request?: HttpLogRequestLike;
+    }
   | null
   | undefined;
 
@@ -25,7 +30,7 @@ function parsePathname(url: string): string | null {
 }
 
 function getRequestPathname(
-  request: Request | { url?: string | URL } | null | undefined
+  request: HttpLogRequestLike | null | undefined
 ): string | null {
   const rawUrl = request?.url;
 
