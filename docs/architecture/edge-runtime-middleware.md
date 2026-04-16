@@ -25,6 +25,11 @@ Failed to load external module bun: TypeError: Native module not found: bun
 
 We split the redirect flow into two parts:
 
+This document covers only the redirect path. Public API requests under `/api/*`
+are owned by `apps/api` and are routed same-origin at the edge (Traefik in
+production, dev-only rewrite in `apps/web` locally), not by a Next.js BFF
+handler.
+
 ### 1. Edge Proxy (`apps/web/src/proxy.ts`)
 
 - Runs in Edge Runtime environment
@@ -98,6 +103,9 @@ Track both:
 
 - Edge proxy latency (rewrite stage)
 - `/r/:code` handler latency (cache + DB resolution)
+
+API observability should be tracked independently in `apps/api`, because
+`/api/*` bypasses this redirect-only edge flow.
 
 This helps identify bottlenecks.
 

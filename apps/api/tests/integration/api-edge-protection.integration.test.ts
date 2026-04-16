@@ -16,49 +16,132 @@ import {
   type ElysiaTestClient
 } from '../helpers/elysia-test-client';
 
+process.env.TRUST_PROXY = 'true';
+
 // ── Shared mocks ───────────────────────────────────────────────────────
 
 const isIPBlockedMock = mock(async (_ip: string) => false);
 const recordLoginFailureMock = mock(async (_ip: string) => undefined);
-const rateLimiterMock = mock(async (_request: Request) => ({
-  response: null as Response | null,
-  headers: undefined as Headers | undefined
-}));
+
+type MockRateLimitResult = {
+  allowed: boolean;
+  remaining: number;
+  resetTime: number;
+  retryAfter?: number;
+};
+
+function createAllowedRateLimitResult(): MockRateLimitResult {
+  return {
+    allowed: true,
+    remaining: 100,
+    resetTime: Date.now() + 60_000
+  };
+}
+
+const checkIPLimitMock = mock(
+  async (_ip: string, _config: unknown): Promise<MockRateLimitResult> =>
+    createAllowedRateLimitResult()
+);
+const checkTokenLimitMock = mock(
+  async (_token: string, _config: unknown): Promise<MockRateLimitResult> =>
+    createAllowedRateLimitResult()
+);
+const isRateLimitedIPBlockedMock = mock(async (_ip: string) => false);
+
+let authSignInStatus = 401;
+
+const realAuthModule = await import('@/lib/auth');
 
 beforeAll(() => {
+  mock.module('@/lib/auth', () => ({
+    ...realAuthModule,
+    auth: {
+      ...realAuthModule.auth,
+      handler: async (request: Request) => {
+        const path = new URL(request.url).pathname;
+
+        if (path.includes('/auth/sign-in')) {
+          const isFailure = authSignInStatus >= 400;
+
+          return new Response(
+            JSON.stringify(
+              isFailure
+                ? {
+                    success: false,
+                    error: {
+                      code: 'INVALID_CREDENTIALS',
+                      message: 'Invalid credentials'
+                    }
+                  }
+                : { success: true, data: { user: { id: 'user_test' } } }
+            ),
+            {
+              status: authSignInStatus,
+              headers: {
+                'content-type': 'application/json; charset=utf-8'
+              }
+            }
+          );
+        }
+
+        return new Response('Not Found', { status: 404 });
+      }
+    }
+  }));
+
   // Anti-abuse service
   mock.module('@/server/services/anti-abuse.service', () => ({
-    antiAbuseService: { isIPBlocked: isIPBlockedMock }
+    antiAbuseService: {
+      isIPBlocked: isIPBlockedMock,
+      recordLoginFailure: recordLoginFailureMock
+    }
   }));
 
   // Rate limiter — rateLimit() delegates to this
   mock.module('@/server/lib/rate-limiter', () => ({
-    RATE_LIMIT_CONFIGS: {},
+    RATE_LIMIT_CONFIGS: {
+      'GET /api/health': {
+        guest: { points: 600, duration: 60 },
+        auth: { points: 600, duration: 60 }
+      },
+      'POST /api/auth/sign-in': {
+        guest: { points: 5, duration: 900, failClosed: true }
+      }
+    },
     rateLimiter: {
-      checkLimit: mock(async () => ({
-        allowed: true,
-        remaining: 100,
-        resetAt: 0
-      }))
+      isIPBlocked: isRateLimitedIPBlockedMock,
+      checkIPLimit: checkIPLimitMock,
+      checkTokenLimit: checkTokenLimitMock
     }
   }));
 
   // Redis (avoid real connection)
-  mock.module('@urlfy/cache', () => ({
+  mock.module('@/server/lib/redis', () => ({
+    redis: null,
     getRedisClient: mock(() => null),
-    checkRedisHealth: mock(async () => ({ status: 'ok', latencyMs: 1 }))
+    checkRedisHealth: mock(async () => ({ status: 'ok', latencyMs: 1 })),
+    closeRedis: mock(async () => undefined)
   }));
 });
 
 afterEach(() => {
   isIPBlockedMock.mockReset();
   isIPBlockedMock.mockImplementation(async () => false);
-  rateLimiterMock.mockReset();
-  rateLimiterMock.mockImplementation(async () => ({
-    response: null,
-    headers: undefined
-  }));
+  checkIPLimitMock.mockReset();
+  checkIPLimitMock.mockImplementation(
+    async (_ip: string, _config: unknown): Promise<MockRateLimitResult> =>
+      createAllowedRateLimitResult()
+  );
+  checkTokenLimitMock.mockReset();
+  checkTokenLimitMock.mockImplementation(
+    async (_token: string, _config: unknown): Promise<MockRateLimitResult> =>
+      createAllowedRateLimitResult()
+  );
+  isRateLimitedIPBlockedMock.mockReset();
+  isRateLimitedIPBlockedMock.mockImplementation(async () => false);
   recordLoginFailureMock.mockReset();
+  recordLoginFailureMock.mockImplementation(async (_ip: string) => undefined);
+  authSignInStatus = 401;
 });
 
 // ── Test suite ─────────────────────────────────────────────────────────
@@ -86,7 +169,7 @@ describe('API edge protection (onBeforeHandle hooks)', () => {
       isIPBlockedMock.mockImplementation(async () => true);
 
       const response = await client.get<{ error: { code: string } }>(
-        '/api/health',
+        '/api/links',
         { headers: { 'x-forwarded-for': '1.2.3.4' } }
       );
 
@@ -101,6 +184,69 @@ describe('API edge protection (onBeforeHandle hooks)', () => {
       const response = await client.get('/api/health');
       // health is in the skip-list inside the middleware, so it should not return 403
       expect(response.status).not.toBe(403);
+    });
+  });
+
+  // ── Rate limiting ───────────────────────────────────────────────────
+
+  describe('Rate limiting', () => {
+    test('attaches rate-limit headers to successful responses', async () => {
+      const resetTime = Date.now() + 120_000;
+      checkIPLimitMock.mockImplementation(
+        async (
+          _ip: string,
+          _config: unknown
+        ): Promise<MockRateLimitResult> => ({
+          allowed: true,
+          remaining: 42,
+          resetTime
+        })
+      );
+
+      const response = await client.get('/api/health', {
+        headers: { 'x-forwarded-for': '2.3.4.5' }
+      });
+
+      expect([200, 503]).toContain(response.status);
+      expect(response.headers.get('x-ratelimit-limit')).toBe('600');
+      expect(response.headers.get('x-ratelimit-remaining')).toBe('42');
+      expect(response.headers.get('x-ratelimit-reset')).toBe(
+        String(Math.floor(resetTime / 1000))
+      );
+    });
+
+    test('returns 429 when the edge limiter rejects the request', async () => {
+      const requestId = 'req-rate-limit-1';
+      const resetTime = Date.now() + 120_000;
+
+      checkIPLimitMock.mockImplementation(
+        async (
+          _ip: string,
+          _config: unknown
+        ): Promise<MockRateLimitResult> => ({
+          allowed: false,
+          remaining: 0,
+          resetTime,
+          retryAfter: 120
+        })
+      );
+
+      const response = await client.get<{ error: { code: string } }>(
+        '/api/health',
+        {
+          headers: {
+            'x-forwarded-for': '2.3.4.5',
+            'x-request-id': requestId
+          }
+        }
+      );
+
+      expect(response.status).toBe(429);
+      expect(response.body.error?.code).toBe('RATE_LIMITED');
+      expect(response.headers.get('retry-after')).toBe('120');
+      expect(response.headers.get('x-request-id')).toBe(requestId);
+      expect(response.headers.get('x-ratelimit-limit')).toBe('600');
+      expect(response.headers.get('x-ratelimit-remaining')).toBe('0');
     });
   });
 
@@ -143,6 +289,96 @@ describe('API edge protection (onBeforeHandle hooks)', () => {
       });
 
       expect(response.headers.get('x-request-id')).toBe(id);
+    });
+  });
+
+  // ── Login failure tracking ──────────────────────────────────────────
+
+  describe('Login failure tracking', () => {
+    test('records failed sign-in attempts from mounted auth responses', async () => {
+      authSignInStatus = 401;
+
+      const response = await client.post(
+        '/api/auth/sign-in',
+        {
+          email: 'user@example.com',
+          password: 'wrong-password'
+        },
+        {
+          headers: { 'x-forwarded-for': '5.6.7.8' }
+        }
+      );
+
+      expect(response.status).toBe(401);
+      expect(recordLoginFailureMock).toHaveBeenCalledTimes(1);
+      expect(recordLoginFailureMock).toHaveBeenCalledWith('5.6.7.8');
+    });
+
+    test('does not record successful sign-in responses', async () => {
+      authSignInStatus = 200;
+
+      const response = await client.post(
+        '/api/auth/sign-in',
+        {
+          email: 'user@example.com',
+          password: 'correct-password'
+        },
+        {
+          headers: { 'x-forwarded-for': '5.6.7.8' }
+        }
+      );
+
+      expect(response.status).toBe(200);
+      expect(recordLoginFailureMock).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── CORS behavior ───────────────────────────────────────────────────
+
+  describe('CORS behavior', () => {
+    test('echoes allowed origins on simple requests', async () => {
+      const origin = 'http://localhost:3000';
+
+      const response = await client.get('/api/health', {
+        headers: { Origin: origin }
+      });
+
+      expect([200, 503]).toContain(response.status);
+      expect(response.headers.get('access-control-allow-origin')).toBe(origin);
+      expect(response.headers.get('access-control-allow-credentials')).toBe(
+        'true'
+      );
+    });
+
+    test('does not grant cross-origin access to disallowed origins', async () => {
+      const response = await client.get('/api/health', {
+        headers: { Origin: 'https://evil.example' }
+      });
+
+      expect([200, 503]).toContain(response.status);
+      expect(response.headers.get('access-control-allow-origin')).toBeNull();
+    });
+
+    test('handles preflight requests with CORS headers', async () => {
+      const origin = 'http://localhost:3000';
+
+      const response = await client.request('OPTIONS', '/api/health', {
+        headers: {
+          Origin: origin,
+          'Access-Control-Request-Method': 'GET',
+          'Access-Control-Request-Headers': 'X-Request-Id'
+        }
+      });
+
+      expect(response.status).toBe(204);
+      expect(response.headers.get('access-control-allow-origin')).toBe(origin);
+      expect(response.headers.get('access-control-allow-methods')).toContain(
+        'GET'
+      );
+      expect(response.headers.get('access-control-allow-headers')).toContain(
+        'X-Request-Id'
+      );
+      expect(response.headers.get('access-control-max-age')).toBeTruthy();
     });
   });
 });

@@ -101,7 +101,7 @@ O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços ind
 
 Policies e contratos puros ficam centralizados em packages compartilhados; `apps/web`, `apps/api` e `apps/worker` mantêm apenas adapters framework-specific.
 
-- `packages/contracts/src/rate-limit-policy.ts`: fonte canônica de rate limits para gateway, API, admin e redirect hot path.
+- `packages/contracts/src/rate-limit-policy.ts`: fonte canônica de rate limits para a borda pública da API, endpoints operacionais do web, admin e redirect hot path.
 - `packages/contracts/src/cors-policy.ts` e `packages/contracts/src/security-headers.ts`: origem única de CORS e security headers.
 - `packages/auth-shared/src/scopes.ts`: origem única de scopes e parsing de permissões.
 - `packages/auth-shared/src/auth-config.ts`: origem única de segredos, plugins e base config do Better-Auth.
@@ -230,6 +230,11 @@ services:
     depends_on: { migrate: { condition: service_completed_successfully } }
 ```
 
+Para validação local com containers, `docker/docker-compose.apps.yml` adiciona um
+ingress Nginx repo-owned em `localhost:3000` que roteia `/api/*` para `api:3001`
+e `/*` para `web:3000`. O fluxo de desenvolvimento com hot reload continua em
+`bun dev`, onde o same-origin é mantido pelo rewrite dev-only do `next.config.ts`.
+
 ### Arquivos Docker no Repositório
 
 ```
@@ -238,8 +243,11 @@ docker/
 ├── web.Dockerfile           # Next.js web (standalone output)
 ├── worker.Dockerfile        # Bun workers (Redis Streams)
 ├── docker-compose.yml       # Dev local (Postgres + Redis + GeoIP)
-├── docker-compose.apps.yml  # Local multi-service overlay
+├── docker-compose.apps.yml  # Local multi-service overlay + ingress same-origin
 ├── docker-compose.prod.yml  # Produção Dokploy (migrate + web + api + worker)
+├── nginx/
+│   ├── nginx.Dockerfile     # Local ingress for same-origin routing
+│   └── nginx.conf           # /api/* → api, /* → web
 └── geoip/
     ├── Dockerfile           # Alpine + curl + cron
     ├── geoip-entrypoint.sh  # Download + inicia cron daemon
@@ -252,9 +260,9 @@ docker/
 - **Networking:** Dokploy coloca todos os serviços do projeto na mesma Docker network interna
 - **SSL/TLS:** Gerenciado pelo Traefik integrado ao Dokploy (Let's Encrypt automático)
 - **GeoIP:** Usa mirror público (jsDelivr CDN), sem necessidade de credenciais
-- **API Gateway:** `apps/web` proxia `/api/*` para `apps/api` via `API_INTERNAL_URL`; em Docker/Compose o padrão interno é `http://api:3001`, mas o valor pode ser sobrescrito por ambiente (sem hop extra no redirect)
+- **Public API routing:** em produção, o Traefik do Dokploy roteia `/api/*` diretamente para `apps/api`; em desenvolvimento local, `apps/web` mantém o mesmo contrato same-origin via rewrite dev-only para `apps/api`.
 - **Redirect Runtime Dependency:** `apps/web` resolve shortlinks localmente e depende de `DATABASE_URL` para fallback no cache miss (via `@urlfy/redirect-domain` -> `@urlfy/data`).
-- **Startup validation:** `docker/web.Dockerfile` usa `SKIP_ENV_VALIDATION=1` apenas no build; o container final valida env real no boot. O CI smoke-testa `/api/health` para provar boot e fail-fast de env, enquanto Docker/Compose usam `/api/health/ready` para validar dependências mandatórias de tráfego. Database e API upstream permanecem obrigatórios; indisponibilidade de Redis é reportada como degradação sem bloquear o boot.
+- **Startup validation:** `docker/web.Dockerfile` usa `SKIP_ENV_VALIDATION=1` apenas no build; o container final valida env real no boot. O CI smoke-testa `/_health` para provar boot e fail-fast de env, enquanto Docker/Compose usam `/_health/ready` (web) e `/api/health/ready` (api) para validar dependências mandatórias de tráfego. Database e API upstream permanecem obrigatórios; indisponibilidade de Redis é reportada como degradação sem bloquear o boot.
 
 ### GeoIP Auto-Download
 

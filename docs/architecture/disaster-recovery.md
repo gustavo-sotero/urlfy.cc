@@ -44,7 +44,7 @@ Backups are stored in the `backup_data` Docker volume, mapped to `/backups` insi
 
 ```bash
 cd docker
-docker-compose stop app
+docker compose stop web api worker
 ```
 
 #### 2. Restore Database
@@ -63,9 +63,10 @@ gunzip -c urlfy_20260107_020000.sql.gz | docker exec -i urlfy-postgres psql -U u
 #### 3. Restart the Application
 
 ```bash
-docker-compose start app
+docker compose start api web worker
 
-# Verify health
+# Verify same-origin edge health
+curl http://localhost:3000/_health/ready
 curl http://localhost:3000/api/health/ready
 ```
 

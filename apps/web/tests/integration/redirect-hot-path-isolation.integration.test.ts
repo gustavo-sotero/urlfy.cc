@@ -3,7 +3,7 @@
  *
  * These tests assert that the web redirect handler resolves short codes
  * locally through @urlfy/redirect-domain and does not proxy through the
- * API gateway with fetch.
+ * public API edge with an extra fetch hop.
  */
 
 import {

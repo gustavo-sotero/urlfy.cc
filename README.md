@@ -170,7 +170,7 @@ cp .env.example .env
 Edit `.env` with your values. The same env file is used by all services.
 
 Key env for the monorepo:
-- `API_INTERNAL_URL` — URL that apps/web proxies API calls to (default: `http://localhost:3001`)
+- `API_INTERNAL_URL` — Internal base URL used by apps/web for server-to-server calls to apps/api (default: `http://localhost:3001`)
 - `API_PORT` — Port for the standalone Elysia API server (default: `3001`)
 
 ### 5. Run database migrations
@@ -196,6 +196,9 @@ This uses **Turborepo** to start all apps in parallel:
 - `apps/api` → [http://localhost:3001](http://localhost:3001) (Elysia API)
 - `apps/worker` → background process (no HTTP)
 
+Browser requests stay same-origin in this mode because `apps/web` rewrites `/api/*`
+to `apps/api` only in local development.
+
 > **Or start individual services:**
 > ```bash
 > bun run dev:web     # Next.js only
@@ -208,6 +211,10 @@ This uses **Turborepo** to start all apps in parallel:
 ```bash
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up -d
 ```
+
+In the containerized overlay, `http://localhost:3000` is served by a local ingress
+that routes `/api/*` to `apps/api` and everything else to `apps/web`. The API also
+remains directly reachable on `http://localhost:3001` for debugging.
 
 
 ## Environment Variables
@@ -233,7 +240,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | No       | —                               | OTLP HTTP collector base endpoint (no `/v1/*` suffix) |
 | `GEOIP_DB_PATH`               | No       | `/app/geoip/GeoLite2-City.mmdb` | Path to GeoLite2 MMDB file               |
 | `TRUSTED_ORIGINS`             | No       | —                               | Comma-separated list of trusted origins  |
-| `API_INTERNAL_URL`            | No       | `http://localhost:3001`         | URL apps/web proxies API calls to        |
+| `API_INTERNAL_URL`            | No       | `http://localhost:3001`         | Internal base URL for apps/web server-to-server calls to apps/api |
 | `API_PORT`                    | No       | `3001`                          | Port for the standalone Elysia API server |
 
 ## Scripts
@@ -421,7 +428,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 cd docker && docker compose -f docker-compose.prod.yml up -d
 ```
 
-The web image validates runtime env on startup, and the worker validates its own runtime secret set before consuming Redis Streams. CI smoke-tests that required services fail fast without mandatory secrets and serve `/api/health` when booted with valid runtime env. Docker and Compose health checks use `/api/health/ready` to verify traffic readiness: database and upstream API remain mandatory, while Redis degradation is surfaced without blocking startup.
+The web image validates runtime env on startup, and the worker validates its own runtime secret set before consuming Redis Streams. CI smoke-tests that required services fail fast without mandatory secrets and serve `/_health` when booted with valid runtime env. Docker and Compose health checks use `/_health/ready` for `web` and `/api/health/ready` for `api` to verify traffic readiness: database and upstream API remain mandatory, while Redis degradation is surfaced without blocking startup.
 
 ### Backup & Recovery
 

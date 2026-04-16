@@ -147,7 +147,7 @@ services:
       - REDIS_URL=${REDIS_URL}
       - REDIS_HOST=${REDIS_HOST:-}
       - REDIS_PORT=${REDIS_PORT:-6379}
-      # Internal API for gateway anti-abuse
+      # Shared internal API secret for runtime validation and signed internal flows
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
       # GeoIP (needed for redirect analytics)
       - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb

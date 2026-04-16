@@ -2,6 +2,7 @@
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import * as adminApi from '@/lib/api/admin';
+import { resolveApiBaseUrl, resolveBaseUrl } from '@/lib/api/client';
 import * as api from '@/lib/api/links';
 import type { LinkResponse } from '@/types/links.types';
 
@@ -9,6 +10,15 @@ import type { LinkResponse } from '@/types/links.types';
 const mockFetch = mock((_input: RequestInfo | URL, _init?: RequestInit) =>
   Promise.resolve(new Response())
 );
+
+function createEnv(
+  overrides: Partial<NodeJS.ProcessEnv> = {}
+): NodeJS.ProcessEnv {
+  return {
+    NODE_ENV: 'test',
+    ...overrides
+  } as NodeJS.ProcessEnv;
+}
 
 beforeEach(() => {
   global.fetch = mockFetch as unknown as typeof fetch;
@@ -336,5 +346,41 @@ describe('API Client - Query Parameters', () => {
     expect(calledUrl).toContain('sortBy=createdAt');
     expect(calledUrl).toContain('sortOrder=desc');
     expect(calledUrl).toContain('tags=work%2Cpersonal');
+  });
+});
+
+describe('API Client - Base URL Resolution', () => {
+  it('prefers the browser origin for same-origin client requests', () => {
+    expect(
+      resolveBaseUrl(
+        createEnv({ NEXT_PUBLIC_APP_URL: 'https://urlfy.cc' }),
+        'https://browser.urlfy.cc'
+      )
+    ).toBe('https://browser.urlfy.cc');
+
+    expect(
+      resolveApiBaseUrl(
+        createEnv({
+          API_INTERNAL_URL: 'http://api:3001',
+          NEXT_PUBLIC_APP_URL: 'https://urlfy.cc'
+        }),
+        'https://browser.urlfy.cc'
+      )
+    ).toBe('https://browser.urlfy.cc');
+  });
+
+  it('keeps the public origin and API transport origin distinct on the server', () => {
+    const env = createEnv({
+      API_INTERNAL_URL: 'http://api:3001',
+      NEXT_PUBLIC_APP_URL: 'https://urlfy.cc'
+    });
+
+    expect(resolveBaseUrl(env)).toBe('https://urlfy.cc');
+    expect(resolveApiBaseUrl(env)).toBe('http://api:3001');
+  });
+
+  it('falls back to localhost defaults when env is absent', () => {
+    expect(resolveBaseUrl(createEnv())).toBe('http://localhost:3000');
+    expect(resolveApiBaseUrl(createEnv())).toBe('http://localhost:3001');
   });
 });

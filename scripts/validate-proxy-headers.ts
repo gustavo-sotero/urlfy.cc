@@ -8,6 +8,7 @@
  * Usage: bun run scripts/validate-proxy-headers.ts
  */
 
+import type { Dirent } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
@@ -61,9 +62,9 @@ interface Violation {
 }
 
 async function getTypeScriptFiles(dir: string): Promise<string[]> {
-  let entries: Awaited<ReturnType<typeof readdir>>;
+  let entries: Dirent<string>[];
   try {
-    entries = await readdir(dir, { withFileTypes: true });
+    entries = await readdir(dir, { withFileTypes: true, encoding: 'utf8' });
   } catch {
     return [];
   }

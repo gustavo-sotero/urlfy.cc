@@ -282,6 +282,68 @@ export const api = new Elysia({ prefix: '/api' })
     })
   )
 
+  // ── Edge protection and request context ─────────────────────────
+  // Register lifecycle hooks before any mounts/routes so every public
+  // /api/* entrypoint is covered consistently.
+  .derive(({ request }) => {
+    const requestId =
+      request.headers.get('x-request-id') ||
+      `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    return { requestId };
+  })
+
+  .onBeforeHandle(async ({ request, set }) => {
+    const abuseResult = await antiAbuseMiddleware(request);
+    if (abuseResult) return abuseResult;
+
+    const rateLimitResult = await rateLimit(request);
+    if (rateLimitResult.response) return rateLimitResult.response;
+
+    // Attach rate-limit headers so they flow into the final response
+    if (rateLimitResult.headers) {
+      rateLimitResult.headers.forEach((value, key) => {
+        set.headers[key] = value;
+      });
+    }
+  })
+
+  .onBeforeHandle(({ request, set }) => {
+    const apiKey = request.headers.get('x-api-key');
+    if (apiKey && !apiKey.startsWith('urlfy_sk_')) {
+      const requestId = getOrCreateRequestId(request);
+      set.status = 401;
+      set.headers['x-request-id'] = requestId;
+      set.headers['content-type'] = 'application/json; charset=utf-8';
+      return buildErrorEnvelope(
+        'UNAUTHORIZED',
+        'Invalid API key format',
+        requestId
+      );
+    }
+  })
+
+  .onAfterHandle(({ set, request, requestId, response }) => {
+    set.headers['x-request-id'] = requestId ?? getOrCreateRequestId(request);
+
+    // Record login failures so the anti-abuse service can auto-block repeat offenders.
+    // Works for both Elysia-defined routes (set.status) and the Better-Auth mount (Response).
+    if (request.method === 'POST') {
+      const path = new URL(request.url).pathname;
+      if (path.includes('/auth/sign-in')) {
+        const status =
+          response instanceof Response
+            ? response.status
+            : typeof set.status === 'number'
+              ? set.status
+              : 0;
+        if (status === 401 || status === 403) {
+          const ip = getClientIp(request);
+          recordLoginFailure(ip).catch(() => {});
+        }
+      }
+    }
+  })
+
   // Merged OpenAPI spec endpoint (includes Better-Auth)
   .get(
     '/internal/docs/merged.json',
@@ -348,71 +410,6 @@ export const api = new Elysia({ prefix: '/api' })
 
   // Public API v1
   .use(publicApiV1)
-
-  // ── Edge protection ─────────────────────────────────────────────
-  // Anti-abuse and rate-limit run before any business logic so that
-  // blocked/throttled requests never reach route handlers.
-  .onBeforeHandle(async ({ request, set }) => {
-    const abuseResult = await antiAbuseMiddleware(request);
-    if (abuseResult) return abuseResult;
-
-    const rateLimitResult = await rateLimit(request);
-    if (rateLimitResult.response) return rateLimitResult.response;
-
-    // Attach rate-limit headers so they flow into the final response
-    if (rateLimitResult.headers) {
-      rateLimitResult.headers.forEach((value, key) => {
-        set.headers[key] = value;
-      });
-    }
-  })
-
-  // API key format validation
-  .onBeforeHandle(({ request, set }) => {
-    const apiKey = request.headers.get('x-api-key');
-    if (apiKey && !apiKey.startsWith('urlfy_sk_')) {
-      const requestId = getOrCreateRequestId(request);
-      set.status = 401;
-      set.headers['x-request-id'] = requestId;
-      set.headers['content-type'] = 'application/json; charset=utf-8';
-      return buildErrorEnvelope(
-        'UNAUTHORIZED',
-        'Invalid API key format',
-        requestId
-      );
-    }
-  })
-
-  // Add request ID to all requests
-  .derive(({ request }) => {
-    const requestId =
-      request.headers.get('x-request-id') ||
-      `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    return { requestId };
-  })
-
-  // Set response header with request ID; track failed sign-in attempts for anti-abuse
-  .onAfterHandle(({ set, request, requestId, response }) => {
-    set.headers['x-request-id'] = requestId ?? getOrCreateRequestId(request);
-
-    // Record login failures so the anti-abuse service can auto-block repeat offenders.
-    // Works for both Elysia-defined routes (set.status) and the Better-Auth mount (Response).
-    if (request.method === 'POST') {
-      const path = new URL(request.url).pathname;
-      if (path.includes('/auth/sign-in')) {
-        const status =
-          response instanceof Response
-            ? response.status
-            : typeof set.status === 'number'
-              ? set.status
-              : 0;
-        if (status === 401 || status === 403) {
-          const ip = getClientIp(request);
-          recordLoginFailure(ip).catch(() => {});
-        }
-      }
-    }
-  })
 
   // Global error handler
   .onError(({ code, error, set, request, requestId }) => {

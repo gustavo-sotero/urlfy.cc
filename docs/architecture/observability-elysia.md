@@ -21,17 +21,23 @@ The urlfy.cc API now uses the official `@elysiajs/opentelemetry` plugin to provi
 
 ## Architecture
 
+`/api/*` is now owned directly by `apps/api`. Public API requests stay same-origin,
+but they reach Elysia through Traefik in production or the dev-only Next rewrite
+in `apps/web` during local development. The Next edge proxy remains scoped to the
+redirect hot path (`/:code` -> `/r/:code`), not the public API namespace.
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                      REQUEST LIFECYCLE                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ┌────────────┐                                                 │
-│  │  Next.js   │  (Parent Span: POST /api/links)                │
-│  │  Middleware│                                                 │
-│  └─────┬──────┘                                                 │
-│        │                                                        │
-│        ▼                                                        │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ Same-origin API edge                                      │  │
+│  │ - Traefik (production)                                    │  │
+│  │ - Next dev rewrite to apps/api (local development)        │  │
+│  └──────────────────────┬────────────────────────────────────┘  │
+│                         │                                       │
+│                         ▼                                       │
 │  ┌────────────────────────────────────────────────────────┐    │
 │  │         Elysia OpenTelemetry Plugin                     │    │
 │  │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐     │    │
@@ -126,8 +132,11 @@ Use the local infrastructure plus app services, or point the OTLP exporter at an
 
 ```bash
 bun run docker:up
-bun run dev:api
+bun run dev
 ```
+
+If you want to run only the API process, send requests directly to
+`http://localhost:3001/api/*` instead of relying on the same-origin edge.
 
 ### 2. Generate Traces
 
@@ -144,13 +153,17 @@ curl -X POST http://localhost:3000/api/links \
 2. Navigate to **Traces**
 3. Filter by `service.name = urlfy-api`
 4. Click on a trace to see:
-   - Parent span: `POST /api/links` (Next.js)
+  - Root/API span: `POST /api/links`
    - Child spans:
      - `parse` - Request body parsing
      - `beforeHandle` - Middleware execution
      - `createLink` - Handler execution
      - `afterHandle` - Post-processing
      - `transform` - Response transformation
+
+If the request crossed Traefik or another OTEL-enabled edge, that transport may
+appear as a separate upstream span, but the API lifecycle itself starts in
+`apps/api` rather than a Next.js BFF hop.
 
 ---
 

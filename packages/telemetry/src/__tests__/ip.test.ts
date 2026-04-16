@@ -132,7 +132,7 @@ describe('getClientIpFromHeaders with TRUST_PROXY enabled', () => {
 
 // ── getClientIp (Request-based) — TRUST_PROXY disabled ───────────────────────
 // Verifies the same spoof-resistance behavior for Request-based derivation,
-// which is used by the web API gateway and monitor log endpoint.
+// which is used by the web redirect handler and operational endpoints.
 
 describe('getClientIp with TRUST_PROXY disabled', () => {
   beforeEach(() => {

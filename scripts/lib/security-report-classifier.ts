@@ -16,9 +16,7 @@ export const UPSTREAM_UNAVAILABLE_CODES = new Set([
  * Determine if a non-expected response is due to upstream unavailability
  * rather than a real control failure.
  */
-export async function isUpstreamUnavailable(
-  res: Response
-): Promise<boolean> {
+export async function isUpstreamUnavailable(res: Response): Promise<boolean> {
   if (res.status !== 503 && res.status !== 502 && res.status !== 504) {
     return false;
   }
@@ -34,7 +32,7 @@ export async function isUpstreamUnavailable(
     }
   } catch {
     // Body is not JSON or unreadable — still treat 503 as upstream unavailable
-    // since the gateway itself likely returned a generic error page.
+    // since the public edge itself may have returned a generic error page.
   }
 
   return res.status === 502 || res.status === 503 || res.status === 504;

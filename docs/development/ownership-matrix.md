@@ -27,7 +27,7 @@
 | --- | --- | --- | --- |
 | CI/CD (`.github/workflows/ci.yml`) | Platform SRE | Platform Backend | Turbo tasks, test/build gates |
 | Docker (`docker/*.Dockerfile`, compose) | Platform SRE | Platform Backend | Multi-service image build and runtime |
-| Security headers/rate-limit | Platform Backend | Platform SRE | Gateway and API middleware controls |
+| Security headers/rate-limit | Platform Backend | Platform SRE | API edge and web operational middleware controls |
 | Observability/SLO alerts | Platform SRE | Platform Backend | P99, error-rate, cache-miss alerts |
 | Backup and DR procedures | Data Platform | Platform SRE | RPO/RTO process ownership |
 

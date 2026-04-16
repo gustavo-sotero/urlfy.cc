@@ -64,6 +64,7 @@ export {
 // CLIENT & UTILITIES
 // ═══════════════════════════════════════════════════════════════════
 export {
+  API_BASE_URL,
   apiClient,
   BASE_URL,
   client,

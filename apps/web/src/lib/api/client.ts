@@ -11,11 +11,37 @@ import type { ApiClientContract } from './api-types';
 // BASE URL CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
 
-/** Base URL for API requests */
-export const BASE_URL =
-  typeof window !== 'undefined'
-    ? window.location.origin
-    : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+function getBrowserOrigin(): string | undefined {
+  return typeof window !== 'undefined' ? window.location.origin : undefined;
+}
+
+/** Public app origin used for user-facing URLs. */
+export function resolveBaseUrl(
+  env: NodeJS.ProcessEnv = process.env,
+  browserOrigin: string | undefined = getBrowserOrigin()
+): string {
+  return browserOrigin || env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}
+
+/**
+ * Transport base for API requests.
+ * Browser calls stay same-origin, while server-side calls use the internal API
+ * origin to avoid hairpinning through the public ingress.
+ */
+export function resolveApiBaseUrl(
+  env: NodeJS.ProcessEnv = process.env,
+  browserOrigin: string | undefined = getBrowserOrigin()
+): string {
+  return (
+    browserOrigin ||
+    env.API_INTERNAL_URL ||
+    env.NEXT_PUBLIC_APP_URL ||
+    'http://localhost:3001'
+  );
+}
+
+export const BASE_URL = resolveBaseUrl();
+export const API_BASE_URL = resolveApiBaseUrl();
 
 // ═══════════════════════════════════════════════════════════════════
 // CLIENT INSTANCES
@@ -27,7 +53,7 @@ export const BASE_URL =
  * The runtime still comes from Eden Treaty, but the namespace contract lives in
  * @urlfy/contracts so apps/web stays decoupled from apps/api internals.
  */
-export const client = treaty(BASE_URL, {
+export const client = treaty(API_BASE_URL, {
   fetch: {
     credentials: 'include' // Required for cookies to be sent
   }
@@ -73,7 +99,7 @@ export const apiClient = {
  * ```
  */
 export function createClientWithHeaders(headers: HeadersInit) {
-  return treaty(BASE_URL, {
+  return treaty(API_BASE_URL, {
     fetch: {
       credentials: 'include'
     },

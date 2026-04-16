@@ -18,7 +18,7 @@ Trigger immediate rollback when one or more of these conditions happen after dep
 - Redirect error rate exceeds SLO threshold.
 - Redirect latency P99 is critically degraded.
 - Auth/session cross-service flow fails for valid users.
-- API gateway `/api/*` cannot reach `api` service consistently.
+- Same-origin `/api/*` routing cannot reach `api` service consistently.
 - Worker lag grows and analytics ingestion stalls.
 
 ## Required Inputs
@@ -38,6 +38,8 @@ Before rollback, collect and store:
 4. Re-apply environment variables from the previous stable release (including internal URLs and auth secrets).
 5. Start `api`, then `web`, then `worker`.
 6. Validate health checks:
+   - `GET /_health`
+   - `GET /_health/ready`
    - `GET /api/health`
    - `GET /api/health/ready`
    - sample redirect request `/:code` (through `web`)

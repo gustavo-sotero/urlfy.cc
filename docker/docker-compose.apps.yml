@@ -10,10 +10,35 @@
 # OTEL_EXPORTER_OTLP_ENDPOINT at an OTLP HTTP collector base URL without
 # a /v1/* suffix, or use the per-signal overrides below.
 # This overlay runs production-style containers for local validation.
-# The dev-only Next rewrite used by `bun dev` / `next dev` is not active here.
+# A lightweight local ingress keeps the public contract same-origin on :3000.
+# The dev-only Next rewrite used by `bun dev` / `next dev` remains the
+# hot-reload path for source-based local development.
 # ═══════════════════════════════════════════════════════════════════
 
 services:
+  # ─── Local Ingress (same-origin /api/* -> api, /* -> web) ───────
+  ingress:
+    build:
+      context: ..
+      dockerfile: docker/nginx/nginx.Dockerfile
+    init: true
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    ports:
+      - '0.0.0.0:3000:8080'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://localhost:8080/_health/ready || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - urlfy_net
+
   # ─── API Server (Elysia, port 3001) ───────────────────────────
   api:
     build:
@@ -105,10 +130,7 @@ services:
       - OTEL_SERVICE_VERSION=${OTEL_SERVICE_VERSION:-0.1.0}
     volumes:
       - geoip_data:/app/geoip:ro
-    # Expose web directly for containerized validation.
-    # For hot-reload same-origin development, prefer `bun dev`.
-    ports:
-      - '0.0.0.0:3000:3000'
+    # Keep web internal-only; public browser traffic should enter via ingress.
     healthcheck:
       test: ['CMD-SHELL', 'curl -fsS http://localhost:3000/_health/ready || exit 1']
       interval: 30s

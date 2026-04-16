@@ -87,7 +87,7 @@ class InMemoryRateLimiter {
 }
 
 /**
- * Canonical sliding-window rate limiter used by gateway, API, admin, redirect
+ * Canonical sliding-window rate limiter used by the public API edge, admin, redirect
  * and API-key flows through app-local adapters.
  */
 export class CanonicalRateLimiter {

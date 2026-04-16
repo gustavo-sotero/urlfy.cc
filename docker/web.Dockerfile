@@ -77,6 +77,6 @@ ENV HOSTNAME=0.0.0.0
 ENV NODE_ENV=production
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD curl -fsS http://localhost:3000/api/health/ready || exit 1
+  CMD curl -fsS http://localhost:3000/_health/ready || exit 1
 
 CMD ["bun", "server.js"]

@@ -141,7 +141,7 @@ The following runtime services were consolidated from per-app duplicates into ca
 Additional hardening in this cycle:
 - `requireAuth` middleware now throws `AppError(SERVICE_UNAVAILABLE)` on auth subsystem failure instead of silently treating it as unauthenticated.
 - `optionalAuth` middleware now logs auth subsystem failures while preserving anonymous continuation.
-- Monitor log endpoint (`/api/monitor/log`) switched from in-memory rate limiter to distributed Redis-backed rate limiting via canonical `rateLimiter`.
+- Monitor log endpoint (`/_monitor/log`) switched from in-memory rate limiter to distributed Redis-backed rate limiting via canonical `rateLimiter`.
 - Admin layout IP extraction uses canonical `getClientIpFromHeaders()` instead of direct proxy-header parsing.
 - `security-report.ts` classifier distinguishes upstream unavailability (503) from actual control failures.
 - Proxy-header guardrail script (`scripts/validate-proxy-headers.ts`) added to CI.

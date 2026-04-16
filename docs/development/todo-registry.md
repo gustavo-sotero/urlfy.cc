@@ -11,7 +11,7 @@
   3. **Scopes single source of truth** — `hasScopes`, `ScopePresets`, `parseScopes`, `serializeScopes`, `isValidScope` added to `packages/auth-shared/src/scopes.ts`; duplicate removed; `apps/api/src/server/config/scopes.ts` is now a re-export shim.
   4. **Rate-limits canonical policy + evaluator** — `packages/contracts/src/rate-limit-policy.ts` is the single policy registry and `packages/cache/src/rate-limiter-core.ts` is the single evaluator; both app copies are now adapter shims.
   5. **CORS/security-headers canonical policy** — `packages/contracts/src/cors-policy.ts` and `packages/contracts/src/security-headers.ts` created; all four app copies replaced with re-export shims.
-  6. **Browser error reporting** — `apps/web/src/lib/browser-logger.ts` and `apps/web/src/lib/browser-log-contract.ts` now define the canonical client payload; key dashboard/admin/form surfaces and `/api/monitor/log` all use the same requestId/context-aware contract.
+  6. **Browser error reporting** — `apps/web/src/lib/browser-logger.ts` and `apps/web/src/lib/browser-log-contract.ts` now define the canonical client payload; key dashboard/admin/form surfaces and `/_monitor/log` all use the same requestId/context-aware contract.
   7. **Redis import-time capture** — `packages/cache/src/distributed-lock.ts` changed from module-level `const redis = getRedisClient()` to lazy `getRedis()` accessor.
   8. **Dead suppression removed** — `@ts-ignore` and `biome-ignore` comments removed from `apps/api/src/server/index.ts` (`noEmit: true` means TS4023 never fires).
   9. **Biome CSS** — `biome.json` extended with `css.parser.tailwindDirectives: true` to handle Tailwind v4 `@theme`, `@custom-variant`, `@apply` syntax.
@@ -27,7 +27,7 @@
 - **Changes delivered:**
   1. **requireAuth hardening** — Catch block now throws `AppError(SERVICE_UNAVAILABLE)` instead of silently treating auth subsystem failures as unauthenticated.
   2. **optionalAuth observability** — Auth subsystem failures are now logged at `error` level while preserving anonymous continuation.
-  3. **Monitor log rate limiting** — `/api/monitor/log` switched from spoofable in-memory rate limiter to distributed Redis-backed rate limiting via canonical `rateLimiter` and `getClientIp()`.
+  3. **Monitor log rate limiting** — `/_monitor/log` switched from spoofable in-memory rate limiter to distributed Redis-backed rate limiting via canonical `rateLimiter` and `getClientIp()`.
   4. **Admin audit IP derivation** — Admin layout now uses `getClientIpFromHeaders()` from `@urlfy/telemetry` instead of direct proxy-header parsing.
   5. **Security-report classifier** — Added `isUpstreamUnavailable()` helper; 503-type responses are now classified as `'skipped'` instead of false control failures.
   6. **CacheService consolidation** — Canonical in `packages/redirect-domain/src/cache-service.ts`; API and worker shims.

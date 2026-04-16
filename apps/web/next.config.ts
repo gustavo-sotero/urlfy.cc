@@ -1,6 +1,10 @@
 import { resolve } from 'node:path';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
+import {
+  getDevApiRewrites,
+  getLocalApiProxyTarget
+} from './src/server/config/api-rewrites';
 import { getNextJSHeaders } from './src/server/config/security';
 
 // Initialize next-intl plugin
@@ -9,13 +13,7 @@ const monorepoRoot = resolve(__dirname, '../..');
 
 // Security headers from centralized configuration
 const securityHeaders = getNextJSHeaders();
-const localApiProxyTarget =
-  process.env.NODE_ENV === 'development'
-    ? (process.env.DEV_API_PROXY_TARGET || 'http://localhost:3001').replace(
-        /\/$/,
-        ''
-      )
-    : undefined;
+const localApiProxyTarget = getLocalApiProxyTarget();
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -76,16 +74,7 @@ const nextConfig: NextConfig = {
   // Dev-only: keep browser calls same-origin in `bun dev` / `next dev`
   // without requiring a dedicated reverse-proxy process.
   async rewrites() {
-    if (!localApiProxyTarget) {
-      return [];
-    }
-
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${localApiProxyTarget}/api/:path*`
-      }
-    ];
+    return getDevApiRewrites(localApiProxyTarget);
   },
 
   // Security headers via Next.js response headers

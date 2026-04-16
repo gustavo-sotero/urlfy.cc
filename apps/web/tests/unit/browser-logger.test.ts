@@ -65,7 +65,7 @@ describe('browser logger', () => {
       timestamp: string;
     };
 
-    expect(url).toBe('/api/monitor/log');
+    expect(url).toBe('/_monitor/log');
     expect(body.error).toBe('create failed');
     expect(body.url).toBe('https://urlfy.cc/dashboard/links/new');
     expect(body.context).toEqual({

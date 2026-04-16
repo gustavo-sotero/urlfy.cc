@@ -5,7 +5,7 @@
  */
 
 import type { ApiResponse } from '@urlfy/contracts/shared';
-import { BASE_URL, client } from './client';
+import { API_BASE_URL, client } from './client';
 import { ApiClientError, extractErrorInfo, handleEden } from './error';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -87,7 +87,7 @@ export async function createApiKey(
     ...(input.rateLimit && { rateLimit: input.rateLimit })
   };
 
-  const response = await fetch(`${BASE_URL}/api/keys`, {
+  const response = await fetch(`${API_BASE_URL}/api/keys`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',

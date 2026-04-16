@@ -122,7 +122,7 @@ export interface RateLimitOutcome {
 /**
  * Build a traceable request ID from the incoming request.
  * Reuses the caller's `x-request-id` when present so the same ID
- * propagates through the full pipeline (gateway → middleware → Elysia).
+ * propagates through the full public API pipeline (edge → middleware → Elysia).
  */
 export async function rateLimit(
   request: Request,
