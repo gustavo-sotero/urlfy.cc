@@ -54,7 +54,7 @@ describe('Web readiness endpoint', () => {
         })
     ) as unknown as typeof fetch;
 
-    const { GET } = await import('@/app/api/health/ready/route');
+    const { GET } = await import('@/app/_health/ready/route');
     const response = await GET();
     const body = (await response.json()) as {
       status: string;
@@ -83,7 +83,7 @@ describe('Web readiness endpoint', () => {
         })
     ) as unknown as typeof fetch;
 
-    const { GET } = await import('@/app/api/health/ready/route');
+    const { GET } = await import('@/app/_health/ready/route');
     const response = await GET();
     const body = (await response.json()) as {
       status: string;
@@ -118,7 +118,7 @@ describe('Web readiness endpoint', () => {
         })
     ) as unknown as typeof fetch;
 
-    const { GET } = await import('@/app/api/health/ready/route');
+    const { GET } = await import('@/app/_health/ready/route');
     const response = await GET();
     const body = (await response.json()) as {
       status: string;
@@ -153,7 +153,7 @@ describe('Web readiness endpoint', () => {
         })
     ) as unknown as typeof fetch;
 
-    const { GET } = await import('@/app/api/health/ready/route');
+    const { GET } = await import('@/app/_health/ready/route');
     const response = await GET();
     const body = (await response.json()) as {
       status: string;

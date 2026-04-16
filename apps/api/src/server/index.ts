@@ -17,15 +17,21 @@ import { auth } from '@/lib/auth';
 import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
 import { ErrorCode, isAppError } from '@/server/lib/error-handler';
 import { shouldSkipHttpLog } from '@/server/lib/http-log';
+import { getClientIp } from '@/server/lib/ip';
 import { getMergedOpenAPISpec } from '@/server/lib/openapi-merger';
 import { ResponseModels } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
+import {
+  antiAbuseMiddleware,
+  recordLoginFailure
+} from '@/server/middleware/anti-abuse';
 import { compressionMiddleware } from '@/server/middleware/compression';
 import { cspMiddleware } from '@/server/middleware/csp.middleware';
 import {
   buildErrorEnvelope,
   getOrCreateRequestId
 } from '@/server/middleware/error-response';
+import { rateLimit } from '@/server/middleware/rate-limit';
 import { securityHeadersMiddleware } from '@/server/middleware/security-headers';
 // Feature-based modules
 import {
@@ -343,6 +349,24 @@ export const api = new Elysia({ prefix: '/api' })
   // Public API v1
   .use(publicApiV1)
 
+  // ── Edge protection ─────────────────────────────────────────────
+  // Anti-abuse and rate-limit run before any business logic so that
+  // blocked/throttled requests never reach route handlers.
+  .onBeforeHandle(async ({ request, set }) => {
+    const abuseResult = await antiAbuseMiddleware(request);
+    if (abuseResult) return abuseResult;
+
+    const rateLimitResult = await rateLimit(request);
+    if (rateLimitResult.response) return rateLimitResult.response;
+
+    // Attach rate-limit headers so they flow into the final response
+    if (rateLimitResult.headers) {
+      rateLimitResult.headers.forEach((value, key) => {
+        set.headers[key] = value;
+      });
+    }
+  })
+
   // API key format validation
   .onBeforeHandle(({ request, set }) => {
     const apiKey = request.headers.get('x-api-key');
@@ -367,9 +391,27 @@ export const api = new Elysia({ prefix: '/api' })
     return { requestId };
   })
 
-  // Set response header with request ID
-  .onAfterHandle(({ set, request, requestId }) => {
+  // Set response header with request ID; track failed sign-in attempts for anti-abuse
+  .onAfterHandle(({ set, request, requestId, response }) => {
     set.headers['x-request-id'] = requestId ?? getOrCreateRequestId(request);
+
+    // Record login failures so the anti-abuse service can auto-block repeat offenders.
+    // Works for both Elysia-defined routes (set.status) and the Better-Auth mount (Response).
+    if (request.method === 'POST') {
+      const path = new URL(request.url).pathname;
+      if (path.includes('/auth/sign-in')) {
+        const status =
+          response instanceof Response
+            ? response.status
+            : typeof set.status === 'number'
+              ? set.status
+              : 0;
+        if (status === 401 || status === 403) {
+          const ip = getClientIp(request);
+          recordLoginFailure(ip).catch(() => {});
+        }
+      }
+    }
   })
 
   // Global error handler

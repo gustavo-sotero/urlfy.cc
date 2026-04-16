@@ -68,7 +68,7 @@ describe('monitor log route', () => {
     // Import lazily so the first import picks up all registered mocks.
     // On subsequent tests Bun returns the cached (already-mocked) module.
     if (!POST) {
-      const mod = await import('@/app/api/monitor/log/route');
+      const mod = await import('@/app/_monitor/log/route');
       POST = mod.POST as typeof POST;
     }
   });

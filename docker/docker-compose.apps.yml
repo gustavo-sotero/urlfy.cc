@@ -9,6 +9,8 @@
 # Telemetry stays disabled by default. When enabling it, prefer pointing
 # OTEL_EXPORTER_OTLP_ENDPOINT at an OTLP HTTP collector base URL without
 # a /v1/* suffix, or use the per-signal overrides below.
+# This overlay runs production-style containers for local validation.
+# The dev-only Next rewrite used by `bun dev` / `next dev` is not active here.
 # ═══════════════════════════════════════════════════════════════════
 
 services:
@@ -103,10 +105,12 @@ services:
       - OTEL_SERVICE_VERSION=${OTEL_SERVICE_VERSION:-0.1.0}
     volumes:
       - geoip_data:/app/geoip:ro
+    # Expose web directly for containerized validation.
+    # For hot-reload same-origin development, prefer `bun dev`.
     ports:
       - '0.0.0.0:3000:3000'
     healthcheck:
-      test: ['CMD-SHELL', 'curl -fsS http://localhost:3000/api/health/ready || exit 1']
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:3000/_health/ready || exit 1']
       interval: 30s
       timeout: 5s
       retries: 3

@@ -14,8 +14,12 @@
 # Arquitetura de serviços:
 #   migrate → roda migrações e sai (depends_on: service_completed_successfully)
 #   api     → Elysia API em :3001, depende de migrate
-#   web     → Next.js em :3000, proxy /api/* → api:3001
+#   web     → Next.js em :3000, depende de api
 #   worker  → Bun workers Redis Streams, depende de migrate
+#
+# Roteamento (path-based via Traefik nativo do Dokploy):
+#   /api/* → api:3001   (priority alta, configurado na dashboard Dokploy)
+#   /*     → web:3000   (catch-all, configurado na dashboard Dokploy)
 # ═══════════════════════════════════════════════════════════════════
 
 services:
@@ -165,7 +169,7 @@ services:
       - dokploy-network
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'curl', '-fsS', 'http://localhost:3000/api/health/ready']
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:3000/_health/ready']
       interval: 30s
       timeout: 5s
       start_period: 15s

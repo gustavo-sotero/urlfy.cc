@@ -54,7 +54,7 @@ Para links virais, rate limiting por IP bloquearia usuários legítimos. Estrat�
 
 Para evitar dupla cobrança de custo no mesmo request path:
 
-- **Camada 1 (Gateway API `/api/*`):** rate limit global para rotas de API.
+- **Camada 1 (API edge `/api/*`):** rate limit global para rotas de API, aplicado diretamente em `apps/api` via `onBeforeHandle`.
 - **Camada 2 (Redirect público `/r/:code`):** rate limit dedicado de redirect (`IP + link`) no próprio handler de redirect.
 - **Camada 3 (Guard de abuso por link):** limite por `shortCode` aplicado apenas no fluxo de redirect.
 
@@ -71,7 +71,7 @@ Direct parsing of proxy headers (`x-forwarded-for`, `x-real-ip`, etc.) in app-le
 
 Approved exemptions:
 - `packages/telemetry/src/ip.ts` — the canonical implementation.
-- `apps/web/src/app/api/[[...slugs]]/route.ts` — the API gateway proxy, which *sets* (not parses) `x-forwarded-for` using `getClientIp()` for downstream forwarding.
+- `apps/web/src/lib/server-session.ts` — the SSR session fetch, which *sets* (not parses) `x-forwarded-for` using `getClientIpFromHeaders()` when proxying the client IP to the API for auth.
 
 ## Runtime Secret Guards
 
@@ -79,7 +79,7 @@ Os segredos de auth e env possuem sentinelas de build-time que nunca podem ser a
 
 - `packages/auth-shared/src/auth-config.ts` rejeita `BETTER_AUTH_SECRET` placeholder e qualquer `SKIP_ENV_VALIDATION=1` fora do build do Next.js.
 - `apps/web/src/lib/env.ts`, `apps/api/src/lib/env.ts` e `apps/worker/src/lib/env.ts` rejeitam sentinelas de `BETTER_AUTH_SECRET`, `INTERNAL_API_SECRET` e `INTERNAL_ANALYTICS_SECRET` durante validação real.
-- O CI sobe a imagem `docker/web.Dockerfile` em smoke test para provar que o container falha sem env obrigatório e atende `/api/health` quando recebe env válido. Os health checks de runtime usam `/api/health/ready` para verificar as dependências mandatórias do redirect path; indisponibilidade de Redis é exposta como degradação operacional sem impedir o boot.
+- O CI sobe a imagem `docker/web.Dockerfile` em smoke test para provar que o container falha sem env obrigatório e atende `/_health` quando recebe env válido. Os health checks de runtime usam `/_health/ready` (web) e `/api/health/ready` (api) para verificar as dependências mandatórias; indisponibilidade de Redis é exposta como degradação operacional sem impedir o boot.
 
 ---
 

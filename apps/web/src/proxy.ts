@@ -31,7 +31,7 @@ const intlMiddleware = createMiddleware(routing);
  * These are kept at root level without locale prefix
  */
 const SYSTEM_ROUTES = [
-  '/api', // API routes
+  '/api', // API routes (routed by ingress to apps/api)
   '/auth', // Authentication routes (Better-Auth)
   '/admin', // Admin panel
   '/login', // Login page
@@ -40,6 +40,8 @@ const SYSTEM_ROUTES = [
   '/settings', // Settings
   '/internal', // Internal routes
   '/r', // Redirect route handler (hot path)
+  '/_health', // Web operational liveness/readiness
+  '/_monitor', // Web operational monitoring (browser error ingestion)
   '/_next', // Next.js internals
   '/favicon.ico', // Favicon
   '/robots.txt', // Robots

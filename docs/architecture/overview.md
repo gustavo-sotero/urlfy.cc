@@ -33,7 +33,7 @@ O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços ind
 │  │  │          └──────────────► WORKER  (Bun — apps/worker)   │   │  │
 │  │  │                       │  Analytics · Aggregation        │   │  │
 │  │  │  /api/* → :3001       │  Cleanup   · Deletion           │   │  │
-│  │  │  (HTTP proxy)         └───────────────────────────────┬─┘   │  │
+│  │  │  (Traefik ingress)     └───────────────────────────────┬─┘   │  │
 │  │  └──────────────────────┐                               │      │  │
 │  │                         │  ┌────────────────────────────▼─┐    │  │
 │  │                         │  │  GeoIP Downloader (cron)      │    │  │
@@ -49,7 +49,8 @@ O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços ind
 │  └──────────────────────────────────────────────────────────────┘   │
 │                                                                       │
 │  ┌─ Traefik (Dokploy) ─────────────────────────────────────────┐    │
-│  │  urlfy.cc:443        → web:3000                              │    │
+│  │  urlfy.cc:443 /api/* → api:3001  (path-based, dashboard)    │    │
+│  │  urlfy.cc:443 /*     → web:3000  (catch-all, dashboard)     │    │
 │  │  collector.urlfy.cc:443 → lgtm:4318                          │    │
 │  └─────────────────────────────────────────────────────────────┘    │
 └───────────────────────────────────────────────────────────────────────┘
@@ -104,7 +105,7 @@ Policies e contratos puros ficam centralizados em packages compartilhados; `apps
 - `packages/contracts/src/cors-policy.ts` e `packages/contracts/src/security-headers.ts`: origem única de CORS e security headers.
 - `packages/auth-shared/src/scopes.ts`: origem única de scopes e parsing de permissões.
 - `packages/auth-shared/src/auth-config.ts`: origem única de segredos, plugins e base config do Better-Auth.
-- `apps/web/src/lib/browser-logger.ts` + `POST /api/monitor/log`: caminho único para erros client-side, preservando `requestId` e contexto sanitizado.
+- `apps/web/src/lib/browser-logger.ts` + `POST /_monitor/log`: caminho único para erros client-side, preservando `requestId` e contexto sanitizado.
 
 ## Fluxo de Redirecionamento (Hot Path)
 

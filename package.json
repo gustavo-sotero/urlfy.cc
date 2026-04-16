@@ -41,8 +41,8 @@
     }
   },
   "scripts": {
-    "dev": "NODE_ENV=development turbo run dev --parallel",
-    "dev:web": "NODE_ENV=development turbo run dev --filter=web",
+    "dev": "DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development turbo run dev --parallel",
+    "dev:web": "DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development turbo run dev --filter=web",
     "dev:api": "NODE_ENV=development turbo run dev --filter=@urlfy/api",
     "dev:worker": "NODE_ENV=development turbo run dev --filter=worker",
     "build": "turbo run build",

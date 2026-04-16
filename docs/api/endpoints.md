@@ -8,7 +8,7 @@
 
 ## Visão Geral
 
-A API REST é construída com **ElysiaJS** em `apps/api/src/server/index.ts` e exposta sob `/api/` pelo gateway HTTP em `apps/web/src/app/api/[[...slugs]]/route.ts`. Todos os endpoints são versionados sob `/api/`.
+A API REST é construída com **ElysiaJS** em `apps/api/src/server/index.ts` e exposta sob `/api/`. O tráfego de `/api/*` é roteado diretamente para `apps/api` pelo ingress (Traefik em produção, rewrite do Next.js em desenvolvimento local). Todos os endpoints são versionados sob `/api/`.
 
 **Documentação interativa:**
 

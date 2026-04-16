@@ -304,7 +304,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 
 ## API
 
-The ElysiaJS API runs as a standalone Bun service in `apps/api`. The web app proxies `/api/*` traffic to that service and preserves request correlation headers and response envelopes.
+The ElysiaJS API runs as a standalone Bun service in `apps/api`. In production, Traefik (Dokploy) routes `/api/*` directly to `apps/api`. In local development (`bun dev`), `next.config.ts` rewrites `/api/*` to `apps/api` to preserve same-origin semantics without a dedicated proxy process.
 
 ### Key Endpoints
 
@@ -334,8 +334,9 @@ urlfy.cc/
 ├── apps/
 │   ├── web/                      # Next.js 16 (frontend + redirect hot path)
 │   │   └── src/
-│   │       ├── app/              # App Router (pages, layouts, API proxy)
-│   │       │   ├── api/[[...slugs]]/  # Proxy: forwards /api/* → apps/api
+│   │       ├── app/              # App Router (pages, layouts)
+│   │       │   ├── _health/      # Web operational health: GET /_health, /_health/ready
+│   │       │   ├── _monitor/     # Browser error ingestion: POST /_monitor/log
 │   │       │   └── r/[code]/     # Redirect hot path (in-process)
 │   │       ├── components/       # React components (UI, dashboard, admin)
 │   │       ├── lib/              # Client utilities, auth client, env

@@ -76,7 +76,7 @@ const statefulDbMock = {
           const target = targetKey ?? apiKeysStore[0];
           const executeUpdate = () => {
             // Side-effect: Revoke/Update logic
-            if (updates.revokedAt && target && target.revokedAt) {
+            if (updates.revokedAt && target?.revokedAt) {
               return Promise.resolve([]);
             }
             if (target) {

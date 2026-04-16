@@ -3,8 +3,8 @@
  * Prevents XSS, injection attacks, and enforces security policies
  */
 
+import { createLogger } from '@urlfy/telemetry';
 import DOMPurify from 'isomorphic-dompurify';
-import { createLogger } from './telemetry';
 
 const logger = createLogger('sanitizer');
 

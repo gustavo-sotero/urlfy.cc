@@ -314,20 +314,20 @@ jobs:
           trap cleanup EXIT
 
           for attempt in $(seq 1 30); do
-            if curl -fsS http://localhost:3000/api/health > /dev/null; then
-              echo "✅ Web container started and served /api/health"
+            if curl -fsS http://localhost:3000/_health > /dev/null; then
+              echo "✅ Web container started and served /_health"
               break
             fi
 
             sleep 2
           done
 
-          if ! curl -fsS http://localhost:3000/api/health > /dev/null; then
-            echo "❌ Web container did not become reachable on /api/health"
+          if ! curl -fsS http://localhost:3000/_health > /dev/null; then
+            echo "❌ Web container did not become reachable on /_health"
             exit 1
           fi
 
-          if ! docker exec urlfy-web-smoke curl -fsS http://localhost:3000/api/health > /dev/null; then
+          if ! docker exec urlfy-web-smoke curl -fsS http://localhost:3000/_health > /dev/null; then
             echo "❌ Web container did not bind on localhost inside the container"
             exit 1
           fi

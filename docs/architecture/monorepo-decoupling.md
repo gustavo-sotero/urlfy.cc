@@ -24,7 +24,7 @@ Non-negotiable constraints preserved:
 | Stage 4 - Web redirect rewire | Implemented | `apps/web/src/app/r/[code]/route.ts`, `apps/web/src/proxy.ts` |
 | Stage 5 - Standalone API service | Implemented | `apps/api/src/index.ts`, `docker/api.Dockerfile` |
 | Stage 6 - Standalone worker service | Implemented | `apps/worker/src/index.ts`, `docker/worker.Dockerfile` |
-| Stage 7 - `/api/*` gateway over network boundary | Implemented | `apps/web/src/app/api/[[...slugs]]/route.ts` |
+| Stage 7 - `/api/*` same-origin ingress routing | Implemented | `next.config.ts` (dev rewrite), Traefik path-based routing (prod), `apps/api` owns all `/api/*` |
 | Stage 8 - TS/Biome workspace config | Implemented | `packages/config-ts`, `packages/config-biome`, `biome.json` |
 | Stage 9 - Docker multi-service topology | Implemented | `docker/docker-compose.prod.yml`, `docker/web.Dockerfile`, `docker/api.Dockerfile`, `docker/worker.Dockerfile` |
 | Stage 10 - CI workspace-aware pipeline | Implemented | `.github/workflows/ci.yml` |

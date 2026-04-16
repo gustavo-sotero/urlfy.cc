@@ -11,12 +11,13 @@ interface Props {
   params: Promise<{ code: string }>;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+// SSR-only: use the internal service URL to avoid the hairpin through Nginx.
+const API_INTERNAL = process.env.API_INTERNAL_URL || 'http://localhost:3001';
 
 async function getLinkPreview(code: string) {
   try {
     const response = await fetch(
-      `${API_BASE}/api/links/by-code/${code}/preview`,
+      `${API_INTERNAL}/api/links/by-code/${code}/preview`,
       {
         cache: 'no-store'
       }
