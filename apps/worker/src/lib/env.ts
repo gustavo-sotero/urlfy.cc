@@ -54,9 +54,6 @@ const envSchema = z.object({
   // Backup
   BACKUP_RETENTION_DAYS: z.string().default('7'),
 
-  // Admin (temporary)
-  ADMIN_API_KEY: z.string().optional(),
-
   // Better-Auth vars are optional in worker (kept for shared env compatibility)
   BETTER_AUTH_SECRET: z.string().min(32).optional(),
   BETTER_AUTH_URL: z.url().optional(),

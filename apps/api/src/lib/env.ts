@@ -54,9 +54,6 @@ const envSchema = z.object({
   // Backup
   BACKUP_RETENTION_DAYS: z.string().default('7'),
 
-  // Admin (temporary)
-  ADMIN_API_KEY: z.string().optional(),
-
   // Better-Auth
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url().optional(),

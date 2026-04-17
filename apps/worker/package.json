@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NODE_ENV=development bun --env-file=../../.env run --watch src/index.ts",
+    "dev": "cd ../.. && NODE_ENV=development bun --env-file=.env run --watch apps/worker/src/index.ts",
     "healthcheck": "bun --env-file=../../.env run src/healthcheck.ts",
     "start": "bun --env-file=../../.env run src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
