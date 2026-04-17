@@ -103,7 +103,7 @@ ENV NODE_ENV=production \
 
 # Health check usando curl (mais leve que spawnar Bun)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl --fail --silent --max-time 5 http://localhost:3000/_health/ready || exit 1
+    CMD curl --fail --silent --max-time 5 http://localhost:3000/ops/health/ready || exit 1
 
 # Entrypoint runs migrations, then CMD starts the app
 ENTRYPOINT ["docker-entrypoint.sh"]

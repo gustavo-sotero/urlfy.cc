@@ -17,3 +17,9 @@ export const { Link, redirect, usePathname, useRouter } =
   createNavigation(routing);
 
 export type Locale = (typeof routing.locales)[number];
+
+export function hasLocalePrefix(pathname: string): boolean {
+  return routing.locales.some(
+    (locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`)
+  );
+}

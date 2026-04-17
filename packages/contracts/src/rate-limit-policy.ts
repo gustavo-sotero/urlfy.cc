@@ -192,7 +192,7 @@ export const ROUTE_RATE_LIMIT_CONFIGS: Record<string, RouteRateLimitEntry> = {
     auth: toConfig(RATE_LIMITS.API_KEY_CREATE)
   },
   // ─── Client Monitor (telemetry ingestion) ────────────────────────
-  'POST /_monitor/log': {
+  'POST /ops/monitor/log': {
     guest: toConfig(RATE_LIMITS.MONITOR_LOG),
     auth: toConfig(RATE_LIMITS.MONITOR_LOG)
   }
@@ -213,7 +213,7 @@ export const REDIRECT_RATE_LIMIT_CONFIG: {
 
 /**
  * Rate limit config for the client monitor/log endpoint.
- * Consumed directly by apps/web/src/app/_monitor/log/route.ts.
+ * Consumed directly by apps/web/src/app/ops/monitor/log/route.ts.
  */
 export const MONITOR_LOG_RATE_LIMIT_CONFIG: RateLimitConfig = toConfig(
   RATE_LIMITS.MONITOR_LOG

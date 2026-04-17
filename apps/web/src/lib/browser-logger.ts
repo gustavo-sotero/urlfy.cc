@@ -8,7 +8,7 @@ import type { BrowserLogPayload } from './browser-log-contract';
  * ═════════════════════════════════════════════════════════════════════
  * Single browser-side error reporting helper.
  * - In development: logs to console only.
- * - In production: posts to /_monitor/log (fire-and-forget).
+ * - In production: posts to /ops/monitor/log (fire-and-forget).
  * - Normalises unknown thrown values into a safe string.
  * - Strips query-string tokens and control characters from URLs.
  * - Never throws — error reporting must not break the UI.
@@ -77,7 +77,7 @@ export function reportBrowserError(
   // Errors from the log endpoint itself are swallowed intentionally.
   if (typeof window === 'undefined') return;
 
-  fetch('/_monitor/log', {
+  fetch('/ops/monitor/log', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)

@@ -32,7 +32,7 @@ async function main() {
   if (existsSync(publicSrc)) {
     await copyDir(publicSrc, publicDest);
   } else {
-    console.warn('Warning: public folder not found.');
+    console.log('Skipped optional public copy: no public folder found.');
   }
 
   const staticSrc = join(cwd, '.next', 'static');

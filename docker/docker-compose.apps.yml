@@ -30,7 +30,7 @@ services:
     ports:
       - '0.0.0.0:3000:8080'
     healthcheck:
-      test: ['CMD-SHELL', 'wget -q -O /dev/null http://localhost:8080/_health/ready || exit 1']
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://localhost:8080/ops/health/ready || exit 1']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -132,7 +132,7 @@ services:
       - geoip_data:/app/geoip:ro
     # Keep web internal-only; public browser traffic should enter via ingress.
     healthcheck:
-      test: ['CMD-SHELL', 'curl -fsS http://localhost:3000/_health/ready || exit 1']
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:3000/ops/health/ready || exit 1']
       interval: 30s
       timeout: 5s
       retries: 3

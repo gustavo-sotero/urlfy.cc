@@ -68,7 +68,7 @@ describe('monitor log route', () => {
     // Import lazily so the first import picks up all registered mocks.
     // On subsequent tests Bun returns the cached (already-mocked) module.
     if (!POST) {
-      const mod = await import('@/app/_monitor/log/route');
+      const mod = await import('@/app/ops/monitor/log/route');
       POST = mod.POST as typeof POST;
     }
   });
@@ -83,7 +83,7 @@ describe('monitor log route', () => {
 
   test('logs sanitized browser payloads with requestId and context', async () => {
     const response = await POST(
-      new Request('http://localhost/_monitor/log', {
+      new Request('http://localhost/ops/monitor/log', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -143,7 +143,7 @@ describe('monitor log route', () => {
     });
 
     const response = await POST(
-      new Request('http://localhost/_monitor/log', {
+      new Request('http://localhost/ops/monitor/log', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ error: 'test', url: 'https://urlfy.cc/' })
@@ -162,7 +162,7 @@ describe('monitor log route', () => {
     getClientIpMock.mockReturnValueOnce('10.0.0.1');
 
     await POST(
-      new Request('http://localhost/_monitor/log', {
+      new Request('http://localhost/ops/monitor/log', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -186,7 +186,7 @@ describe('monitor log route', () => {
 
   test('returns 413 when content-length exceeds 10 KB', async () => {
     const response = await POST(
-      new Request('http://localhost/_monitor/log', {
+      new Request('http://localhost/ops/monitor/log', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -204,7 +204,7 @@ describe('monitor log route', () => {
 
   test('returns 400 when required field "error" is missing', async () => {
     const response = await POST(
-      new Request('http://localhost/_monitor/log', {
+      new Request('http://localhost/ops/monitor/log', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ url: 'https://urlfy.cc/' })
@@ -219,7 +219,7 @@ describe('monitor log route', () => {
 
   test('returns 400 when required field "url" is missing', async () => {
     const response = await POST(
-      new Request('http://localhost/_monitor/log', {
+      new Request('http://localhost/ops/monitor/log', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ error: 'something broke' })

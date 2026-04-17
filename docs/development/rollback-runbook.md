@@ -38,8 +38,8 @@ Before rollback, collect and store:
 4. Re-apply environment variables from the previous stable release (including internal URLs and auth secrets).
 5. Start `api`, then `web`, then `worker`.
 6. Validate health checks:
-   - `GET /_health`
-   - `GET /_health/ready`
+   - `GET /ops/health`
+   - `GET /ops/health/ready`
    - `GET /api/health`
    - `GET /api/health/ready`
    - sample redirect request `/:code` (through `web`)

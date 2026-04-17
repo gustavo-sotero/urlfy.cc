@@ -57,7 +57,8 @@ function getReasonForSlug(slug: string): string {
     'status',
     'about',
     'pricing',
-    'blog'
+    'blog',
+    'ops'
   ];
   if (systemRoutes.includes(slug)) return 'system_route';
 

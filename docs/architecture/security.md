@@ -79,7 +79,7 @@ Os segredos de auth e env possuem sentinelas de build-time que nunca podem ser a
 
 - `packages/auth-shared/src/auth-config.ts` rejeita `BETTER_AUTH_SECRET` placeholder e qualquer `SKIP_ENV_VALIDATION=1` fora do build do Next.js.
 - `apps/web/src/lib/env.ts`, `apps/api/src/lib/env.ts` e `apps/worker/src/lib/env.ts` rejeitam sentinelas de `BETTER_AUTH_SECRET`, `INTERNAL_API_SECRET` e `INTERNAL_ANALYTICS_SECRET` durante validação real.
-- O CI sobe a imagem `docker/web.Dockerfile` em smoke test para provar que o container falha sem env obrigatório e atende `/_health` quando recebe env válido. Os health checks de runtime usam `/_health/ready` (web) e `/api/health/ready` (api) para verificar as dependências mandatórias; indisponibilidade de Redis é exposta como degradação operacional sem impedir o boot.
+- O CI sobe a imagem `docker/web.Dockerfile` em smoke test para provar que o container falha sem env obrigatório e atende `/ops/health` quando recebe env válido. Os health checks de runtime usam `/ops/health/ready` (web) e `/api/health/ready` (api) para verificar as dependências mandatórias; indisponibilidade de Redis é exposta como degradação operacional sem impedir o boot.
 
 ---
 

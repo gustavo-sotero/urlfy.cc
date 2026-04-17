@@ -61,16 +61,6 @@ const nextConfig: NextConfig = {
     '@logtape/redaction'
   ],
 
-  // Explicitly include server-only packages in output file tracing for standalone
-  outputFileTracingIncludes: {
-    '/r/**/*': [
-      './node_modules/@maxmind/**/*',
-      './node_modules/drizzle-orm/**/*',
-      './node_modules/@opentelemetry/**/*',
-      './node_modules/@logtape/**/*'
-    ]
-  },
-
   // Dev-only: keep browser calls same-origin in `bun dev` / `next dev`
   // without requiring a dedicated reverse-proxy process.
   async rewrites() {

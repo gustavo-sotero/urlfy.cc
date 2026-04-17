@@ -66,7 +66,7 @@ gunzip -c urlfy_20260107_020000.sql.gz | docker exec -i urlfy-postgres psql -U u
 docker compose start api web worker
 
 # Verify same-origin edge health
-curl http://localhost:3000/_health/ready
+curl http://localhost:3000/ops/health/ready
 curl http://localhost:3000/api/health/ready
 ```
 

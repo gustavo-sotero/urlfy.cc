@@ -217,6 +217,7 @@ INSERT INTO reserved_slugs (slug, reason) VALUES
   ('settings', 'system_route'),
   ('health', 'system_route'),
   ('metrics', 'system_route'),
+  ('ops', 'system_route'),
   -- SEO/Browser
   ('favicon.ico', 'browser'),
   ('robots.txt', 'seo'),

@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
 import { buildCspDirectives } from '@/lib/csp';
-import { routing } from './i18n/routing';
+import { hasLocalePrefix, routing } from './i18n/routing';
 
 // Initialize next-intl middleware
 const intlMiddleware = createMiddleware(routing);
@@ -39,9 +39,8 @@ const SYSTEM_ROUTES = [
   '/logout', // Logout
   '/settings', // Settings
   '/internal', // Internal routes
+  '/ops', // Public operational routes (App Router '_' folders are private)
   '/r', // Redirect route handler (hot path)
-  '/_health', // Web operational liveness/readiness
-  '/_monitor', // Web operational monitoring (browser error ingestion)
   '/_next', // Next.js internals
   '/favicon.ico', // Favicon
   '/robots.txt', // Robots
@@ -117,9 +116,7 @@ export async function proxy(req: NextRequest) {
   }
 
   // 3. Check for locale-prefixed paths or root
-  const isLocalePath = routing.locales.some((loc) =>
-    pathname.startsWith(`/${loc}`)
-  );
+  const isLocalePath = hasLocalePrefix(pathname);
 
   // Root path or locale-prefixed path → use i18n middleware
   if (isLocalePath || pathname === '/') {
@@ -165,5 +162,7 @@ export async function proxy(req: NextRequest) {
  * Check if pathname is a system route that bypasses i18n
  */
 function isSystemRoute(pathname: string): boolean {
-  return SYSTEM_ROUTES.some((route) => pathname.startsWith(route));
+  return SYSTEM_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
 }

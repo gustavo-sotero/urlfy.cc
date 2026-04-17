@@ -77,8 +77,7 @@
         "apps/web/src/server/**",
         "apps/web/src/proxy.ts",
         "apps/web/src/app/r/**",
-        "apps/web/src/app/_health/**",
-        "apps/web/src/app/_monitor/**"
+        "apps/web/src/app/ops/**"
       ],
       "linter": {
         "rules": {

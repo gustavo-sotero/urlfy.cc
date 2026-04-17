@@ -10,8 +10,7 @@
  */
 
 import { describe, expect, it } from 'bun:test';
-import type { Locale } from '../../src/i18n/routing';
-import { routing } from '../../src/i18n/routing';
+import { hasLocalePrefix, routing } from '../../src/i18n/routing';
 
 describe('I18n Routing', () => {
   describe('Locale Configuration', () => {
@@ -34,9 +33,10 @@ describe('I18n Routing', () => {
         '@urlfy/data/schema/reserved-slugs'
       );
 
-      // Verify en and pt-br are reserved
+      // Verify locales and public ops namespace are reserved
       expect(RESERVED_SLUGS).toContain('en');
       expect(RESERVED_SLUGS).toContain('pt-br');
+      expect(RESERVED_SLUGS).toContain('ops');
     });
 
     it('should prevent creating links with locale codes as aliases', async () => {
@@ -47,6 +47,7 @@ describe('I18n Routing', () => {
       // Testa que os locales estão na lista de slugs reservados
       expect(RESERVED_SLUGS.includes('en')).toBe(true);
       expect(RESERVED_SLUGS.includes('pt-br')).toBe(true);
+      expect(RESERVED_SLUGS.includes('ops')).toBe(true);
 
       // Simula a lógica de validação
       const isReserved = (alias: string) =>
@@ -55,6 +56,7 @@ describe('I18n Routing', () => {
       // Testa que aliases com códigos de locale são rejeitados
       expect(isReserved('en')).toBe(true);
       expect(isReserved('pt-br')).toBe(true);
+      expect(isReserved('ops')).toBe(true);
 
       // Testa que aliases válidos são aceitos
       expect(isReserved('my-link')).toBe(false);
@@ -63,35 +65,34 @@ describe('I18n Routing', () => {
   });
 
   describe('Middleware Locale Detection', () => {
-    it('should recognize locale-prefixed paths', () => {
+    it('should recognize locale-prefixed paths only on segment boundaries', () => {
       const testPaths = [
         { path: '/en', isLocale: true },
         { path: '/en/', isLocale: true },
         { path: '/en/dashboard', isLocale: true },
         { path: '/pt-br', isLocale: true },
         { path: '/pt-br/about', isLocale: true },
+        { path: '/enjoy', isLocale: false },
+        { path: '/pt-brasil', isLocale: false },
         { path: '/abc123', isLocale: false },
         { path: '/api/links', isLocale: false },
         { path: '/admin', isLocale: false }
       ];
 
       for (const { path, isLocale } of testPaths) {
-        const hasLocalePrefix = routing.locales.some((loc: Locale) =>
-          path.startsWith(`/${loc}`)
-        );
-        expect(hasLocalePrefix).toBe(isLocale);
+        expect(hasLocalePrefix(path)).toBe(isLocale);
       }
     });
   });
 
   describe('Short Code Pattern Matching', () => {
     it('should match valid short code patterns', () => {
-      const shortCodeRegex = /^\/([a-zA-Z0-9_-]{1,20})$/;
+      const shortCodeRegex = /^\/([a-zA-Z0-9_-]{3,20})$/;
 
       const validCodes = [
         '/abc123',
         '/ABC123',
-        '/a',
+        '/abc',
         '/a-b',
         '/a_b',
         '/12345',
@@ -105,9 +106,10 @@ describe('I18n Routing', () => {
     });
 
     it('should not match invalid patterns', () => {
-      const shortCodeRegex = /^\/([a-zA-Z0-9_-]{1,20})$/;
+      const shortCodeRegex = /^\/([a-zA-Z0-9_-]{3,20})$/;
 
       const invalidCodes = [
+        '/ab', // Too short
         '/abc/def', // Contains slash
         '/abc.txt', // Contains dot
         '/abc@def', // Contains @

@@ -80,10 +80,15 @@ urlfy.cc/
 ### Service Communication
 
 ```
-Browser → apps/web (port 3000 / Next.js)
-            ├── /r/:code  → redirect hot path (in-process, no network hop)
+Browser → same-origin public edge (port 3000 locally / main domain in prod)
+            ├── /api/**   → apps/api (Traefik in Dokploy, Next dev rewrite in `bun dev`,
+            │               local ingress in Docker overlay)
+            ├── /r/:code  → apps/web redirect hot path (in-process, no network hop)
             │               uses @urlfy/redirect-domain package
-            └── /api/**   → HTTP proxy to apps/api (port 3001)
+            └── pages/**  → apps/web (Next.js)
+
+apps/web (SSR / route handlers)
+            └── API_INTERNAL_URL → apps/api (internal server-to-server transport)
 
 apps/api (port 3001 / ElysiaJS)
             └── writes analytics events → Redis Streams
@@ -93,29 +98,37 @@ apps/worker (no port / Bun)
 ```
 
 ```
-
 ┌──────────────────────────────────────────────────────────────┐
-│                       DOCKER COMPOSE                         │
+│                    SAME-ORIGIN PUBLIC EDGE                   │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
-│  ┌──────────────────┐    HTTP    ┌───────────────────────┐  │
-│  │   apps/web       │───────────►│      apps/api         │  │
-│  │  Next.js + proxy │ /api/*     │     Elysia service    │  │
-│  │  /r/:code local  │            │     auth + REST       │  │
-│  └────────┬─────────┘            └──────────┬────────────┘  │
-│           │                                  │               │
-│           │ Redis / DB hot path              │ Redis Streams │
-│           ▼                                  ▼               │
-│  ┌────────────────────┐              ┌────────────────────┐  │
-│  │     PostgreSQL     │◄────────────►│       Redis        │  │
-│  │        16          │              │         7          │  │
-│  └────────────────────┘              └─────────┬──────────┘  │
-│                                                │             │
-│                                      consumes   ▼             │
-│                              ┌──────────────────────────────┐ │
-│                              │        apps/worker           │ │
-│                              │ analytics + cleanup workers  │ │
-│                              └──────────────────────────────┘ │
+│  Browser                                                     │
+│     │                                                        │
+│     ▼                                                        │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ Traefik (prod) / local ingress (Docker) /             │  │
+│  │ Next dev rewrite (`bun dev`)                          │  │
+│  └──────────────┬───────────────────────────┬────────────┘  │
+│                 │ /api/*                    │ /*             │
+│                 ▼                           ▼                │
+│        ┌───────────────────────┐   ┌─────────────────────┐  │
+│        │      apps/api         │   │      apps/web       │  │
+│        │     Elysia service    │   │       Next.js       │  │
+│        │     auth + REST       │   │  pages + /r/:code   │  │
+│        └──────────┬────────────┘   └──────────┬──────────┘  │
+│                   │                           │              │
+│                   │ Redis Streams             │ Redis / DB   │
+│                   ▼                           ▼              │
+│        ┌────────────────────┐        ┌────────────────────┐ │
+│        │       Redis        │◄──────►│     PostgreSQL     │ │
+│        │         7          │        │        16          │ │
+│        └─────────┬──────────┘        └────────────────────┘ │
+│                  │                                           │
+│        consumes  ▼                                           │
+│     ┌──────────────────────────────┐                         │
+│     │        apps/worker           │                         │
+│     │ analytics + cleanup workers  │                         │
+│     └──────────────────────────────┘                         │
 │                                                              │
 │  ┌────────────────────────────────────────────────────────┐  │
 │  │   GeoIP Downloader + local OTLP collector (optional)  │  │
@@ -342,8 +355,7 @@ urlfy.cc/
 │   ├── web/                      # Next.js 16 (frontend + redirect hot path)
 │   │   └── src/
 │   │       ├── app/              # App Router (pages, layouts)
-│   │       │   ├── _health/      # Web operational health: GET /_health, /_health/ready
-│   │       │   ├── _monitor/     # Browser error ingestion: POST /_monitor/log
+│   │       │   ├── ops/          # Web operational routes: GET /ops/health, /ops/health/ready, POST /ops/monitor/log
 │   │       │   └── r/[code]/     # Redirect hot path (in-process)
 │   │       ├── components/       # React components (UI, dashboard, admin)
 │   │       ├── lib/              # Client utilities, auth client, env
@@ -428,7 +440,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.apps.yml up
 cd docker && docker compose -f docker-compose.prod.yml up -d
 ```
 
-The web image validates runtime env on startup, and the worker validates its own runtime secret set before consuming Redis Streams. CI smoke-tests that required services fail fast without mandatory secrets and serve `/_health` when booted with valid runtime env. Docker and Compose health checks use `/_health/ready` for `web` and `/api/health/ready` for `api` to verify traffic readiness: database and upstream API remain mandatory, while Redis degradation is surfaced without blocking startup.
+The web image validates runtime env on startup, and the worker validates its own runtime secret set before consuming Redis Streams. CI smoke-tests that required services fail fast without mandatory secrets and serve `/ops/health` when booted with valid runtime env. Docker and Compose health checks use `/ops/health/ready` for `web` and `/api/health/ready` for `api` to verify traffic readiness: database and upstream API remain mandatory, while Redis degradation is surfaced without blocking startup.
 
 ### Backup & Recovery
 
