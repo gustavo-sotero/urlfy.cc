@@ -40,38 +40,34 @@ export function LinkCard({ link, onDelete }: Props) {
 
   return (
     <Card
-      className="p-4 transition-shadow hover:shadow-md"
+      className="overflow-hidden border-border/60 bg-card/85 p-4 transition-shadow hover:shadow-md sm:p-5"
       data-testid={`link-card-${link.shortCode}`}
     >
-      <div className="space-y-3">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
+      <div className="space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1 space-y-3">
+            <div className="flex flex-wrap items-start gap-2">
               <a
                 href={link.shortUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-mono text-sm font-medium text-primary hover:underline"
+                className="min-w-0 break-all font-mono text-sm font-semibold text-primary hover:underline"
               >
                 {link.shortUrl}
               </a>
               <CopyButton text={link.shortUrl} />
               {link.isProtected && (
-                <>
-                  <Lock
-                    className="h-3 w-3 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <span className="sr-only">{t('passwordProtected')}</span>
-                </>
+                <Badge variant="outline" className="rounded-full">
+                  <Lock className="mr-1 h-3 w-3" aria-hidden="true" />
+                  {t('passwordProtected')}
+                </Badge>
               )}
             </div>
             <a
               href={link.originalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="block max-w-full truncate text-sm text-muted-foreground hover:text-foreground"
+              className="block break-all text-sm text-muted-foreground transition-colors hover:text-foreground sm:line-clamp-1"
             >
               {link.originalUrl}
             </a>
@@ -83,7 +79,7 @@ export function LinkCard({ link, onDelete }: Props) {
                 variant="ghost"
                 size="icon"
                 aria-label={t('options')}
-                className="shrink-0"
+                className="mt-0.5 h-9 w-9 shrink-0 rounded-full"
               >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
@@ -122,7 +118,6 @@ export function LinkCard({ link, onDelete }: Props) {
           </DropdownMenu>
         </div>
 
-        {/* Status badges */}
         <div className="flex flex-wrap items-center gap-2">
           {!link.isActive && <Badge variant="secondary">{t('inactive')}</Badge>}
           {isExpired && <Badge variant="destructive">{t('expired')}</Badge>}
@@ -134,17 +129,16 @@ export function LinkCard({ link, onDelete }: Props) {
           ))}
         </div>
 
-        {/* Stats */}
-        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <MousePointer className="h-3 w-3 shrink-0" />
+        <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-3">
+          <div className="flex items-center gap-2 rounded-xl bg-muted/45 px-3 py-2">
+            <MousePointer className="h-3.5 w-3.5 shrink-0" />
             <span>
               {link.clicksCount} {t('clicks')}
             </span>
           </div>
           {link.expiresAt && (
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3 shrink-0" />
+            <div className="flex items-center gap-2 rounded-xl bg-muted/45 px-3 py-2">
+              <Calendar className="h-3.5 w-3.5 shrink-0" />
               <span>
                 {t('expiresIn', {
                   date: new Date(link.expiresAt).toLocaleDateString(intlLocale)
@@ -152,7 +146,11 @@ export function LinkCard({ link, onDelete }: Props) {
               </span>
             </div>
           )}
-          {link.maxClicks && <span>{t('limit', { max: link.maxClicks })}</span>}
+          {link.maxClicks && (
+            <div className="rounded-xl bg-muted/45 px-3 py-2">
+              <span>{t('limit', { max: link.maxClicks })}</span>
+            </div>
+          )}
         </div>
       </div>
     </Card>

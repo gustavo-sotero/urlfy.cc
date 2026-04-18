@@ -151,6 +151,40 @@ export const LinkForm = {
     loadFailed: 'Error loading link'
   },
 
+  summary: {
+    title: 'Review before you publish',
+    descriptionNew:
+      'The primary path is ready. Use the extra sections only when this link needs more control.',
+    descriptionEdit:
+      'Keep the operational settings aligned without digging through every advanced field.',
+    destination: 'Destination',
+    shortCode: 'Short link slug',
+    shortLink: 'Short link',
+    redirect: 'Redirect mode',
+    limits: 'Limits',
+    security: 'Protection',
+    linkStatus: 'Link status',
+    currentClicks: 'Current clicks',
+    none: 'Not configured',
+    noDestination: 'Add a valid destination URL',
+    autoAlias: 'Auto-generated',
+    passwordEnabled: 'Password enabled',
+    activeValue: 'Active',
+    inactiveValue: 'Paused',
+    expiresOnValue: 'Expires on {date}',
+    maxClicksValue: '{count} clicks max',
+    passwordPill: 'Password protection',
+    limitsPill: 'Expiry or click limit',
+    metadataPill: 'Meta preview customized',
+    trackingPill: 'UTM tracking ready',
+    notesPill: 'Private notes added',
+    statusCreating: 'Creating link',
+    statusSaving: 'Saving changes',
+    statusValidating: 'Validating inputs',
+    statusReady: 'Ready to submit',
+    statusNeedsReview: 'Review required fields'
+  },
+
   // Success messages
   success: {
     created: 'Link created successfully!',

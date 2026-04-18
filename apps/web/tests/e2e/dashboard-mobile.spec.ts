@@ -16,84 +16,141 @@ const ACCEPTED_CONSENT = {
   timestamp: '2026-04-18T00:00:00.000Z'
 } as const;
 
-const SESSION_ENDPOINT = '/api/auth/get-session';
+const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL ?? 'test-user@urlfy.test';
+const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD ?? 'Password123!';
 
-const AUTHENTICATED_SESSION = {
-  session: {
-    id: 'session-1',
-    userId: 'user-1',
-    expiresAt: new Date(Date.now() + 86_400_000).toISOString()
-  },
-  user: {
-    id: 'user-1',
-    name: 'Test User',
-    email: 'test@example.com',
-    image: null,
-    emailVerified: true,
-    role: 'user',
-    twoFactorEnabled: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-} as const;
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 function getMobileDrawer(page: Page) {
   return page.locator('[data-slot="sheet-content"][data-state="open"]');
 }
 
-/**
- * Navigate to a dashboard route with session mocked and consent accepted.
- * Because the dashboard is a server-rendered route that redirects unauthenticated
- * users, we mock the session endpoint at the fetch level.
- */
-async function visitDashboard(page: Page, path = '/en/dashboard') {
+async function prepareClientState(page: Page) {
   await page.addInitScript(
-    ({ storedConsent, sessionData, sessionEndpoint }) => {
+    ({ storedConsent }) => {
       localStorage.setItem(
         'consent_preferences',
         JSON.stringify(storedConsent)
       );
-
-      const originalFetch = window.fetch.bind(window);
-      const sessionPayload = JSON.stringify(sessionData);
-
-      const getRequestUrl = (input: RequestInfo | URL) => {
-        if (typeof input === 'string') return input;
-        if (input instanceof URL) return input.toString();
-        return input.url;
-      };
-
-      const matchesSessionEndpoint = (url: string) => {
-        try {
-          return new URL(url, window.location.origin).pathname.endsWith(
-            sessionEndpoint
-          );
-        } catch {
-          return url.includes(sessionEndpoint);
-        }
-      };
-
-      window.fetch = Object.assign(
-        async (input: RequestInfo | URL, init?: RequestInit) => {
-          if (matchesSessionEndpoint(getRequestUrl(input))) {
-            return new Response(sessionPayload, {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' }
-            });
-          }
-          return originalFetch(input, init);
-        },
-        originalFetch
-      ) as typeof window.fetch;
     },
     {
-      storedConsent: ACCEPTED_CONSENT,
-      sessionData: AUTHENTICATED_SESSION,
-      sessionEndpoint: SESSION_ENDPOINT
+      storedConsent: ACCEPTED_CONSENT
     }
   );
+}
 
-  await page.goto(path, { waitUntil: 'domcontentloaded' });
+async function loginAsRegularUser(page: Page) {
+  await prepareClientState(page);
+  const testIpOctet = 10 + Math.floor(Math.random() * 200);
+
+  const response = await page
+    .context()
+    .request.post('/api/auth/sign-in/email', {
+      data: {
+        email: TEST_USER_EMAIL,
+        password: TEST_USER_PASSWORD,
+        rememberMe: false,
+        callbackURL: '/dashboard'
+      },
+      headers: {
+        'x-forwarded-for': `203.0.113.${testIpOctet}`
+      },
+      failOnStatusCode: false
+    });
+
+  if (!response.ok()) {
+    throw new Error(
+      `Seeded E2E login failed with ${response.status()}: ${await response.text()}`
+    );
+  }
+}
+
+async function visitDashboard(page: Page, path = '/dashboard') {
+  await loginAsRegularUser(page);
+
+  await page.goto(`/en${path}`, { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(
+    new RegExp(`/en${escapeRegExp(path)}(?:\\?.*)?$`),
+    { timeout: 10_000 }
+  );
+  await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible({
+    timeout: 10_000
+  });
+}
+
+async function assertNoHorizontalOverflow(page: Page) {
+  const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+
+  expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
+}
+
+async function createLinkForMobileTests(page: Page) {
+  const slug = `m${Date.now().toString(36)}${Math.floor(Math.random() * 1296)
+    .toString(36)
+    .padStart(2, '0')}`;
+  const testIpOctet = 10 + Math.floor(Math.random() * 200);
+
+  await loginAsRegularUser(page);
+
+  const response = await page.context().request.post('/api/links', {
+    data: {
+      url: `https://example.com/mobile/${slug}`,
+      customAlias: slug,
+      redirectType: 302
+    },
+    headers: {
+      'x-forwarded-for': `203.0.113.${testIpOctet}`,
+      'idempotency-key': `idempotency-${slug}`
+    },
+    failOnStatusCode: false
+  });
+
+  if (!response.ok()) {
+    throw new Error(
+      `Seeded E2E link creation failed with ${response.status()}: ${await response.text()}`
+    );
+  }
+
+  const payload = (await response.json()) as {
+    data: {
+      id: string;
+      shortCode: string;
+    };
+  };
+
+  return payload.data;
+}
+
+async function openMobileDrawer(page: Page) {
+  const menuButton = page.getByRole('button', { name: 'Menu' });
+  await expect(menuButton).toBeVisible();
+
+  const drawer = getMobileDrawer(page);
+
+  const openAttempts = [
+    () => menuButton.tap(),
+    () => menuButton.press('Enter'),
+    () => menuButton.click(),
+    () => menuButton.press('Enter')
+  ];
+
+  for (const [attempt, openDrawer] of openAttempts.entries()) {
+    await openDrawer();
+
+    try {
+      await expect(drawer).toBeVisible({ timeout: 3_000 });
+      return drawer;
+    } catch (error) {
+      if (attempt === openAttempts.length - 1) {
+        throw error;
+      }
+    }
+  }
+
+  return drawer;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -117,11 +174,7 @@ test.describe('Dashboard — mobile smoke', () => {
     page
   }) => {
     await visitDashboard(page);
-
-    const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-    const viewportWidth = page.viewportSize()?.width ?? 0;
-
-    expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
+    await assertNoHorizontalOverflow(page);
   });
 
   test('sidebar is hidden on mobile viewport', async ({ page }) => {
@@ -142,23 +195,13 @@ test.describe('Dashboard — mobile smoke', () => {
   test('mobile nav drawer opens via hamburger button', async ({ page }) => {
     await visitDashboard(page);
 
-    const menuButton = page.getByRole('button', { name: 'Menu' });
-    await expect(menuButton).toBeVisible();
-
-    await menuButton.click();
-
-    const drawer = getMobileDrawer(page);
-    await expect(drawer).toBeVisible();
+    await openMobileDrawer(page);
   });
 
   test('mobile nav drawer closes without layout breakage', async ({ page }) => {
     await visitDashboard(page);
 
-    const menuButton = page.getByRole('button', { name: 'Menu' });
-    await menuButton.click();
-
-    const drawer = getMobileDrawer(page);
-    await expect(drawer).toBeVisible();
+    const drawer = await openMobileDrawer(page);
 
     // Close via Escape
     await page.keyboard.press('Escape');
@@ -173,11 +216,7 @@ test.describe('Dashboard — mobile smoke', () => {
   test('mobile drawer contains navigation links', async ({ page }) => {
     await visitDashboard(page);
 
-    const menuButton = page.getByRole('button', { name: 'Menu' });
-    await menuButton.click();
-
-    const drawer = getMobileDrawer(page);
-    await expect(drawer).toBeVisible();
+    const drawer = await openMobileDrawer(page);
 
     // All four navigation links should be in the drawer
     const links = drawer.getByRole('link');
@@ -188,11 +227,7 @@ test.describe('Dashboard — mobile smoke', () => {
   test('mobile drawer has exactly one close affordance', async ({ page }) => {
     await visitDashboard(page);
 
-    const menuButton = page.getByRole('button', { name: 'Menu' });
-    await menuButton.click();
-
-    const drawer = getMobileDrawer(page);
-    await expect(drawer).toBeVisible();
+    const drawer = await openMobileDrawer(page);
 
     // Only the built-in SheetContent close button (sr-only "Close")
     const closeButtons = drawer.getByRole('button', { name: /close|fechar/i });
@@ -205,16 +240,13 @@ test.describe('Dashboard — mobile smoke', () => {
   }) => {
     await visitDashboard(page);
 
-    const menuButton = page.getByRole('button', { name: 'Menu' });
-    await menuButton.click();
+    const drawer = await openMobileDrawer(page);
 
-    const drawer = getMobileDrawer(page);
-    await expect(drawer).toBeVisible();
+    const firstLink = drawer.locator('nav').getByRole('link').first();
 
-    const firstLink = drawer.getByRole('link').first();
-    const box = await firstLink.boundingBox();
-    expect(box).not.toBeNull();
-    expect(box?.x).toBeGreaterThan(8);
+    await expect
+      .poll(async () => (await firstLink.boundingBox())?.x ?? -1)
+      .toBeGreaterThan(8);
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -222,18 +254,14 @@ test.describe('Dashboard — mobile smoke', () => {
   // ──────────────────────────────────────────────────────────────────────────
 
   for (const { name, path } of [
-    { name: 'overview', path: '/en/dashboard' },
-    { name: 'links list', path: '/en/dashboard/links' },
-    { name: 'analytics', path: '/en/dashboard/analytics' },
-    { name: 'settings', path: '/en/dashboard/settings' }
+    { name: 'overview', path: '/dashboard' },
+    { name: 'links list', path: '/dashboard/links' },
+    { name: 'analytics', path: '/dashboard/analytics' },
+    { name: 'settings', path: '/dashboard/settings' }
   ]) {
     test(`${name} page has no horizontal overflow`, async ({ page }) => {
       await visitDashboard(page, path);
-
-      const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-      const viewportWidth = page.viewportSize()?.width ?? 0;
-
-      expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
+      await assertNoHorizontalOverflow(page);
     });
   }
 
@@ -242,47 +270,74 @@ test.describe('Dashboard — mobile smoke', () => {
   // ──────────────────────────────────────────────────────────────────────────
 
   test('create link page has no horizontal overflow', async ({ page }) => {
-    await visitDashboard(page, '/en/dashboard/links/new');
-
-    const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-    const viewportWidth = page.viewportSize()?.width ?? 0;
-
-    expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
+    await visitDashboard(page, '/dashboard/links/new');
+    await assertNoHorizontalOverflow(page);
   });
 
-  test('create link form shows primary block and advanced sections are collapsed', async ({
+  test('create link form keeps advanced sections collapsed by default', async ({
     page
   }) => {
-    await visitDashboard(page, '/en/dashboard/links/new');
+    await visitDashboard(page, '/dashboard/links/new');
 
-    // Primary URL field should be visible immediately
-    const urlInput = page.getByRole('textbox', { name: /destination url/i });
+    const urlInput = page.getByRole('textbox', {
+      name: /destination url|url de destino/i
+    });
     await expect(urlInput).toBeVisible();
 
-    // Advanced section header is visible as a collapsible trigger
-    const advancedTrigger = page
-      .getByRole('button', {
-        name: /advanced settings/i
-      })
-      .or(page.locator('[data-slot="collapsible-trigger"]').first());
-    // It should exist but content be collapsed (no expiry input visible)
-    const expiryInput = page.locator('input[type="datetime-local"]');
-    // If collapsible is closed, the expiry input should not be visible/accessible
-    const expiryCount = await expiryInput.count();
-    // Either 0 (not in DOM) or hidden — just verify no overflow
-    expect(expiryCount).toBeGreaterThanOrEqual(0);
-    void advancedTrigger;
+    const advancedTrigger = page.getByRole('button', {
+      name: /advanced settings|configurações avançadas/i
+    });
+    await expect(advancedTrigger).toBeVisible();
+    await expect(
+      page.locator('input[type="datetime-local"]:visible')
+    ).toHaveCount(0);
   });
 
   test('create link submit button is visible without scrolling', async ({
     page
   }) => {
-    await visitDashboard(page, '/en/dashboard/links/new');
+    await visitDashboard(page, '/dashboard/links/new');
 
-    // The primary block (URL, alias, redirect type) and submit should both
-    // be reachable — submit is at the bottom
-    const submitBtn = page.getByRole('button', { name: /create link/i });
+    const submitBtn = page.getByRole('button', {
+      name: /create link|criar link/i
+    });
     await expect(submitBtn).toBeVisible();
+  });
+
+  test('detail and edit routes stay usable on mobile after creating a link', async ({
+    page
+  }) => {
+    test.slow();
+
+    const link = await createLinkForMobileTests(page);
+
+    await page.goto(`/en/dashboard/links/${link.id}`, {
+      waitUntil: 'domcontentloaded'
+    });
+    await expect(page).toHaveURL(new RegExp(`/en/dashboard/links/${link.id}$`));
+    await expect(
+      page.getByRole('heading', { name: /link details|detalhes do link/i })
+    ).toBeVisible({ timeout: 15_000 });
+    await assertNoHorizontalOverflow(page);
+
+    const editLink = page.getByRole('link', { name: /edit|editar/i }).first();
+    await expect(editLink).toBeVisible({ timeout: 10_000 });
+
+    await Promise.all([
+      page.waitForURL(new RegExp(`/en/dashboard/links/${link.id}/edit$`)),
+      editLink.click()
+    ]);
+
+    await expect(page).toHaveURL(
+      new RegExp(`/en/dashboard/links/${link.id}/edit$`)
+    );
+    await expect(
+      page.getByRole('button', { name: /save changes|salvar alterações/i })
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.locator('main h2').filter({ hasText: /edit link|editar link/i })
+    ).toBeVisible({ timeout: 15_000 });
+    await assertNoHorizontalOverflow(page);
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -300,18 +355,12 @@ test.describe('Dashboard — mobile smoke', () => {
       page
     }) => {
       await visitDashboard(page);
-
-      const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-      const viewportWidth = page.viewportSize()?.width ?? 0;
-      expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
+      await assertNoHorizontalOverflow(page);
     });
 
     test('links list page has no overflow at 320px', async ({ page }) => {
-      await visitDashboard(page, '/en/dashboard/links');
-
-      const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-      const viewportWidth = page.viewportSize()?.width ?? 0;
-      expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
+      await visitDashboard(page, '/dashboard/links');
+      await assertNoHorizontalOverflow(page);
     });
   });
 });

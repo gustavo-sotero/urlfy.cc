@@ -2,11 +2,15 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, ChevronDown, Loader2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
+import {
+  LinkFormCollapsibleSection,
+  LinkSummaryPanel
+} from '@/components/forms/link-form-panels';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -15,11 +19,6 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -97,26 +96,138 @@ function transformFormData(data: FormData): CreateLinkInput {
   return removeEmptyFields(transformed) as CreateLinkInput;
 }
 
+function getHostLabel(value?: string): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).host.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}
+
+function formatPreviewDate(
+  value: string | undefined,
+  locale: string
+): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed.toLocaleString(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // COMPONENT
 // ═══════════════════════════════════════════════════════════════════
 
 export default function NewLinkPage() {
   const t = useTranslations('LinkForm');
+  const locale = useLocale();
   const router = useRouter();
   const createLink = useCreateLink();
+  const intlLocale = locale === 'pt-br' ? 'pt-BR' : locale;
 
   const form = useForm<FormData>({
     resolver: zodResolver(createSchema(t)),
+    mode: 'onTouched',
+    reValidateMode: 'onChange',
     defaultValues: {
+      url: '',
+      customAlias: '',
+      expiresAt: '',
+      maxClicks: undefined,
+      password: '',
+      metaTitle: '',
+      metaDescription: '',
+      metaImage: '',
+      utmSource: '',
+      utmMedium: '',
+      utmCampaign: '',
+      notes: '',
       redirectType: String(REDIRECT_TYPES.TEMPORARY) as '301' | '302'
     }
   });
 
-  const redirectType = useWatch({
+  const [
+    urlValue,
+    aliasValue,
+    redirectType,
+    expiresAtValue,
+    maxClicksValue,
+    passwordValue,
+    metaTitleValue,
+    metaDescriptionValue,
+    utmSourceValue,
+    utmMediumValue,
+    utmCampaignValue,
+    notesValue
+  ] = useWatch({
     control: form.control,
-    name: 'redirectType'
+    name: [
+      'url',
+      'customAlias',
+      'redirectType',
+      'expiresAt',
+      'maxClicks',
+      'password',
+      'metaTitle',
+      'metaDescription',
+      'utmSource',
+      'utmMedium',
+      'utmCampaign',
+      'notes'
+    ]
   });
+
+  const aliasPreview = aliasValue?.trim() || t('summary.autoAlias');
+  const destinationLabel = getHostLabel(urlValue) || t('summary.noDestination');
+  const redirectLabel =
+    redirectType === '301'
+      ? `301 - ${t('permanent')}`
+      : `302 - ${t('temporary')}`;
+  const expirationLabel = formatPreviewDate(expiresAtValue, intlLocale);
+  const limitsLabel = [
+    maxClicksValue
+      ? t('summary.maxClicksValue', { count: maxClicksValue })
+      : null,
+    expirationLabel
+      ? t('summary.expiresOnValue', { date: expirationLabel })
+      : null
+  ]
+    .filter(Boolean)
+    .join(' • ');
+  const hasMetadata = Boolean(
+    metaTitleValue?.trim() || metaDescriptionValue?.trim()
+  );
+  const hasTracking = Boolean(
+    utmSourceValue?.trim() || utmMediumValue?.trim() || utmCampaignValue?.trim()
+  );
+  const summaryPills = [
+    passwordValue?.trim() ? t('summary.passwordPill') : null,
+    limitsLabel ? t('summary.limitsPill') : null,
+    hasMetadata ? t('summary.metadataPill') : null,
+    hasTracking ? t('summary.trackingPill') : null,
+    notesValue?.trim() ? t('summary.notesPill') : null
+  ].filter((value): value is string => Boolean(value));
+  const summaryStatus = createLink.isPending
+    ? t('summary.statusCreating')
+    : form.formState.isValidating
+      ? t('summary.statusValidating')
+      : form.formState.isValid
+        ? t('summary.statusReady')
+        : t('summary.statusNeedsReview');
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -131,103 +242,165 @@ export default function NewLinkPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
+    <div className="space-y-6 md:space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/dashboard/links" aria-label={t('actions.backToList')}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <div>
+        <div className="min-w-0 space-y-2">
+          <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+            {t('sections.basic')}
+          </p>
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
             {t('titleNew')}
           </h2>
-          <p className="text-muted-foreground">{t('subtitleNew')}</p>
+          <p className="max-w-2xl text-muted-foreground">{t('subtitleNew')}</p>
         </div>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {/* Primary block — always visible */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('sections.basic')}</CardTitle>
-            <CardDescription>{t('sections.basicDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <AccessibleFormField
-              id="url"
-              label={t('fields.url.label')}
-              required
-              error={form.formState.errors.url?.message}
-              hint={t('fields.url.hint')}
-            >
-              <Input
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
+          <Card className="border-border/60 bg-card/90">
+            <CardHeader className="space-y-2">
+              <CardTitle>{t('sections.basic')}</CardTitle>
+              <CardDescription>{t('sections.basicDesc')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <AccessibleFormField
                 id="url"
-                type="url"
-                placeholder={t('fields.url.placeholder')}
-                {...form.register('url')}
-                aria-invalid={!!form.formState.errors.url}
-                aria-required
-              />
-            </AccessibleFormField>
-
-            <AccessibleFormField
-              id="customAlias"
-              label={t('fields.alias.label')}
-              error={form.formState.errors.customAlias?.message}
-              hint={t('fields.alias.hint')}
-            >
-              <Input
-                id="customAlias"
-                placeholder={t('fields.alias.placeholder')}
-                {...form.register('customAlias')}
-              />
-            </AccessibleFormField>
-
-            <div className="space-y-2">
-              <Label htmlFor="redirectType">
-                {t('fields.redirectType.label')}
-              </Label>
-              <Select
-                value={redirectType}
-                onValueChange={(value) =>
-                  form.setValue('redirectType', value as '301' | '302')
-                }
+                label={t('fields.url.label')}
+                required
+                error={form.formState.errors.url?.message}
+                hint={t('fields.url.hint')}
               >
-                <SelectTrigger id="redirectType">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="301">301 - {t('permanent')}</SelectItem>
-                  <SelectItem value="302">302 - {t('temporary')}</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">
-                {t('fields.redirectType.hint')}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+                <Input
+                  id="url"
+                  type="url"
+                  placeholder={t('fields.url.placeholder')}
+                  {...form.register('url')}
+                  aria-invalid={!!form.formState.errors.url}
+                  aria-required
+                  className="h-12"
+                />
+              </AccessibleFormField>
 
-        {/* Advanced Settings — collapsible */}
-        <Collapsible>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer select-none">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>{t('sections.advanced')}</CardTitle>
-                    <CardDescription>
-                      {t('sections.advancedDesc')}
-                    </CardDescription>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 in-data-[state=open]:rotate-180" />
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="space-y-4 pt-0">
+              <AccessibleFormField
+                id="customAlias"
+                label={t('fields.alias.label')}
+                error={form.formState.errors.customAlias?.message}
+                hint={t('fields.alias.hint')}
+              >
+                <Input
+                  id="customAlias"
+                  placeholder={t('fields.alias.placeholder')}
+                  {...form.register('customAlias')}
+                  className="h-11"
+                />
+              </AccessibleFormField>
+
+              <div className="space-y-2">
+                <Label htmlFor="redirectType">
+                  {t('fields.redirectType.label')}
+                </Label>
+                <Select
+                  value={redirectType}
+                  onValueChange={(value) =>
+                    form.setValue('redirectType', value as '301' | '302', {
+                      shouldDirty: true,
+                      shouldTouch: true,
+                      shouldValidate: true
+                    })
+                  }
+                >
+                  <SelectTrigger id="redirectType" className="h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="301">301 - {t('permanent')}</SelectItem>
+                    <SelectItem value="302">302 - {t('temporary')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  {t('fields.redirectType.hint')}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <LinkSummaryPanel
+            title={t('summary.title')}
+            description={t('summary.descriptionNew')}
+            status={summaryStatus}
+            items={[
+              {
+                label: t('summary.destination'),
+                value: destinationLabel
+              },
+              {
+                label: t('summary.shortCode'),
+                value: aliasPreview
+              },
+              {
+                label: t('summary.redirect'),
+                value: redirectLabel
+              },
+              {
+                label: t('summary.limits'),
+                value: limitsLabel || t('summary.none')
+              },
+              {
+                label: t('summary.security'),
+                value: passwordValue?.trim()
+                  ? t('summary.passwordEnabled')
+                  : t('summary.none')
+              }
+            ]}
+            pills={summaryPills}
+            className="xl:sticky xl:top-24"
+            footer={
+              <div className="flex flex-col-reverse gap-3 sm:flex-row xl:flex-col">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => router.push('/dashboard/links')}
+                >
+                  {t('actions.cancel')}
+                </Button>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createLink.isPending || form.formState.isValidating}
+                  aria-busy={createLink.isPending}
+                >
+                  {createLink.isPending ? (
+                    <>
+                      <Loader2
+                        className="mr-2 h-4 w-4 animate-spin"
+                        aria-hidden="true"
+                      />
+                      {t('actions.create')}...
+                    </>
+                  ) : (
+                    t('actions.create')
+                  )}
+                </Button>
+              </div>
+            }
+          />
+
+          <div className="space-y-6">
+            <LinkFormCollapsibleSection
+              title={t('sections.advanced')}
+              description={t('sections.advancedDesc')}
+              summary={limitsLabel || undefined}
+              defaultOpen={Boolean(
+                expiresAtValue || maxClicksValue || passwordValue?.trim()
+              )}
+            >
+              <div className="space-y-4">
                 <AccessibleFormField
                   id="expiresAt"
                   label={t('fields.expiresAt.label')}
@@ -269,27 +442,16 @@ export default function NewLinkPage() {
                     {...form.register('password')}
                   />
                 </AccessibleFormField>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+              </div>
+            </LinkFormCollapsibleSection>
 
-        {/* Meta Tags — collapsible */}
-        <Collapsible>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer select-none">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>{t('sections.meta')}</CardTitle>
-                    <CardDescription>{t('sections.metaDesc')}</CardDescription>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 in-data-[state=open]:rotate-180" />
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="space-y-4 pt-0">
+            <LinkFormCollapsibleSection
+              title={t('sections.meta')}
+              description={t('sections.metaDesc')}
+              summary={hasMetadata ? t('summary.metadataPill') : undefined}
+              defaultOpen={hasMetadata}
+            >
+              <div className="space-y-4">
                 <AccessibleFormField
                   id="metaTitle"
                   label={t('fields.metaTitle.label')}
@@ -331,29 +493,16 @@ export default function NewLinkPage() {
                     {...form.register('metaImage')}
                   />
                 </AccessibleFormField>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+              </div>
+            </LinkFormCollapsibleSection>
 
-        {/* UTM Tracking — collapsible */}
-        <Collapsible>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer select-none">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>{t('sections.tracking')}</CardTitle>
-                    <CardDescription>
-                      {t('sections.trackingDesc')}
-                    </CardDescription>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 in-data-[state=open]:rotate-180" />
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="pt-0">
+            <LinkFormCollapsibleSection
+              title={t('sections.tracking')}
+              description={t('sections.trackingDesc')}
+              summary={hasTracking ? t('summary.trackingPill') : undefined}
+              defaultOpen={hasTracking}
+            >
+              <div>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <AccessibleFormField
                     id="utmSource"
@@ -391,27 +540,16 @@ export default function NewLinkPage() {
                     />
                   </AccessibleFormField>
                 </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+              </div>
+            </LinkFormCollapsibleSection>
 
-        {/* Notes — collapsible */}
-        <Collapsible>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer select-none">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>{t('fields.notes.label')}</CardTitle>
-                    <CardDescription>{t('fields.notes.hint')}</CardDescription>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 in-data-[state=open]:rotate-180" />
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="pt-0">
+            <LinkFormCollapsibleSection
+              title={t('fields.notes.label')}
+              description={t('fields.notes.hint')}
+              summary={notesValue?.trim() ? t('summary.notesPill') : undefined}
+              defaultOpen={Boolean(notesValue?.trim())}
+            >
+              <div>
                 <AccessibleFormField
                   id="notes"
                   label={t('fields.notes.label')}
@@ -424,39 +562,9 @@ export default function NewLinkPage() {
                     {...form.register('notes')}
                   />
                 </AccessibleFormField>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
-
-        {/* Actions */}
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            className="sm:w-auto"
-            onClick={() => router.push('/dashboard/links')}
-          >
-            {t('actions.cancel')}
-          </Button>
-          <Button
-            type="submit"
-            className="sm:w-auto"
-            disabled={createLink.isPending}
-            aria-busy={createLink.isPending}
-          >
-            {createLink.isPending ? (
-              <>
-                <Loader2
-                  className="mr-2 h-4 w-4 animate-spin"
-                  aria-hidden="true"
-                />
-                {t('actions.create')}...
-              </>
-            ) : (
-              t('actions.create')
-            )}
-          </Button>
+              </div>
+            </LinkFormCollapsibleSection>
+          </div>
         </div>
       </form>
     </div>

@@ -1,7 +1,7 @@
 // src/app/(dashboard)/settings/page.tsx
 'use client';
 
-import { CheckCircle2, Loader2, Shield } from 'lucide-react';
+import { CheckCircle2, Info, Loader2, Shield } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -11,33 +11,37 @@ import { DisableTwoFactor } from '@/components/settings/disable-two-factor';
 import { TwoFactorSetup } from '@/components/settings/two-factor-setup';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { authClient, useSession } from '@/lib/auth.client';
 
 export default function SettingsPage() {
   const t = useTranslations('Settings');
   const { data: session, isPending } = useSession();
-  const [name, setName] = useState('');
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-
-  // Initialize name from session when loaded
-  if (session?.user && name === '' && session.user.name) {
-    setName(session.user.name);
-  }
+  const nameValue = nameDraft ?? session?.user?.name ?? '';
 
   const handleSaveProfile = async () => {
-    if (!name.trim()) {
+    const normalizedName = nameValue.trim();
+
+    if (!normalizedName) {
       toast.error(t('profile.nameRequired'));
       return;
     }
 
     setIsSaving(true);
     try {
-      await authClient.updateUser({ name });
+      await authClient.updateUser({ name: normalizedName });
+      setNameDraft(normalizedName);
       toast.success(t('toasts.profileUpdated'));
     } catch {
       toast.error(t('toasts.profileError'));
@@ -48,67 +52,72 @@ export default function SettingsPage() {
 
   if (isPending) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-6 md:space-y-8">
+      <div className="space-y-2">
         <h1 className="text-2xl font-bold md:text-3xl">{t('title')}</h1>
-        <p className="text-muted-foreground">{t('subtitle')}</p>
+        <p className="max-w-2xl text-muted-foreground">{t('subtitle')}</p>
       </div>
 
-      <Separator />
-
-      {/* Profile Settings */}
-      <Card>
+      <Card className="border-border/60 bg-card/90">
         <CardHeader>
           <CardTitle>{t('profile.title')}</CardTitle>
+          <CardDescription>{t('profile.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">{t('profile.name')}</Label>
-            <Input
-              id="name"
-              placeholder={t('profile.namePlaceholder')}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="name">{t('profile.name')}</Label>
+              <Input
+                id="name"
+                placeholder={t('profile.namePlaceholder')}
+                value={nameValue}
+                onChange={(e) => setNameDraft(e.target.value)}
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">{t('profile.email')}</Label>
+              <Input
+                id="email"
+                type="email"
+                value={session?.user?.email ?? ''}
+                disabled
+                className="h-11 bg-muted"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t('profile.emailHint')}
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">{t('profile.email')}</Label>
-            <Input
-              id="email"
-              type="email"
-              value={session?.user?.email ?? ''}
-              disabled
-              className="bg-muted"
-            />
-            <p className="text-xs text-muted-foreground">
-              {t('profile.emailHint')}
-            </p>
-          </div>
-          <Button onClick={handleSaveProfile} disabled={isSaving}>
+          <Button
+            onClick={handleSaveProfile}
+            disabled={isSaving}
+            className="w-full sm:w-auto"
+          >
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t('profile.save')}
           </Button>
         </CardContent>
       </Card>
 
-      {/* Security Settings - Two-Factor Authentication */}
-      <Card>
+      <Card className="border-border/60 bg-card/90">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
             <CardTitle>{t('security.title')}</CardTitle>
           </div>
+          <CardDescription>{t('security.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
                 <Label>{t('security.twoFactor')}</Label>
                 <p className="text-sm text-muted-foreground">
@@ -124,8 +133,7 @@ export default function SettingsPage() {
             </div>
 
             {session?.user?.twoFactorEnabled ? (
-              /* User has 2FA enabled */
-              <div className="flex flex-col sm:flex-row gap-2 mt-4">
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <BackupCodes asDialog={true} />
                 <DisableTwoFactor
                   isAdmin={session?.user?.role === 'admin'}
@@ -133,7 +141,6 @@ export default function SettingsPage() {
                 />
               </div>
             ) : (
-              /* User doesn't have 2FA enabled */
               <div className="mt-4">
                 <TwoFactorSetup onSuccess={() => window.location.reload()} />
               </div>
@@ -141,9 +148,10 @@ export default function SettingsPage() {
 
             {session?.user?.role === 'admin' &&
               session?.user?.twoFactorEnabled && (
-                <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 p-3 mt-3">
+                <div className="mt-3 flex items-start gap-3 rounded-2xl bg-blue-50 p-4 dark:bg-blue-900/20">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-700 dark:text-blue-300" />
                   <p className="text-sm text-blue-800 dark:text-blue-200">
-                    ℹ️ {t('security.adminWarning')}
+                    {t('security.adminWarning')}
                   </p>
                 </div>
               )}
@@ -151,13 +159,13 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Notifications */}
-      <Card>
+      <Card className="border-border/60 bg-card/90">
         <CardHeader>
           <CardTitle>{t('preferences.title')}</CardTitle>
+          <CardDescription>{t('preferences.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Label htmlFor="email-notifications">
                 {t('preferences.emailNotifications')}
@@ -168,7 +176,7 @@ export default function SettingsPage() {
             </div>
             <Switch id="email-notifications" />
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Label htmlFor="analytics-reports">
                 {t('preferences.weeklyReports')}
@@ -182,11 +190,9 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* API Keys */}
       <ApiKeysManager />
 
-      {/* Danger Zone */}
-      <Card className="border-destructive">
+      <Card className="border-destructive/70 bg-destructive/5">
         <CardHeader>
           <CardTitle className="text-destructive">
             {t('dangerZone.title')}
@@ -194,10 +200,10 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <p className="text-sm text-muted-foreground mb-2">
+            <p className="mb-3 text-sm text-muted-foreground">
               {t('dangerZone.description')}
             </p>
-            <Button variant="destructive">
+            <Button variant="destructive" className="w-full sm:w-auto">
               {t('dangerZone.deleteAccount')}
             </Button>
           </div>

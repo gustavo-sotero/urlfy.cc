@@ -55,7 +55,7 @@ export default function DashboardPage() {
   const activeLinks = summaryData?.activeLinks || 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       <ConfirmDialog
         open={isDialogOpen}
         onOpenChange={(open) => !open && cancelDelete()}
@@ -65,20 +65,30 @@ export default function DashboardPage() {
         confirmText={t('linkCard.delete')}
         loading={isPending}
       />
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
-          {t('title')}
-        </h2>
-        <p className="text-muted-foreground">{t('subtitle')}</p>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+            {t('overviewSubtitle')}
+          </p>
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+            {t('title')}
+          </h2>
+          <p className="max-w-2xl text-muted-foreground">{t('subtitle')}</p>
+        </div>
+        <Button asChild className="w-full sm:w-auto">
+          <Link href="/dashboard/links/new">
+            {t('createNew')}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {linksLoading || quotaLoading || summaryLoading ? (
           <StatsCardSkeleton />
         ) : (
           <>
-            <Card>
+            <Card className="border-border/60 bg-card/85">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   {t('stats.totalLinks')}
@@ -100,7 +110,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-border/60 bg-card/85">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   {t('stats.totalClicks')}
@@ -114,7 +124,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-border/60 bg-card/85">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   {t('stats.activeLinks')}
@@ -128,7 +138,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-border/60 bg-card/85">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   {t('stats.avgClicks')}
@@ -150,18 +160,22 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Recent Links */}
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+      <Card className="border-border/60 bg-card/90">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>{t('links.recentLinks')}</CardTitle>
-          <Button variant="outline" size="sm" asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="w-full sm:w-auto"
+          >
             <Link href="/dashboard/links">
               {t('links.viewAll')}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {linksLoading && (
             <LinkListSkeleton count={3} ariaLabel={tCommon('loadingLinks')} />
           )}
@@ -176,16 +190,16 @@ export default function DashboardPage() {
 
           {linksData &&
             (linksData.data?.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed p-8 text-center">
+              <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border/80 p-6 text-center sm:p-8">
                 <p className="text-muted-foreground">{t('empty.noLinks')}</p>
-                <Button asChild>
+                <Button asChild className="w-full sm:w-auto">
                   <Link href="/dashboard/links/new">
                     {t('empty.createAction')}
                   </Link>
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {linksData.data?.map((link) => (
                   <LinkCard key={link.id} link={link} onDelete={startDelete} />
                 ))}
@@ -201,7 +215,7 @@ function StatsCardSkeleton() {
   return (
     <>
       {[1, 2, 3, 4].map((i) => (
-        <Card key={i}>
+        <Card key={i} className="border-border/60 bg-card/85">
           <CardHeader>
             <Skeleton className="h-4 w-24" />
           </CardHeader>

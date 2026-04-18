@@ -1,7 +1,12 @@
 // src/components/forms/accessible-form-field.tsx
 
 import { AlertCircle } from 'lucide-react';
-import type { ReactNode } from 'react';
+import {
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode
+} from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -14,6 +19,13 @@ interface FormFieldProps {
   children?: ReactNode;
 }
 
+interface AccessibleChildProps {
+  id?: string;
+  'aria-invalid'?: boolean;
+  'aria-describedby'?: string;
+  'aria-required'?: boolean;
+}
+
 export function AccessibleFormField({
   id,
   label,
@@ -24,6 +36,23 @@ export function AccessibleFormField({
 }: FormFieldProps) {
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
+  const describedBy = [hint ? hintId : null, error ? errorId : null]
+    .filter(Boolean)
+    .join(' ');
+  const childElement = isValidElement(children)
+    ? (children as ReactElement<AccessibleChildProps>)
+    : null;
+  const childProps = childElement?.props;
+  const field = childElement
+    ? cloneElement(childElement, {
+        id: childProps?.id ?? id,
+        'aria-invalid': error ? true : childProps?.['aria-invalid'],
+        'aria-describedby': [describedBy, childProps?.['aria-describedby']]
+          .filter(Boolean)
+          .join(' '),
+        'aria-required': required || childProps?.['aria-required']
+      })
+    : null;
 
   return (
     <div className="space-y-2">
@@ -42,14 +71,11 @@ export function AccessibleFormField({
         </p>
       )}
 
-      {children || (
+      {field || (
         <Input
           id={id}
           aria-invalid={!!error}
-          aria-describedby={
-            [error && errorId, hint && hintId].filter(Boolean).join(' ') ||
-            undefined
-          }
+          aria-describedby={describedBy || undefined}
           aria-required={required}
         />
       )}

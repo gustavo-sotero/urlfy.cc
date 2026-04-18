@@ -72,23 +72,27 @@ export default function LinkDetailPage() {
         confirmText={t('delete')}
         loading={isPending}
       />
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+      <div className="space-y-6 md:space-y-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
             <Button variant="ghost" size="icon" asChild>
               <Link href="/dashboard/links" aria-label={t('backAriaLabel')}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <div>
+            <div className="min-w-0 space-y-2">
+              <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                {t('shortLink')}
+              </p>
               <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
                 {t('title')}
               </h2>
-              <p className="text-muted-foreground">{link.shortCode}</p>
+              <p className="truncate font-mono text-sm text-muted-foreground">
+                {link.shortCode}
+              </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 pl-11 sm:pl-0">
+          <div className="flex flex-col gap-2 pl-11 sm:pl-0 sm:flex-row sm:flex-wrap lg:justify-end">
             <QRCodeButton shortCode={link.shortCode} />
             <Button variant="outline" asChild>
               <Link href={`/dashboard/links/${linkId}/edit`}>
@@ -103,85 +107,92 @@ export default function LinkDetailPage() {
           </div>
         </div>
 
-        {/* Link Info Card */}
-        <Card>
+        <Card className="border-border/60 bg-card/90">
           <CardHeader>
             <CardTitle>{t('linkInfo')}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-muted-foreground">
-                {t('shortLink')}
-              </div>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 rounded bg-muted px-3 py-2 font-mono text-sm">
-                  {link.shortUrl}
-                </code>
-                <CopyButton text={link.shortUrl} />
-                <Button variant="ghost" size="icon" asChild>
-                  <a
-                    href={link.shortUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={t('openNewTab')}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-muted-foreground">
-                {t('originalUrl')}
-              </div>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 truncate rounded bg-muted px-3 py-2 font-mono text-sm">
-                  {link.originalUrl}
-                </code>
-                <CopyButton text={link.originalUrl} />
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">
-                  {t('status')}
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-muted-foreground">
+                      {t('shortLink')}
+                    </div>
+                    <code className="block break-all font-mono text-sm text-foreground">
+                      {link.shortUrl}
+                    </code>
+                    <div className="flex flex-wrap gap-2">
+                      <CopyButton text={link.shortUrl} />
+                      <Button variant="outline" size="sm" asChild>
+                        <a
+                          href={link.shortUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={t('openNewTab')}
+                        >
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          {t('openNewTab')}
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <Badge variant={link.isActive ? 'default' : 'secondary'}>
-                  {link.isActive ? t('active') : t('inactive')}
-                </Badge>
+
+                <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-muted-foreground">
+                      {t('originalUrl')}
+                    </div>
+                    <code className="block break-all font-mono text-sm text-foreground">
+                      {link.originalUrl}
+                    </code>
+                    <CopyButton text={link.originalUrl} />
+                  </div>
+                </div>
               </div>
 
-              {link.expiresAt && (
-                <div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
                   <div className="text-sm font-medium text-muted-foreground">
-                    {t('expiresAt')}
+                    {t('status')}
                   </div>
-                  <div className="text-sm">
-                    {new Date(link.expiresAt).toLocaleDateString(intlLocale)}
+                  <div className="mt-2">
+                    <Badge variant={link.isActive ? 'default' : 'secondary'}>
+                      {link.isActive ? t('active') : t('inactive')}
+                    </Badge>
                   </div>
                 </div>
-              )}
 
-              {link.maxClicks && (
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground">
-                    {t('clickLimit')}
+                {link.expiresAt && (
+                  <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                    <div className="text-sm font-medium text-muted-foreground">
+                      {t('expiresAt')}
+                    </div>
+                    <div className="mt-2 text-sm">
+                      {new Date(link.expiresAt).toLocaleDateString(intlLocale)}
+                    </div>
                   </div>
-                  <div className="text-sm">
-                    {link.clicksCount} / {link.maxClicks}
+                )}
+
+                {link.maxClicks && (
+                  <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                    <div className="text-sm font-medium text-muted-foreground">
+                      {t('clickLimit')}
+                    </div>
+                    <div className="mt-2 text-sm">
+                      {link.clicksCount} / {link.maxClicks}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Analytics Summary */}
         {summary.data && (
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-            <Card>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Card className="border-border/60 bg-card/85">
               <CardHeader className="pb-2">
                 <CardDescription>{t('totalClicks')}</CardDescription>
                 <CardTitle className="text-3xl">
@@ -190,7 +201,7 @@ export default function LinkDetailPage() {
               </CardHeader>
             </Card>
 
-            <Card>
+            <Card className="border-border/60 bg-card/85">
               <CardHeader className="pb-2">
                 <CardDescription>{t('uniqueVisitors')}</CardDescription>
                 <CardTitle className="text-3xl">
@@ -199,7 +210,7 @@ export default function LinkDetailPage() {
               </CardHeader>
             </Card>
 
-            <Card>
+            <Card className="border-border/60 bg-card/85">
               <CardHeader className="pb-2">
                 <CardDescription>{t('conversionRate')}</CardDescription>
                 <CardTitle className="text-3xl">
@@ -215,7 +226,7 @@ export default function LinkDetailPage() {
               </CardHeader>
             </Card>
 
-            <Card>
+            <Card className="border-border/60 bg-card/85">
               <CardHeader className="pb-2">
                 <CardDescription>{t('avgClicksPerDay')}</CardDescription>
                 <CardTitle className="text-3xl">
@@ -226,50 +237,47 @@ export default function LinkDetailPage() {
           </div>
         )}
 
-        {/* Charts */}
         <div className="space-y-6">
-          {/* Clicks Chart */}
           {daily.data && (
-            <Card>
+            <Card className="border-border/60 bg-card/90">
               <CardHeader>
                 <CardTitle>{t('clicksOverTime')}</CardTitle>
                 <CardDescription>{t('last30Days')}</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 pb-4 sm:px-6 sm:pb-6">
                 <ClicksChart data={daily.data} />
               </CardContent>
             </Card>
           )}
 
-          {/* Breakdown Charts */}
           {breakdown.data && (
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Card className="border-border/60 bg-card/90">
                 <CardHeader>
                   <CardTitle>{t('countries')}</CardTitle>
                   <CardDescription>{t('topCountriesByClicks')}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-3 pb-4 sm:px-6 sm:pb-6">
                   <CountriesChart data={breakdown.data.countries} />
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-border/60 bg-card/90">
                 <CardHeader>
                   <CardTitle>{t('devices')}</CardTitle>
                   <CardDescription>{t('deviceDistribution')}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-3 pb-4 sm:px-6 sm:pb-6">
                   <DevicesChart data={breakdown.data.devices} />
                 </CardContent>
               </Card>
 
-              <Card className="md:col-span-2">
+              <Card className="border-border/60 bg-card/90 xl:col-span-2">
                 <CardHeader>
                   <CardTitle>{t('trafficSources')}</CardTitle>
                   <CardDescription>{t('trafficSourcesDesc')}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-3 pb-4 sm:px-6 sm:pb-6">
                   <ReferrersChart data={breakdown.data.referrers} />
                 </CardContent>
               </Card>

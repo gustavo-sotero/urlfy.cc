@@ -43,14 +43,22 @@ export default async function DashboardLayout({
   const isEmailVerified: boolean = sessionUser.emailVerified ?? false;
 
   return (
-    <div className="flex h-screen">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Header user={user} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          {!isEmailVerified && <VerificationWarning />}
-          {children}
-        </main>
+    <div className="min-h-svh bg-muted/20" data-dashboard-shell="authenticated">
+      <div className="flex min-h-svh overflow-hidden">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Header user={user} />
+          <main
+            id="dashboard-content"
+            className="flex-1 overflow-x-clip overflow-y-auto overscroll-y-contain"
+            data-dashboard-main="content"
+          >
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 pt-4 sm:px-6 md:gap-8 md:pb-10 lg:px-8">
+              {!isEmailVerified && <VerificationWarning />}
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );

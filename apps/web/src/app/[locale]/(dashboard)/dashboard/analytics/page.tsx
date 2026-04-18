@@ -90,12 +90,12 @@ export default function AnalyticsPage() {
   // Check for any errors
   if (linksError) {
     return (
-      <div className="space-y-6">
-        <div>
+      <div className="space-y-6 md:space-y-8">
+        <div className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
             {t('title')}
           </h2>
-          <p className="text-muted-foreground">{t('overviewDesc')}</p>
+          <p className="max-w-2xl text-muted-foreground">{t('overviewDesc')}</p>
         </div>
         <QueryError
           error={linksErrorDetails as Error}
@@ -108,12 +108,12 @@ export default function AnalyticsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div>
+      <div className="space-y-6 md:space-y-8">
+        <div className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
             {t('title')}
           </h2>
-          <p className="text-muted-foreground">{t('overviewDesc')}</p>
+          <p className="max-w-2xl text-muted-foreground">{t('overviewDesc')}</p>
         </div>
         <StatsGridSkeleton />
         <div className="grid gap-4 md:grid-cols-2">
@@ -126,12 +126,12 @@ export default function AnalyticsPage() {
 
   if (dailyError) {
     return (
-      <div className="space-y-6">
-        <div>
+      <div className="space-y-6 md:space-y-8">
+        <div className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
             {t('title')}
           </h2>
-          <p className="text-muted-foreground">{t('overviewDesc')}</p>
+          <p className="max-w-2xl text-muted-foreground">{t('overviewDesc')}</p>
         </div>
         <QueryError
           error={dailyErrorDetails as Error}
@@ -150,45 +150,52 @@ export default function AnalyticsPage() {
   const links = linksData?.data || [];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <div className="space-y-6 md:space-y-8">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+            {t('overview')}
+          </p>
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
             {t('title')}
           </h2>
-          <p className="text-muted-foreground">{t('overviewDesc')}</p>
+          <p className="max-w-2xl text-muted-foreground">{t('overviewDesc')}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Select value={selectedLinkId} onValueChange={setSelectedLinkId}>
-            <SelectTrigger className="w-full sm:w-50">
-              <SelectValue placeholder={t('filters.allLinks')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('filters.allLinks')}</SelectItem>
-              {links.map((link) => (
-                <SelectItem key={link.id} value={link.id}>
-                  {link.shortCode}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={days} onValueChange={setDays}>
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder={t('filters.selectPeriod')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">{t('period.last7')}</SelectItem>
-              <SelectItem value="30">{t('period.last30')}</SelectItem>
-              <SelectItem value="90">{t('period.last90')}</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="grid gap-3 sm:grid-cols-2 xl:w-[30rem]">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t('filters.selectLink')}</p>
+            <Select value={selectedLinkId} onValueChange={setSelectedLinkId}>
+              <SelectTrigger className="w-full rounded-xl border-border/60 bg-background/80">
+                <SelectValue placeholder={t('filters.allLinks')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('filters.allLinks')}</SelectItem>
+                {links.map((link) => (
+                  <SelectItem key={link.id} value={link.id}>
+                    {link.shortCode}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t('filters.selectPeriod')}</p>
+            <Select value={days} onValueChange={setDays}>
+              <SelectTrigger className="w-full rounded-xl border-border/60 bg-background/80">
+                <SelectValue placeholder={t('filters.selectPeriod')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">{t('period.last7')}</SelectItem>
+                <SelectItem value="30">{t('period.last30')}</SelectItem>
+                <SelectItem value="90">{t('period.last90')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card className="border-border/60 bg-card/85">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('totalClicks')}
@@ -220,7 +227,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/60 bg-card/85">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('uniqueVisitors')}
@@ -254,7 +261,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/60 bg-card/85">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('conversionRate')}
@@ -277,7 +284,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/60 bg-card/85">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('activeLinks')}
@@ -297,13 +304,12 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* Charts */}
       <div className="grid gap-4">
-        <Card>
+        <Card className="border-border/60 bg-card/90">
           <CardHeader>
             <CardTitle>{t('charts.clicksOverTime')}</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 pb-4 sm:px-6 sm:pb-6">
             {chartDailyData.length > 0 ? (
               <ClicksChart data={chartDailyData} />
             ) : (
@@ -314,12 +320,12 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <Card className="border-border/60 bg-card/90">
             <CardHeader>
               <CardTitle>{t('charts.topCountries')}</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 pb-4 sm:px-6 sm:pb-6">
               {breakdownLoading ? (
                 <ChartSkeleton />
               ) : chartCountriesData.length > 0 ? (
@@ -332,11 +338,11 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-border/60 bg-card/90">
             <CardHeader>
               <CardTitle>{t('charts.deviceBreakdown')}</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 pb-4 sm:px-6 sm:pb-6">
               {breakdownLoading ? (
                 <ChartSkeleton />
               ) : chartDevicesData.length > 0 ? (
@@ -350,11 +356,11 @@ export default function AnalyticsPage() {
           </Card>
         </div>
 
-        <Card>
+        <Card className="border-border/60 bg-card/90">
           <CardHeader>
             <CardTitle>{t('charts.topReferrers')}</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 pb-4 sm:px-6 sm:pb-6">
             {breakdownLoading ? (
               <ChartSkeleton />
             ) : chartReferrersData.length > 0 ? (

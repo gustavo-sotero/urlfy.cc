@@ -151,6 +151,40 @@ export const LinkForm = {
     loadFailed: 'Erro ao carregar link'
   },
 
+  summary: {
+    title: 'Revise antes de publicar',
+    descriptionNew:
+      'O caminho principal já está pronto. Use as seções extras apenas quando esse link precisar de mais controle.',
+    descriptionEdit:
+      'Mantenha as configurações operacionais alinhadas sem precisar abrir todos os campos avançados.',
+    destination: 'Destino',
+    shortCode: 'Slug do link curto',
+    shortLink: 'Link curto',
+    redirect: 'Modo de redirect',
+    limits: 'Limites',
+    security: 'Proteção',
+    linkStatus: 'Status do link',
+    currentClicks: 'Cliques atuais',
+    none: 'Não configurado',
+    noDestination: 'Adicione uma URL de destino válida',
+    autoAlias: 'Gerado automaticamente',
+    passwordEnabled: 'Senha ativada',
+    activeValue: 'Ativo',
+    inactiveValue: 'Pausado',
+    expiresOnValue: 'Expira em {date}',
+    maxClicksValue: '{count} cliques no máximo',
+    passwordPill: 'Proteção por senha',
+    limitsPill: 'Expiração ou limite de cliques',
+    metadataPill: 'Preview social customizado',
+    trackingPill: 'Rastreamento UTM pronto',
+    notesPill: 'Notas privadas adicionadas',
+    statusCreating: 'Criando link',
+    statusSaving: 'Salvando alterações',
+    statusValidating: 'Validando campos',
+    statusReady: 'Pronto para enviar',
+    statusNeedsReview: 'Revise os campos obrigatórios'
+  },
+
   // Success messages
   success: {
     created: 'Link criado com sucesso!',

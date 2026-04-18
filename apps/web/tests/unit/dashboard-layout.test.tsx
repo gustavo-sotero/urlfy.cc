@@ -43,6 +43,19 @@ mock.module('next-intl/server', () => ({
 }));
 
 mock.module('@/i18n/routing', () => ({
+  Link: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: React.ReactNode;
+    href: string;
+    [key: string]: unknown;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
   redirect: redirectMock
 }));
 
@@ -88,6 +101,8 @@ describe('DashboardLayout', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(markup).toContain('Dashboard content');
     expect(markup).toContain('Test User');
+    expect(markup).toContain('data-dashboard-shell="authenticated"');
+    expect(markup).toContain('data-dashboard-main="content"');
   });
 
   it('redirects unauthenticated users to the localized login page', async () => {
