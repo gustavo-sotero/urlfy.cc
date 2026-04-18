@@ -139,7 +139,7 @@ async function visitHome(page: Page, options: VisitHomeOptions = {}) {
     .toBe(0);
 
   if (options.showConsentBanner) {
-    await page.waitForTimeout(700);
+    await expect(getConsentBanner(page)).toBeVisible({ timeout: 3_000 });
   }
 }
 
@@ -516,5 +516,37 @@ test.describe('Home page — desktop regression guard', () => {
     // On desktop, the button is present in DOM but visually hidden via md:hidden
     // Playwright considers visibility based on computed style
     await expect(menuButton).not.toBeVisible();
+  });
+
+  test.describe('768px breakpoint guard', () => {
+    test.use({ viewport: { width: 768, height: 1024 } });
+
+    test('desktop navigation takes over cleanly at 768px', async ({ page }) => {
+      await visitHome(page, { locale: 'pt-br', showConsentBanner: true });
+
+      const menuButton = page.getByRole('button', { name: 'Menu' });
+      await expect(menuButton).not.toBeVisible();
+
+      await expect(
+        page
+          .getByRole('link', { name: /recursos|o projeto|documentação/i })
+          .first()
+      ).toBeVisible();
+
+      await page.evaluate(() =>
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: 'instant'
+        })
+      );
+
+      await expect(
+        page.getByRole('heading', { name: /pronto para mais recursos/i })
+      ).toBeVisible();
+
+      const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+      const viewportWidth = page.viewportSize()?.width ?? 0;
+      expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
+    });
   });
 });

@@ -153,6 +153,7 @@ export function Navbar() {
           <SheetContent
             side="right"
             aria-describedby={undefined}
+            closeLabel={t('closeMenu')}
             className="w-[min(22rem,calc(100vw-1rem))] p-0"
           >
             {/* Visually hidden title for screen-reader accessibility (Radix requirement) */}

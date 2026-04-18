@@ -8,7 +8,8 @@ import {
   cleanup,
   fireEvent,
   render,
-  screen
+  screen,
+  within
 } from '@testing-library/react';
 import { Navbar } from '@/components/layout/navbar';
 
@@ -141,13 +142,17 @@ describe('Navbar', () => {
     expect(menuButtons.length).toBe(1);
   });
 
-  it('mobile drawer does not render a custom close button alongside the built-in one', () => {
+  it('mobile drawer exposes a single localized close control', async () => {
     render(<Navbar />);
 
-    // The navbar must NOT have any SheetClose with a custom aria-label for "closeMenu"
-    // Only the SheetContent built-in sr-only "Close" should exist
-    const closeMenuButton = screen.queryByLabelText('closeMenu');
-    expect(closeMenuButton).toBeNull();
+    const menuButton = screen.getByLabelText('Menu');
+    await act(async () => {
+      fireEvent.click(menuButton);
+    });
+
+    const dialog = screen.getByRole('dialog');
+    const closeButtons = within(dialog).getAllByLabelText('Fechar menu');
+    expect(closeButtons.length).toBe(1);
   });
 
   it('opens mobile drawer and shows navigation links', async () => {
