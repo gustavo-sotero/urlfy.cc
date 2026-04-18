@@ -354,6 +354,56 @@ test.describe('Home page — mobile smoke', () => {
     });
   });
 
+  test.describe('640px breakpoint guard', () => {
+    test.use({
+      viewport: { width: 640, height: 960 },
+      isMobile: true,
+      hasTouch: true
+    });
+
+    test('drawer, consent banner, and final CTA stay stable at 640px width', async ({
+      page
+    }) => {
+      await visitHome(page, { showConsentBanner: true, locale: 'pt-br' });
+
+      const initialBodyWidth = await page.evaluate(
+        () => document.body.scrollWidth
+      );
+      const viewportWidth = page.viewportSize()?.width ?? 0;
+      expect(initialBodyWidth).toBeLessThanOrEqual(viewportWidth);
+
+      const menuButton = page.getByRole('button', { name: 'Menu' });
+      await expect(menuButton).toBeVisible();
+      await menuButton.press('Enter');
+      await expect(getMobileDrawer(page)).toBeVisible();
+
+      await page.keyboard.press('Escape');
+      await expect(getMobileDrawer(page)).toHaveCount(0);
+
+      const consentBanner = getConsentBanner(page);
+      await expect(consentBanner).toBeVisible();
+      await expect(
+        consentBanner.getByRole('button', { name: /aceitar tudo|accept all/i })
+      ).toBeVisible();
+
+      await page.evaluate(() =>
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: 'instant'
+        })
+      );
+
+      await expect(
+        page.getByRole('heading', { name: /pronto para mais recursos/i })
+      ).toBeVisible();
+
+      const finalBodyWidth = await page.evaluate(
+        () => document.body.scrollWidth
+      );
+      expect(finalBodyWidth).toBeLessThanOrEqual(viewportWidth);
+    });
+  });
+
   // ────────────────────────────────────────────────────────────────
   // Consent banner
   // ────────────────────────────────────────────────────────────────

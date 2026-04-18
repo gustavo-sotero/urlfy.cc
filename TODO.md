@@ -3,7 +3,7 @@
     - link público de verificação agora usa /api/auth/verify-email
     - redirecionamento pós-verificação aponta para o dashboard localizado
 [x] Mudar proxy gateway para acesso direto a api.
-[ ] Ajustar home page
+[x] Ajustar home page
     - banner cookies responsividade quebrada em dispostiivos moveis.
     - seção "Pronto para mais recursos" tambem esta com responsividade que
     - navbar/sidebar do mobile esta não está legal, esta com dois botões "x" pra fechar, alem disso ao abrir a sidebar ele quebra a responsividade do fundo, empurrando os elementos da home page, outra coisa, seria legal ajustar os itens da sidebar, tipo eles estão literamente colados no canto do sidebar, e os botões preenchem toda largura da sidebar.
