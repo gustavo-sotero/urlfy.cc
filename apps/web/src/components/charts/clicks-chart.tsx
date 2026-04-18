@@ -43,7 +43,7 @@ export function ClicksChart({ data }: Props) {
 
   return (
     <div
-      className="h-[300px] w-full"
+      className="h-[220px] w-full sm:h-[300px]"
       role="img"
       aria-label={t('clicksChartAriaLabel')}
     >
@@ -58,11 +58,13 @@ export function ClicksChart({ data }: Props) {
             <XAxis
               dataKey="date"
               className="text-xs"
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              interval="preserveStartEnd"
             />
             <YAxis
               className="text-xs"
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              width={30}
             />
             <Tooltip
               contentStyle={{

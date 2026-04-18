@@ -47,23 +47,32 @@ export function CountriesChart({ data }: Props) {
 
   if (topCountries.length === 0) {
     return (
-      <div className="flex h-100 items-center justify-center text-muted-foreground">
+      <div className="flex h-[220px] items-center justify-center text-muted-foreground sm:h-[250px]">
         {t('noData')}
       </div>
     );
   }
 
   return (
-    <div className="h-100" role="img" aria-label={t('topCountries')}>
+    <div
+      className="h-[220px] sm:h-[250px]"
+      role="img"
+      aria-label={t('topCountries')}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={topCountries}
           layout="vertical"
-          margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+          margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis type="number" />
-          <YAxis dataKey="countryName" type="category" width={70} />
+          <YAxis
+            dataKey="countryName"
+            type="category"
+            width={60}
+            tick={{ fontSize: 11 }}
+          />
           <Tooltip
             contentStyle={{
               backgroundColor: 'hsl(var(--background))',

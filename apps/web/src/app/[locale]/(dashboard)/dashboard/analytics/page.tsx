@@ -92,7 +92,9 @@ export default function AnalyticsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">{t('title')}</h2>
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+            {t('title')}
+          </h2>
           <p className="text-muted-foreground">{t('overviewDesc')}</p>
         </div>
         <QueryError
@@ -108,7 +110,9 @@ export default function AnalyticsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">{t('title')}</h2>
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+            {t('title')}
+          </h2>
           <p className="text-muted-foreground">{t('overviewDesc')}</p>
         </div>
         <StatsGridSkeleton />
@@ -124,7 +128,9 @@ export default function AnalyticsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">{t('title')}</h2>
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+            {t('title')}
+          </h2>
           <p className="text-muted-foreground">{t('overviewDesc')}</p>
         </div>
         <QueryError
@@ -146,14 +152,16 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">{t('title')}</h2>
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+            {t('title')}
+          </h2>
           <p className="text-muted-foreground">{t('overviewDesc')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Select value={selectedLinkId} onValueChange={setSelectedLinkId}>
-            <SelectTrigger className="w-50">
+            <SelectTrigger className="w-full sm:w-50">
               <SelectValue placeholder={t('filters.allLinks')} />
             </SelectTrigger>
             <SelectContent>
@@ -166,7 +174,7 @@ export default function AnalyticsPage() {
             </SelectContent>
           </Select>
           <Select value={days} onValueChange={setDays}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder={t('filters.selectPeriod')} />
             </SelectTrigger>
             <SelectContent>
@@ -179,7 +187,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">

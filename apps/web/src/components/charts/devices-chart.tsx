@@ -47,7 +47,7 @@ export function DevicesChart({ data }: Props) {
 
   return (
     <div
-      className="h-62.5"
+      className="h-[220px] sm:h-[250px]"
       role="img"
       aria-label={`${chartData.map((d) => `${d.name}: ${d.value}`).join(', ')}`}
     >
@@ -62,11 +62,7 @@ export function DevicesChart({ data }: Props) {
               data={chartData}
               cx="50%"
               cy="50%"
-              labelLine={false}
-              label={({ name, percent }) =>
-                `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
-              }
-              outerRadius={80}
+              outerRadius={70}
               fill="hsl(var(--primary))"
               dataKey="value"
             >

@@ -71,14 +71,14 @@ export default function LinksPage() {
         loading={isPending}
       />
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
             {t('links.title')}
           </h2>
           <p className="text-muted-foreground">{t('links.subtitle')}</p>
         </div>
-        <Button asChild>
+        <Button asChild className="self-start sm:self-auto">
           <Link href="/dashboard/links/new">
             <Plus className="mr-2 h-4 w-4" />
             {t('links.newLink')}

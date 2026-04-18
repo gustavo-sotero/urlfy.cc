@@ -2,7 +2,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Loader2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
@@ -17,6 +17,11 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -167,7 +172,7 @@ export default function EditLinkPage() {
           </Link>
         </Button>
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
             {t('titleEdit')}
           </h2>
           <p className="text-muted-foreground">{link.shortCode}</p>
@@ -227,90 +232,114 @@ export default function EditLinkPage() {
           </CardContent>
         </Card>
 
-        {/* Meta Tags */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('sections.meta')}</CardTitle>
-            <CardDescription>{t('sections.metaDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <AccessibleFormField
-              id="metaTitle"
-              label={t('fields.metaTitle.label')}
-              error={form.formState.errors.metaTitle?.message}
-              hint={t('fields.metaTitle.hint')}
-            >
-              <Input
-                id="metaTitle"
-                maxLength={60}
-                placeholder={t('metaTitle')}
-                {...form.register('metaTitle')}
-              />
-            </AccessibleFormField>
+        {/* Meta Tags — collapsible */}
+        <Collapsible>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer select-none">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>{t('sections.meta')}</CardTitle>
+                    <CardDescription>{t('sections.metaDesc')}</CardDescription>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-4 pt-0">
+                <AccessibleFormField
+                  id="metaTitle"
+                  label={t('fields.metaTitle.label')}
+                  error={form.formState.errors.metaTitle?.message}
+                  hint={t('fields.metaTitle.hint')}
+                >
+                  <Input
+                    id="metaTitle"
+                    maxLength={60}
+                    placeholder={t('metaTitle')}
+                    {...form.register('metaTitle')}
+                  />
+                </AccessibleFormField>
 
-            <AccessibleFormField
-              id="metaDescription"
-              label={t('fields.metaDescription.label')}
-              error={form.formState.errors.metaDescription?.message}
-              hint={t('fields.metaDescription.hint')}
-            >
-              <Textarea
-                id="metaDescription"
-                maxLength={160}
-                placeholder={t('metaDescription')}
-                {...form.register('metaDescription')}
-              />
-            </AccessibleFormField>
+                <AccessibleFormField
+                  id="metaDescription"
+                  label={t('fields.metaDescription.label')}
+                  error={form.formState.errors.metaDescription?.message}
+                  hint={t('fields.metaDescription.hint')}
+                >
+                  <Textarea
+                    id="metaDescription"
+                    maxLength={160}
+                    placeholder={t('metaDescription')}
+                    {...form.register('metaDescription')}
+                  />
+                </AccessibleFormField>
 
-            <AccessibleFormField
-              id="metaImage"
-              label={t('fields.metaImage.label')}
-              error={form.formState.errors.metaImage?.message}
-              hint={t('fields.metaImage.hint')}
-            >
-              <Input
-                id="metaImage"
-                type="url"
-                placeholder={t('metaImagePlaceholder')}
-                {...form.register('metaImage')}
-              />
-            </AccessibleFormField>
-          </CardContent>
-        </Card>
+                <AccessibleFormField
+                  id="metaImage"
+                  label={t('fields.metaImage.label')}
+                  error={form.formState.errors.metaImage?.message}
+                  hint={t('fields.metaImage.hint')}
+                >
+                  <Input
+                    id="metaImage"
+                    type="url"
+                    placeholder={t('metaImagePlaceholder')}
+                    {...form.register('metaImage')}
+                  />
+                </AccessibleFormField>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
-        {/* Notes */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('fields.notes.label')}</CardTitle>
-            <CardDescription>{t('fields.notes.hint')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AccessibleFormField
-              id="notes"
-              label={t('fields.notes.label')}
-              error={form.formState.errors.notes?.message}
-            >
-              <Textarea
-                id="notes"
-                placeholder={t('notesPlaceholder')}
-                rows={4}
-                {...form.register('notes')}
-              />
-            </AccessibleFormField>
-          </CardContent>
-        </Card>
+        {/* Notes — collapsible */}
+        <Collapsible>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer select-none">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>{t('fields.notes.label')}</CardTitle>
+                    <CardDescription>{t('fields.notes.hint')}</CardDescription>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <AccessibleFormField
+                  id="notes"
+                  label={t('fields.notes.label')}
+                  error={form.formState.errors.notes?.message}
+                >
+                  <Textarea
+                    id="notes"
+                    placeholder={t('notesPlaceholder')}
+                    rows={4}
+                    {...form.register('notes')}
+                  />
+                </AccessibleFormField>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
         {/* Actions */}
-        <div className="flex justify-end gap-4">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="outline"
+            className="sm:w-auto"
             onClick={() => router.push(`/dashboard/links/${linkId}`)}
           >
             {t('actions.cancel')}
           </Button>
           <Button
             type="submit"
+            className="sm:w-auto"
             disabled={updateLink.isPending}
             aria-busy={updateLink.isPending}
           >

@@ -66,12 +66,14 @@ export default function DashboardPage() {
         loading={isPending}
       />
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">{t('title')}</h2>
+        <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+          {t('title')}
+        </h2>
         <p className="text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
         {linksLoading || quotaLoading || summaryLoading ? (
           <StatsCardSkeleton />
         ) : (
@@ -150,7 +152,7 @@ export default function DashboardPage() {
 
       {/* Recent Links */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <CardTitle>{t('links.recentLinks')}</CardTitle>
           <Button variant="outline" size="sm" asChild>
             <Link href="/dashboard/links">

@@ -74,21 +74,21 @@ export default function LinkDetailPage() {
       />
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild>
               <Link href="/dashboard/links" aria-label={t('backAriaLabel')}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
             <div>
-              <h2 className="text-3xl font-bold tracking-tight">
+              <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
                 {t('title')}
               </h2>
               <p className="text-muted-foreground">{link.shortCode}</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 pl-11 sm:pl-0">
             <QRCodeButton shortCode={link.shortCode} />
             <Button variant="outline" asChild>
               <Link href={`/dashboard/links/${linkId}/edit`}>
@@ -180,7 +180,7 @@ export default function LinkDetailPage() {
 
         {/* Analytics Summary */}
         {summary.data && (
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>{t('totalClicks')}</CardDescription>

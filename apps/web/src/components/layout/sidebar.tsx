@@ -25,7 +25,7 @@ export function Sidebar() {
   const t = useTranslations('Dashboard.sidebar');
 
   return (
-    <aside className="flex w-64 flex-col border-r bg-card">
+    <aside className="hidden w-64 flex-col border-r bg-card md:flex">
       <div className="flex h-16 items-center border-b px-6">
         <Link href="/" className="flex items-center gap-2 font-bold">
           <Shield className="h-6 w-6 text-primary" />

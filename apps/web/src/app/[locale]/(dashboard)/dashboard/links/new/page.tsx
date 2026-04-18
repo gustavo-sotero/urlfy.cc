@@ -2,7 +2,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -15,6 +15,11 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -130,13 +135,15 @@ export default function NewLinkPage() {
           </Link>
         </Button>
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">{t('titleNew')}</h2>
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+            {t('titleNew')}
+          </h2>
           <p className="text-muted-foreground">{t('subtitleNew')}</p>
         </div>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Basic Info */}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* Primary block — always visible */}
         <Card>
           <CardHeader>
             <CardTitle>{t('sections.basic')}</CardTitle>
@@ -198,188 +205,238 @@ export default function NewLinkPage() {
           </CardContent>
         </Card>
 
-        {/* Advanced Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('sections.advanced')}</CardTitle>
-            <CardDescription>{t('sections.advancedDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <AccessibleFormField
-              id="expiresAt"
-              label={t('fields.expiresAt.label')}
-              error={form.formState.errors.expiresAt?.message}
-              hint={t('fields.expiresAt.hint')}
-            >
-              <Input
-                id="expiresAt"
-                type="datetime-local"
-                {...form.register('expiresAt')}
-              />
-            </AccessibleFormField>
+        {/* Advanced Settings — collapsible */}
+        <Collapsible>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer select-none">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>{t('sections.advanced')}</CardTitle>
+                    <CardDescription>
+                      {t('sections.advancedDesc')}
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-4 pt-0">
+                <AccessibleFormField
+                  id="expiresAt"
+                  label={t('fields.expiresAt.label')}
+                  error={form.formState.errors.expiresAt?.message}
+                  hint={t('fields.expiresAt.hint')}
+                >
+                  <Input
+                    id="expiresAt"
+                    type="datetime-local"
+                    {...form.register('expiresAt')}
+                  />
+                </AccessibleFormField>
 
-            <AccessibleFormField
-              id="maxClicks"
-              label={t('fields.maxClicks.label')}
-              error={form.formState.errors.maxClicks?.message}
-              hint={t('fields.maxClicks.hint')}
-            >
-              <Input
-                id="maxClicks"
-                type="number"
-                min="1"
-                placeholder="1000"
-                {...form.register('maxClicks', { valueAsNumber: true })}
-              />
-            </AccessibleFormField>
+                <AccessibleFormField
+                  id="maxClicks"
+                  label={t('fields.maxClicks.label')}
+                  error={form.formState.errors.maxClicks?.message}
+                  hint={t('fields.maxClicks.hint')}
+                >
+                  <Input
+                    id="maxClicks"
+                    type="number"
+                    min="1"
+                    placeholder="1000"
+                    {...form.register('maxClicks', { valueAsNumber: true })}
+                  />
+                </AccessibleFormField>
 
-            <AccessibleFormField
-              id="password"
-              label={t('fields.password.label')}
-              error={form.formState.errors.password?.message}
-              hint={t('fields.password.hint')}
-            >
-              <Input
-                id="password"
-                type="password"
-                placeholder={t('fields.password.placeholder')}
-                {...form.register('password')}
-              />
-            </AccessibleFormField>
-          </CardContent>
-        </Card>
+                <AccessibleFormField
+                  id="password"
+                  label={t('fields.password.label')}
+                  error={form.formState.errors.password?.message}
+                  hint={t('fields.password.hint')}
+                >
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder={t('fields.password.placeholder')}
+                    {...form.register('password')}
+                  />
+                </AccessibleFormField>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
-        {/* Meta Tags */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('sections.meta')}</CardTitle>
-            <CardDescription>{t('sections.metaDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <AccessibleFormField
-              id="metaTitle"
-              label={t('fields.metaTitle.label')}
-              error={form.formState.errors.metaTitle?.message}
-              hint={t('fields.metaTitle.hint')}
-            >
-              <Input
-                id="metaTitle"
-                maxLength={60}
-                placeholder={t('metaTitle')}
-                {...form.register('metaTitle')}
-              />
-            </AccessibleFormField>
+        {/* Meta Tags — collapsible */}
+        <Collapsible>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer select-none">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>{t('sections.meta')}</CardTitle>
+                    <CardDescription>{t('sections.metaDesc')}</CardDescription>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-4 pt-0">
+                <AccessibleFormField
+                  id="metaTitle"
+                  label={t('fields.metaTitle.label')}
+                  error={form.formState.errors.metaTitle?.message}
+                  hint={t('fields.metaTitle.hint')}
+                >
+                  <Input
+                    id="metaTitle"
+                    maxLength={60}
+                    placeholder={t('metaTitle')}
+                    {...form.register('metaTitle')}
+                  />
+                </AccessibleFormField>
 
-            <AccessibleFormField
-              id="metaDescription"
-              label={t('fields.metaDescription.label')}
-              error={form.formState.errors.metaDescription?.message}
-              hint={t('fields.metaDescription.hint')}
-            >
-              <Textarea
-                id="metaDescription"
-                maxLength={160}
-                placeholder={t('metaDescription')}
-                {...form.register('metaDescription')}
-              />
-            </AccessibleFormField>
+                <AccessibleFormField
+                  id="metaDescription"
+                  label={t('fields.metaDescription.label')}
+                  error={form.formState.errors.metaDescription?.message}
+                  hint={t('fields.metaDescription.hint')}
+                >
+                  <Textarea
+                    id="metaDescription"
+                    maxLength={160}
+                    placeholder={t('metaDescription')}
+                    {...form.register('metaDescription')}
+                  />
+                </AccessibleFormField>
 
-            <AccessibleFormField
-              id="metaImage"
-              label={t('fields.metaImage.label')}
-              error={form.formState.errors.metaImage?.message}
-              hint={t('fields.metaImage.hint')}
-            >
-              <Input
-                id="metaImage"
-                type="url"
-                placeholder={t('metaImagePlaceholder')}
-                {...form.register('metaImage')}
-              />
-            </AccessibleFormField>
-          </CardContent>
-        </Card>
+                <AccessibleFormField
+                  id="metaImage"
+                  label={t('fields.metaImage.label')}
+                  error={form.formState.errors.metaImage?.message}
+                  hint={t('fields.metaImage.hint')}
+                >
+                  <Input
+                    id="metaImage"
+                    type="url"
+                    placeholder={t('metaImagePlaceholder')}
+                    {...form.register('metaImage')}
+                  />
+                </AccessibleFormField>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
-        {/* UTM Parameters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('sections.tracking')}</CardTitle>
-            <CardDescription>{t('sections.trackingDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <AccessibleFormField
-                id="utmSource"
-                label={t('utmSource')}
-                error={form.formState.errors.utmSource?.message}
-              >
-                <Input
-                  id="utmSource"
-                  placeholder="twitter"
-                  {...form.register('utmSource')}
-                />
-              </AccessibleFormField>
+        {/* UTM Tracking — collapsible */}
+        <Collapsible>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer select-none">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>{t('sections.tracking')}</CardTitle>
+                    <CardDescription>
+                      {t('sections.trackingDesc')}
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <AccessibleFormField
+                    id="utmSource"
+                    label={t('utmSource')}
+                    error={form.formState.errors.utmSource?.message}
+                  >
+                    <Input
+                      id="utmSource"
+                      placeholder="twitter"
+                      {...form.register('utmSource')}
+                    />
+                  </AccessibleFormField>
 
-              <AccessibleFormField
-                id="utmMedium"
-                label={t('utmMedium')}
-                error={form.formState.errors.utmMedium?.message}
-              >
-                <Input
-                  id="utmMedium"
-                  placeholder="social"
-                  {...form.register('utmMedium')}
-                />
-              </AccessibleFormField>
+                  <AccessibleFormField
+                    id="utmMedium"
+                    label={t('utmMedium')}
+                    error={form.formState.errors.utmMedium?.message}
+                  >
+                    <Input
+                      id="utmMedium"
+                      placeholder="social"
+                      {...form.register('utmMedium')}
+                    />
+                  </AccessibleFormField>
 
-              <AccessibleFormField
-                id="utmCampaign"
-                label={t('utmCampaign')}
-                error={form.formState.errors.utmCampaign?.message}
-              >
-                <Input
-                  id="utmCampaign"
-                  placeholder="launch"
-                  {...form.register('utmCampaign')}
-                />
-              </AccessibleFormField>
-            </div>
-          </CardContent>
-        </Card>
+                  <AccessibleFormField
+                    id="utmCampaign"
+                    label={t('utmCampaign')}
+                    error={form.formState.errors.utmCampaign?.message}
+                  >
+                    <Input
+                      id="utmCampaign"
+                      placeholder="launch"
+                      {...form.register('utmCampaign')}
+                    />
+                  </AccessibleFormField>
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
-        {/* Personal Organization */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('sections.security')}</CardTitle>
-            <CardDescription>{t('sections.securityDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <AccessibleFormField
-              id="notes"
-              label={t('fields.notes.label')}
-              error={form.formState.errors.notes?.message}
-              hint={t('fields.notes.hint')}
-            >
-              <Textarea
-                id="notes"
-                placeholder={t('notesPlaceholder')}
-                {...form.register('notes')}
-              />
-            </AccessibleFormField>
-          </CardContent>
-        </Card>
+        {/* Notes — collapsible */}
+        <Collapsible>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer select-none">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>{t('fields.notes.label')}</CardTitle>
+                    <CardDescription>{t('fields.notes.hint')}</CardDescription>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <AccessibleFormField
+                  id="notes"
+                  label={t('fields.notes.label')}
+                  error={form.formState.errors.notes?.message}
+                  hint={t('fields.notes.hint')}
+                >
+                  <Textarea
+                    id="notes"
+                    placeholder={t('notesPlaceholder')}
+                    {...form.register('notes')}
+                  />
+                </AccessibleFormField>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
         {/* Actions */}
-        <div className="flex justify-end gap-4">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="outline"
+            className="sm:w-auto"
             onClick={() => router.push('/dashboard/links')}
           >
             {t('actions.cancel')}
           </Button>
           <Button
             type="submit"
+            className="sm:w-auto"
             disabled={createLink.isPending}
             aria-busy={createLink.isPending}
           >

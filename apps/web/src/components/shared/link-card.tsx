@@ -46,8 +46,8 @@ export function LinkCard({ link, onDelete }: Props) {
       <div className="space-y-3">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 space-y-1">
-            <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
               <a
                 href={link.shortUrl}
                 target="_blank"
@@ -71,7 +71,7 @@ export function LinkCard({ link, onDelete }: Props) {
               href={link.originalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="block truncate text-sm text-muted-foreground hover:text-foreground"
+              className="block max-w-full truncate text-sm text-muted-foreground hover:text-foreground"
             >
               {link.originalUrl}
             </a>
@@ -79,7 +79,12 @@ export function LinkCard({ link, onDelete }: Props) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label={t('options')}>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t('options')}
+                className="shrink-0"
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -130,16 +135,16 @@ export function LinkCard({ link, onDelete }: Props) {
         </div>
 
         {/* Stats */}
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
-            <MousePointer className="h-3 w-3" />
+            <MousePointer className="h-3 w-3 shrink-0" />
             <span>
               {link.clicksCount} {t('clicks')}
             </span>
           </div>
           {link.expiresAt && (
             <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
+              <Calendar className="h-3 w-3 shrink-0" />
               <span>
                 {t('expiresIn', {
                   date: new Date(link.expiresAt).toLocaleDateString(intlLocale)
