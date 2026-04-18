@@ -1,5 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
+
+function isLocalBaseUrl(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    return (
+      parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1'
+    );
+  } catch {
+    return false;
+  }
+}
+
+const shouldManageWebServer =
+  !process.env.E2E_BASE_URL || isLocalBaseUrl(baseURL);
+
+const shouldReuseExistingServer =
+  Boolean(process.env.E2E_BASE_URL) || !process.env.CI;
+
 /**
  * Playwright configuration for web app E2E tests.
  * Tests run against a locally running Next.js server.
@@ -17,7 +36,7 @@ export default defineConfig({
   timeout: 30_000,
 
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure'
   },
@@ -40,13 +59,14 @@ export default defineConfig({
     }
   ],
 
-  // Automatically launch the Next.js dev server when running locally
-  webServer: process.env.CI
-    ? undefined
-    : {
+  // Manage local servers automatically, including CI runs that target localhost.
+  // Remote preview/staging URLs remain externally managed.
+  webServer: shouldManageWebServer
+    ? {
         command: 'bun run dev',
-        url: 'http://localhost:3000',
-        reuseExistingServer: true,
+        url: baseURL,
+        reuseExistingServer: shouldReuseExistingServer,
         timeout: 120_000
       }
+    : undefined
 });
