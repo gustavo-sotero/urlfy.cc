@@ -47,7 +47,7 @@ export function DevicesChart({ data }: Props) {
 
   return (
     <div
-      className="h-[220px] sm:h-[250px]"
+      className="h-55 sm:h-62.5"
       role="img"
       aria-label={`${chartData.map((d) => `${d.name}: ${d.value}`).join(', ')}`}
     >

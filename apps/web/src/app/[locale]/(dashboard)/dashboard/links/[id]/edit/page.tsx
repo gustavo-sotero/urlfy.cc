@@ -248,7 +248,7 @@ export default function EditLinkPage() {
                     <CardTitle>{t('sections.meta')}</CardTitle>
                     <CardDescription>{t('sections.metaDesc')}</CardDescription>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 in-data-[state=open]:rotate-180" />
                 </div>
               </CardHeader>
             </CollapsibleTrigger>
@@ -310,7 +310,7 @@ export default function EditLinkPage() {
                     <CardTitle>{t('fields.notes.label')}</CardTitle>
                     <CardDescription>{t('fields.notes.hint')}</CardDescription>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 in-data-[state=open]:rotate-180" />
                 </div>
               </CardHeader>
             </CollapsibleTrigger>

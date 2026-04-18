@@ -43,7 +43,7 @@ export function ClicksChart({ data }: Props) {
 
   return (
     <div
-      className="h-[220px] w-full sm:h-[300px]"
+      className="h-55 w-full sm:h-75"
       role="img"
       aria-label={t('clicksChartAriaLabel')}
     >

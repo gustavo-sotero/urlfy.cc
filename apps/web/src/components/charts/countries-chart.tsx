@@ -47,18 +47,14 @@ export function CountriesChart({ data }: Props) {
 
   if (topCountries.length === 0) {
     return (
-      <div className="flex h-[220px] items-center justify-center text-muted-foreground sm:h-[250px]">
+      <div className="flex h-55 items-center justify-center text-muted-foreground sm:h-62.5">
         {t('noData')}
       </div>
     );
   }
 
   return (
-    <div
-      className="h-[220px] sm:h-[250px]"
-      role="img"
-      aria-label={t('topCountries')}
-    >
+    <div className="h-55 sm:h-62.5" role="img" aria-label={t('topCountries')}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={topCountries}
