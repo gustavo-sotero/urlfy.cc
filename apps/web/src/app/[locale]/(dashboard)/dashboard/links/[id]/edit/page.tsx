@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, ChevronDown, Loader2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
 import { QueryError } from '@/components/query-error';
@@ -25,6 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Link, useRouter } from '@/i18n/routing';
 import { reportActionError } from '@/lib/browser-logger';
@@ -194,11 +195,16 @@ export default function EditLinkPage() {
                   {t('fields.isActive.hint')}
                 </div>
               </div>
-              <input
-                type="checkbox"
-                id="isActive"
-                {...form.register('isActive')}
-                className="h-4 w-4"
+              <Controller
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <Switch
+                    id="isActive"
+                    checked={field.value ?? false}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
               />
             </div>
 

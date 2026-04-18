@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, ChevronDown, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
 import { Button } from '@/components/ui/button';
@@ -113,6 +113,11 @@ export default function NewLinkPage() {
     }
   });
 
+  const redirectType = useWatch({
+    control: form.control,
+    name: 'redirectType'
+  });
+
   const onSubmit = async (data: FormData) => {
     try {
       const payload = transformFormData(data);
@@ -185,7 +190,7 @@ export default function NewLinkPage() {
                 {t('fields.redirectType.label')}
               </Label>
               <Select
-                value={form.watch('redirectType')}
+                value={redirectType}
                 onValueChange={(value) =>
                   form.setValue('redirectType', value as '301' | '302')
                 }
