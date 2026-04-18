@@ -42,6 +42,7 @@ mock.module('next-intl', () => ({
         closeMenu: 'Fechar menu'
       },
       Common: {
+        language: 'Idioma',
         login: 'Login',
         signup: 'Criar conta',
         dashboard: 'Dashboard'
@@ -162,6 +163,18 @@ describe('Navbar', () => {
     expect(screen.getAllByText('O Projeto').length).toBeGreaterThan(0);
   });
 
+  it('shows language controls inside the mobile drawer', async () => {
+    render(<Navbar />);
+
+    const menuButton = screen.getByLabelText('Menu');
+    await act(async () => {
+      fireEvent.click(menuButton);
+    });
+
+    expect(screen.getByText('Idioma')).toBeDefined();
+    expect(screen.getAllByText('Language').length).toBeGreaterThan(0);
+  });
+
   it('mobile drawer auth buttons have w-full width class', async () => {
     render(<Navbar />);
 
@@ -202,6 +215,28 @@ describe('Navbar', () => {
     // After clicking, Sheet's controlled `open` prop becomes false.
     // In happy-dom (no CSS engine), Radix detects no active animation and
     // unmounts immediately, OR sets data-state="closed" before unmounting.
+    const closedDialog = screen.queryByRole('dialog');
+    const isClosed =
+      closedDialog === null ||
+      closedDialog.getAttribute('data-state') === 'closed';
+    expect(isClosed).toBe(true);
+  });
+
+  it('clicking a mobile auth action closes the drawer', async () => {
+    render(<Navbar />);
+
+    const menuButton = screen.getByLabelText('Menu');
+    await act(async () => {
+      fireEvent.click(menuButton);
+    });
+
+    const allLoginLinks = screen.getAllByText('Login');
+    const mobileLoginLink = allLoginLinks[allLoginLinks.length - 1];
+
+    await act(async () => {
+      fireEvent.click(mobileLoginLink);
+    });
+
     const closedDialog = screen.queryByRole('dialog');
     const isClosed =
       closedDialog === null ||

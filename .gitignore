@@ -54,3 +54,5 @@ src/messages/**/*.d.ts.map
 .github/copilot-instructions.md
 dist/
 node_modules/
+playwright-report/
+test-results/

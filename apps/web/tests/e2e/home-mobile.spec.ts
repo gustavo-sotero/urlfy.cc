@@ -1,4 +1,135 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
+
+const ANONYMOUS_SESSION = {
+  session: null,
+  user: null
+} as const;
+
+const SESSION_ENDPOINT = '/api/auth/get-session';
+
+const ACCEPTED_CONSENT = {
+  analytics: true,
+  marketing: true,
+  timestamp: '2026-04-18T00:00:00.000Z'
+} as const;
+
+interface VisitHomeOptions {
+  showConsentBanner?: boolean;
+}
+
+function getMobileDrawer(page: Page) {
+  return page.locator('[data-slot="sheet-content"][data-state="open"]');
+}
+
+function getConsentBanner(page: Page) {
+  return page.getByRole('dialog', {
+    name: /preferências de privacidade|privacy preferences/i
+  });
+}
+
+async function visitHome(page: Page, options: VisitHomeOptions = {}) {
+  await page.addInitScript(
+    ({ storedConsent, shouldShowBanner, sessionData, sessionEndpoint }) => {
+      if (shouldShowBanner) {
+        localStorage.removeItem('consent_preferences');
+      } else {
+        localStorage.setItem(
+          'consent_preferences',
+          JSON.stringify(storedConsent)
+        );
+      }
+
+      const originalFetch = window.fetch.bind(window);
+      const sessionPayload = JSON.stringify(sessionData);
+
+      const getRequestUrl = (input: RequestInfo | URL) => {
+        if (typeof input === 'string') {
+          return input;
+        }
+
+        if (input instanceof URL) {
+          return input.toString();
+        }
+
+        return input.url;
+      };
+
+      const matchesSessionEndpoint = (url: string) => {
+        try {
+          return new URL(url, window.location.origin).pathname.endsWith(
+            sessionEndpoint
+          );
+        } catch {
+          return url.includes(sessionEndpoint);
+        }
+      };
+
+      (
+        window as Window & {
+          __mockSessionRequests?: number;
+        }
+      ).__mockSessionRequests = 0;
+
+      window.fetch = async (input, init) => {
+        if (matchesSessionEndpoint(getRequestUrl(input))) {
+          (
+            window as Window & {
+              __mockSessionRequests?: number;
+            }
+          ).__mockSessionRequests =
+            ((
+              window as Window & {
+                __mockSessionRequests?: number;
+              }
+            ).__mockSessionRequests ?? 0) + 1;
+
+          return new Response(sessionPayload, {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+        }
+
+        return originalFetch(input, init);
+      };
+    },
+    {
+      storedConsent: ACCEPTED_CONSENT,
+      shouldShowBanner: options.showConsentBanner ?? false,
+      sessionData: ANONYMOUS_SESSION,
+      sessionEndpoint: SESSION_ENDPOINT
+    }
+  );
+
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (
+              window as Window & {
+                __mockSessionRequests?: number;
+              }
+            ).__mockSessionRequests ?? 0
+        ),
+      { timeout: 10_000 }
+    )
+    .toBeGreaterThan(0);
+
+  await expect
+    .poll(
+      () => page.getByRole('button', { name: /loading|carregando/i }).count(),
+      { timeout: 10_000 }
+    )
+    .toBe(0);
+
+  if (options.showConsentBanner) {
+    await page.waitForTimeout(700);
+  }
+}
 
 /**
  * Mobile smoke test — Home page
@@ -14,13 +145,12 @@ import { expect, test } from '@playwright/test';
  */
 
 test.describe('Home page — mobile smoke', () => {
-  test.beforeEach(async ({ page }) => {
-    // Remove consent so the banner can appear in tests that need it
-    await page.addInitScript(() => {
-      localStorage.removeItem('consent_preferences');
-    });
-
-    await page.goto('/');
+  test.beforeEach(async ({ page }, testInfo) => {
+    void page;
+    test.skip(
+      testInfo.project.name === 'chromium-desktop',
+      'Mobile smoke runs only on mobile device projects.'
+    );
   });
 
   // ────────────────────────────────────────────────────────────────
@@ -28,6 +158,8 @@ test.describe('Home page — mobile smoke', () => {
   // ────────────────────────────────────────────────────────────────
 
   test('home loads without horizontal overflow', async ({ page }) => {
+    await visitHome(page);
+
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
     const viewportWidth = page.viewportSize()?.width ?? 0;
 
@@ -37,6 +169,8 @@ test.describe('Home page — mobile smoke', () => {
   test('hero section and CTA are visible without horizontal scroll', async ({
     page
   }) => {
+    await visitHome(page);
+
     // Hero title should be visible
     await expect(page.locator('h1').first()).toBeVisible();
 
@@ -62,25 +196,33 @@ test.describe('Home page — mobile smoke', () => {
   test('mobile nav drawer opens and shows navigation links', async ({
     page
   }) => {
+    await visitHome(page);
+
     const menuButton = page.getByRole('button', { name: 'Menu' });
     await expect(menuButton).toBeVisible();
 
-    await menuButton.click();
+    await menuButton.press('Enter');
 
     // Drawer should be open — nav links should be visible
-    const drawer = page.getByRole('dialog');
+    const drawer = getMobileDrawer(page);
     await expect(drawer).toBeVisible();
+    await expect(
+      drawer.getByRole('button', { name: /language|idioma/i })
+    ).toBeVisible();
   });
 
   test('mobile nav drawer has only one close affordance', async ({ page }) => {
-    const menuButton = page.getByRole('button', { name: 'Menu' });
-    await menuButton.click();
+    await visitHome(page);
 
-    await expect(page.getByRole('dialog')).toBeVisible();
+    const menuButton = page.getByRole('button', { name: 'Menu' });
+    await menuButton.press('Enter');
+
+    const drawer = getMobileDrawer(page);
+    await expect(drawer).toBeVisible();
 
     // Count all close-related buttons — the SheetContent built-in is the only one
     // The navbar must NOT add a second custom close button
-    const closeButtons = page.getByRole('button', { name: /close|fechar/i });
+    const closeButtons = drawer.getByRole('button', { name: /close|fechar/i });
     const count = await closeButtons.count();
     expect(count).toBeLessThanOrEqual(1);
   });
@@ -88,16 +230,18 @@ test.describe('Home page — mobile smoke', () => {
   test('closing the drawer preserves background layout integrity', async ({
     page
   }) => {
-    const menuButton = page.getByRole('button', { name: 'Menu' });
-    await menuButton.click();
+    await visitHome(page);
 
-    await expect(page.getByRole('dialog')).toBeVisible();
+    const menuButton = page.getByRole('button', { name: 'Menu' });
+    await menuButton.press('Enter');
+
+    await expect(getMobileDrawer(page)).toBeVisible();
 
     // Close via the built-in X button (sr-only text "Close")
     await page.keyboard.press('Escape');
 
     // Dialog should be gone
-    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(getMobileDrawer(page)).toHaveCount(0);
 
     // Background still free of horizontal overflow
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -108,10 +252,12 @@ test.describe('Home page — mobile smoke', () => {
   test('drawer items are not touching the edges — have visible padding', async ({
     page
   }) => {
-    const menuButton = page.getByRole('button', { name: 'Menu' });
-    await menuButton.click();
+    await visitHome(page);
 
-    const dialog = page.getByRole('dialog');
+    const menuButton = page.getByRole('button', { name: 'Menu' });
+    await menuButton.press('Enter');
+
+    const dialog = getMobileDrawer(page);
     await expect(dialog).toBeVisible();
 
     // The logo link inside the drawer should not be at x=0
@@ -122,6 +268,38 @@ test.describe('Home page — mobile smoke', () => {
     expect(box?.x).toBeGreaterThan(16);
   });
 
+  test.describe('320px edge viewport', () => {
+    test.use({
+      viewport: { width: 320, height: 568 },
+      isMobile: true,
+      hasTouch: true
+    });
+
+    test('home and final CTA remain within the viewport', async ({ page }) => {
+      await visitHome(page);
+
+      const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+      const viewportWidth = page.viewportSize()?.width ?? 0;
+      expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
+
+      await page.evaluate(() =>
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: 'instant'
+        })
+      );
+
+      await expect(
+        page.getByRole('heading', { level: 2 }).last()
+      ).toBeVisible();
+
+      const finalBodyWidth = await page.evaluate(
+        () => document.body.scrollWidth
+      );
+      expect(finalBodyWidth).toBeLessThanOrEqual(viewportWidth);
+    });
+  });
+
   // ────────────────────────────────────────────────────────────────
   // Consent banner
   // ────────────────────────────────────────────────────────────────
@@ -129,10 +307,9 @@ test.describe('Home page — mobile smoke', () => {
   test('consent banner appears after delay and action buttons are reachable', async ({
     page
   }) => {
-    // Wait for the 500ms banner delay + some buffer
-    await page.waitForTimeout(700);
+    await visitHome(page, { showConsentBanner: true });
 
-    const dialog = page.getByRole('dialog');
+    const dialog = getConsentBanner(page);
     await expect(dialog).toBeVisible();
 
     // All three action buttons should be visible and tappable
@@ -152,9 +329,9 @@ test.describe('Home page — mobile smoke', () => {
   });
 
   test('accepting consent hides the banner', async ({ page }) => {
-    await page.waitForTimeout(700);
+    await visitHome(page, { showConsentBanner: true });
 
-    const dialog = page.getByRole('dialog');
+    const dialog = getConsentBanner(page);
     await expect(dialog).toBeVisible();
 
     await page
@@ -171,23 +348,33 @@ test.describe('Home page — mobile smoke', () => {
   test('CTA buttons stack without overflow at mobile width', async ({
     page
   }) => {
-    // First accept consent so the banner doesn't overlap
-    await page.waitForTimeout(700);
-    const consentDialog = page.getByRole('dialog');
-    if (await consentDialog.isVisible()) {
-      await page
-        .getByRole('button', { name: /aceitar todos|accept all/i })
-        .click();
-    }
+    await visitHome(page);
 
     await page.evaluate(() =>
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' })
     );
 
-    // CTA buttons (signup / login in the final section) should be visible
-    const ctaLinks = page.locator('section').last().getByRole('link');
-    const count = await ctaLinks.count();
-    expect(count).toBeGreaterThan(0);
+    const ctaHeading = page.getByRole('heading', {
+      name: /ready for more features|pronto para mais recursos/i
+    });
+    await expect(ctaHeading).toBeVisible();
+
+    const primaryCta = page.getByRole('link', {
+      name: /get started for free|começar gratuitamente/i
+    });
+    const secondaryCta = page.getByRole('link', {
+      name: /sign in|fazer login/i
+    });
+
+    await expect(primaryCta).toBeVisible();
+    await expect(secondaryCta).toBeVisible();
+
+    const primaryBox = await primaryCta.boundingBox();
+    const secondaryBox = await secondaryCta.boundingBox();
+
+    expect(primaryBox).not.toBeNull();
+    expect(secondaryBox).not.toBeNull();
+    expect((secondaryBox?.y ?? 0) - (primaryBox?.y ?? 0)).toBeGreaterThan(8);
 
     // Verify no horizontal overflow after revealing CTA
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -203,10 +390,18 @@ test.describe('Home page — mobile smoke', () => {
 test.describe('Home page — desktop regression guard', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
+  test.beforeEach(async ({ page }, testInfo) => {
+    void page;
+    test.skip(
+      testInfo.project.name !== 'chromium-desktop',
+      'Desktop regression guard runs only on the desktop Chromium project.'
+    );
+  });
+
   test('desktop nav shows links without mobile menu button', async ({
     page
   }) => {
-    await page.goto('/');
+    await visitHome(page);
 
     // Desktop nav should be visible
     const desktopNav = page.locator('nav').first();

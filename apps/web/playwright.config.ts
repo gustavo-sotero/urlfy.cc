@@ -9,10 +9,10 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   reporter: 'html',
   timeout: 30_000,
 
@@ -44,8 +44,7 @@ export default defineConfig({
   webServer: process.env.CI
     ? undefined
     : {
-        command:
-          'DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development bun --env-file=../../.env --bun next dev',
+        command: 'bun run dev',
         url: 'http://localhost:3000',
         reuseExistingServer: true,
         timeout: 120_000

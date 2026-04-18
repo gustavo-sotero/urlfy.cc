@@ -75,6 +75,7 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const t = useTranslations('Navigation');
   const tCommon = useTranslations('Common');
+  const closeMobileMenu = () => setIsOpen(false);
 
   // Navigation links configuration
   const NAV_LINKS = [
@@ -149,14 +150,18 @@ export function Navbar() {
               <Menu className="h-6 w-6" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" aria-describedby={undefined}>
+          <SheetContent
+            side="right"
+            aria-describedby={undefined}
+            className="w-[min(22rem,calc(100vw-1rem))] p-0"
+          >
             {/* Visually hidden title for screen-reader accessibility (Radix requirement) */}
             <SheetTitle className="sr-only">{t('closeMenu')}</SheetTitle>
-            <div className="flex flex-col gap-6 p-6">
+            <div className="flex h-full flex-col px-5 pb-6 pt-14 sm:px-6">
               {/* Mobile Logo */}
               <Link
                 href="/"
-                onClick={() => setIsOpen(false)}
+                onClick={closeMobileMenu}
                 className="flex items-center gap-2 text-xl font-bold"
               >
                 <span className="text-primary">urlfy</span>
@@ -164,21 +169,30 @@ export function Navbar() {
               </Link>
 
               {/* Mobile Nav Links */}
-              <nav className="flex flex-col gap-4">
+              <nav className="mt-8 flex flex-col gap-2">
                 {NAV_LINKS.map((link) => (
                   <NavLinkItem
                     key={link.href}
                     href={link.href}
                     label={link.label}
                     external={'external' in link ? link.external : undefined}
-                    onClick={() => setIsOpen(false)}
-                    className="text-lg font-medium transition-colors hover:text-primary"
+                    onClick={closeMobileMenu}
+                    className="rounded-lg px-3 py-3 text-base font-medium transition-colors hover:bg-muted hover:text-primary"
                   />
                 ))}
               </nav>
 
+              <div className="mt-6 border-t pt-6">
+                <div className="mb-3 px-3 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                  {tCommon('language')}
+                </div>
+                <div className="flex items-center rounded-lg border bg-muted/40 px-3 py-2">
+                  <LanguageSwitcher />
+                </div>
+              </div>
+
               {/* Mobile Auth Section */}
-              <div className="flex flex-col gap-3 border-t pt-6">
+              <div className="mt-auto flex flex-col gap-3 border-t pt-6">
                 {isPending ? (
                   // Loading state
                   <div className="flex flex-col gap-3">
@@ -187,8 +201,8 @@ export function Navbar() {
                   </div>
                 ) : isAuthenticated ? (
                   // Authenticated user
-                  <Button asChild size="lg" className="w-full">
-                    <Link href="/dashboard" onClick={() => setIsOpen(false)}>
+                  <Button asChild size="lg" className="w-full justify-center">
+                    <Link href="/dashboard" onClick={closeMobileMenu}>
                       {tCommon('dashboard')}
                     </Link>
                   </Button>
@@ -199,14 +213,14 @@ export function Navbar() {
                       asChild
                       variant="outline"
                       size="lg"
-                      className="w-full"
+                      className="w-full justify-center"
                     >
-                      <Link href="/login" onClick={() => setIsOpen(false)}>
+                      <Link href="/login" onClick={closeMobileMenu}>
                         {tCommon('login')}
                       </Link>
                     </Button>
-                    <Button asChild size="lg" className="w-full">
-                      <Link href="/signup" onClick={() => setIsOpen(false)}>
+                    <Button asChild size="lg" className="w-full justify-center">
+                      <Link href="/signup" onClick={closeMobileMenu}>
                         {tCommon('signup')}
                       </Link>
                     </Button>

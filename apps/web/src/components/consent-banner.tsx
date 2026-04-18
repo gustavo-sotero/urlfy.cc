@@ -137,13 +137,13 @@ export function ConsentBanner() {
     <FocusScope.Root loop asChild>
       <div
         ref={bannerRef}
-        className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background shadow-lg"
+        className="fixed right-0 bottom-0 left-0 z-40 border-t bg-background shadow-lg"
         role="dialog"
         aria-labelledby="consent-title"
         aria-describedby="consent-description"
       >
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-start gap-4">
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
             <div className="min-w-0 flex-1">
               <h3
                 id="consent-title"
@@ -204,14 +204,14 @@ export function ConsentBanner() {
             <button
               type="button"
               onClick={() => setShowBanner(false)}
-              className="shrink-0 text-muted-foreground hover:text-foreground"
+              className="self-end text-muted-foreground transition-colors hover:text-foreground sm:self-start"
               aria-label={t('closeAriaLabel')}
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          <div className="mt-4 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
+          <div className="mt-4 grid gap-2 sm:mt-6 sm:flex sm:flex-wrap sm:justify-end sm:gap-3">
             <Button
               variant="outline"
               onClick={handleSavePreferences}
