@@ -13,8 +13,13 @@ const ACCEPTED_CONSENT = {
   timestamp: '2026-04-18T00:00:00.000Z'
 } as const;
 
+const SUPPORTED_LOCALES = ['en', 'pt-br'] as const;
+
+type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+
 interface VisitHomeOptions {
   showConsentBanner?: boolean;
+  locale?: SupportedLocale;
 }
 
 function getMobileDrawer(page: Page) {
@@ -70,29 +75,34 @@ async function visitHome(page: Page, options: VisitHomeOptions = {}) {
         }
       ).__mockSessionRequests = 0;
 
-      window.fetch = async (input, init) => {
-        if (matchesSessionEndpoint(getRequestUrl(input))) {
-          (
-            window as Window & {
-              __mockSessionRequests?: number;
-            }
-          ).__mockSessionRequests =
-            ((
+      const mockedFetch = Object.assign(
+        async (input: RequestInfo | URL, init?: RequestInit) => {
+          if (matchesSessionEndpoint(getRequestUrl(input))) {
+            (
               window as Window & {
                 __mockSessionRequests?: number;
               }
-            ).__mockSessionRequests ?? 0) + 1;
+            ).__mockSessionRequests =
+              ((
+                window as Window & {
+                  __mockSessionRequests?: number;
+                }
+              ).__mockSessionRequests ?? 0) + 1;
 
-          return new Response(sessionPayload, {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-        }
+            return new Response(sessionPayload, {
+              status: 200,
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+          }
 
-        return originalFetch(input, init);
-      };
+          return originalFetch(input, init);
+        },
+        originalFetch
+      ) as typeof window.fetch;
+
+      window.fetch = mockedFetch;
     },
     {
       storedConsent: ACCEPTED_CONSENT,
@@ -102,7 +112,9 @@ async function visitHome(page: Page, options: VisitHomeOptions = {}) {
     }
   );
 
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.goto(`/${options.locale ?? 'en'}`, {
+    waitUntil: 'domcontentloaded'
+  });
 
   await expect
     .poll(
@@ -267,6 +279,48 @@ test.describe('Home page — mobile smoke', () => {
     // Verify there's at least 16px of padding on the left
     expect(box?.x).toBeGreaterThan(16);
   });
+
+  for (const locale of SUPPORTED_LOCALES) {
+    test(`critical home flow remains stable for locale ${locale}`, async ({
+      page
+    }) => {
+      await visitHome(page, {
+        locale,
+        showConsentBanner: true
+      });
+
+      const menuButton = page.getByRole('button', { name: 'Menu' });
+      await expect(menuButton).toBeVisible();
+      await menuButton.press('Enter');
+      await expect(getMobileDrawer(page)).toBeVisible();
+
+      await page.keyboard.press('Escape');
+      await expect(getMobileDrawer(page)).toHaveCount(0);
+
+      const consentBanner = getConsentBanner(page);
+      await expect(consentBanner).toBeVisible();
+
+      await page.evaluate(() =>
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: 'instant'
+        })
+      );
+
+      const localeHeading =
+        locale === 'pt-br'
+          ? /pronto para mais recursos/i
+          : /ready for more features/i;
+
+      await expect(
+        page.getByRole('heading', { name: localeHeading })
+      ).toBeVisible();
+
+      const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+      const viewportWidth = page.viewportSize()?.width ?? 0;
+      expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
+    });
+  }
 
   test.describe('320px edge viewport', () => {
     test.use({
