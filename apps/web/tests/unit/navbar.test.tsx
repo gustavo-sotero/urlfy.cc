@@ -176,6 +176,38 @@ describe('Navbar', () => {
     expect(loginLinks.length).toBeGreaterThan(0);
     expect(signupLinks.length).toBeGreaterThan(0);
   });
+
+  it('clicking a nav link inside the drawer closes the menu', async () => {
+    render(<Navbar />);
+
+    // Open the drawer
+    const menuButton = screen.getByLabelText('Menu');
+    await act(async () => {
+      fireEvent.click(menuButton);
+    });
+
+    // Dialog (Sheet) is open
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeDefined();
+
+    // The mobile nav has the same links as desktop — after opening the drawer
+    // there are 2 "Recursos" elements: one in the desktop nav, one in the Sheet
+    const allFeaturesLinks = screen.getAllByText('Recursos');
+    const mobileNavLink = allFeaturesLinks[allFeaturesLinks.length - 1];
+
+    await act(async () => {
+      fireEvent.click(mobileNavLink);
+    });
+
+    // After clicking, Sheet's controlled `open` prop becomes false.
+    // In happy-dom (no CSS engine), Radix detects no active animation and
+    // unmounts immediately, OR sets data-state="closed" before unmounting.
+    const closedDialog = screen.queryByRole('dialog');
+    const isClosed =
+      closedDialog === null ||
+      closedDialog.getAttribute('data-state') === 'closed';
+    expect(isClosed).toBe(true);
+  });
 });
 
 describe('Component Performance', () => {

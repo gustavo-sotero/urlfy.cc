@@ -149,7 +149,7 @@ export function Navbar() {
               <Menu className="h-6 w-6" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right">
+          <SheetContent side="right" aria-describedby={undefined}>
             {/* Visually hidden title for screen-reader accessibility (Radix requirement) */}
             <SheetTitle className="sr-only">{t('closeMenu')}</SheetTitle>
             <div className="flex flex-col gap-6 p-6">
