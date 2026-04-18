@@ -113,15 +113,65 @@ const window = new Window();
 const document = window.document;
 
 // biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
-global.window = window as any;
+(globalThis as any).window = window;
 // biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
-global.document = document as any;
+(globalThis as any).document = document;
 // biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
-global.navigator = window.navigator as any;
+(globalThis as any).navigator = window.navigator;
 // biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
-global.HTMLElement = window.HTMLElement as any;
+(globalThis as any).HTMLElement = window.HTMLElement;
 // biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
-global.Element = window.Element as any;
+(globalThis as any).HTMLInputElement = window.HTMLInputElement;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).HTMLButtonElement = window.HTMLButtonElement;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).HTMLFormElement = window.HTMLFormElement;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).HTMLAnchorElement = window.HTMLAnchorElement;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).HTMLDivElement = window.HTMLDivElement;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).Element = window.Element;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).Event = window.Event;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).CustomEvent = window.CustomEvent;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).localStorage = window.localStorage;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).sessionStorage = window.sessionStorage;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).getComputedStyle = window.getComputedStyle.bind(window);
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).MutationObserver = window.MutationObserver;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).NodeFilter = window.NodeFilter;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).IntersectionObserver =
+  // biome-ignore lint/suspicious/noExplicitAny: stub for Radix UI in tests
+  (globalThis as any).IntersectionObserver ??
+  class IntersectionObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).requestAnimationFrame =
+  // biome-ignore lint/suspicious/noExplicitAny: stub for animation frames in tests
+  (globalThis as any).requestAnimationFrame ??
+  ((cb: FrameRequestCallback) => setTimeout(cb, 0));
+
+// Radix UI primitives (Dialog, Sheet, etc.) use ResizeObserver to measure
+// scrollbar width when locking scroll on open. Provide a no-op stub so those
+// components don't throw in the test environment.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  // biome-ignore lint/suspicious/noExplicitAny: ResizeObserver stub for tests
+  (globalThis as any).ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
 
 // Patch happy-dom 20.x bug: SelectorParser uses `this.window.SyntaxError` which
 // is not defined on the happy-dom Window object, causing querySelectorAll to

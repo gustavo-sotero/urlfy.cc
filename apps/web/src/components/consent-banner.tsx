@@ -79,8 +79,8 @@ export function ConsentBanner() {
 
     localStorage.setItem('consent_preferences', JSON.stringify(preferences));
 
-    // Trigger analytics enable event
-    window.dispatchEvent(
+    // Trigger analytics enable event (guarded for SSR/sandboxed environments)
+    window.dispatchEvent?.(
       new CustomEvent('consent-updated', { detail: preferences })
     );
 
@@ -101,8 +101,8 @@ export function ConsentBanner() {
 
     localStorage.setItem('consent_preferences', JSON.stringify(preferences));
 
-    // Trigger analytics disable event
-    window.dispatchEvent(
+    // Trigger analytics disable event (guarded for SSR/sandboxed environments)
+    window.dispatchEvent?.(
       new CustomEvent('consent-updated', { detail: preferences })
     );
 
@@ -121,7 +121,7 @@ export function ConsentBanner() {
 
     localStorage.setItem('consent_preferences', JSON.stringify(preferences));
 
-    window.dispatchEvent(
+    window.dispatchEvent?.(
       new CustomEvent('consent-updated', { detail: preferences })
     );
 
@@ -143,8 +143,8 @@ export function ConsentBanner() {
         aria-describedby="consent-description"
       >
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
+          <div className="flex items-start gap-4">
+            <div className="min-w-0 flex-1">
               <h3
                 id="consent-title"
                 className="mb-2 text-lg font-semibold text-foreground"
@@ -211,11 +211,12 @@ export function ConsentBanner() {
             </button>
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <div className="mt-4 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
             <Button
               variant="outline"
               onClick={handleSavePreferences}
               disabled={isLoading}
+              className="w-full sm:w-auto"
             >
               {isLoading ? t('saving') : t('savePreferences')}
             </Button>
@@ -224,11 +225,16 @@ export function ConsentBanner() {
               variant="outline"
               onClick={handleRejectAll}
               disabled={isLoading}
+              className="w-full sm:w-auto"
             >
               {t('rejectAll')}
             </Button>
 
-            <Button onClick={handleAcceptAll} disabled={isLoading}>
+            <Button
+              onClick={handleAcceptAll}
+              disabled={isLoading}
+              className="w-full sm:w-auto"
+            >
               {isLoading ? t('saving') : t('acceptAll')}
             </Button>
           </div>

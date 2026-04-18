@@ -13,15 +13,15 @@
 
 'use client';
 
-import { Menu, X } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { LanguageSwitcher } from '@/components/shared/language-switcher';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
-  SheetClose,
   SheetContent,
+  SheetTitle,
   SheetTrigger
 } from '@/components/ui/sheet';
 import { Link } from '@/i18n/routing';
@@ -149,28 +149,19 @@ export function Navbar() {
               <Menu className="h-6 w-6" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-75 sm:w-100">
-            <div className="flex flex-col gap-6">
+          <SheetContent side="right">
+            {/* Visually hidden title for screen-reader accessibility (Radix requirement) */}
+            <SheetTitle className="sr-only">{t('closeMenu')}</SheetTitle>
+            <div className="flex flex-col gap-6 p-6">
               {/* Mobile Logo */}
-              <div className="flex items-center justify-between">
-                <Link
-                  href="/"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-2 text-xl font-bold"
-                >
-                  <span className="text-primary">urlfy</span>
-                  <span className="text-muted-foreground">.cc</span>
-                </Link>
-                <SheetClose asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t('closeMenu')}
-                  >
-                    <X className="h-6 w-6" />
-                  </Button>
-                </SheetClose>
-              </div>
+              <Link
+                href="/"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-2 text-xl font-bold"
+              >
+                <span className="text-primary">urlfy</span>
+                <span className="text-muted-foreground">.cc</span>
+              </Link>
 
               {/* Mobile Nav Links */}
               <nav className="flex flex-col gap-4">

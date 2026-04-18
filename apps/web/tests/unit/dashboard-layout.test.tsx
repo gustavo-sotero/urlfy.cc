@@ -33,7 +33,9 @@ const originalFetch = global.fetch;
 const originalApiInternalUrl = process.env.API_INTERNAL_URL;
 
 mock.module('next/headers', () => ({
-  headers: headersMock
+  headers: headersMock,
+  // Include cookies so this mock doesn't clobber sibling test files that need it
+  cookies: async () => ({ get: () => undefined })
 }));
 
 mock.module('next-intl/server', () => ({

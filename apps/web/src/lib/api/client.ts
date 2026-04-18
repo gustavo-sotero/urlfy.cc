@@ -12,7 +12,11 @@ import type { ApiClientContract } from './api-types';
 // ═══════════════════════════════════════════════════════════════════
 
 function getBrowserOrigin(): string | undefined {
-  return typeof window !== 'undefined' ? window.location.origin : undefined;
+  if (typeof window === 'undefined') return undefined;
+  const origin = window.location.origin;
+  // happy-dom and sandboxed origins (about:blank, file://, data:) expose the
+  // serialised string "null" as the origin; treat it as absent.
+  return origin && origin !== 'null' ? origin : undefined;
 }
 
 /** Public app origin used for user-facing URLs. */

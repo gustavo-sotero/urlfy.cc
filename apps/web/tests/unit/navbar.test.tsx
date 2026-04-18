@@ -2,9 +2,34 @@
  * Unit tests for Navbar component
  */
 
-import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, beforeAll, describe, expect, it, mock } from 'bun:test';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen
+} from '@testing-library/react';
 import { Navbar } from '@/components/layout/navbar';
+
+// react-remove-scroll-bar (used by Radix Sheet/Dialog) calls
+// window.getComputedStyle when a scroll-locked overlay is mounted.
+// happy-dom provides it, but mock.restore() in other test files can
+// strip it. Restore it here as a safety-net.
+beforeAll(() => {
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.getComputedStyle !== 'function'
+  ) {
+    window.getComputedStyle = (_el: Element) =>
+      ({
+        paddingLeft: '0px',
+        paddingRight: '0px',
+        overflowX: 'visible',
+        overflowY: 'visible'
+      }) as unknown as CSSStyleDeclaration;
+  }
+});
 
 // Mock next-intl
 mock.module('next-intl', () => ({
@@ -13,7 +38,8 @@ mock.module('next-intl', () => ({
       Navigation: {
         features: 'Recursos',
         project: 'O Projeto',
-        docs: 'API Docs'
+        docs: 'API Docs',
+        closeMenu: 'Fechar menu'
       },
       Common: {
         login: 'Login',
@@ -104,6 +130,51 @@ describe('Navbar', () => {
 
     const menuButton = screen.getAllByLabelText('Menu');
     expect(menuButton.length).toBeGreaterThan(0);
+  });
+
+  it('mobile sheet trigger renders exactly once', () => {
+    render(<Navbar />);
+
+    // Only one hamburger menu trigger button should exist
+    const menuButtons = screen.getAllByLabelText('Menu');
+    expect(menuButtons.length).toBe(1);
+  });
+
+  it('mobile drawer does not render a custom close button alongside the built-in one', () => {
+    render(<Navbar />);
+
+    // The navbar must NOT have any SheetClose with a custom aria-label for "closeMenu"
+    // Only the SheetContent built-in sr-only "Close" should exist
+    const closeMenuButton = screen.queryByLabelText('closeMenu');
+    expect(closeMenuButton).toBeNull();
+  });
+
+  it('opens mobile drawer and shows navigation links', async () => {
+    render(<Navbar />);
+
+    const menuButton = screen.getByLabelText('Menu');
+    await act(async () => {
+      fireEvent.click(menuButton);
+    });
+
+    // Mobile nav links should be visible in the drawer
+    expect(screen.getAllByText('Recursos').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('O Projeto').length).toBeGreaterThan(0);
+  });
+
+  it('mobile drawer auth buttons have w-full width class', async () => {
+    render(<Navbar />);
+
+    const menuButton = screen.getByLabelText('Menu');
+    await act(async () => {
+      fireEvent.click(menuButton);
+    });
+
+    // Get all login/signup links and at least one should be in the drawer with w-full
+    const loginLinks = screen.getAllByText('Login');
+    const signupLinks = screen.getAllByText('Criar conta');
+    expect(loginLinks.length).toBeGreaterThan(0);
+    expect(signupLinks.length).toBeGreaterThan(0);
   });
 });
 

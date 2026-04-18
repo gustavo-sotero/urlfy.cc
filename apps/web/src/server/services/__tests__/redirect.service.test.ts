@@ -19,7 +19,7 @@
 
 // ── Module mocks (must be registered before the modules are imported) ─────────
 
-import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { createHmac } from 'node:crypto';
 
 // Silent logger
@@ -80,7 +80,11 @@ mock.module('@urlfy/cache', () => ({
   STREAM_NAMES: { analyticsClicks: 'analytics:clicks' }
 }));
 
-// next/headers — cookies()
+// next/headers — cookies() and headers()
+// Include both named exports so this mock is compatible with any sibling test
+// file that also mocks next/headers (e.g. dashboard-layout.test.tsx which
+// only uses headers()). Bun reuses module mocks across files in the same
+// worker; a partial mock registered later would silently shadow this one.
 let mockCookieValue: string | undefined;
 mock.module('next/headers', () => ({
   cookies: async () => ({
@@ -88,7 +92,8 @@ mock.module('next/headers', () => ({
       name.startsWith('urlfy_unlock_') && mockCookieValue
         ? { value: mockCookieValue }
         : undefined
-  })
+  }),
+  headers: async () => new Headers()
 }));
 
 // Rate limiter — allow all by default
@@ -154,10 +159,12 @@ async function callGET(
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('GET /r/[code] — redirect hot path', () => {
-  afterAll(() => {
-    mock.restore();
-  });
-
+  // NOTE: mock.restore() is intentionally NOT called here.
+  // Calling mock.restore() globally in afterAll tears down happy-dom browser
+  // APIs (window.getComputedStyle, etc.) for every test file that runs in the
+  // same bun worker afterward, causing cascading failures. Module mocks
+  // registered with mock.module() are scoped to the test worker lifetime and
+  // do not need explicit teardown between describe blocks.
   beforeEach(() => {
     // Reset to safe defaults before each test
     mockResolveResult = { success: false, error: 'NOT_FOUND' };

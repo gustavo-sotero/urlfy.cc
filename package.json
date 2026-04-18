@@ -41,7 +41,7 @@
     }
   },
   "scripts": {
-    "dev": "DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development turbo run dev --parallel",
+    "dev": "DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development turbo run dev",
     "dev:web": "DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development turbo run dev --filter=web",
     "dev:api": "NODE_ENV=development turbo run dev --filter=@urlfy/api",
     "dev:worker": "NODE_ENV=development turbo run dev --filter=worker",
@@ -49,7 +49,7 @@
     "build:web": "turbo run build --filter=web",
     "build:api": "turbo run build --filter=@urlfy/api",
     "build:worker": "turbo run build --filter=worker",
-    "start": "turbo run start --parallel",
+    "start": "turbo run start",
     "start:web": "turbo run start --filter=web",
     "start:api": "turbo run start --filter=@urlfy/api",
     "start:worker": "turbo run start --filter=worker",

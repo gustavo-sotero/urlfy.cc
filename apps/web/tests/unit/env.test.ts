@@ -26,6 +26,7 @@ describe('web env validation', () => {
     mutableEnv.DATABASE_URL =
       'postgresql://urlfy_test:urlfy_test_pass@localhost:5432/urlfy_test';
     mutableEnv.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';
+    mutableEnv.API_INTERNAL_URL = 'http://localhost:3001';
     mutableEnv.BETTER_AUTH_SECRET = 'build-time-placeholder-secret-32chars-xx';
     mutableEnv.INTERNAL_API_SECRET =
       'ci-test-internal-secret-minimum-32-characters';

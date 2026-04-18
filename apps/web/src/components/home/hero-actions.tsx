@@ -25,7 +25,7 @@ export function HeroActions() {
 
   if (isPending) {
     return (
-      <div className="flex justify-center gap-4">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
         <Button size="lg" disabled className="w-full sm:w-auto">
           <Spinner className="mr-2 h-4 w-4" />
           {t('loading')}
@@ -36,7 +36,7 @@ export function HeroActions() {
 
   if (isAuthenticated) {
     return (
-      <div className="flex justify-center gap-4">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
         <Button asChild size="lg" className="w-full sm:w-auto">
           <Link href="/dashboard">{t('goToDashboard')}</Link>
         </Button>
@@ -45,7 +45,7 @@ export function HeroActions() {
   }
 
   return (
-    <div className="flex justify-center gap-4">
+    <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
       <Button asChild size="lg" className="w-full sm:w-auto">
         <Link href="/signup">{t('getStarted')}</Link>
       </Button>
