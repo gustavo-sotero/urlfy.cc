@@ -69,7 +69,18 @@ export const Emails = {
     step3: 'Você receberá um email de confirmação quando concluído',
     exportData: 'Exportar Meus Dados Antes da Exclusão',
     cancelRequest: 'Cancelar esta solicitação',
-    footer: 'Esta ação é irreversível e não pode ser desfeita.'
+    footer: 'Esta ação é irreversível e não pode ser desfeita.',
+    deletionHeader: 'O que será excluído:',
+    deletionItem1: 'Todos os links encurtados criados',
+    deletionItem2: 'Histórico de analytics e métricas',
+    deletionItem3: 'Dados de autenticação e perfil',
+    deletionItem4: 'Configurações e preferências',
+    deletionItem5: 'API Keys e tokens de acesso',
+    exportPrompt: 'Deseja fazer backup dos seus dados?',
+    exportDesc:
+      'Você pode exportar uma cópia completa dos seus dados antes da exclusão:',
+    warningNote:
+      '⚠️ Atenção: Esta ação é irreversível. Após a conclusão, nenhum dado poderá ser recuperado. Se mudou de ideia, responda este email dentro do prazo.'
   },
   linkBanned: {
     subject: '⚠️ Link Bloqueado - Ação Necessária',
@@ -89,7 +100,18 @@ export const Emails = {
     createNew: 'Criar um novo link em conformidade',
     createNewDesc: 'Certifique-se de seguir nossas políticas',
     footer:
-      'Violações repetidas podem resultar em suspensão da conta. Por favor, revise nossos Termos de Uso.'
+      'Violações repetidas podem resultar em suspensão da conta. Por favor, revise nossos Termos de Uso.',
+    implicationsHeader: 'O que isso significa:',
+    implication1: 'O link não está mais acessível',
+    implication2: 'Visitantes verão uma página de erro',
+    implication3: 'As estatísticas foram preservadas',
+    implication4: 'Você pode contestar essa decisão',
+    commonReasonsHeader: '📋 Motivos comuns de bloqueio:',
+    commonReason1: 'Conteúdo malicioso ou phishing',
+    commonReason2: 'Spam ou práticas abusivas',
+    commonReason3: 'Violação de propriedade intelectual',
+    commonReason4: 'Conteúdo ilegal ou inadequado',
+    appealCta: 'Contestar Bloqueio'
   },
   quotaWarning: {
     subject: '⚠️ Você está usando {percent}% da sua quota',
@@ -106,6 +128,11 @@ export const Emails = {
     upgradeDesc: 'Obtenha mais links e recursos premium',
     manageLinks: 'Gerenciar seus links',
     manageLinksDesc: 'Delete links não utilizados para liberar espaço',
-    footer: 'Precisa de ajuda? Entre em contato com nossa equipe de suporte.'
+    footer: 'Precisa de ajuda? Entre em contato com nossa equipe de suporte.',
+    warningNear:
+      '💡 Aviso: Você está se aproximando do seu limite. Considere fazer upgrade para continuar criando links sem interrupções.',
+    warningCritical:
+      '🚨 Atenção! Você tem apenas {remaining} links restantes. Após atingir o limite, não será possível criar novos links.',
+    upgradeCta: 'Ver Planos'
   }
 } as const;

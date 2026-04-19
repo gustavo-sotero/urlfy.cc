@@ -323,4 +323,199 @@ describe('Email rendering', () => {
       }
     });
   });
+
+  describe('shared email-layout locale awareness', () => {
+    it('renders English footer for en locale', async () => {
+      const result = await renderEmail({
+        locale: 'en',
+        template: 'welcome',
+        payload: { firstName: 'Test', email: 'test@example.com' }
+      });
+
+      expect(result.html).toContain('All rights reserved');
+      expect(result.html).toContain('Terms of Use');
+      expect(result.html).toContain('Privacy Policy');
+      expect(result.html).toContain('Don&#x27;t want to receive these emails?');
+      expect(result.html).not.toContain('Todos os direitos reservados');
+    });
+
+    it('renders Portuguese footer for pt-br locale', async () => {
+      const result = await renderEmail({
+        locale: 'pt-br',
+        template: 'welcome',
+        payload: { firstName: 'Teste', email: 'teste@example.com' }
+      });
+
+      expect(result.html).toContain('Todos os direitos reservados');
+      expect(result.html).toContain('Termos de Uso');
+      expect(result.html).toContain('Privacidade');
+      expect(result.html).toContain('Não deseja mais receber esses emails?');
+      expect(result.html).not.toContain('All rights reserved');
+    });
+
+    it('includes preview text in all templates', async () => {
+      const templates = [
+        {
+          template: 'welcome' as const,
+          payload: { firstName: 'Test', email: 'test@example.com' }
+        },
+        {
+          template: 'emailVerification' as const,
+          payload: {
+            firstName: 'Test',
+            verificationUrl: 'https://example.com/verify'
+          }
+        },
+        {
+          template: 'passwordReset' as const,
+          payload: {
+            firstName: 'Test',
+            resetUrl: 'https://example.com/reset'
+          }
+        }
+      ];
+
+      for (const { template, payload } of templates) {
+        const result = await renderEmail({ locale: 'en', template, payload });
+        // Preview text is hidden via display:none in a div element
+        expect(result.html.length).toBeGreaterThan(200);
+        expect(result.subject).toBeTruthy();
+      }
+    });
+  });
+
+  describe('quota warning locale correctness', () => {
+    it('uses catalog text in English, not hardcoded Portuguese', async () => {
+      const result = await renderEmail({
+        locale: 'en',
+        template: 'quotaWarning',
+        payload: {
+          firstName: 'Test',
+          currentUsage: 80,
+          quotaLimit: 100,
+          percentUsed: 80,
+          upgradeUrl: 'https://urlfy.cc/upgrade'
+        }
+      });
+
+      expect(result.html).not.toContain('Uso Atual');
+      expect(result.html).not.toContain('Opções disponíveis');
+      expect(result.html).not.toContain('Ver Planos');
+      expect(result.html).toContain('Current usage');
+      expect(result.html).toContain('View Plans');
+    });
+
+    it('uses catalog text in Portuguese', async () => {
+      const result = await renderEmail({
+        locale: 'pt-br',
+        template: 'quotaWarning',
+        payload: {
+          firstName: 'Teste',
+          currentUsage: 90,
+          quotaLimit: 100,
+          percentUsed: 90,
+          upgradeUrl: 'https://urlfy.cc/upgrade'
+        }
+      });
+
+      expect(result.html).toContain('Ver Planos');
+      expect(result.html).toContain('Uso atual');
+    });
+
+    it('renders critical warning when percentUsed >= 90', async () => {
+      const result = await renderEmail({
+        locale: 'en',
+        template: 'quotaWarning',
+        payload: {
+          firstName: 'Test',
+          currentUsage: 95,
+          quotaLimit: 100,
+          percentUsed: 95,
+          upgradeUrl: 'https://urlfy.cc/upgrade'
+        }
+      });
+
+      // remaining = 100 - 95 = 5
+      expect(result.html).toContain('5');
+      expect(result.html).toContain('Warning!');
+    });
+  });
+
+  describe('link banned locale correctness', () => {
+    it('uses catalog labels in English, not hardcoded Portuguese', async () => {
+      const result = await renderEmail({
+        locale: 'en',
+        template: 'linkBanned',
+        payload: {
+          firstName: 'Test',
+          linkUrl: 'https://example.com',
+          shortCode: 'abc123',
+          bannedReason: 'Spam',
+          bannedAt: new Date('2026-01-01'),
+          appealUrl: 'https://urlfy.cc/appeal'
+        }
+      });
+
+      expect(result.html).not.toContain('Código Curto');
+      expect(result.html).not.toContain('O que isso significa');
+      expect(result.html).not.toContain('Contestar Bloqueio');
+      expect(result.html).toContain('Short Code');
+      expect(result.html).toContain('What this means');
+      expect(result.html).toContain('Contest Ban');
+    });
+
+    it('uses catalog labels in Portuguese', async () => {
+      const result = await renderEmail({
+        locale: 'pt-br',
+        template: 'linkBanned',
+        payload: {
+          firstName: 'Teste',
+          linkUrl: 'https://example.com',
+          shortCode: 'xyz789',
+          bannedReason: 'Spam',
+          bannedAt: new Date('2026-01-01'),
+          appealUrl: 'https://urlfy.cc/appeal'
+        }
+      });
+
+      expect(result.html).toContain('Código Curto');
+      expect(result.html).toContain('O que isso significa');
+      expect(result.html).toContain('Contestar Bloqueio');
+    });
+  });
+
+  describe('data deletion locale correctness', () => {
+    it('uses catalog labels in English, not hardcoded Portuguese', async () => {
+      const result = await renderEmail({
+        locale: 'en',
+        template: 'dataDeletionConfirmation',
+        payload: {
+          firstName: 'Test',
+          requestDate: new Date('2026-01-01'),
+          deadlineDate: new Date('2026-01-04'),
+          exportUrl: 'https://urlfy.cc/export'
+        }
+      });
+
+      expect(result.html).not.toContain('O que será excluído');
+      expect(result.html).not.toContain('Data da Solicitação');
+      expect(result.html).toContain('What will be deleted');
+      expect(result.html).toContain('Requested on');
+    });
+
+    it('uses catalog labels in Portuguese', async () => {
+      const result = await renderEmail({
+        locale: 'pt-br',
+        template: 'dataDeletionConfirmation',
+        payload: {
+          firstName: 'Teste',
+          requestDate: new Date('2026-01-01'),
+          deadlineDate: new Date('2026-01-04')
+        }
+      });
+
+      expect(result.html).toContain('O que será excluído');
+      expect(result.html).toContain('Solicitado em');
+    });
+  });
 });

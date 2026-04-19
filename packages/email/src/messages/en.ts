@@ -69,7 +69,17 @@ export const Emails = {
     step3: 'You will receive a confirmation email once completed',
     exportData: 'Export My Data Before Deletion',
     cancelRequest: 'Cancel this request',
-    footer: 'This action is irreversible and cannot be undone.'
+    footer: 'This action is irreversible and cannot be undone.',
+    deletionHeader: 'What will be deleted:',
+    deletionItem1: 'All shortened links created',
+    deletionItem2: 'Analytics history and metrics',
+    deletionItem3: 'Authentication data and profile',
+    deletionItem4: 'Settings and preferences',
+    deletionItem5: 'API Keys and access tokens',
+    exportPrompt: 'Want to back up your data?',
+    exportDesc: 'You can export a complete copy of your data before deletion:',
+    warningNote:
+      '⚠️ Warning: This action is irreversible. After completion, no data can be recovered. If you changed your mind, reply to this email before the deadline.'
   },
   linkBanned: {
     subject: '⚠️ Link Blocked - Action Required',
@@ -89,7 +99,18 @@ export const Emails = {
     createNew: 'Create a new compliant link',
     createNewDesc: 'Make sure it follows our policies',
     footer:
-      'Repeated violations may result in account suspension. Please review our Terms of Use.'
+      'Repeated violations may result in account suspension. Please review our Terms of Use.',
+    implicationsHeader: 'What this means:',
+    implication1: 'The link is no longer accessible',
+    implication2: 'Visitors will see an error page',
+    implication3: 'Statistics have been preserved',
+    implication4: 'You can contest this decision',
+    commonReasonsHeader: '📋 Common reasons for blocking:',
+    commonReason1: 'Malicious content or phishing',
+    commonReason2: 'Spam or abusive practices',
+    commonReason3: 'Intellectual property violation',
+    commonReason4: 'Illegal or inappropriate content',
+    appealCta: 'Contest Ban'
   },
   quotaWarning: {
     subject: '⚠️ You are using {percent}% of your quota',
@@ -106,6 +127,11 @@ export const Emails = {
     upgradeDesc: 'Get more links and premium features',
     manageLinks: 'Manage your links',
     manageLinksDesc: 'Delete unused links to free up space',
-    footer: 'Need help? Contact our support team.'
+    footer: 'Need help? Contact our support team.',
+    warningNear:
+      '💡 Note: You are approaching your limit. Consider upgrading to continue creating links without interruptions.',
+    warningCritical:
+      '🚨 Warning! You only have {remaining} links left. After reaching the limit, you will not be able to create new links.',
+    upgradeCta: 'View Plans'
   }
 } as const;

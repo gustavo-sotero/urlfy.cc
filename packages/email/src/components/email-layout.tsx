@@ -7,12 +7,34 @@ interface EmailLayoutProps {
   locale?: string;
 }
 
+const layoutMessages = {
+  en: {
+    subtitle: 'Professional Link Shortener',
+    copyright: `© ${new Date().getFullYear()} urlfy.cc – All rights reserved`,
+    terms: 'Terms of Use',
+    privacy: 'Privacy Policy',
+    unsubscribe: "Don't want to receive these emails?",
+    unsubscribeLink: 'Unsubscribe'
+  },
+  'pt-br': {
+    subtitle: 'Encurtador de Links Profissional',
+    copyright: `© ${new Date().getFullYear()} urlfy.cc – Todos os direitos reservados`,
+    terms: 'Termos de Uso',
+    privacy: 'Privacidade',
+    unsubscribe: 'Não deseja mais receber esses emails?',
+    unsubscribeLink: 'Cancelar inscrição'
+  }
+} as const;
+
 export function EmailLayout({
   children,
   previewText,
   locale = 'en'
 }: EmailLayoutProps) {
   const langCode = locale === 'pt-br' ? 'pt-BR' : 'en';
+  const lm =
+    layoutMessages[locale as keyof typeof layoutMessages] ?? layoutMessages.en;
+
   return (
     <html lang={langCode}>
       <Head>
@@ -100,7 +122,7 @@ export function EmailLayout({
                             fontWeight: 500
                           }}
                         >
-                          Encurtador de Links Profissional
+                          {lm.subtitle}
                         </p>
                       </td>
                     </tr>
@@ -128,8 +150,7 @@ export function EmailLayout({
                             lineHeight: '1.6'
                           }}
                         >
-                          © {new Date().getFullYear()} urlfy.cc - Todos os
-                          direitos reservados
+                          {lm.copyright}
                         </p>
                         <p
                           style={{
@@ -146,7 +167,7 @@ export function EmailLayout({
                               marginRight: '16px'
                             }}
                           >
-                            Termos de Uso
+                            {lm.terms}
                           </a>
                           <a
                             href="https://urlfy.cc/privacy"
@@ -155,7 +176,7 @@ export function EmailLayout({
                               textDecoration: 'none'
                             }}
                           >
-                            Privacidade
+                            {lm.privacy}
                           </a>
                         </p>
                       </td>
@@ -172,7 +193,7 @@ export function EmailLayout({
                     textAlign: 'center'
                   }}
                 >
-                  Não deseja mais receber esses emails?{' '}
+                  {lm.unsubscribe}{' '}
                   <a
                     href="https://urlfy.cc/unsubscribe"
                     style={{
@@ -180,7 +201,7 @@ export function EmailLayout({
                       textDecoration: 'underline'
                     }}
                   >
-                    Cancelar inscrição
+                    {lm.unsubscribeLink}
                   </a>
                 </p>
               </td>

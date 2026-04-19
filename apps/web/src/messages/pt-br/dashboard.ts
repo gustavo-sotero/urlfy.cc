@@ -94,6 +94,9 @@ export const Dashboard = {
     title: 'Verificação de e-mail pendente',
     description:
       'Por favor, verifique seu endereço de e-mail para ter acesso completo à plataforma. Você não poderá criar links até confirmar seu e-mail.',
+    justSentTitle: 'E-mail de verificação enviado!',
+    justSentDescription:
+      'Enviamos um e-mail de verificação para {email}. Verifique sua caixa de entrada e spam para confirmar seu endereço.',
     sending: 'Enviando...',
     sent: 'E-mail enviado!',
     resend: 'Reenviar e-mail',

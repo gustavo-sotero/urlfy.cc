@@ -147,6 +147,15 @@ export interface EmailMessages {
     exportData: string;
     cancelRequest: string;
     footer: string;
+    deletionHeader: string;
+    deletionItem1: string;
+    deletionItem2: string;
+    deletionItem3: string;
+    deletionItem4: string;
+    deletionItem5: string;
+    exportPrompt: string;
+    exportDesc: string;
+    warningNote: string;
   };
   linkBanned: {
     subject: string;
@@ -165,6 +174,17 @@ export interface EmailMessages {
     createNew: string;
     createNewDesc: string;
     footer: string;
+    implicationsHeader: string;
+    implication1: string;
+    implication2: string;
+    implication3: string;
+    implication4: string;
+    commonReasonsHeader: string;
+    commonReason1: string;
+    commonReason2: string;
+    commonReason3: string;
+    commonReason4: string;
+    appealCta: string;
   };
   quotaWarning: {
     subject: string;
@@ -181,5 +201,8 @@ export interface EmailMessages {
     manageLinks: string;
     manageLinksDesc: string;
     footer: string;
+    warningNear: string;
+    warningCritical: string;
+    upgradeCta: string;
   };
 }

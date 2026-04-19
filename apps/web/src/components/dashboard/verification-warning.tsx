@@ -1,14 +1,15 @@
 'use client';
 
-import { AlertCircle, Mail } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Mail } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useCallback, useState } from 'react';
+import { Suspense, useCallback, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth.client';
 import { buildEmailVerificationCallbackUrl } from '@/lib/email-verification';
 
-export function VerificationWarning() {
+function VerificationWarningInner() {
   const [isResending, setIsResending] = useState<boolean>(false);
   const [resendSuccess, setResendSuccess] = useState<boolean>(false);
   const [resendError, setResendError] = useState<string | null>(null);
@@ -16,6 +17,8 @@ export function VerificationWarning() {
   const t = useTranslations('Dashboard.verification');
   const locale = useLocale();
   const { data: session } = authClient.useSession();
+  const searchParams = useSearchParams();
+  const isNewSignup = searchParams.get('welcome') === 'true';
 
   const handleResendEmail = useCallback(async (): Promise<void> => {
     if (!session?.user?.email) {
@@ -44,6 +47,26 @@ export function VerificationWarning() {
       setIsResending(false);
     }
   }, [session?.user?.email, locale, t]);
+
+  if (isNewSignup) {
+    return (
+      <Alert className="mb-6 border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
+        <CheckCircle2 className="text-blue-600 dark:text-blue-400" />
+        <AlertTitle className="text-blue-900 dark:text-blue-400">
+          {t('justSentTitle')}
+        </AlertTitle>
+        <AlertDescription className="text-blue-800 dark:text-blue-500">
+          <div className="space-y-1">
+            <p>
+              {t('justSentDescription', {
+                email: session?.user?.email ?? ''
+              })}
+            </p>
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <Alert
@@ -86,5 +109,13 @@ export function VerificationWarning() {
         </div>
       </AlertDescription>
     </Alert>
+  );
+}
+
+export function VerificationWarning() {
+  return (
+    <Suspense>
+      <VerificationWarningInner />
+    </Suspense>
   );
 }

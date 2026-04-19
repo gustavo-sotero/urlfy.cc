@@ -94,6 +94,9 @@ export const Dashboard = {
     title: 'Email verification pending',
     description:
       'Please verify your email address to get full access to the platform. You will not be able to create links until you confirm your email.',
+    justSentTitle: 'Verification email sent!',
+    justSentDescription:
+      'We sent a verification email to {email}. Check your inbox and spam folder to confirm your address.',
     sending: 'Sending...',
     sent: 'Email sent!',
     resend: 'Resend email',

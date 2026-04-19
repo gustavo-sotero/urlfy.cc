@@ -10,6 +10,8 @@
  *  2. The callbackURL passed to sendVerificationEmail uses the shared
  *     public email verification callback helper instead of pointing at the
  *     protected dashboard.
+ *  3. Component detects the `?welcome=true` search param for post-signup UX.
+ *  4. The `justSentTitle` i18n key is referenced for the post-signup state.
  */
 
 import { describe, expect, it } from 'bun:test';
@@ -54,5 +56,36 @@ describe('VerificationWarning — locale-aware callbackURL contract', () => {
   it('does not point the verification callback directly at /dashboard', async () => {
     const source = await readComponentSource();
     expect(source).not.toContain('/dashboard`');
+  });
+});
+
+describe('VerificationWarning — post-signup state contract', () => {
+  it('imports useSearchParams from next/navigation', async () => {
+    const source = await readComponentSource();
+    expect(source).toContain('useSearchParams');
+    expect(source).toMatch(/from 'next\/navigation'/);
+  });
+
+  it('reads the welcome search param to detect post-signup arrival', async () => {
+    const source = await readComponentSource();
+    expect(source).toContain("searchParams.get('welcome')");
+    expect(source).toMatch(/welcome.*true/);
+  });
+
+  it('references justSentTitle i18n key for the post-signup banner', async () => {
+    const source = await readComponentSource();
+    expect(source).toContain("t('justSentTitle')");
+  });
+
+  it('references justSentDescription i18n key with email interpolation', async () => {
+    const source = await readComponentSource();
+    expect(source).toContain("t('justSentDescription'");
+    expect(source).toContain('email');
+  });
+
+  it('wraps inner component in Suspense for useSearchParams compatibility', async () => {
+    const source = await readComponentSource();
+    expect(source).toContain('Suspense');
+    expect(source).toMatch(/from 'react'/);
   });
 });

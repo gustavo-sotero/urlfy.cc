@@ -1,4 +1,4 @@
-import type { EmailMessages } from '../types';
+﻿import type { EmailMessages } from '../types';
 import { EmailLayout } from './email-layout';
 
 interface LinkBannedEmailProps {
@@ -89,7 +89,7 @@ export function LinkBannedEmail({
                       letterSpacing: '0.5px'
                     }}
                   >
-                    Código Curto
+                    {t.shortCode}
                   </p>
                   <p
                     style={{
@@ -116,7 +116,7 @@ export function LinkBannedEmail({
                       letterSpacing: '0.5px'
                     }}
                   >
-                    URL de Destino
+                    {t.originalUrl}
                   </p>
                   <p
                     style={{
@@ -142,7 +142,7 @@ export function LinkBannedEmail({
                       letterSpacing: '0.5px'
                     }}
                   >
-                    Motivo
+                    {t.reason}
                   </p>
                   <p
                     style={{
@@ -168,7 +168,7 @@ export function LinkBannedEmail({
                       letterSpacing: '0.5px'
                     }}
                   >
-                    Data do Bloqueio
+                    {t.bannedOn}
                   </p>
                   <p
                     style={{
@@ -193,7 +193,7 @@ export function LinkBannedEmail({
             color: '#1e293b'
           }}
         >
-          O que isso significa:
+          {t.implicationsHeader}
         </h3>
 
         <table
@@ -202,10 +202,10 @@ export function LinkBannedEmail({
         >
           <tbody>
             {[
-              'O link não está mais acessível',
-              'Visitantes verão uma página de erro',
-              'As estatísticas foram preservadas',
-              'Você pode contestar essa decisão'
+              t.implication1,
+              t.implication2,
+              t.implication3,
+              t.implication4
             ].map((item) => (
               <tr key={item}>
                 <td style={{ paddingBottom: '8px' }}>
@@ -218,7 +218,7 @@ export function LinkBannedEmail({
                     }}
                   >
                     <span style={{ color: '#6366f1', marginRight: '8px' }}>
-                      •
+                      ÔÇó
                     </span>
                     {item}
                   </p>
@@ -244,7 +244,7 @@ export function LinkBannedEmail({
               color: '#1e3a8a'
             }}
           >
-            📋 Motivos comuns de bloqueio:
+            {t.commonReasonsHeader}
           </p>
           <ul
             style={{
@@ -254,15 +254,15 @@ export function LinkBannedEmail({
             }}
           >
             <li style={{ marginBottom: '6px', fontSize: '14px' }}>
-              Conteúdo malicioso ou phishing
+              {t.commonReason1}
             </li>
             <li style={{ marginBottom: '6px', fontSize: '14px' }}>
-              Spam ou práticas abusivas
+              {t.commonReason2}
             </li>
             <li style={{ marginBottom: '6px', fontSize: '14px' }}>
-              Violação de propriedade intelectual
+              {t.commonReason3}
             </li>
-            <li style={{ fontSize: '14px' }}>Conteúdo ilegal ou inadequado</li>
+            <li style={{ fontSize: '14px' }}>{t.commonReason4}</li>
           </ul>
         </div>
 
@@ -281,7 +281,7 @@ export function LinkBannedEmail({
               boxShadow: '0 4px 6px rgba(99, 102, 241, 0.25)'
             }}
           >
-            Contestar Bloqueio
+            {t.appealCta}
           </a>
         </div>
 
@@ -295,8 +295,7 @@ export function LinkBannedEmail({
             textAlign: 'center'
           }}
         >
-          Se você acredita que isso é um erro, nossa equipe está disponível para
-          analisar seu caso.
+          {t.footer}
         </p>
       </div>
     </EmailLayout>

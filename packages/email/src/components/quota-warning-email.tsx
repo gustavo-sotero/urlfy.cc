@@ -1,4 +1,4 @@
-import type { EmailMessages } from '../types';
+﻿import type { EmailMessages } from '../types';
 import { EmailLayout } from './email-layout';
 
 interface QuotaWarningEmailProps {
@@ -20,6 +20,9 @@ export function QuotaWarningEmail({
   messages: t,
   locale = 'en'
 }: QuotaWarningEmailProps) {
+  const remaining = quotaLimit - currentUsage;
+  const isCritical = percentUsed >= 90;
+
   return (
     <EmailLayout previewText={t.previewText} locale={locale}>
       <div>
@@ -83,7 +86,7 @@ export function QuotaWarningEmail({
                   color: '#334155'
                 }}
               >
-                Uso Atual
+                {t.currentUsage}
               </p>
               <p
                 style={{
@@ -111,8 +114,7 @@ export function QuotaWarningEmail({
                 style={{
                   width: `${Math.min(percentUsed, 100)}%`,
                   height: '100%',
-                  backgroundColor: percentUsed >= 90 ? '#ef4444' : '#f59e0b',
-                  transition: 'width 0.3s ease'
+                  backgroundColor: isCritical ? '#ef4444' : '#f59e0b'
                 }}
               />
             </div>
@@ -123,7 +125,7 @@ export function QuotaWarningEmail({
               margin: 0,
               fontSize: '24px',
               fontWeight: '700',
-              color: percentUsed >= 90 ? '#dc2626' : '#f59e0b',
+              color: isCritical ? '#dc2626' : '#f59e0b',
               textAlign: 'center'
             }}
           >
@@ -133,8 +135,8 @@ export function QuotaWarningEmail({
 
         <div
           style={{
-            backgroundColor: percentUsed >= 90 ? '#fee2e2' : '#fef3c7',
-            border: `2px solid ${percentUsed >= 90 ? '#ef4444' : '#f59e0b'}`,
+            backgroundColor: isCritical ? '#fee2e2' : '#fef3c7',
+            border: `2px solid ${isCritical ? '#ef4444' : '#f59e0b'}`,
             borderRadius: '8px',
             padding: '20px',
             marginBottom: '24px'
@@ -144,23 +146,13 @@ export function QuotaWarningEmail({
             style={{
               margin: 0,
               fontSize: '15px',
-              color: percentUsed >= 90 ? '#7f1d1d' : '#78350f',
+              color: isCritical ? '#7f1d1d' : '#78350f',
               lineHeight: '1.6'
             }}
           >
-            {percentUsed >= 90 ? (
-              <>
-                <strong>🚨 Atenção!</strong> Você tem apenas{' '}
-                <strong>{quotaLimit - currentUsage} links</strong> restantes.
-                Após atingir o limite, não será possível criar novos links.
-              </>
-            ) : (
-              <>
-                <strong>💡 Aviso:</strong> Você está se aproximando do seu
-                limite. Considere fazer upgrade para continuar criando links sem
-                interrupções.
-              </>
-            )}
+            {isCritical
+              ? t.warningCritical.replace('{remaining}', String(remaining))
+              : t.warningNear}
           </p>
         </div>
 
@@ -172,7 +164,7 @@ export function QuotaWarningEmail({
             color: '#1e293b'
           }}
         >
-          Opções disponíveis:
+          {t.whatYouCanDo}
         </h3>
 
         <table
@@ -197,7 +189,7 @@ export function QuotaWarningEmail({
                     color: '#1e293b'
                   }}
                 >
-                  🗑️ Limpar links antigos
+                  {t.manageLinks}
                 </p>
                 <p
                   style={{
@@ -207,7 +199,7 @@ export function QuotaWarningEmail({
                     lineHeight: '1.5'
                   }}
                 >
-                  Delete links inativos ou expirados para liberar espaço
+                  {t.manageLinksDesc}
                 </p>
               </td>
             </tr>
@@ -231,7 +223,7 @@ export function QuotaWarningEmail({
                     color: '#5b21b6'
                   }}
                 >
-                  🚀 Fazer Upgrade
+                  {t.upgrade}
                 </p>
                 <p
                   style={{
@@ -241,7 +233,7 @@ export function QuotaWarningEmail({
                     lineHeight: '1.5'
                   }}
                 >
-                  Desbloqueie mais links + recursos premium
+                  {t.upgradeDesc}
                 </p>
               </td>
             </tr>
@@ -263,7 +255,7 @@ export function QuotaWarningEmail({
               boxShadow: '0 4px 6px rgba(99, 102, 241, 0.25)'
             }}
           >
-            Ver Planos
+            {t.upgradeCta}
           </a>
         </div>
 
@@ -277,7 +269,7 @@ export function QuotaWarningEmail({
             textAlign: 'center'
           }}
         >
-          Precisa de ajuda? Nosso suporte está disponível 24/7.
+          {t.footer}
         </p>
       </div>
     </EmailLayout>

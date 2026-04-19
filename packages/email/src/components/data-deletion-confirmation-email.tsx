@@ -1,4 +1,4 @@
-import type { EmailMessages } from '../types';
+﻿import type { EmailMessages } from '../types';
 import { EmailLayout } from './email-layout';
 
 interface DataDeletionConfirmationEmailProps {
@@ -24,6 +24,14 @@ export function DataDeletionConfirmationEmail({
       timeStyle: 'short'
     }).format(date);
   };
+
+  const deletionItems = [
+    t.deletionItem1,
+    t.deletionItem2,
+    t.deletionItem3,
+    t.deletionItem4,
+    t.deletionItem5
+  ];
 
   return (
     <EmailLayout previewText={t.previewText} locale={locale}>
@@ -85,7 +93,7 @@ export function DataDeletionConfirmationEmail({
                       letterSpacing: '0.5px'
                     }}
                   >
-                    Data da Solicitação
+                    {t.requestedOn}
                   </p>
                   <p
                     style={{
@@ -110,7 +118,7 @@ export function DataDeletionConfirmationEmail({
                       letterSpacing: '0.5px'
                     }}
                   >
-                    Prazo de Conclusão
+                    {t.deadline}
                   </p>
                   <p
                     style={{
@@ -135,7 +143,7 @@ export function DataDeletionConfirmationEmail({
             color: '#1e293b'
           }}
         >
-          O que será excluído:
+          {t.deletionHeader}
         </h3>
 
         <table
@@ -143,13 +151,7 @@ export function DataDeletionConfirmationEmail({
           style={{ width: '100%', marginBottom: '24px' }}
         >
           <tbody>
-            {[
-              'Todos os links encurtados criados',
-              'Histórico de analytics e métricas',
-              'Dados de autenticação e perfil',
-              'Configurações e preferências',
-              'API Keys e tokens de acesso'
-            ].map((item) => (
+            {deletionItems.map((item) => (
               <tr key={item}>
                 <td style={{ paddingBottom: '8px' }}>
                   <p
@@ -161,7 +163,7 @@ export function DataDeletionConfirmationEmail({
                     }}
                   >
                     <span style={{ color: '#ef4444', marginRight: '8px' }}>
-                      ✗
+                      âœ—
                     </span>
                     {item}
                   </p>
@@ -189,7 +191,7 @@ export function DataDeletionConfirmationEmail({
                 color: '#15803d'
               }}
             >
-              💾 Deseja fazer backup dos seus dados?
+              {t.exportPrompt}
             </p>
             <p
               style={{
@@ -199,8 +201,7 @@ export function DataDeletionConfirmationEmail({
                 lineHeight: '1.5'
               }}
             >
-              Você pode exportar uma cópia completa dos seus dados antes da
-              exclusão:
+              {t.exportDesc}
             </p>
             <a
               href={exportUrl}
@@ -215,7 +216,7 @@ export function DataDeletionConfirmationEmail({
                 fontWeight: '600'
               }}
             >
-              Exportar Meus Dados
+              {t.exportData}
             </a>
           </div>
         )}
@@ -237,10 +238,7 @@ export function DataDeletionConfirmationEmail({
               lineHeight: '1.5'
             }}
           >
-            <strong>⚠️ Atenção:</strong> Esta ação é{' '}
-            <strong>irreversível</strong>. Após a conclusão, não será possível
-            recuperar nenhum dado. Se mudou de ideia, responda este email dentro
-            do prazo.
+            {t.warningNote}
           </p>
         </div>
 
@@ -253,8 +251,7 @@ export function DataDeletionConfirmationEmail({
             lineHeight: '1.6'
           }}
         >
-          Se você não solicitou essa exclusão ou tem dúvidas, entre em contato
-          conosco imediatamente através do suporte.
+          {t.footer}
         </p>
       </div>
     </EmailLayout>
