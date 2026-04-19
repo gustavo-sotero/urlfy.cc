@@ -131,6 +131,8 @@ const document = window.document;
 // biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
 (globalThis as any).HTMLDivElement = window.HTMLDivElement;
 // biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
+(globalThis as any).DocumentFragment = window.DocumentFragment;
+// biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
 (globalThis as any).Element = window.Element;
 // biome-ignore lint/suspicious/noExplicitAny: Happy-DOM types don't fully match browser types
 (globalThis as any).Event = window.Event;
@@ -160,6 +162,12 @@ const document = window.document;
   // biome-ignore lint/suspicious/noExplicitAny: stub for animation frames in tests
   (globalThis as any).requestAnimationFrame ??
   ((cb: FrameRequestCallback) => setTimeout(cb, 0));
+
+// biome-ignore lint/suspicious/noExplicitAny: stub for animation frames in tests
+(globalThis as any).cancelAnimationFrame =
+  // biome-ignore lint/suspicious/noExplicitAny: stub for animation frames in tests
+  (globalThis as any).cancelAnimationFrame ??
+  ((id: number) => clearTimeout(id));
 
 // Radix UI primitives (Dialog, Sheet, etc.) use ResizeObserver to measure
 // scrollbar width when locking scroll on open. Provide a no-op stub so those

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development bun --env-file=../../.env --bun next dev",
+    "dev": "DEV_API_PROXY_TARGET=http://127.0.0.1:3001 NODE_ENV=development bun --env-file=../../.env --bun next dev",
     "build": "SKIP_ENV_VALIDATION=1 bun --bun next build && bun ./scripts/post-build.ts",
     "start": "bun --env-file=../../.env --bun next start",
     "lint": "bunx biome check . --write",

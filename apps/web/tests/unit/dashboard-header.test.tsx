@@ -30,7 +30,8 @@ const redirectMock = mock(
 
 mock.module('next/navigation', () => ({
   usePathname: () => '/dashboard/links',
-  useRouter: () => ({ push: pushMock })
+  useRouter: () => ({ push: pushMock }),
+  useParams: () => ({ id: 'link-1' })
 }));
 
 mock.module('next-intl', () => ({
@@ -67,7 +68,9 @@ mock.module('@/i18n/routing', () => ({
       {children}
     </a>
   ),
-  redirect: redirectMock
+  redirect: redirectMock,
+  useRouter: () => ({ push: () => {} }),
+  usePathname: () => '/dashboard/links'
 }));
 
 mock.module('@/components/shared/language-switcher', () => ({

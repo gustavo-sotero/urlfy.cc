@@ -56,7 +56,9 @@ mock.module('@/i18n/routing', () => ({
       {children}
     </a>
   ),
-  redirect: redirectMock
+  redirect: redirectMock,
+  useRouter: () => ({ push: () => {} }),
+  usePathname: () => '/dashboard'
 }));
 
 mock.module('@/components/dashboard/verification-warning', () => ({

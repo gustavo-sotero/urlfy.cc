@@ -55,7 +55,10 @@ mock.module('@/i18n/routing', () => ({
         {children}
       </a>
     );
-  }
+  },
+  redirect: () => undefined,
+  useRouter: () => ({ push: () => {} }),
+  usePathname: () => '/'
 }));
 
 describe('ConsentBanner', () => {
