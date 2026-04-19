@@ -4,7 +4,7 @@
 import { LogOut, Menu, Shield, User } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   dashboardNavigationItems,
   isDashboardRouteActive
@@ -45,6 +45,13 @@ export function Header({ user }: Props) {
   const t = useTranslations('Common');
   const tSidebar = useTranslations('Dashboard.sidebar');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [menuReady, setMenuReady] = useState(false);
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  useEffect(() => {
+    setMenuReady(true);
+  }, []);
 
   const initials =
     user.name
@@ -59,16 +66,20 @@ export function Header({ user }: Props) {
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+    <header
+      data-dashboard-header-ready={menuReady ? 'true' : 'false'}
+      className="sticky top-0 z-30 border-b border-border/60 bg-background/85 backdrop-blur supports-backdrop-filter:bg-background/70"
+    >
       <div className="flex min-h-16 items-center justify-between gap-3 px-3 sm:px-4 lg:px-6">
         <div className="min-w-0 flex items-center gap-2 sm:gap-3">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild>
+            <SheetTrigger asChild className="md:hidden">
               <Button
                 variant="ghost"
                 size="icon"
-                className="shrink-0 md:hidden"
+                className="shrink-0"
                 aria-label="Menu"
+                data-dashboard-menu-ready={menuReady ? 'true' : 'false'}
               >
                 <Menu className="h-5 w-5" />
               </Button>
@@ -76,12 +87,14 @@ export function Header({ user }: Props) {
             <SheetContent
               side="left"
               aria-describedby={undefined}
+              closeLabel={t('closeMenu')}
               className="w-[min(20rem,calc(100vw-1rem))] p-0"
             >
               <SheetHeader className="border-b px-5 py-4 pr-14 sm:px-6">
                 <SheetTitle asChild>
                   <Link
                     href="/"
+                    onClick={closeMobileMenu}
                     className="flex items-center gap-3 font-semibold"
                   >
                     <span className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15">
@@ -110,7 +123,7 @@ export function Header({ user }: Props) {
                         key={item.key}
                         href={item.href}
                         aria-current={isActive ? 'page' : undefined}
-                        onClick={() => setMobileMenuOpen(false)}
+                        onClick={closeMobileMenu}
                         className={cn(
                           'group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-all',
                           isActive

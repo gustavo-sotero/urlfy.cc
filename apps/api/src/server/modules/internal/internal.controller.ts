@@ -10,12 +10,14 @@
 
 import { timingSafeEqual } from 'node:crypto';
 import { Elysia, t } from 'elysia';
+import { auth } from '@/lib/auth';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import {
   InternalAcceptedResponse,
   InternalAnalyticsEventBody,
-  InternalModel
+  InternalModel,
+  InternalSessionResponse
 } from './internal.schema';
 
 /**
@@ -44,6 +46,48 @@ function verifyInternalRequest(request: Request): boolean {
  */
 export const internalController = new Elysia({ prefix: '/internal' })
   .use(InternalModel)
+
+  // ─────────────────────────────────────────────────────────────────
+  // GET /internal/session - Retrieve session for trusted web server calls
+  // ─────────────────────────────────────────────────────────────────
+  .get(
+    '/session',
+    async ({ request, set }) => {
+      if (!verifyInternalRequest(request)) {
+        throw new AppError(
+          ErrorCode.UNAUTHORIZED,
+          'Invalid or missing internal API secret'
+        );
+      }
+
+      const session = await auth.api.getSession({
+        headers: request.headers
+      });
+
+      if (!session?.user || !session?.session) {
+        set.status = 401;
+        return null;
+      }
+
+      return {
+        user: session.user,
+        session: session.session
+      };
+    },
+    {
+      detail: {
+        tags: ['Internal'],
+        summary: 'Retrieve current session (Internal)',
+        description:
+          'Internal API endpoint used by the web server to resolve the authenticated session without going through public auth routing.',
+        security: [{ internalApi: [] }]
+      },
+      response: {
+        200: InternalSessionResponse,
+        401: t.Null()
+      }
+    }
+  )
 
   // ─────────────────────────────────────────────────────────────────
   // POST /internal/analytics - Enqueue click event for async processing

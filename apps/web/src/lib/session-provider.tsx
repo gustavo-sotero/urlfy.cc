@@ -11,16 +11,21 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import type { Session, User } from 'better-auth/types';
 import { createContext, type ReactNode, useContext, useMemo } from 'react';
+
+type AuthClientSessionData = NonNullable<
+  Awaited<
+    ReturnType<typeof import('./auth.client')['authClient']['getSession']>
+  >['data']
+>;
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
 
 interface SessionData {
-  user: User;
-  session: Session;
+  user: AuthClientSessionData['user'];
+  session: AuthClientSessionData['session'];
 }
 
 interface SessionContextValue {

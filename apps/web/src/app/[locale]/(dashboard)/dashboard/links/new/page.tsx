@@ -260,7 +260,10 @@ export default function NewLinkPage() {
         </div>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="space-y-6 pb-24 xl:pb-0"
+      >
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
           <Card className="border-border/60 bg-card/90">
             <CardHeader className="space-y-2">
@@ -360,7 +363,7 @@ export default function NewLinkPage() {
             pills={summaryPills}
             className="xl:sticky xl:top-24"
             footer={
-              <div className="flex flex-col-reverse gap-3 sm:flex-row xl:flex-col">
+              <div className="hidden gap-3 xl:flex xl:flex-col">
                 <Button
                   type="button"
                   variant="outline"
@@ -564,6 +567,39 @@ export default function NewLinkPage() {
                 </AccessibleFormField>
               </div>
             </LinkFormCollapsibleSection>
+          </div>
+        </div>
+
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 px-4 py-3 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/80 xl:hidden">
+          <div className="mx-auto w-full max-w-7xl">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => router.push('/dashboard/links')}
+              >
+                {t('actions.cancel')}
+              </Button>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={createLink.isPending || form.formState.isValidating}
+                aria-busy={createLink.isPending}
+              >
+                {createLink.isPending ? (
+                  <>
+                    <Loader2
+                      className="mr-2 h-4 w-4 animate-spin"
+                      aria-hidden="true"
+                    />
+                    {t('actions.create')}...
+                  </>
+                ) : (
+                  t('actions.create')
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </form>

@@ -50,29 +50,27 @@ function buildForwardedHeaders(requestHeaders: Headers): Headers {
     'x-forwarded-for',
     getClientIpFromHeaders(requestHeaders)
   );
+  forwardedHeaders.set('x-internal-api', process.env.INTERNAL_API_SECRET ?? '');
 
   return forwardedHeaders;
 }
 
 export async function getServerSession({
   headers,
-  disableCookieCache = true
+  disableCookieCache: _disableCookieCache = true
 }: GetServerSessionOptions): Promise<ServerSession | null> {
   if (!headers.get('cookie')) {
     return null;
   }
 
-  const url = new URL('/api/auth/get-session', getApiInternalUrl());
-
-  if (disableCookieCache) {
-    url.searchParams.set('disableCookieCache', 'true');
-  }
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: buildForwardedHeaders(headers),
-    cache: 'no-store'
-  });
+  const response = await fetch(
+    new URL('/api/internal/session', getApiInternalUrl()),
+    {
+      method: 'GET',
+      headers: buildForwardedHeaders(headers),
+      cache: 'no-store'
+    }
+  );
 
   if (response.status === 401) {
     return null;
@@ -80,18 +78,18 @@ export async function getServerSession({
 
   if (!response.ok) {
     throw new Error(
-      `Failed to retrieve auth session from API: ${response.status} ${response.statusText}`
+      `Failed to retrieve auth session from internal API: ${response.status} ${response.statusText}`
     );
   }
 
-  const body = (await response.json()) as Partial<ServerSession> | null;
+  const session = (await response.json()) as Partial<ServerSession> | null;
 
-  if (!body?.user || !body?.session) {
+  if (!session?.user || !session?.session) {
     return null;
   }
 
   return {
-    user: body.user,
-    session: body.session
+    user: session.user as InternalUser,
+    session: session.session as AppSession
   };
 }

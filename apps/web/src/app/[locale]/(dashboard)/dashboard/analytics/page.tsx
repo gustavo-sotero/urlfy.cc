@@ -161,7 +161,7 @@ export default function AnalyticsPage() {
           </h2>
           <p className="max-w-2xl text-muted-foreground">{t('overviewDesc')}</p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:w-[30rem]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:w-120">
           <div className="space-y-2">
             <p className="text-sm font-medium">{t('filters.selectLink')}</p>
             <Select value={selectedLinkId} onValueChange={setSelectedLinkId}>

@@ -27,6 +27,7 @@
     "@urlfy/data": "workspace:*",
     "@urlfy/telemetry": "workspace:*",
     "drizzle-orm": "catalog:",
+    "postal-mime": "^2.7.4",
     "react": "^19.1.0",
     "resend": "^6.9.3"
   },

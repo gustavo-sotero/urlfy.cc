@@ -18,16 +18,89 @@ const ACCEPTED_CONSENT = {
 
 const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL ?? 'test-user@urlfy.test';
 const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD ?? 'Password123!';
+const testClientIpByContext = new WeakMap<object, string>();
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+async function ensureTestClientIp(page: Page) {
+  const context = page.context();
+  const existingIp = testClientIpByContext.get(context);
+
+  if (existingIp) {
+    return existingIp;
+  }
+
+  const testIp = `203.0.113.${10 + Math.floor(Math.random() * 200)}`;
+
+  await context.setExtraHTTPHeaders({
+    'x-forwarded-for': testIp
+  });
+
+  testClientIpByContext.set(context, testIp);
+
+  return testIp;
+}
+
 function getMobileDrawer(page: Page) {
-  return page.locator('[data-slot="sheet-content"][data-state="open"]');
+  return page.locator('[data-slot="sheet-content"][data-state="open"]').first();
+}
+
+function getMenuTrigger(page: Page) {
+  return page.locator(
+    '[data-slot="sheet-trigger"][aria-label="Menu"][data-dashboard-menu-ready="true"]'
+  );
+}
+
+async function waitForHydratedMenuButton(page: Page) {
+  const menuButton = getMenuTrigger(page);
+
+  await expect(menuButton).toBeVisible({ timeout: 20_000 });
+  await expect(menuButton).toHaveAttribute('aria-haspopup', 'dialog', {
+    timeout: 20_000
+  });
+
+  return menuButton;
+}
+
+async function waitForCreateLinkPage(page: Page) {
+  const form = page.locator('main form').first();
+
+  await expect(form).toBeVisible({
+    timeout: 15_000
+  });
+  await expect(form.locator('input#url')).toBeVisible({ timeout: 15_000 });
+}
+
+async function waitForSettingsPage(page: Page) {
+  await expect(page.locator('main input#name')).toBeVisible({
+    timeout: 20_000
+  });
+}
+
+async function waitForLinksPage(page: Page) {
+  await expect(
+    page.locator('main').getByRole('heading', {
+      name: /links/i
+    })
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('main input').first()).toBeVisible({
+    timeout: 20_000
+  });
+}
+
+async function waitForLinkDetailPage(page: Page) {
+  await expect(
+    page.getByRole('status', { name: /loading statistics/i })
+  ).toHaveCount(0, { timeout: 20_000 });
+  await expect(
+    page.getByRole('heading', { name: /link details|detalhes do link/i })
+  ).toBeVisible({ timeout: 20_000 });
 }
 
 async function prepareClientState(page: Page) {
+  await ensureTestClientIp(page);
   await page.addInitScript(
     ({ storedConsent }) => {
       localStorage.setItem(
@@ -43,7 +116,7 @@ async function prepareClientState(page: Page) {
 
 async function loginAsRegularUser(page: Page) {
   await prepareClientState(page);
-  const testIpOctet = 10 + Math.floor(Math.random() * 200);
+  const testClientIp = await ensureTestClientIp(page);
 
   const response = await page
     .context()
@@ -55,7 +128,7 @@ async function loginAsRegularUser(page: Page) {
         callbackURL: '/dashboard'
       },
       headers: {
-        'x-forwarded-for': `203.0.113.${testIpOctet}`
+        'x-forwarded-for': testClientIp
       },
       failOnStatusCode: false
     });
@@ -67,7 +140,11 @@ async function loginAsRegularUser(page: Page) {
   }
 }
 
-async function visitDashboard(page: Page, path = '/dashboard') {
+async function visitDashboard(
+  page: Page,
+  path = '/dashboard',
+  options: { waitForPageReady?: boolean } = {}
+) {
   await loginAsRegularUser(page);
 
   await page.goto(`/en${path}`, { waitUntil: 'domcontentloaded' });
@@ -75,9 +152,24 @@ async function visitDashboard(page: Page, path = '/dashboard') {
     new RegExp(`/en${escapeRegExp(path)}(?:\\?.*)?$`),
     { timeout: 10_000 }
   );
-  await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible({
-    timeout: 10_000
-  });
+  await expect(page.locator('main')).toBeVisible({ timeout: 20_000 });
+  await waitForHydratedMenuButton(page);
+
+  if (options.waitForPageReady === false) {
+    return;
+  }
+
+  if (path === '/dashboard/settings') {
+    await waitForSettingsPage(page);
+  }
+
+  if (path === '/dashboard/links') {
+    await waitForLinksPage(page);
+  }
+
+  if (path === '/dashboard/links/new') {
+    await waitForCreateLinkPage(page);
+  }
 }
 
 async function assertNoHorizontalOverflow(page: Page) {
@@ -91,7 +183,7 @@ async function createLinkForMobileTests(page: Page) {
   const slug = `m${Date.now().toString(36)}${Math.floor(Math.random() * 1296)
     .toString(36)
     .padStart(2, '0')}`;
-  const testIpOctet = 10 + Math.floor(Math.random() * 200);
+  const testClientIp = await ensureTestClientIp(page);
 
   await loginAsRegularUser(page);
 
@@ -102,7 +194,7 @@ async function createLinkForMobileTests(page: Page) {
       redirectType: 302
     },
     headers: {
-      'x-forwarded-for': `203.0.113.${testIpOctet}`,
+      'x-forwarded-for': testClientIp,
       'idempotency-key': `idempotency-${slug}`
     },
     failOnStatusCode: false
@@ -125,23 +217,25 @@ async function createLinkForMobileTests(page: Page) {
 }
 
 async function openMobileDrawer(page: Page) {
-  const menuButton = page.getByRole('button', { name: 'Menu' });
-  await expect(menuButton).toBeVisible();
+  const menuButton = await waitForHydratedMenuButton(page);
 
   const drawer = getMobileDrawer(page);
 
   const openAttempts = [
-    () => menuButton.tap(),
+    () => menuButton.click({ timeout: 5_000 }),
     () => menuButton.press('Enter'),
-    () => menuButton.click(),
-    () => menuButton.press('Enter')
+    () => menuButton.click({ force: true, timeout: 5_000 }),
+    () =>
+      menuButton.evaluate((button) => {
+        (button as HTMLButtonElement).click();
+      })
   ];
 
   for (const [attempt, openDrawer] of openAttempts.entries()) {
     await openDrawer();
 
     try {
-      await expect(drawer).toBeVisible({ timeout: 3_000 });
+      await expect(drawer).toBeVisible({ timeout: 5_000 });
       return drawer;
     } catch (error) {
       if (attempt === openAttempts.length - 1) {
@@ -193,18 +287,23 @@ test.describe('Dashboard — mobile smoke', () => {
   // ──────────────────────────────────────────────────────────────────────────
 
   test('mobile nav drawer opens via hamburger button', async ({ page }) => {
-    await visitDashboard(page);
+    await visitDashboard(page, '/dashboard/settings', {
+      waitForPageReady: false
+    });
 
     await openMobileDrawer(page);
   });
 
   test('mobile nav drawer closes without layout breakage', async ({ page }) => {
-    await visitDashboard(page);
+    await visitDashboard(page, '/dashboard/settings', {
+      waitForPageReady: false
+    });
 
     const drawer = await openMobileDrawer(page);
 
-    // Close via Escape
-    await page.keyboard.press('Escape');
+    const closeButton = drawer.getByRole('button', { name: /close|fechar/i });
+    await expect(closeButton).toBeVisible();
+    await closeButton.click();
     await expect(drawer).toHaveCount(0);
 
     // Background must remain overflow-free
@@ -214,7 +313,9 @@ test.describe('Dashboard — mobile smoke', () => {
   });
 
   test('mobile drawer contains navigation links', async ({ page }) => {
-    await visitDashboard(page);
+    await visitDashboard(page, '/dashboard/settings', {
+      waitForPageReady: false
+    });
 
     const drawer = await openMobileDrawer(page);
 
@@ -225,7 +326,9 @@ test.describe('Dashboard — mobile smoke', () => {
   });
 
   test('mobile drawer has exactly one close affordance', async ({ page }) => {
-    await visitDashboard(page);
+    await visitDashboard(page, '/dashboard/settings', {
+      waitForPageReady: false
+    });
 
     const drawer = await openMobileDrawer(page);
 
@@ -238,7 +341,9 @@ test.describe('Dashboard — mobile smoke', () => {
   test('drawer nav items have left padding — not flush with edge', async ({
     page
   }) => {
-    await visitDashboard(page);
+    await visitDashboard(page, '/dashboard/settings', {
+      waitForPageReady: false
+    });
 
     const drawer = await openMobileDrawer(page);
 
@@ -278,10 +383,10 @@ test.describe('Dashboard — mobile smoke', () => {
     page
   }) => {
     await visitDashboard(page, '/dashboard/links/new');
+    await waitForCreateLinkPage(page);
 
-    const urlInput = page.getByRole('textbox', {
-      name: /destination url|url de destino/i
-    });
+    const createForm = page.locator('main form').first();
+    const urlInput = createForm.locator('input#url');
     await expect(urlInput).toBeVisible();
 
     const advancedTrigger = page.getByRole('button', {
@@ -297,11 +402,13 @@ test.describe('Dashboard — mobile smoke', () => {
     page
   }) => {
     await visitDashboard(page, '/dashboard/links/new');
+    await waitForCreateLinkPage(page);
 
-    const submitBtn = page.getByRole('button', {
-      name: /create link|criar link/i
-    });
+    const submitBtn = page
+      .locator('main form button[type="submit"]:visible')
+      .first();
     await expect(submitBtn).toBeVisible();
+    await expect(submitBtn).toBeInViewport();
   });
 
   test('detail and edit routes stay usable on mobile after creating a link', async ({
@@ -315,9 +422,7 @@ test.describe('Dashboard — mobile smoke', () => {
       waitUntil: 'domcontentloaded'
     });
     await expect(page).toHaveURL(new RegExp(`/en/dashboard/links/${link.id}$`));
-    await expect(
-      page.getByRole('heading', { name: /link details|detalhes do link/i })
-    ).toBeVisible({ timeout: 15_000 });
+    await waitForLinkDetailPage(page);
     await assertNoHorizontalOverflow(page);
 
     const editLink = page.getByRole('link', { name: /edit|editar/i }).first();

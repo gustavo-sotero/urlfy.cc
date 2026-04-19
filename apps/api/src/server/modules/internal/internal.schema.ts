@@ -36,10 +36,16 @@ export const InternalAcceptedResponse = t.Object({
   })
 });
 
+export const InternalSessionResponse = t.Object({
+  user: t.Any(),
+  session: t.Any()
+});
+
 /**
  * Internal Models - Register schemas for type inference
  */
 export const InternalModel = new Elysia({ name: 'internal.model' }).model({
   'internal.analytics.body': InternalAnalyticsEventBody,
-  'internal.analytics.response': InternalAcceptedResponse
+  'internal.analytics.response': InternalAcceptedResponse,
+  'internal.session.response': InternalSessionResponse
 });

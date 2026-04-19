@@ -48,7 +48,11 @@ import {
 import { ApiKeysModel, apiKeysController } from '@/server/modules/api-keys';
 import { AuthModel, authController } from '@/server/modules/auth';
 import { contactController } from '@/server/modules/contact';
-import { healthController, InternalModel } from '@/server/modules/internal';
+import {
+  healthController,
+  InternalModel,
+  internalController
+} from '@/server/modules/internal';
 import { LinksModel, linksController } from '@/server/modules/links';
 import { publicApiV1 } from '@/server/modules/public';
 import {
@@ -394,6 +398,7 @@ export const api = new Elysia({ prefix: '/api' })
   .group('', (app) =>
     app
       .use(healthController)
+      .use(internalController)
       .use(authController)
       .use(meController)
       .use(consentController)

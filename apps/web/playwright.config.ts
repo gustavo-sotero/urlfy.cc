@@ -1,6 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
+const disableManagedWebServer =
+  process.env.PLAYWRIGHT_DISABLE_WEBSERVER === '1' ||
+  process.env.PLAYWRIGHT_DISABLE_WEBSERVER === 'true';
 
 function isLocalBaseUrl(url: string) {
   try {
@@ -14,7 +17,8 @@ function isLocalBaseUrl(url: string) {
 }
 
 const shouldManageWebServer =
-  !process.env.E2E_BASE_URL || isLocalBaseUrl(baseURL);
+  !disableManagedWebServer &&
+  (!process.env.E2E_BASE_URL || isLocalBaseUrl(baseURL));
 
 const shouldReuseExistingServer =
   Boolean(process.env.E2E_BASE_URL) || !process.env.CI;

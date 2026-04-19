@@ -21,11 +21,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { authClient, useSession } from '@/lib/auth.client';
+import { authClient } from '@/lib/auth.client';
+import { useSessionContext } from '@/lib/session-provider';
 
 export default function SettingsPage() {
   const t = useTranslations('Settings');
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending } = useSessionContext();
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const nameValue = nameDraft ?? session?.user?.name ?? '';
