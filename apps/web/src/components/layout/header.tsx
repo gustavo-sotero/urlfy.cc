@@ -1,14 +1,12 @@
 // src/components/layout/header.tsx
 'use client';
 
-import { LogOut, Menu, Shield, User } from 'lucide-react';
+import { LogOut, Menu, User } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
-import {
-  dashboardNavigationItems,
-  isDashboardRouteActive
-} from '@/components/layout/dashboard-navigation';
+import { DashboardBrand } from '@/components/layout/dashboard-brand';
+import { DashboardNavigationList } from '@/components/layout/dashboard-navigation-list';
 import { LanguageSwitcher } from '@/components/shared/language-switcher';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -29,7 +27,6 @@ import {
 } from '@/components/ui/sheet';
 import { Link } from '@/i18n/routing';
 import { signOut } from '@/lib/auth.client';
-import { cn } from '@/lib/utils';
 
 interface Props {
   user: {
@@ -78,7 +75,7 @@ export function Header({ user }: Props) {
                 variant="ghost"
                 size="icon"
                 className="shrink-0"
-                aria-label="Menu"
+                aria-label={t('openMenu')}
                 data-dashboard-menu-ready={menuReady ? 'true' : 'false'}
               >
                 <Menu className="h-5 w-5" />
@@ -90,61 +87,21 @@ export function Header({ user }: Props) {
               closeLabel={t('closeMenu')}
               className="w-[min(20rem,calc(100vw-1rem))] p-0"
             >
+              <SheetTitle className="sr-only">{t('dashboard')}</SheetTitle>
               <SheetHeader className="border-b px-5 py-4 pr-14 sm:px-6">
-                <SheetTitle asChild>
-                  <Link
-                    href="/"
-                    onClick={closeMobileMenu}
-                    className="flex items-center gap-3 font-semibold"
-                  >
-                    <span className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15">
-                      <Shield className="h-5 w-5" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold tracking-tight">
-                        urlfy.cc
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {t('dashboard')}
-                      </span>
-                    </span>
-                  </Link>
-                </SheetTitle>
+                <DashboardBrand
+                  subtitle={tSidebar('dashboard')}
+                  onNavigate={closeMobileMenu}
+                  iconClassName="size-10"
+                />
               </SheetHeader>
               <div className="flex h-full flex-col">
-                <nav className="flex-1 space-y-1.5 overflow-y-auto px-4 py-4 sm:px-5">
-                  {dashboardNavigationItems.map((item) => {
-                    const isActive = isDashboardRouteActive(
-                      pathname,
-                      item.href
-                    );
-                    return (
-                      <Link
-                        key={item.key}
-                        href={item.href}
-                        aria-current={isActive ? 'page' : undefined}
-                        onClick={closeMobileMenu}
-                        className={cn(
-                          'group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-all',
-                          isActive
-                            ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
-                            : 'text-muted-foreground hover:bg-accent/80 hover:text-foreground'
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'flex size-9 items-center justify-center rounded-xl border transition-colors',
-                            isActive
-                              ? 'border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground'
-                              : 'border-border/60 bg-background/70 text-muted-foreground group-hover:text-foreground'
-                          )}
-                        >
-                          <item.icon className="h-4 w-4" />
-                        </span>
-                        <span>{tSidebar(item.key)}</span>
-                      </Link>
-                    );
-                  })}
+                <nav className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+                  <DashboardNavigationList
+                    pathname={pathname}
+                    labelFor={tSidebar}
+                    onNavigate={closeMobileMenu}
+                  />
                 </nav>
                 <div className="border-t px-4 py-4 sm:px-5">
                   <div className="rounded-2xl border border-border/60 bg-muted/35 px-4 py-3">

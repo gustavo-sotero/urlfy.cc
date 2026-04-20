@@ -49,7 +49,7 @@ function getMobileDrawer(page: Page) {
 
 function getMenuTrigger(page: Page) {
   return page.locator(
-    '[data-slot="sheet-trigger"][aria-label="Menu"][data-dashboard-menu-ready="true"]'
+    '[data-slot="sheet-trigger"][data-dashboard-menu-ready="true"]'
   );
 }
 
@@ -60,6 +60,13 @@ async function waitForHydratedMenuButton(page: Page) {
   await expect(menuButton).toHaveAttribute('aria-haspopup', 'dialog', {
     timeout: 20_000
   });
+  await expect(menuButton).toHaveAttribute(
+    'aria-label',
+    /open menu|abrir menu/i,
+    {
+      timeout: 20_000
+    }
+  );
 
   return menuButton;
 }

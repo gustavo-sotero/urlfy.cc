@@ -36,6 +36,7 @@ export const Common = {
   close: 'Fechar',
   download: 'Download',
   confirm: 'Confirmar',
+  openMenu: 'Abrir menu',
   closeMenu: 'Fechar menu',
   required: 'obrigatório',
   passwordProtected: 'Protegido por senha',

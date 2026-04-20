@@ -40,7 +40,9 @@ mock.module('next-intl', () => ({
       Common: {
         dashboard: 'Dashboard',
         settings: 'Settings',
-        logout: 'Logout'
+        logout: 'Logout',
+        openMenu: 'Open menu',
+        closeMenu: 'Close menu'
       },
       'Dashboard.sidebar': {
         dashboard: 'Dashboard',
@@ -107,14 +109,14 @@ describe('Dashboard Header', () => {
     await renderHeader();
 
     expect(screen.getByText('Dashboard')).toBeDefined();
-    expect(screen.getAllByLabelText('Menu').length).toBe(1);
+    expect(screen.getAllByLabelText('Open menu').length).toBe(1);
   });
 
   it('opens the mobile drawer and shows dashboard navigation links', async () => {
     await renderHeader();
 
     await act(async () => {
-      fireEvent.click(screen.getByLabelText('Menu'));
+      fireEvent.click(screen.getByLabelText('Open menu'));
     });
 
     expect(screen.getByRole('dialog')).toBeDefined();
@@ -126,7 +128,7 @@ describe('Dashboard Header', () => {
     await renderHeader();
 
     await act(async () => {
-      fireEvent.click(screen.getByLabelText('Menu'));
+      fireEvent.click(screen.getByLabelText('Open menu'));
     });
 
     const navLinks = screen.getAllByText('Analytics');
@@ -137,5 +139,25 @@ describe('Dashboard Header', () => {
     });
 
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('can reopen the mobile drawer after closing it', async () => {
+    await renderHeader();
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Open menu'));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('Analytics').at(-1) as Element);
+    });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Open menu'));
+    });
+
+    expect(screen.getByRole('dialog')).toBeDefined();
   });
 });
