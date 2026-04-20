@@ -44,20 +44,23 @@ describe('getServerSession', () => {
     expect(session?.session).toEqual(
       expect.objectContaining({ id: 'session-1', userId: 'user-1' })
     );
-    expect(fetchMock).toHaveBeenCalledWith(
-      new URL('http://api:3001/api/auth/get-session?disableCookieCache=true'),
-      expect.objectContaining({
-        method: 'GET',
-        cache: 'no-store',
-        headers: expect.any(Headers)
-      })
-    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const [, requestInit] = fetchMock.mock.calls[0] as unknown as [
       URL,
       RequestInit
     ];
+    const [requestUrl] = fetchMock.mock.calls[0] as unknown as [
+      URL,
+      RequestInit
+    ];
     const forwardedHeaders = requestInit.headers as Headers;
+
+    expect(requestUrl.toString()).toBe('http://api:3001/api/internal/session');
+    expect(requestInit.method).toBe('GET');
+    expect(requestInit.cache).toBe('no-store');
+    expect(forwardedHeaders).toBeInstanceOf(Headers);
 
     expect(forwardedHeaders.get('cookie')).toBe('urlfy.session_token=abc123');
     expect(forwardedHeaders.get('x-request-id')).toBe('req-1');
@@ -101,7 +104,7 @@ describe('getServerSession', () => {
         headers: new Headers({ cookie: 'urlfy.session_token=abc123' })
       })
     ).rejects.toThrow(
-      'Failed to retrieve auth session from API: 503 Service Unavailable'
+      'Failed to retrieve auth session from internal API: 503 Service Unavailable'
     );
   });
 });

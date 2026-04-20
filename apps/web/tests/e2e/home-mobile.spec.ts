@@ -13,6 +13,32 @@ const ACCEPTED_CONSENT = {
   timestamp: '2026-04-18T00:00:00.000Z'
 } as const;
 
+const CREATED_LINK_RESPONSE = {
+  id: 'link-1',
+  shortCode: 'demo123',
+  shortUrl: 'https://urlfy.cc/demo123',
+  originalUrl: 'https://example.com/mobile/form-success-state',
+  redirectType: 302,
+  clicksCount: 0,
+  maxClicks: null,
+  isActive: true,
+  isBanned: false,
+  bannedReason: null,
+  isProtected: false,
+  expiresAt: null,
+  metaTitle: null,
+  metaDescription: null,
+  metaImage: null,
+  utmSource: null,
+  utmMedium: null,
+  utmCampaign: null,
+  tags: null,
+  notes: null,
+  lastClickedAt: null,
+  createdAt: '2026-04-20T00:00:00.000Z',
+  updatedAt: '2026-04-20T00:00:00.000Z'
+} as const;
+
 const SUPPORTED_LOCALES = ['en', 'pt-br'] as const;
 
 type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
@@ -141,6 +167,29 @@ async function visitHome(page: Page, options: VisitHomeOptions = {}) {
   if (options.showConsentBanner) {
     await expect(getConsentBanner(page)).toBeVisible({ timeout: 3_000 });
   }
+}
+
+async function mockCreateLink(page: Page) {
+  await page.route('**/api/links', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+
+    const payload = route.request().postDataJSON() as { url?: string };
+
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          ...CREATED_LINK_RESPONSE,
+          originalUrl: payload.url ?? CREATED_LINK_RESPONSE.originalUrl
+        }
+      })
+    });
+  });
 }
 
 /**
@@ -481,6 +530,38 @@ test.describe('Home page — mobile smoke', () => {
     expect((secondaryBox?.y ?? 0) - (primaryBox?.y ?? 0)).toBeGreaterThan(8);
 
     // Verify no horizontal overflow after revealing CTA
+    const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+    const viewportWidth = page.viewportSize()?.width ?? 0;
+    expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
+  });
+
+  test('hero link form success state stays within the mobile viewport', async ({
+    page
+  }) => {
+    await mockCreateLink(page);
+    await visitHome(page, { locale: 'pt-br' });
+
+    await page
+      .locator('input[type="url"]')
+      .first()
+      .fill(CREATED_LINK_RESPONSE.originalUrl);
+    await page.getByRole('button', { name: /encurtar|shorten/i }).click();
+
+    const shortUrlInput = page.getByTestId('short-url');
+    await expect(shortUrlInput).toHaveValue(CREATED_LINK_RESPONSE.shortUrl);
+
+    const copyButton = page.getByRole('button', {
+      name: /copy|copied|copiar|copiado/i
+    });
+    await expect(copyButton).toBeVisible();
+
+    const shortUrlBox = await shortUrlInput.boundingBox();
+    const copyButtonBox = await copyButton.boundingBox();
+
+    expect(shortUrlBox).not.toBeNull();
+    expect(copyButtonBox).not.toBeNull();
+    expect((copyButtonBox?.y ?? 0) - (shortUrlBox?.y ?? 0)).toBeGreaterThan(8);
+
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
     const viewportWidth = page.viewportSize()?.width ?? 0;
     expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);

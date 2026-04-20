@@ -8,7 +8,7 @@ describe('Dev API rewrite config', () => {
   it('enables the same-origin API proxy only in development', () => {
     expect(
       getLocalApiProxyTarget({ NODE_ENV: 'development' } as NodeJS.ProcessEnv)
-    ).toBe('http://localhost:3001');
+    ).toBe('http://127.0.0.1:3001');
 
     expect(
       getLocalApiProxyTarget({ NODE_ENV: 'production' } as NodeJS.ProcessEnv)

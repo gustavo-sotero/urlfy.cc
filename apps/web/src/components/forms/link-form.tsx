@@ -51,17 +51,23 @@ export function LinkForm() {
           <Check className="h-5 w-5" />
           <span className="font-medium">{t('successMessage')}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
           <Input
             value={result.shortUrl}
             readOnly
-            className="font-mono"
+            className="min-w-0 font-mono"
             data-testid="short-url"
           />
-          <CopyButton text={result.shortUrl} variant="default" size="default" />
+          <CopyButton
+            text={result.shortUrl}
+            variant="default"
+            size="default"
+            className="justify-self-end sm:justify-self-auto"
+          />
         </div>
         <Button
           variant="outline"
+          className="w-full sm:w-auto"
           onClick={() => {
             setResult(null);
             form.reset();
@@ -78,7 +84,7 @@ export function LinkForm() {
       onSubmit={form.handleSubmit(onSubmit)}
       className="flex flex-col gap-4 sm:flex-row"
     >
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <Input
           {...form.register('url')}
           type="url"
@@ -98,7 +104,7 @@ export function LinkForm() {
         type="submit"
         size="lg"
         disabled={createLink.isPending}
-        className="h-12"
+        className="h-12 w-full sm:w-auto"
       >
         {createLink.isPending ? (
           <>
