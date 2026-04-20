@@ -2,7 +2,9 @@ import { describe, expect, it } from 'bun:test';
 import {
   buildEmailVerificationCallbackUrl,
   buildEmailVerificationResultPath,
-  buildPostVerificationLoginPath
+  buildPostSignupDashboardPath,
+  buildPostVerificationLoginPath,
+  isPostSignupVerificationSent
 } from '@/lib/email-verification';
 
 describe('email verification navigation helpers', () => {
@@ -16,6 +18,23 @@ describe('email verification navigation helpers', () => {
     expect(
       buildEmailVerificationCallbackUrl('https://urlfy.cc/stray/path', 'en')
     ).toBe('https://urlfy.cc/en/email-verification?verified=1');
+  });
+
+  it('builds the dedicated post-signup dashboard state', () => {
+    expect(buildPostSignupDashboardPath()).toBe(
+      '/dashboard?verificationEmail=sent'
+    );
+  });
+
+  it('detects the dedicated post-signup verification state', () => {
+    expect(
+      isPostSignupVerificationSent(
+        new URLSearchParams('verificationEmail=sent')
+      )
+    ).toBe(true);
+    expect(
+      isPostSignupVerificationSent(new URLSearchParams('welcome=true'))
+    ).toBe(false);
   });
 
   it('builds a localized login path that returns to the dashboard after sign-in', () => {

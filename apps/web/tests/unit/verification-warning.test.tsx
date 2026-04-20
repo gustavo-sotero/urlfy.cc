@@ -1,74 +1,200 @@
-/**
- * Tests for VerificationWarning component behaviour.
- *
- * Test strategy: source-pattern verification so the test remains stable when
- * run from the workspace root without the apps/web happy-dom preload.
- */
+import '../setup';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 
-import { describe, expect, it } from 'bun:test';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+const verificationMessages = {
+  en: {
+    title: 'Verify your email address',
+    description:
+      'You can keep using urlfy.cc, but verifying your email confirms that you own this address and helps us deliver security and onboarding messages to the right inbox.',
+    justSentTitle: 'Verification email sent',
+    justSentDescription:
+      'We sent a verification email to {email}. This is separate from your welcome email.',
+    justSentHelp:
+      'Check your inbox and spam folder. If nothing arrives in a few minutes, use the resend action below.',
+    sending: 'Sending...',
+    sent: 'Verification email sent',
+    resend: 'Resend verification email',
+    checkInbox:
+      'Check your inbox and spam folder. If nothing arrives in a few minutes, you can resend it.',
+    errorEmail: 'We could not determine which email address to verify.',
+    errorResend: 'We could not resend the verification email. Please try again.'
+  },
+  'pt-br': {
+    title: 'Verifique seu e-mail',
+    description:
+      'Você pode continuar usando o urlfy.cc, mas verificar seu e-mail confirma que este endereço é seu e ajuda a manter os avisos de segurança e onboarding chegando na caixa certa.',
+    justSentTitle: 'E-mail de verificação enviado',
+    justSentDescription:
+      'Enviamos um e-mail de verificação para {email}. Ele é separado do seu e-mail de boas-vindas.',
+    justSentHelp:
+      'Verifique sua caixa de entrada e spam. Se nada chegar em alguns minutos, use a ação de reenvio abaixo.',
+    sending: 'Enviando...',
+    sent: 'E-mail de verificação enviado',
+    resend: 'Reenviar e-mail de verificação',
+    checkInbox:
+      'Verifique sua caixa de entrada e spam. Se nada chegar em alguns minutos, você pode reenviar.',
+    errorEmail:
+      'Não foi possível identificar qual endereço de e-mail deve ser verificado.',
+    errorResend:
+      'Não foi possível reenviar o e-mail de verificação. Tente novamente.'
+  }
+} as const;
 
-async function readComponentSource(): Promise<string> {
-  const componentPath = resolve(
-    import.meta.dir,
-    '../../src/components/dashboard/verification-warning.tsx'
-  );
-  return readFile(componentPath, 'utf-8');
+type SupportedLocale = keyof typeof verificationMessages;
+type MessageKey = keyof (typeof verificationMessages)['en'];
+
+let activeLocale: SupportedLocale = 'en';
+
+const useSearchParamsMock = mock(() => new URLSearchParams());
+const useSessionMock = mock(() => ({
+  data: null as null | { user?: { email?: string } }
+}));
+const sendVerificationEmailMock = mock(async () => undefined);
+
+function interpolate(
+  template: string,
+  values?: Record<string, string | number>
+): string {
+  return template.replace(/\{(\w+)\}/g, (_match, key: string) => {
+    const value = values?.[key];
+    return value === undefined ? `{${key}}` : String(value);
+  });
 }
 
-describe('VerificationWarning — locale-aware resend contract', () => {
-  it('imports the shared email verification helper utilities', async () => {
-    const source = await readComponentSource();
+mock.module('next/navigation', () => ({
+  useSearchParams: useSearchParamsMock
+}));
 
-    expect(source).toContain('@/lib/email-verification');
-    expect(source).toContain('buildEmailVerificationCallbackUrl');
-    expect(source).toContain('isPostSignupVerificationSent');
+mock.module('next-intl', () => ({
+  useLocale: () => activeLocale,
+  useTranslations: (namespace: string) => {
+    if (namespace !== 'Dashboard.verification') {
+      return (key: string) => key;
+    }
+
+    return (key: string, values?: Record<string, string | number>) => {
+      const template =
+        verificationMessages[activeLocale][key as MessageKey] ?? key;
+      return interpolate(template, values);
+    };
+  }
+}));
+
+mock.module('@/lib/auth.client', () => ({
+  authClient: {
+    useSession: useSessionMock,
+    sendVerificationEmail: sendVerificationEmailMock
+  }
+}));
+
+async function renderVerificationWarning(email = 'server@example.com') {
+  const { VerificationWarning } = await import(
+    '@/components/dashboard/verification-warning'
+  );
+
+  return render(<VerificationWarning email={email} />);
+}
+
+describe('VerificationWarning', () => {
+  beforeEach(() => {
+    activeLocale = 'en';
+    window.location.href = 'https://urlfy.cc/en/dashboard';
+    useSearchParamsMock.mockReset();
+    useSearchParamsMock.mockReturnValue(new URLSearchParams());
+    useSessionMock.mockReset();
+    useSessionMock.mockReturnValue({ data: null });
+    sendVerificationEmailMock.mockReset();
+    sendVerificationEmailMock.mockResolvedValue(undefined);
   });
 
-  it('uses the localized public callback URL when resending the verification email', async () => {
-    const source = await readComponentSource();
+  afterEach(() => {
+    cleanup();
+  });
 
-    expect(source).toMatch(
-      /callbackURL:\s*buildEmailVerificationCallbackUrl\(\s*window\.location\.origin,\s*locale\s*\)/
+  it('renders the post-signup confirmation alongside the persistent reminder', async () => {
+    useSearchParamsMock.mockReturnValue(
+      new URLSearchParams('verificationEmail=sent')
     );
+
+    const view = await renderVerificationWarning('signup@example.com');
+
+    expect(view.getAllByRole('alert').length).toBe(2);
+    expect(view.getByText(verificationMessages.en.justSentTitle)).toBeDefined();
+    expect(view.getByText(verificationMessages.en.title)).toBeDefined();
+    expect(
+      view.getByText(
+        interpolate(verificationMessages.en.justSentDescription, {
+          email: 'signup@example.com'
+        })
+      )
+    ).toBeDefined();
   });
 
-  it('falls back to the server-provided email when the client session is not ready', async () => {
-    const source = await readComponentSource();
+  it('uses the server email fallback and localized callback URL when resending', async () => {
+    activeLocale = 'pt-br';
+    window.location.href = 'https://urlfy.cc/pt-br/dashboard';
 
-    expect(source).toContain('session?.user?.email ?? email');
+    const view = await renderVerificationWarning('fallback@example.com');
+
+    fireEvent.click(
+      view.getByRole('button', {
+        name: verificationMessages['pt-br'].resend
+      })
+    );
+
+    await waitFor(() => {
+      expect(sendVerificationEmailMock).toHaveBeenCalledWith({
+        email: 'fallback@example.com',
+        callbackURL: `${window.location.origin}/pt-br/email-verification?verified=1`
+      });
+    });
+
+    expect(
+      view.getByText(verificationMessages['pt-br'].checkInbox)
+    ).toBeDefined();
   });
 
-  it('uses the localized fallback resend error copy instead of surfacing raw error text', async () => {
-    const source = await readComponentSource();
+  it('prefers the hydrated session email when resending', async () => {
+    useSessionMock.mockReturnValue({
+      data: {
+        user: {
+          email: 'session@example.com'
+        }
+      }
+    });
 
-    expect(source).toContain("setResendError(t('errorResend'))");
-    expect(source).not.toContain('error instanceof Error ? error.message');
+    const view = await renderVerificationWarning('server@example.com');
+
+    fireEvent.click(
+      view.getByRole('button', {
+        name: verificationMessages.en.resend
+      })
+    );
+
+    await waitFor(() => {
+      expect(sendVerificationEmailMock).toHaveBeenCalledWith({
+        email: 'session@example.com',
+        callbackURL: `${window.location.origin}/en/email-verification?verified=1`
+      });
+    });
   });
-});
 
-describe('VerificationWarning — post-signup state contract', () => {
-  it('detects the dedicated post-signup verification state instead of welcome=true', async () => {
-    const source = await readComponentSource();
+  it('shows localized fallback copy when resend fails', async () => {
+    sendVerificationEmailMock.mockRejectedValueOnce(
+      new Error('transport down')
+    );
 
-    expect(source).toContain('isPostSignupVerificationSent(searchParams)');
-    expect(source).not.toContain("searchParams.get('welcome')");
-    expect(source).not.toContain('welcome=true');
-  });
+    const view = await renderVerificationWarning('error@example.com');
 
-  it('renders the post-signup confirmation without replacing the persistent reminder', async () => {
-    const source = await readComponentSource();
+    fireEvent.click(
+      view.getByRole('button', {
+        name: verificationMessages.en.resend
+      })
+    );
 
-    expect(source).toContain("t('justSentTitle')");
-    expect(source).toContain("t('title')");
-    expect(source).not.toMatch(/if\s*\(isNewSignup\)\s*\{\s*return/);
-  });
-
-  it('wraps the client implementation in Suspense for useSearchParams compatibility', async () => {
-    const source = await readComponentSource();
-
-    expect(source).toContain('Suspense');
-    expect(source).toContain('fallback={null}');
+    expect(
+      await view.findByText(verificationMessages.en.errorResend)
+    ).toBeDefined();
   });
 });
