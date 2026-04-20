@@ -62,7 +62,9 @@ mock.module('@/i18n/routing', () => ({
 }));
 
 mock.module('@/components/dashboard/verification-warning', () => ({
-  VerificationWarning: () => <div data-testid="verification-warning" />
+  VerificationWarning: ({ email }: { email: string }) => (
+    <div data-testid="verification-warning" data-email={email} />
+  )
 }));
 
 mock.module('@/components/layout/header', () => ({
@@ -166,5 +168,6 @@ describe('DashboardLayout', () => {
     const markup = renderToStaticMarkup(element);
 
     expect(markup).toContain('data-testid="verification-warning"');
+    expect(markup).toContain('data-email="test@example.com"');
   });
 });

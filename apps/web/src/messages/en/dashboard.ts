@@ -91,18 +91,21 @@ export const Dashboard = {
   },
 
   verification: {
-    title: 'Email verification pending',
+    title: 'Verify your email address',
     description:
-      'Please verify your email address to get full access to the platform. You will not be able to create links until you confirm your email.',
-    justSentTitle: 'Verification email sent!',
+      'You can keep using urlfy.cc, but verifying your email confirms that you own this address and helps us deliver security and onboarding messages to the right inbox.',
+    justSentTitle: 'Verification email sent',
     justSentDescription:
-      'We sent a verification email to {email}. Check your inbox and spam folder to confirm your address.',
+      'We sent a verification email to {email}. This is separate from your welcome email.',
+    justSentHelp:
+      'Check your inbox and spam folder. If nothing arrives in a few minutes, use the resend action below.',
     sending: 'Sending...',
-    sent: 'Email sent!',
-    resend: 'Resend email',
-    checkInbox: 'Check your inbox and spam folder.',
-    errorEmail: 'Could not get user email.',
-    errorResend: 'Failed to resend email. Please try again.'
+    sent: 'Verification email sent',
+    resend: 'Resend verification email',
+    checkInbox:
+      'Check your inbox and spam folder. If nothing arrives in a few minutes, you can resend it.',
+    errorEmail: 'We could not determine which email address to verify.',
+    errorResend: 'We could not resend the verification email. Please try again.'
   },
 
   pagination: {

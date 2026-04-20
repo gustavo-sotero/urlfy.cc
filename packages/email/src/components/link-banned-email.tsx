@@ -1,5 +1,14 @@
 ﻿import type { EmailMessages } from '../types';
-import { EmailLayout } from './email-layout';
+import {
+  EmailBulletList,
+  EmailButtonLink,
+  EmailDataList,
+  EmailHeading,
+  EmailLayout,
+  EmailPanel,
+  EmailParagraph,
+  EmailSubheading
+} from './email-layout';
 
 interface LinkBannedEmailProps {
   firstName: string;
@@ -29,275 +38,61 @@ export function LinkBannedEmail({
     }).format(date);
   };
 
+  const nextStepItems = [
+    <span key="review-terms">
+      <strong>{t.reviewTerms}.</strong> {t.reviewTermsDesc}
+    </span>,
+    <span key="appeal-review">
+      <strong>{t.appeal}.</strong> {t.appealDesc}
+    </span>,
+    <span key="create-replacement">
+      <strong>{t.createNew}.</strong> {t.createNewDesc}
+    </span>
+  ];
+
   return (
     <EmailLayout previewText={t.previewText} locale={locale}>
-      <div>
-        <h2
-          style={{
-            margin: '0 0 16px 0',
-            fontSize: '24px',
-            fontWeight: '600',
-            color: '#dc2626',
-            lineHeight: '1.3'
-          }}
-        >
-          {t.title}
-        </h2>
+      <EmailHeading>{t.title}</EmailHeading>
+      <EmailParagraph>
+        {t.greeting.replace('{firstName}', firstName)}
+      </EmailParagraph>
+      <EmailParagraph>{t.message}</EmailParagraph>
 
-        <p
-          style={{
-            margin: '0 0 24px 0',
-            fontSize: '16px',
-            color: '#475569',
-            lineHeight: '1.6'
-          }}
-        >
-          {t.greeting.replace('{firstName}', firstName)}
-        </p>
+      <EmailPanel tone="danger">
+        <EmailDataList
+          rows={[
+            { label: t.shortCode, value: `urlfy.cc/${shortCode}` },
+            { label: t.originalUrl, value: linkUrl },
+            { label: t.reason, value: bannedReason },
+            { label: t.bannedOn, value: formatDate(bannedAt) }
+          ]}
+          tone="danger"
+        />
+      </EmailPanel>
 
-        <p
-          style={{
-            margin: '0 0 24px 0',
-            fontSize: '16px',
-            color: '#475569',
-            lineHeight: '1.6'
-          }}
-        >
-          {t.message}
-        </p>
+      <EmailSubheading>{t.implicationsHeader}</EmailSubheading>
+      <EmailBulletList
+        items={[t.implication1, t.implication2, t.implication3, t.implication4]}
+        tone="danger"
+      />
 
-        <div
-          style={{
-            backgroundColor: '#fee2e2',
-            border: '2px solid #ef4444',
-            borderRadius: '8px',
-            padding: '20px',
-            marginBottom: '24px'
-          }}
-        >
-          <table role="presentation" style={{ width: '100%' }}>
-            <tbody>
-              <tr>
-                <td style={{ paddingBottom: '12px' }}>
-                  <p
-                    style={{
-                      margin: '0 0 4px 0',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#7f1d1d',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    {t.shortCode}
-                  </p>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '15px',
-                      color: '#991b1b',
-                      fontFamily: 'monospace',
-                      fontWeight: '600'
-                    }}
-                  >
-                    urlfy.cc/{shortCode}
-                  </p>
-                </td>
-              </tr>
-              <tr>
-                <td style={{ paddingBottom: '12px' }}>
-                  <p
-                    style={{
-                      margin: '0 0 4px 0',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#7f1d1d',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    {t.originalUrl}
-                  </p>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '14px',
-                      color: '#991b1b',
-                      wordBreak: 'break-all'
-                    }}
-                  >
-                    {linkUrl}
-                  </p>
-                </td>
-              </tr>
-              <tr>
-                <td style={{ paddingBottom: '12px' }}>
-                  <p
-                    style={{
-                      margin: '0 0 4px 0',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#7f1d1d',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    {t.reason}
-                  </p>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '15px',
-                      color: '#991b1b',
-                      fontWeight: '600'
-                    }}
-                  >
-                    {bannedReason}
-                  </p>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <p
-                    style={{
-                      margin: '0 0 4px 0',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#7f1d1d',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    {t.bannedOn}
-                  </p>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '15px',
-                      color: '#991b1b'
-                    }}
-                  >
-                    {formatDate(bannedAt)}
-                  </p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <EmailSubheading>{t.whatYouCanDo}</EmailSubheading>
+      <EmailBulletList items={nextStepItems} tone="accent" />
 
-        <h3
-          style={{
-            margin: '24px 0 16px 0',
-            fontSize: '18px',
-            fontWeight: '600',
-            color: '#1e293b'
-          }}
-        >
-          {t.implicationsHeader}
-        </h3>
+      <EmailPanel title={t.commonReasonsHeader} tone="neutral">
+        <EmailBulletList
+          items={[
+            t.commonReason1,
+            t.commonReason2,
+            t.commonReason3,
+            t.commonReason4
+          ]}
+          tone="muted"
+        />
+      </EmailPanel>
 
-        <table
-          role="presentation"
-          style={{ width: '100%', marginBottom: '24px' }}
-        >
-          <tbody>
-            {[
-              t.implication1,
-              t.implication2,
-              t.implication3,
-              t.implication4
-            ].map((item) => (
-              <tr key={item}>
-                <td style={{ paddingBottom: '8px' }}>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '15px',
-                      color: '#475569',
-                      lineHeight: '1.5'
-                    }}
-                  >
-                    <span style={{ color: '#6366f1', marginRight: '8px' }}>
-                      ÔÇó
-                    </span>
-                    {item}
-                  </p>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div
-          style={{
-            backgroundColor: '#dbeafe',
-            borderRadius: '8px',
-            padding: '20px',
-            marginBottom: '24px'
-          }}
-        >
-          <p
-            style={{
-              margin: '0 0 12px 0',
-              fontSize: '15px',
-              fontWeight: '600',
-              color: '#1e3a8a'
-            }}
-          >
-            {t.commonReasonsHeader}
-          </p>
-          <ul
-            style={{
-              margin: 0,
-              paddingLeft: '20px',
-              color: '#1e40af'
-            }}
-          >
-            <li style={{ marginBottom: '6px', fontSize: '14px' }}>
-              {t.commonReason1}
-            </li>
-            <li style={{ marginBottom: '6px', fontSize: '14px' }}>
-              {t.commonReason2}
-            </li>
-            <li style={{ marginBottom: '6px', fontSize: '14px' }}>
-              {t.commonReason3}
-            </li>
-            <li style={{ fontSize: '14px' }}>{t.commonReason4}</li>
-          </ul>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: '32px' }}>
-          <a
-            href={appealUrl}
-            style={{
-              display: 'inline-block',
-              padding: '14px 32px',
-              backgroundColor: '#6366f1',
-              color: '#ffffff',
-              textDecoration: 'none',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '600',
-              boxShadow: '0 4px 6px rgba(99, 102, 241, 0.25)'
-            }}
-          >
-            {t.appealCta}
-          </a>
-        </div>
-
-        <p
-          style={{
-            marginTop: '32px',
-            marginBottom: 0,
-            fontSize: '14px',
-            color: '#64748b',
-            lineHeight: '1.6',
-            textAlign: 'center'
-          }}
-        >
-          {t.footer}
-        </p>
-      </div>
+      <EmailButtonLink href={appealUrl}>{t.appealCta}</EmailButtonLink>
+      <EmailParagraph subtle>{t.footer}</EmailParagraph>
     </EmailLayout>
   );
 }

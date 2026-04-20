@@ -54,7 +54,9 @@ export default async function DashboardLayout({
             data-dashboard-main="content"
           >
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 pt-4 sm:px-6 md:gap-8 md:pb-10 lg:px-8">
-              {!isEmailVerified && <VerificationWarning />}
+              {!isEmailVerified && (
+                <VerificationWarning email={sessionUser.email} />
+              )}
               {children}
             </div>
           </main>

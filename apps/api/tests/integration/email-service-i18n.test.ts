@@ -89,8 +89,8 @@ describe('Email Service i18n Integration', () => {
 
       // Verify that locale was resolved and subject is in English
       expect(capturedLocale).toBe('en');
-      expect(capturedSubject).toContain('Confirm your email');
-      expect(capturedSubject).not.toContain('Confirme seu email');
+      expect(capturedSubject).toContain('Verify your email');
+      expect(capturedSubject).not.toContain('Verifique seu e-mail');
     });
 
     it('sendPasswordResetEmail should use user locale', async () => {
@@ -132,7 +132,7 @@ describe('Email Service i18n Integration', () => {
 
       // Verify that locale was resolved and subject is in Portuguese
       expect(capturedLocale).toBe('pt-br');
-      expect(capturedSubject).toContain('Redefinir sua senha');
+      expect(capturedSubject).toContain('Redefina sua senha');
       expect(capturedSubject).not.toContain('Reset your password');
     });
   });

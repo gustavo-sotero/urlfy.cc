@@ -1,5 +1,14 @@
 ﻿import type { EmailMessages } from '../types';
-import { EmailLayout } from './email-layout';
+import {
+  EmailBulletList,
+  EmailButtonLink,
+  EmailDataList,
+  EmailHeading,
+  EmailLayout,
+  EmailPanel,
+  EmailParagraph,
+  EmailSubheading
+} from './email-layout';
 
 interface DataDeletionConfirmationEmailProps {
   firstName: string;
@@ -33,227 +42,45 @@ export function DataDeletionConfirmationEmail({
     t.deletionItem5
   ];
 
+  const nextStepItems = [t.step1, t.step2, t.step3];
+
   return (
     <EmailLayout previewText={t.previewText} locale={locale}>
-      <div>
-        <h2
-          style={{
-            margin: '0 0 16px 0',
-            fontSize: '24px',
-            fontWeight: '600',
-            color: '#1e293b',
-            lineHeight: '1.3'
-          }}
-        >
-          {t.title}
-        </h2>
+      <EmailHeading>{t.title}</EmailHeading>
+      <EmailParagraph>
+        {t.greeting.replace('{firstName}', firstName)}
+      </EmailParagraph>
+      <EmailParagraph>{t.message}</EmailParagraph>
 
-        <p
-          style={{
-            margin: '0 0 24px 0',
-            fontSize: '16px',
-            color: '#475569',
-            lineHeight: '1.6'
-          }}
-        >
-          {t.greeting.replace('{firstName}', firstName)}
-        </p>
+      <EmailPanel title={t.requestDetails} tone="info">
+        <EmailDataList
+          rows={[
+            { label: t.requestedOn, value: formatDate(requestDate) },
+            { label: t.deadline, value: formatDate(deadlineDate) }
+          ]}
+          tone="info"
+        />
+      </EmailPanel>
 
-        <p
-          style={{
-            margin: '0 0 24px 0',
-            fontSize: '16px',
-            color: '#475569',
-            lineHeight: '1.6'
-          }}
-        >
-          {t.message}
-        </p>
+      <EmailSubheading>{t.whatHappensNext}</EmailSubheading>
+      <EmailBulletList items={nextStepItems} tone="accent" />
 
-        <div
-          style={{
-            backgroundColor: '#dbeafe',
-            border: '1px solid #3b82f6',
-            borderRadius: '8px',
-            padding: '20px',
-            marginBottom: '24px'
-          }}
-        >
-          <table role="presentation" style={{ width: '100%' }}>
-            <tbody>
-              <tr>
-                <td style={{ paddingBottom: '12px' }}>
-                  <p
-                    style={{
-                      margin: '0 0 4px 0',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#1e40af',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    {t.requestedOn}
-                  </p>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '15px',
-                      color: '#1e40af'
-                    }}
-                  >
-                    {formatDate(requestDate)}
-                  </p>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <p
-                    style={{
-                      margin: '0 0 4px 0',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#1e40af',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    {t.deadline}
-                  </p>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '15px',
-                      color: '#1e40af'
-                    }}
-                  >
-                    {formatDate(deadlineDate)}
-                  </p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <EmailSubheading>{t.deletionHeader}</EmailSubheading>
+      <EmailBulletList items={deletionItems} tone="danger" />
 
-        <h3
-          style={{
-            margin: '24px 0 16px 0',
-            fontSize: '18px',
-            fontWeight: '600',
-            color: '#1e293b'
-          }}
-        >
-          {t.deletionHeader}
-        </h3>
+      {exportUrl ? (
+        <EmailPanel title={t.exportPrompt} tone="success">
+          <EmailParagraph subtle>{t.exportDesc}</EmailParagraph>
+          <EmailButtonLink href={exportUrl} align="left">
+            {t.exportData}
+          </EmailButtonLink>
+        </EmailPanel>
+      ) : null}
 
-        <table
-          role="presentation"
-          style={{ width: '100%', marginBottom: '24px' }}
-        >
-          <tbody>
-            {deletionItems.map((item) => (
-              <tr key={item}>
-                <td style={{ paddingBottom: '8px' }}>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '15px',
-                      color: '#475569',
-                      lineHeight: '1.5'
-                    }}
-                  >
-                    <span style={{ color: '#ef4444', marginRight: '8px' }}>
-                      âœ—
-                    </span>
-                    {item}
-                  </p>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {exportUrl && (
-          <div
-            style={{
-              backgroundColor: '#f0fdf4',
-              border: '1px solid #22c55e',
-              borderRadius: '8px',
-              padding: '20px',
-              marginBottom: '24px'
-            }}
-          >
-            <p
-              style={{
-                margin: '0 0 12px 0',
-                fontSize: '15px',
-                fontWeight: '600',
-                color: '#15803d'
-              }}
-            >
-              {t.exportPrompt}
-            </p>
-            <p
-              style={{
-                margin: '0 0 16px 0',
-                fontSize: '14px',
-                color: '#166534',
-                lineHeight: '1.5'
-              }}
-            >
-              {t.exportDesc}
-            </p>
-            <a
-              href={exportUrl}
-              style={{
-                display: 'inline-block',
-                padding: '10px 20px',
-                backgroundColor: '#22c55e',
-                color: '#ffffff',
-                textDecoration: 'none',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: '600'
-              }}
-            >
-              {t.exportData}
-            </a>
-          </div>
-        )}
-
-        <div
-          style={{
-            marginTop: '32px',
-            padding: '16px',
-            backgroundColor: '#fef3c7',
-            borderLeft: '4px solid #f59e0b',
-            borderRadius: '8px'
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontSize: '14px',
-              color: '#78350f',
-              lineHeight: '1.5'
-            }}
-          >
-            {t.warningNote}
-          </p>
-        </div>
-
-        <p
-          style={{
-            marginTop: '32px',
-            marginBottom: 0,
-            fontSize: '14px',
-            color: '#64748b',
-            lineHeight: '1.6'
-          }}
-        >
-          {t.footer}
-        </p>
-      </div>
+      <EmailPanel tone="warning">
+        <p style={{ margin: 0 }}>{t.warningNote}</p>
+      </EmailPanel>
+      <EmailParagraph subtle>{t.footer}</EmailParagraph>
     </EmailLayout>
   );
 }

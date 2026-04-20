@@ -1,17 +1,8 @@
 /**
  * Tests for VerificationWarning component behaviour.
  *
- * Test strategy: source-pattern verification (same style as auth-runtime-parity)
- * so the test runs correctly from the workspace root without the happy-dom
- * preload that is only loaded when bun test is invoked from apps/web.
- *
- * Behaviour verified:
- *  1. Component uses `useLocale()` to obtain the active locale.
- *  2. The callbackURL passed to sendVerificationEmail uses the shared
- *     public email verification callback helper instead of pointing at the
- *     protected dashboard.
- *  3. Component detects the `?welcome=true` search param for post-signup UX.
- *  4. The `justSentTitle` i18n key is referenced for the post-signup state.
+ * Test strategy: source-pattern verification so the test remains stable when
+ * run from the workspace root without the apps/web happy-dom preload.
  */
 
 import { describe, expect, it } from 'bun:test';
@@ -26,66 +17,58 @@ async function readComponentSource(): Promise<string> {
   return readFile(componentPath, 'utf-8');
 }
 
-describe('VerificationWarning — locale-aware callbackURL contract', () => {
-  it('imports the email verification callback helper', async () => {
+describe('VerificationWarning — locale-aware resend contract', () => {
+  it('imports the shared email verification helper utilities', async () => {
     const source = await readComponentSource();
+
     expect(source).toContain('@/lib/email-verification');
     expect(source).toContain('buildEmailVerificationCallbackUrl');
+    expect(source).toContain('isPostSignupVerificationSent');
   });
 
-  it('imports useLocale from next-intl', async () => {
+  it('uses the localized public callback URL when resending the verification email', async () => {
     const source = await readComponentSource();
-    expect(source).toContain('useLocale');
-    // Must be imported, not just referenced
-    expect(source).toMatch(/from 'next-intl'/);
-  });
 
-  it('calls useLocale() at the component level', async () => {
-    const source = await readComponentSource();
-    // const locale = useLocale() pattern
-    expect(source).toMatch(/const\s+locale\s*=\s*useLocale\(\)/);
-  });
-
-  it('uses locale variable in the callback helper passed to sendVerificationEmail', async () => {
-    const source = await readComponentSource();
     expect(source).toMatch(
       /callbackURL:\s*buildEmailVerificationCallbackUrl\(\s*window\.location\.origin,\s*locale\s*\)/
     );
   });
 
-  it('does not point the verification callback directly at /dashboard', async () => {
+  it('falls back to the server-provided email when the client session is not ready', async () => {
     const source = await readComponentSource();
-    expect(source).not.toContain('/dashboard`');
+
+    expect(source).toContain('session?.user?.email ?? email');
+  });
+
+  it('uses the localized fallback resend error copy instead of surfacing raw error text', async () => {
+    const source = await readComponentSource();
+
+    expect(source).toContain("setResendError(t('errorResend'))");
+    expect(source).not.toContain('error instanceof Error ? error.message');
   });
 });
 
 describe('VerificationWarning — post-signup state contract', () => {
-  it('imports useSearchParams from next/navigation', async () => {
+  it('detects the dedicated post-signup verification state instead of welcome=true', async () => {
     const source = await readComponentSource();
-    expect(source).toContain('useSearchParams');
-    expect(source).toMatch(/from 'next\/navigation'/);
+
+    expect(source).toContain('isPostSignupVerificationSent(searchParams)');
+    expect(source).not.toContain("searchParams.get('welcome')");
+    expect(source).not.toContain('welcome=true');
   });
 
-  it('reads the welcome search param to detect post-signup arrival', async () => {
+  it('renders the post-signup confirmation without replacing the persistent reminder', async () => {
     const source = await readComponentSource();
-    expect(source).toContain("searchParams.get('welcome')");
-    expect(source).toMatch(/welcome.*true/);
-  });
 
-  it('references justSentTitle i18n key for the post-signup banner', async () => {
-    const source = await readComponentSource();
     expect(source).toContain("t('justSentTitle')");
+    expect(source).toContain("t('title')");
+    expect(source).not.toMatch(/if\s*\(isNewSignup\)\s*\{\s*return/);
   });
 
-  it('references justSentDescription i18n key with email interpolation', async () => {
+  it('wraps the client implementation in Suspense for useSearchParams compatibility', async () => {
     const source = await readComponentSource();
-    expect(source).toContain("t('justSentDescription'");
-    expect(source).toContain('email');
-  });
 
-  it('wraps inner component in Suspense for useSearchParams compatibility', async () => {
-    const source = await readComponentSource();
     expect(source).toContain('Suspense');
-    expect(source).toMatch(/from 'react'/);
+    expect(source).toContain('fallback={null}');
   });
 });

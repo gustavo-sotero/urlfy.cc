@@ -32,7 +32,11 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Link, useRouter } from '@/i18n/routing';
 import { authClient } from '@/lib/auth.client';
-import { buildEmailVerificationCallbackUrl } from '@/lib/email-verification';
+import {
+  buildEmailVerificationCallbackUrl,
+  buildLocalizedDashboardUrl,
+  buildPostSignupDashboardPath
+} from '@/lib/email-verification';
 
 export default function SignupPage() {
   const t = useTranslations('Auth.signup');
@@ -66,7 +70,7 @@ export default function SignupPage() {
     buildEmailVerificationCallbackUrl(window.location.origin, locale);
 
   const buildDashboardCallbackURL = (): string =>
-    `${window.location.origin}/${locale}/dashboard?welcome=true`;
+    buildLocalizedDashboardUrl(window.location.origin, locale);
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -96,8 +100,7 @@ export default function SignupPage() {
         return;
       }
 
-      // Redirect to dashboard or email verification page
-      router.push('/dashboard?welcome=true');
+      router.push(buildPostSignupDashboardPath());
     } catch {
       setError(tErrors('tryAgain'));
     } finally {

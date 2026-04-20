@@ -115,4 +115,17 @@ describe('auth runtime parity contract (api vs web)', () => {
     expect(helperUsageRegex.test(apiSource)).toBe(true);
     expect(helperUsageRegex.test(webSource)).toBe(true);
   });
+
+  it('enables sendOnSignUp in both runtimes', async () => {
+    const [apiSource, webSource] = await Promise.all([
+      readWorkspaceFile('src/lib/auth.ts'),
+      readFromTestDir('../../../web/src/lib/auth.ts')
+    ]);
+
+    const sendOnSignUpRegex =
+      /emailVerification:\s*\{[\s\S]*sendOnSignUp:\s*true/;
+
+    expect(sendOnSignUpRegex.test(apiSource)).toBe(true);
+    expect(sendOnSignUpRegex.test(webSource)).toBe(true);
+  });
 });

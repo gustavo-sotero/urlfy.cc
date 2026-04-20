@@ -2,46 +2,91 @@ import { describe, expect, it } from 'bun:test';
 import { renderEmail } from '../render';
 import type {
   AppLocale,
-  EmailVerificationPayload,
-  PasswordResetPayload,
-  WelcomeEmailPayload
+  EmailPayloadByTemplate,
+  EmailTemplate
 } from '../types';
+
+const basePayloads: { [K in EmailTemplate]: EmailPayloadByTemplate[K] } = {
+  welcome: {
+    firstName: 'Test',
+    email: 'test@example.com'
+  },
+  emailVerification: {
+    firstName: 'Test',
+    verificationUrl: 'https://urlfy.cc/verify?token=abc123',
+    expiresInMinutes: 30
+  },
+  passwordReset: {
+    firstName: 'Test',
+    resetUrl: 'https://urlfy.cc/reset?token=def456',
+    expiresInMinutes: 15
+  },
+  dataDeletionConfirmation: {
+    firstName: 'Test',
+    requestDate: new Date('2026-01-01T12:00:00.000Z'),
+    deadlineDate: new Date('2026-01-04T12:00:00.000Z'),
+    exportUrl: 'https://urlfy.cc/export'
+  },
+  linkBanned: {
+    firstName: 'Test',
+    linkUrl: 'https://example.com/spam',
+    shortCode: 'abc123',
+    bannedReason: 'Spam content',
+    bannedAt: new Date('2026-01-01T12:00:00.000Z'),
+    appealUrl: 'https://urlfy.cc/appeal/abc123'
+  },
+  quotaWarning: {
+    firstName: 'Test',
+    currentUsage: 95,
+    quotaLimit: 100,
+    percentUsed: 95,
+    upgradeUrl: 'https://urlfy.cc/upgrade'
+  }
+};
+
+const previewTextSnippets: Record<AppLocale, Record<EmailTemplate, string>> = {
+  en: {
+    welcome: 'a separate verification email is on the way.',
+    emailVerification: 'Confirm that you own this email address.',
+    passwordReset: 'Use this secure link to choose a new password.',
+    dataDeletionConfirmation:
+      'Your deletion request is queued and being processed.',
+    linkBanned: 'Review the reason for the block and the next steps.',
+    quotaWarning: 'Your workspace is getting close to its limit.'
+  },
+  'pt-br': {
+    welcome:
+      'Seu dashboard está pronto, e um e-mail de verificação separado já foi enviado.',
+    emailVerification: 'Confirme que este endereço de e-mail é seu.',
+    passwordReset: 'Use este link seguro para escolher uma nova senha.',
+    dataDeletionConfirmation:
+      'Sua solicitação de exclusão foi registrada e está em processamento.',
+    linkBanned: 'Revise o motivo do bloqueio e os próximos passos.',
+    quotaWarning: 'Seu workspace está se aproximando do limite.'
+  }
+};
+
+function expectSharedShell(locale: AppLocale, html: string) {
+  if (locale === 'en') {
+    expect(html).toContain('Account updates');
+    expect(html).toContain('Short links with clear analytics');
+    expect(html).toContain('You are receiving this message because');
+    expect(html).toContain('Terms of Use');
+    expect(html).toContain('Privacy Policy');
+    expect(html).toContain('Help');
+  } else {
+    expect(html).toContain('Atualizações da conta');
+    expect(html).toContain('Links curtos com analytics claros');
+    expect(html).toContain('Você recebeu esta mensagem porque');
+    expect(html).toContain('Termos de Uso');
+    expect(html).toContain('Política de Privacidade');
+    expect(html).toContain('Ajuda');
+  }
+}
 
 describe('Email rendering', () => {
   describe('welcome email', () => {
-    it('renders in English', async () => {
-      const result = await renderEmail({
-        locale: 'en',
-        template: 'welcome',
-        payload: {
-          firstName: 'John',
-          email: 'john@example.com'
-        }
-      });
-
-      expect(result.subject).toContain('Welcome to urlfy.cc');
-      expect(result.subject).toContain('John');
-      expect(result.html).toContain('Hello, John!');
-      expect(result.html).not.toContain('Olá');
-    });
-
-    it('renders in Portuguese', async () => {
-      const result = await renderEmail({
-        locale: 'pt-br',
-        template: 'welcome',
-        payload: {
-          firstName: 'João',
-          email: 'joao@example.com'
-        }
-      });
-
-      expect(result.subject).toContain('Bem-vindo ao urlfy.cc');
-      expect(result.subject).toContain('João');
-      expect(result.html).toContain('Olá, João!');
-      expect(result.html).not.toContain('Hello');
-    });
-
-    it('interpolates firstName in the subject', async () => {
+    it('renders the English subject and onboarding copy', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'welcome',
@@ -51,29 +96,52 @@ describe('Email rendering', () => {
         }
       });
 
-      expect(result.subject).toBe('Welcome to urlfy.cc, Alice! 🎉');
+      expect(result.subject).toBe('Welcome to urlfy.cc, Alice');
+      expect(result.html).toContain('Hello, Alice,');
+      expect(result.html).toContain('a separate verification email');
+      expect(result.html).toContain('Open dashboard');
+      expectSharedShell('en', result.html);
+    });
+
+    it('renders the Portuguese subject and onboarding copy', async () => {
+      const result = await renderEmail({
+        locale: 'pt-br',
+        template: 'welcome',
+        payload: {
+          firstName: 'João',
+          email: 'joao@example.com'
+        }
+      });
+
+      expect(result.subject).toBe('Bem-vindo ao urlfy.cc, João');
+      expect(result.html).toContain('Olá, João,');
+      expect(result.html).toContain('e-mail de verificação separado');
+      expect(result.html).toContain('Abrir dashboard');
+      expectSharedShell('pt-br', result.html);
     });
   });
 
   describe('email verification', () => {
-    it('renders in English', async () => {
+    it('renders the English verification subject, CTA, and fallback link', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'emailVerification',
         payload: {
           firstName: 'Bob',
           verificationUrl: 'https://urlfy.cc/verify?token=abc',
-          expiresInMinutes: 30
+          expiresInMinutes: 15
         }
       });
 
-      expect(result.subject).toBe('Confirm your email - urlfy.cc');
-      expect(result.html).toContain('Hello, Bob!');
-      expect(result.html).toContain('Confirm My Email');
+      expect(result.subject).toBe('Verify your email for urlfy.cc');
+      expect(result.html).toContain('Verify your email address');
+      expect(result.html).toContain('Verify email');
+      expect(result.html).toContain('15 minutes');
       expect(result.html).toContain('https://urlfy.cc/verify?token=abc');
+      expect(result.html).toContain('separate from your welcome email');
     });
 
-    it('renders in Portuguese', async () => {
+    it('renders the Portuguese verification subject and CTA', async () => {
       const result = await renderEmail({
         locale: 'pt-br',
         template: 'emailVerification',
@@ -84,29 +152,15 @@ describe('Email rendering', () => {
         }
       });
 
-      expect(result.subject).toBe('Confirme seu email - urlfy.cc');
-      expect(result.html).toContain('Olá, Carlos!');
-      expect(result.html).toContain('Confirmar Meu Email');
+      expect(result.subject).toBe('Verifique seu e-mail no urlfy.cc');
+      expect(result.html).toContain('Verifique seu e-mail');
+      expect(result.html).toContain('Verificar e-mail');
       expect(result.html).toContain('https://urlfy.cc/verify?token=xyz');
-    });
-
-    it('interpolates expiration time', async () => {
-      const result = await renderEmail({
-        locale: 'en',
-        template: 'emailVerification',
-        payload: {
-          firstName: 'Diana',
-          verificationUrl: 'https://urlfy.cc/verify',
-          expiresInMinutes: 15
-        }
-      });
-
-      expect(result.html).toContain('15 minutes');
     });
   });
 
   describe('password reset', () => {
-    it('renders in English', async () => {
+    it('renders the English password reset copy and security tips', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'passwordReset',
@@ -117,72 +171,70 @@ describe('Email rendering', () => {
         }
       });
 
-      expect(result.subject).toBe('Reset your password - urlfy.cc');
-      expect(result.html).toContain('Hello, Eve!');
-      expect(result.html).toContain('Reset My Password');
+      expect(result.subject).toBe('Reset your password for urlfy.cc');
+      expect(result.html).toContain('Choose a new password');
+      expect(result.html).toContain('Security tips');
+      expect(result.html).toContain('Never share your password');
     });
 
-    it('renders in Portuguese', async () => {
+    it('renders the Portuguese password reset copy', async () => {
       const result = await renderEmail({
         locale: 'pt-br',
         template: 'passwordReset',
         payload: {
-          firstName: 'Fernando',
+          firstName: 'Fernanda',
           resetUrl: 'https://urlfy.cc/reset?token=ghi',
           expiresInMinutes: 15
         }
       });
 
-      expect(result.subject).toBe('Redefinir sua senha - urlfy.cc');
-      expect(result.html).toContain('Olá, Fernando!');
-      expect(result.html).toContain('Redefinir Minha Senha');
+      expect(result.subject).toBe('Redefina sua senha do urlfy.cc');
+      expect(result.html).toContain('Escolher nova senha');
+      expect(result.html).toContain('Dicas de segurança');
     });
   });
 
   describe('data deletion confirmation', () => {
-    it('renders in English', async () => {
-      const requestDate = new Date('2026-01-28');
-      const deadlineDate = new Date('2026-01-31');
-
+    it('renders the English deletion request details and export CTA', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'dataDeletionConfirmation',
         payload: {
           firstName: 'Grace',
-          requestDate,
-          deadlineDate,
+          requestDate: new Date('2026-01-28T12:00:00.000Z'),
+          deadlineDate: new Date('2026-01-31T12:00:00.000Z'),
           exportUrl: 'https://urlfy.cc/export'
         }
       });
 
-      expect(result.subject).toBe('Data Deletion Request Received');
-      expect(result.html).toContain('Hello, Grace');
-      expect(result.html).toContain('https://urlfy.cc/export');
+      expect(result.subject).toBe('We received your data deletion request');
+      expect(result.html).toContain('Request details');
+      expect(result.html).toContain('What happens next');
+      expect(result.html).toContain('Export my data');
     });
 
-    it('renders in Portuguese', async () => {
-      const requestDate = new Date('2026-01-28');
-      const deadlineDate = new Date('2026-01-31');
-
+    it('renders the Portuguese deletion request details', async () => {
       const result = await renderEmail({
         locale: 'pt-br',
         template: 'dataDeletionConfirmation',
         payload: {
           firstName: 'Henrique',
-          requestDate,
-          deadlineDate,
-          exportUrl: 'https://urlfy.cc/export'
+          requestDate: new Date('2026-01-28T12:00:00.000Z'),
+          deadlineDate: new Date('2026-01-31T12:00:00.000Z')
         }
       });
 
-      expect(result.subject).toBe('Solicitação de Exclusão de Dados Recebida');
-      expect(result.html).toContain('Olá, Henrique');
-      expect(result.html).toContain('https://urlfy.cc/export');
+      expect(result.subject).toBe(
+        'Recebemos sua solicitação de exclusão de dados'
+      );
+      expect(result.html).toContain('Detalhes da solicitação');
+      expect(result.html).toContain('O que acontece agora');
+      expect(result.html).toContain('O que será excluído');
     });
   });
 
   describe('link banned notification', () => {
-    it('renders in English', async () => {
+    it('renders the English blocked-link details and next steps', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'linkBanned',
@@ -191,18 +243,23 @@ describe('Email rendering', () => {
           linkUrl: 'https://example.com/spam',
           shortCode: 'abc123',
           bannedReason: 'Spam content',
-          bannedAt: new Date('2026-01-28'),
+          bannedAt: new Date('2026-01-28T12:00:00.000Z'),
           appealUrl: 'https://urlfy.cc/appeal/abc123'
         }
       });
 
-      expect(result.subject).toContain('Link Blocked');
-      expect(result.html).toContain('Hello, Ivy');
-      expect(result.html).toContain('abc123');
-      expect(result.html).toContain('Spam content');
+      expect(result.subject).toBe(
+        'Action required: one of your links was blocked'
+      );
+      expect(result.html).toContain('Short Code');
+      expect(result.html).toContain('What this means');
+      expect(result.html).toContain(
+        'Check the rule that applies to this destination'
+      );
+      expect(result.html).toContain('Contest Ban');
     });
 
-    it('renders in Portuguese', async () => {
+    it('renders the Portuguese blocked-link details', async () => {
       const result = await renderEmail({
         locale: 'pt-br',
         template: 'linkBanned',
@@ -211,40 +268,46 @@ describe('Email rendering', () => {
           linkUrl: 'https://example.com/spam',
           shortCode: 'xyz789',
           bannedReason: 'Conteúdo spam',
-          bannedAt: new Date('2026-01-28'),
+          bannedAt: new Date('2026-01-28T12:00:00.000Z'),
           appealUrl: 'https://urlfy.cc/appeal/xyz789'
         }
       });
 
-      expect(result.subject).toContain('Link Bloqueado');
-      expect(result.html).toContain('Olá, Jorge');
-      expect(result.html).toContain('xyz789');
-      expect(result.html).toContain('Conteúdo spam');
+      expect(result.subject).toBe(
+        'Ação necessária: um dos seus links foi bloqueado'
+      );
+      expect(result.html).toContain('Código Curto');
+      expect(result.html).toContain('Próximos passos');
+      expect(result.html).toContain(
+        'Confira a regra que se aplica a este destino'
+      );
+      expect(result.html).toContain('Contestar Bloqueio');
     });
   });
 
   describe('quota warning', () => {
-    it('renders in English with interpolated percentage', async () => {
+    it('renders the English quota warning, usage rows, and critical state', async () => {
       const result = await renderEmail({
         locale: 'en',
         template: 'quotaWarning',
         payload: {
           firstName: 'Kate',
-          currentUsage: 85,
+          currentUsage: 95,
           quotaLimit: 100,
-          percentUsed: 85,
+          percentUsed: 95,
           upgradeUrl: 'https://urlfy.cc/upgrade'
         }
       });
 
-      expect(result.subject).toContain('85%');
-      expect(result.html).toContain('Hello, Kate!');
-      expect(result.html).toContain('85');
-      expect(result.html).toContain('100');
-      expect(result.html).toContain('links');
+      expect(result.subject).toBe('You have used 95% of your link quota');
+      expect(result.html).toContain('Current usage');
+      expect(result.html).toContain('Plan limit');
+      expect(result.html).toContain('95%');
+      expect(result.html).toContain('5 links left');
+      expect(result.html).toContain('View plans');
     });
 
-    it('renders in Portuguese with interpolated percentage', async () => {
+    it('renders the Portuguese quota warning copy', async () => {
       const result = await renderEmail({
         locale: 'pt-br',
         template: 'quotaWarning',
@@ -257,265 +320,82 @@ describe('Email rendering', () => {
         }
       });
 
-      expect(result.subject).toContain('90%');
-      expect(result.html).toContain('Olá, Lucas!');
-      expect(result.html).toContain('90');
-      expect(result.html).toContain('100');
-      expect(result.html).toContain('links');
+      expect(result.subject).toBe('Você já usou 90% da sua cota de links');
+      expect(result.html).toContain('Uso atual');
+      expect(result.html).toContain('Limite do plano');
+      expect(result.html).toContain('Ver planos');
     });
   });
 
-  describe('locale resolution', () => {
-    it('handles all valid locales', async () => {
+  describe('shared shell and locale coverage', () => {
+    it('applies the shared shell to every template in every locale', async () => {
       const locales: AppLocale[] = ['en', 'pt-br'];
-
-      for (const locale of locales) {
-        const result = await renderEmail({
-          locale,
-          template: 'welcome',
-          payload: {
-            firstName: 'Test',
-            email: 'test@example.com'
-          }
-        });
-
-        expect(result.subject).toBeTruthy();
-        expect(result.html).toBeTruthy();
-        expect(result.html.length).toBeGreaterThan(100);
-      }
-    });
-
-    it('generates valid HTML for all templates and locales', async () => {
-      const templates: Array<{
-        template: 'welcome' | 'emailVerification' | 'passwordReset';
-        payload:
-          | WelcomeEmailPayload
-          | EmailVerificationPayload
-          | PasswordResetPayload;
-      }> = [
-        {
-          template: 'welcome',
-          payload: { firstName: 'Test', email: 'test@example.com' }
-        },
-        {
-          template: 'emailVerification',
-          payload: {
-            firstName: 'Test',
-            verificationUrl: 'https://example.com'
-          }
-        },
-        {
-          template: 'passwordReset',
-          payload: { firstName: 'Test', resetUrl: 'https://example.com' }
-        }
+      const templates: EmailTemplate[] = [
+        'welcome',
+        'emailVerification',
+        'passwordReset',
+        'dataDeletionConfirmation',
+        'linkBanned',
+        'quotaWarning'
       ];
 
-      const locales: AppLocale[] = ['en', 'pt-br'];
-
-      for (const { template, payload } of templates) {
-        for (const locale of locales) {
-          const result = await renderEmail({ locale, template, payload });
+      for (const locale of locales) {
+        for (const template of templates) {
+          const result = await renderEmail({
+            locale,
+            template,
+            payload: basePayloads[template]
+          });
 
           expect(result.html).toContain('<!DOCTYPE html');
           expect(result.html).toContain('</html>');
           expect(result.subject).toBeTruthy();
+          expect(result.html.length).toBeGreaterThan(800);
+          expectSharedShell(locale, result.html);
         }
       }
     });
-  });
 
-  describe('shared email-layout locale awareness', () => {
-    it('renders English footer for en locale', async () => {
-      const result = await renderEmail({
-        locale: 'en',
-        template: 'welcome',
-        payload: { firstName: 'Test', email: 'test@example.com' }
-      });
-
-      expect(result.html).toContain('All rights reserved');
-      expect(result.html).toContain('Terms of Use');
-      expect(result.html).toContain('Privacy Policy');
-      expect(result.html).toContain('Don&#x27;t want to receive these emails?');
-      expect(result.html).not.toContain('Todos os direitos reservados');
-    });
-
-    it('renders Portuguese footer for pt-br locale', async () => {
-      const result = await renderEmail({
-        locale: 'pt-br',
-        template: 'welcome',
-        payload: { firstName: 'Teste', email: 'teste@example.com' }
-      });
-
-      expect(result.html).toContain('Todos os direitos reservados');
-      expect(result.html).toContain('Termos de Uso');
-      expect(result.html).toContain('Privacidade');
-      expect(result.html).toContain('Não deseja mais receber esses emails?');
-      expect(result.html).not.toContain('All rights reserved');
-    });
-
-    it('includes preview text in all templates', async () => {
-      const templates = [
-        {
-          template: 'welcome' as const,
-          payload: { firstName: 'Test', email: 'test@example.com' }
-        },
-        {
-          template: 'emailVerification' as const,
-          payload: {
-            firstName: 'Test',
-            verificationUrl: 'https://example.com/verify'
-          }
-        },
-        {
-          template: 'passwordReset' as const,
-          payload: {
-            firstName: 'Test',
-            resetUrl: 'https://example.com/reset'
-          }
-        }
+    it('includes the localized preview text in every template and locale', async () => {
+      const locales: AppLocale[] = ['en', 'pt-br'];
+      const templates: EmailTemplate[] = [
+        'welcome',
+        'emailVerification',
+        'passwordReset',
+        'dataDeletionConfirmation',
+        'linkBanned',
+        'quotaWarning'
       ];
 
-      for (const { template, payload } of templates) {
-        const result = await renderEmail({ locale: 'en', template, payload });
-        // Preview text is hidden via display:none in a div element
-        expect(result.html.length).toBeGreaterThan(200);
-        expect(result.subject).toBeTruthy();
+      for (const locale of locales) {
+        for (const template of templates) {
+          const result = await renderEmail({
+            locale,
+            template,
+            payload: basePayloads[template]
+          });
+
+          expect(result.html).toContain(previewTextSnippets[locale][template]);
+        }
       }
     });
-  });
 
-  describe('quota warning locale correctness', () => {
-    it('uses catalog text in English, not hardcoded Portuguese', async () => {
-      const result = await renderEmail({
+    it('keeps welcome and verification emails clearly differentiated', async () => {
+      const welcome = await renderEmail({
         locale: 'en',
-        template: 'quotaWarning',
-        payload: {
-          firstName: 'Test',
-          currentUsage: 80,
-          quotaLimit: 100,
-          percentUsed: 80,
-          upgradeUrl: 'https://urlfy.cc/upgrade'
-        }
+        template: 'welcome',
+        payload: basePayloads.welcome
       });
-
-      expect(result.html).not.toContain('Uso Atual');
-      expect(result.html).not.toContain('Opções disponíveis');
-      expect(result.html).not.toContain('Ver Planos');
-      expect(result.html).toContain('Current usage');
-      expect(result.html).toContain('View Plans');
-    });
-
-    it('uses catalog text in Portuguese', async () => {
-      const result = await renderEmail({
-        locale: 'pt-br',
-        template: 'quotaWarning',
-        payload: {
-          firstName: 'Teste',
-          currentUsage: 90,
-          quotaLimit: 100,
-          percentUsed: 90,
-          upgradeUrl: 'https://urlfy.cc/upgrade'
-        }
-      });
-
-      expect(result.html).toContain('Ver Planos');
-      expect(result.html).toContain('Uso atual');
-    });
-
-    it('renders critical warning when percentUsed >= 90', async () => {
-      const result = await renderEmail({
+      const verification = await renderEmail({
         locale: 'en',
-        template: 'quotaWarning',
-        payload: {
-          firstName: 'Test',
-          currentUsage: 95,
-          quotaLimit: 100,
-          percentUsed: 95,
-          upgradeUrl: 'https://urlfy.cc/upgrade'
-        }
+        template: 'emailVerification',
+        payload: basePayloads.emailVerification
       });
 
-      // remaining = 100 - 95 = 5
-      expect(result.html).toContain('5');
-      expect(result.html).toContain('Warning!');
-    });
-  });
-
-  describe('link banned locale correctness', () => {
-    it('uses catalog labels in English, not hardcoded Portuguese', async () => {
-      const result = await renderEmail({
-        locale: 'en',
-        template: 'linkBanned',
-        payload: {
-          firstName: 'Test',
-          linkUrl: 'https://example.com',
-          shortCode: 'abc123',
-          bannedReason: 'Spam',
-          bannedAt: new Date('2026-01-01'),
-          appealUrl: 'https://urlfy.cc/appeal'
-        }
-      });
-
-      expect(result.html).not.toContain('Código Curto');
-      expect(result.html).not.toContain('O que isso significa');
-      expect(result.html).not.toContain('Contestar Bloqueio');
-      expect(result.html).toContain('Short Code');
-      expect(result.html).toContain('What this means');
-      expect(result.html).toContain('Contest Ban');
-    });
-
-    it('uses catalog labels in Portuguese', async () => {
-      const result = await renderEmail({
-        locale: 'pt-br',
-        template: 'linkBanned',
-        payload: {
-          firstName: 'Teste',
-          linkUrl: 'https://example.com',
-          shortCode: 'xyz789',
-          bannedReason: 'Spam',
-          bannedAt: new Date('2026-01-01'),
-          appealUrl: 'https://urlfy.cc/appeal'
-        }
-      });
-
-      expect(result.html).toContain('Código Curto');
-      expect(result.html).toContain('O que isso significa');
-      expect(result.html).toContain('Contestar Bloqueio');
-    });
-  });
-
-  describe('data deletion locale correctness', () => {
-    it('uses catalog labels in English, not hardcoded Portuguese', async () => {
-      const result = await renderEmail({
-        locale: 'en',
-        template: 'dataDeletionConfirmation',
-        payload: {
-          firstName: 'Test',
-          requestDate: new Date('2026-01-01'),
-          deadlineDate: new Date('2026-01-04'),
-          exportUrl: 'https://urlfy.cc/export'
-        }
-      });
-
-      expect(result.html).not.toContain('O que será excluído');
-      expect(result.html).not.toContain('Data da Solicitação');
-      expect(result.html).toContain('What will be deleted');
-      expect(result.html).toContain('Requested on');
-    });
-
-    it('uses catalog labels in Portuguese', async () => {
-      const result = await renderEmail({
-        locale: 'pt-br',
-        template: 'dataDeletionConfirmation',
-        payload: {
-          firstName: 'Teste',
-          requestDate: new Date('2026-01-01'),
-          deadlineDate: new Date('2026-01-04')
-        }
-      });
-
-      expect(result.html).toContain('O que será excluído');
-      expect(result.html).toContain('Solicitado em');
+      expect(welcome.html).toContain('Open dashboard');
+      expect(welcome.html).toContain('a separate verification email');
+      expect(verification.html).toContain('Verify email');
+      expect(verification.html).toContain('separate from your welcome email');
     });
   });
 });

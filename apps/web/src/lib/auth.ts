@@ -129,6 +129,7 @@ export const auth = betterAuth({
   // EMAIL VERIFICATION
   // ===================================================================
   emailVerification: {
+    sendOnSignUp: true,
     sendVerificationEmail: async ({
       user,
       url,

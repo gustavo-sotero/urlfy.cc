@@ -106,21 +106,21 @@ export const Auth = {
     successBadge: 'Email verified',
     successTitle: 'Your email has been confirmed',
     successDescription:
-      'The verification token was accepted and your address is now verified.',
+      'Your verification link worked and this address is now confirmed.',
     successHint:
-      'If you opened this link in a browser where you are not signed in, continue to login and we will send you back to your dashboard.',
+      'If this browser is not signed in yet, continue to login and we will send you back to your dashboard.',
     errorBadge: 'Verification failed',
     errorTitle: 'This verification link is no longer valid',
     errorDescription:
-      'The token is invalid, expired, or has already been used.',
+      'This verification link is invalid, expired, or has already been used.',
     errorHint:
       'Sign in to your account and request a new verification email from your dashboard if you still need one.',
     pendingBadge: 'Verification status',
     pendingTitle: 'Verification status updated',
     pendingDescription:
-      'Continue to your account to confirm the latest verification status for this email address.',
+      'Continue to your account to confirm the latest verification status for this address.',
     pendingHint:
-      'If you are not signed in in this browser, continue to login first and then open your dashboard.',
+      'If this browser is not signed in yet, continue to login first and then open your dashboard.',
     continueCta: 'Continue to sign in',
     retryCta: 'Open sign in',
     homeCta: 'Back to home',

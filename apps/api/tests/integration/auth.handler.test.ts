@@ -10,7 +10,13 @@
  */
 
 import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { createDbMock } from '../mocks/db.mock';
+
+async function readIntegrationSource(relativePath: string): Promise<string> {
+  return readFile(resolve(import.meta.dir, relativePath), 'utf-8');
+}
 
 // Mock Database
 mock.module('@urlfy/data', () => ({
@@ -177,6 +183,45 @@ describe('Auth Endpoints (handler-level)', () => {
       expect(redirectUrl.pathname).toBe('/en/email-verification');
       expect(redirectUrl.searchParams.get('verified')).toBe('1');
       expect(redirectUrl.searchParams.get('error')).toBeTruthy();
+    });
+  });
+
+  describe('signup verification runtime contract', () => {
+    test('keeps email verification optional in the shared auth config', async () => {
+      const sharedConfigSource = await readIntegrationSource(
+        '../../../../packages/auth-shared/src/auth-config.ts'
+      );
+
+      expect(sharedConfigSource).toMatch(/requireEmailVerification:\s*false/);
+    });
+
+    test('enables signup-triggered verification with callback preservation and non-blocking dispatch', async () => {
+      const authRuntimeSource = await readIntegrationSource(
+        '../../src/lib/auth.ts'
+      );
+
+      expect(authRuntimeSource).toMatch(
+        /emailVerification:\s*\{[\s\S]*sendOnSignUp:\s*true/
+      );
+      expect(authRuntimeSource).toContain(
+        "const rawCallbackURL = new URL(url).searchParams.get('callbackURL');"
+      );
+      expect(authRuntimeSource).toMatch(
+        /buildPublicEmailVerificationUrl\(\s*\{\s*token,\s*callbackURL:\s*rawCallbackURL\s*\}\s*\)/
+      );
+      expect(authRuntimeSource).toMatch(
+        /void emailService\s*\.sendEmailVerification\([\s\S]*\)\s*\.catch\(/
+      );
+    });
+
+    test('keeps the welcome email dispatch in onUserCreated', async () => {
+      const authRuntimeSource = await readIntegrationSource(
+        '../../src/lib/auth.ts'
+      );
+
+      expect(authRuntimeSource).toMatch(
+        /onUserCreated:\s*async[\s\S]*await emailService\.sendWelcomeEmail\(/
+      );
     });
   });
 });

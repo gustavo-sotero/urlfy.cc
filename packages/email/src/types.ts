@@ -169,6 +169,7 @@ export interface EmailMessages {
     bannedOn: string;
     whatYouCanDo: string;
     reviewTerms: string;
+    reviewTermsDesc: string;
     appeal: string;
     appealDesc: string;
     createNew: string;

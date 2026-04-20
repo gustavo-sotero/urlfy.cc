@@ -24,6 +24,7 @@ describe('SignupPage — localized auth callbackURL contract', () => {
 
     expect(source).toContain('@/lib/email-verification');
     expect(source).toContain('buildEmailVerificationCallbackUrl');
+    expect(source).toContain('buildPostSignupDashboardPath');
   });
 
   it('imports and uses useLocale from next-intl', async () => {
@@ -49,14 +50,20 @@ describe('SignupPage — localized auth callbackURL contract', () => {
     );
   });
 
+  it('redirects successful email signup to the post-signup verification state', async () => {
+    const source = await readSignupPageSource();
+
+    expect(source).toContain('buildPostSignupDashboardPath');
+    expect(source).toMatch(/router\.push\(buildPostSignupDashboardPath\(\)\)/);
+  });
+
   it('keeps the protected dashboard callback only for social signup', async () => {
     const source = await readSignupPageSource();
-    const protectedDashboardCallbacks =
-      source.match(/callbackURL:\s*buildDashboardCallbackURL\(\)/g) ?? [];
 
-    expect(protectedDashboardCallbacks).toHaveLength(1);
     expect(source).toMatch(
       /signIn\.social\s*\(\s*\{[\s\S]*callbackURL:\s*buildDashboardCallbackURL\(\)/
     );
+    expect(source).toContain('buildLocalizedDashboardUrl');
+    expect(source).not.toContain('welcome=true');
   });
 });

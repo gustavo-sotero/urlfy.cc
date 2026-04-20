@@ -7,9 +7,16 @@ import { Suspense, useCallback, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth.client';
-import { buildEmailVerificationCallbackUrl } from '@/lib/email-verification';
+import {
+  buildEmailVerificationCallbackUrl,
+  isPostSignupVerificationSent
+} from '@/lib/email-verification';
 
-function VerificationWarningInner() {
+interface VerificationWarningInnerProps {
+  email: string;
+}
+
+function VerificationWarningInner({ email }: VerificationWarningInnerProps) {
   const [isResending, setIsResending] = useState<boolean>(false);
   const [resendSuccess, setResendSuccess] = useState<boolean>(false);
   const [resendError, setResendError] = useState<string | null>(null);
@@ -18,10 +25,11 @@ function VerificationWarningInner() {
   const locale = useLocale();
   const { data: session } = authClient.useSession();
   const searchParams = useSearchParams();
-  const isNewSignup = searchParams.get('welcome') === 'true';
+  const isNewSignup = isPostSignupVerificationSent(searchParams);
+  const emailAddress = session?.user?.email ?? email;
 
   const handleResendEmail = useCallback(async (): Promise<void> => {
-    if (!session?.user?.email) {
+    if (!emailAddress) {
       setResendError(t('errorEmail'));
       return;
     }
@@ -32,90 +40,91 @@ function VerificationWarningInner() {
 
     try {
       await authClient.sendVerificationEmail({
-        email: session.user.email,
+        email: emailAddress,
         callbackURL: buildEmailVerificationCallbackUrl(
           window.location.origin,
           locale
         )
       });
       setResendSuccess(true);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : t('errorResend');
-      setResendError(errorMessage);
+    } catch {
+      setResendError(t('errorResend'));
     } finally {
       setIsResending(false);
     }
-  }, [session?.user?.email, locale, t]);
+  }, [emailAddress, locale, t]);
 
-  if (isNewSignup) {
-    return (
-      <Alert className="mb-6 border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
-        <CheckCircle2 className="text-blue-600 dark:text-blue-400" />
-        <AlertTitle className="text-blue-900 dark:text-blue-400">
-          {t('justSentTitle')}
+  return (
+    <div className="space-y-4">
+      {isNewSignup ? (
+        <Alert className="border-sky-500/40 bg-sky-50 dark:bg-sky-950/20">
+          <CheckCircle2 className="text-sky-600 dark:text-sky-400" />
+          <AlertTitle className="text-sky-900 dark:text-sky-300">
+            {t('justSentTitle')}
+          </AlertTitle>
+          <AlertDescription className="text-sky-800 dark:text-sky-200">
+            <div className="space-y-2">
+              <p>
+                {t('justSentDescription', {
+                  email: emailAddress
+                })}
+              </p>
+              <p className="text-xs text-sky-700 dark:text-sky-300">
+                {t('justSentHelp')}
+              </p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      <Alert
+        variant="default"
+        className="border-amber-500/40 bg-amber-50 dark:bg-amber-950/20"
+      >
+        <AlertCircle className="text-amber-600 dark:text-amber-400" />
+        <AlertTitle className="text-amber-900 dark:text-amber-300">
+          {t('title')}
         </AlertTitle>
-        <AlertDescription className="text-blue-800 dark:text-blue-500">
-          <div className="space-y-1">
-            <p>
-              {t('justSentDescription', {
-                email: session?.user?.email ?? ''
-              })}
-            </p>
+        <AlertDescription className="text-amber-800 dark:text-amber-200">
+          <div className="space-y-3">
+            <p>{t('description')}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleResendEmail}
+                disabled={isResending || resendSuccess}
+                className="border-amber-600/30 hover:border-amber-600/50 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+              >
+                <Mail className="size-3.5" />
+                {isResending
+                  ? t('sending')
+                  : resendSuccess
+                    ? t('sent')
+                    : t('resend')}
+              </Button>
+              {resendSuccess && (
+                <span className="text-xs text-emerald-700 dark:text-emerald-400">
+                  {t('checkInbox')}
+                </span>
+              )}
+              {resendError && (
+                <span className="text-xs text-red-700 dark:text-red-400">
+                  {resendError}
+                </span>
+              )}
+            </div>
           </div>
         </AlertDescription>
       </Alert>
-    );
-  }
-
-  return (
-    <Alert
-      variant="default"
-      className="mb-6 border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20"
-    >
-      <AlertCircle className="text-yellow-600 dark:text-yellow-500" />
-      <AlertTitle className="text-yellow-900 dark:text-yellow-400">
-        {t('title')}
-      </AlertTitle>
-      <AlertDescription className="text-yellow-800 dark:text-yellow-500">
-        <div className="space-y-3">
-          <p>{t('description')}</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleResendEmail}
-              disabled={isResending || resendSuccess}
-              className="border-yellow-600/30 hover:border-yellow-600/50 hover:bg-yellow-100 dark:hover:bg-yellow-900/30"
-            >
-              <Mail className="size-3.5" />
-              {isResending
-                ? t('sending')
-                : resendSuccess
-                  ? t('sent')
-                  : t('resend')}
-            </Button>
-            {resendSuccess && (
-              <span className="text-xs text-green-700 dark:text-green-400">
-                {t('checkInbox')}
-              </span>
-            )}
-            {resendError && (
-              <span className="text-xs text-red-700 dark:text-red-400">
-                {resendError}
-              </span>
-            )}
-          </div>
-        </div>
-      </AlertDescription>
-    </Alert>
+    </div>
   );
 }
 
-export function VerificationWarning() {
+export function VerificationWarning({ email }: { email: string }) {
   return (
-    <Suspense>
-      <VerificationWarningInner />
+    <Suspense fallback={null}>
+      <VerificationWarningInner email={email} />
     </Suspense>
   );
 }

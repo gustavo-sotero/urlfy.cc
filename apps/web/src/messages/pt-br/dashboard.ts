@@ -91,18 +91,23 @@ export const Dashboard = {
   },
 
   verification: {
-    title: 'Verificação de e-mail pendente',
+    title: 'Verifique seu e-mail',
     description:
-      'Por favor, verifique seu endereço de e-mail para ter acesso completo à plataforma. Você não poderá criar links até confirmar seu e-mail.',
-    justSentTitle: 'E-mail de verificação enviado!',
+      'Você pode continuar usando o urlfy.cc, mas verificar seu e-mail confirma que este endereço é seu e ajuda a manter os avisos de segurança e onboarding chegando na caixa certa.',
+    justSentTitle: 'E-mail de verificação enviado',
     justSentDescription:
-      'Enviamos um e-mail de verificação para {email}. Verifique sua caixa de entrada e spam para confirmar seu endereço.',
+      'Enviamos um e-mail de verificação para {email}. Ele é separado do seu e-mail de boas-vindas.',
+    justSentHelp:
+      'Verifique sua caixa de entrada e spam. Se nada chegar em alguns minutos, use a ação de reenvio abaixo.',
     sending: 'Enviando...',
-    sent: 'E-mail enviado!',
-    resend: 'Reenviar e-mail',
-    checkInbox: 'Verifique sua caixa de entrada e spam.',
-    errorEmail: 'Não foi possível obter o email do usuário.',
-    errorResend: 'Falha ao reenviar email. Tente novamente.'
+    sent: 'E-mail de verificação enviado',
+    resend: 'Reenviar e-mail de verificação',
+    checkInbox:
+      'Verifique sua caixa de entrada e spam. Se nada chegar em alguns minutos, você pode reenviar.',
+    errorEmail:
+      'Não foi possível identificar qual endereço de e-mail deve ser verificado.',
+    errorResend:
+      'Não foi possível reenviar o e-mail de verificação. Tente novamente.'
   },
 
   pagination: {
