@@ -10,7 +10,7 @@
 [x] Ajustes Dashboard
     - ajustar dashboard e tornar ela responsiva para dispositivos mobiles.
     - Melhorar a UX do formulario de criar link no dashboard, tipo a ux não é ruim, mas é simples demais.
-[ ] Correções email
+[x] Correções email
     - Atualmente o e-mail para verificar conta, só é enviado caso o usuario faça login e na tela de login solicitar o email, e e-mail deve ser enviado logo assim que a conta for criada, e o usuario deve ser avisado disso.
     - tornar visual do e-mail similar ao do site.
 [ ] Alterar sistema de autenticação do admin
