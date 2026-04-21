@@ -333,7 +333,7 @@ import type { User } from '@/lib/auth';
 
 const adminHandlerContext = new Elysia({ name: 'admin.handler-context' })
   .derive({ as: 'scoped' }, ({ user }) => ({
-    adminUser: user as User & { role: 'admin' }
+    adminUser: user as User
   }));
 
 const adminUserManagementController = new Elysia()

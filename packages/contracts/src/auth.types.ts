@@ -97,10 +97,9 @@ export interface RequireAuthContext {
 }
 
 /**
- * Admin context (requires admin role and 2FA)
+ * Admin context (requires GitHub account identity verification)
  */
 export interface AdminContext extends RequireAuthContext {
-  user: PublicUser & { role: 'admin' };
   isAdmin: true;
 }
 
@@ -296,7 +295,6 @@ export interface EmailVerificationPayload {
  * User list filters (for admin panel)
  */
 export interface UserListFilters {
-  role?: UserRole;
   emailVerified?: boolean;
   banned?: boolean;
   deleted?: boolean;
@@ -308,13 +306,6 @@ export interface UserListFilters {
  */
 export interface BanUserPayload {
   reason: string;
-}
-
-/**
- * Update user role payload
- */
-export interface UpdateUserRolePayload {
-  role: UserRole;
 }
 
 // ═══════════════════════════════════════════════════════════════════

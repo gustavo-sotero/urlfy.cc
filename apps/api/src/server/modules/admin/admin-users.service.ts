@@ -56,10 +56,6 @@ export const AdminUsersService = {
         );
       }
 
-      if (query.role) {
-        conditions.push(eq(userTable.role, query.role));
-      }
-
       if (query.isBanned === 'true') {
         conditions.push(eq(userTable.banned, true));
       } else if (query.isBanned === 'false') {
@@ -144,10 +140,6 @@ export const AdminUsersService = {
     try {
       const result = await db.transaction(async (tx) => {
         const updateData: Partial<typeof userTable.$inferInsert> = {};
-
-        if (data.role !== undefined) {
-          updateData.role = data.role;
-        }
 
         if (data.banned !== undefined) {
           updateData.banned = data.banned;

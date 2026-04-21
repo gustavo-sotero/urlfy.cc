@@ -397,10 +397,12 @@ function getWeeklySalt(): string {
 
 | Plugin      | Função                                |
 | ----------- | ------------------------------------- |
-| `twoFactor` | TOTP obrigatório para admins          |
-| `admin`     | Gestão de usuários (ban, roles)       |
+| `twoFactor` | TOTP opcional para usuários           |
+| `admin`     | Gestão de usuários (ban, quotas)      |
 | `apiKey`    | Acesso programático via `x-api-key`   |
 | `openAPI`   | Documentação em `/api/auth/reference` |
+
+> **Admin authority:** O acesso admin é determinado pela conta GitHub vinculada (`ADMIN_GITHUB_ACCOUNT_ID`), não por `role` ou 2FA.
 
 ### Provedores OAuth
 

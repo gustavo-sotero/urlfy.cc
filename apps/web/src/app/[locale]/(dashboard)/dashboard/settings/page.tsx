@@ -1,7 +1,7 @@
 // src/app/(dashboard)/settings/page.tsx
 'use client';
 
-import { CheckCircle2, Info, Loader2, Shield } from 'lucide-react';
+import { CheckCircle2, Loader2, Shield } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -136,26 +136,13 @@ export default function SettingsPage() {
             {session?.user?.twoFactorEnabled ? (
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <BackupCodes asDialog={true} />
-                <DisableTwoFactor
-                  isAdmin={session?.user?.role === 'admin'}
-                  onSuccess={() => window.location.reload()}
-                />
+                <DisableTwoFactor onSuccess={() => window.location.reload()} />
               </div>
             ) : (
               <div className="mt-4">
                 <TwoFactorSetup onSuccess={() => window.location.reload()} />
               </div>
             )}
-
-            {session?.user?.role === 'admin' &&
-              session?.user?.twoFactorEnabled && (
-                <div className="mt-3 flex items-start gap-3 rounded-2xl bg-blue-50 p-4 dark:bg-blue-900/20">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-700 dark:text-blue-300" />
-                  <p className="text-sm text-blue-800 dark:text-blue-200">
-                    {t('security.adminWarning')}
-                  </p>
-                </div>
-              )}
           </div>
         </CardContent>
       </Card>

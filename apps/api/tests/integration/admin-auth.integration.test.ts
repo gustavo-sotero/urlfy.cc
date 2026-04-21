@@ -1,29 +1,45 @@
-/**
+﻿/**
  * ═════════════════════════════════════════════════════════════════════
- * ADMIN AUTHENTICATION & 2FA ENFORCEMENT - INTEGRATION TESTS
+ * ADMIN GITHUB IDENTITY AUTHORITY - INTEGRATION TESTS
  * ═════════════════════════════════════════════════════════════════════
- * Tests for admin dashboard authentication and 2FA enforcement
+ * Tests for the GitHub-account-based admin authority model
+ * (plan-adminGithubAuth.prompt.md)
  *
- * Tests the implementation of plan-adminAuthentication.prompt.md
  * Verifies:
- * - Authentication guard (redirect to login if not authenticated)
- * - Role authorization guard (redirect to dashboard if not admin)
- * - 2FA enforcement guard (redirect to settings if 2FA not verified)
+ * - resolveIsAdminByGitHubAccount returns true for authorized GitHub account
+ * - resolveIsAdminByGitHubAccount returns false for mismatched GitHub account
+ * - resolveIsAdminByGitHubAccount returns false with no linked GitHub account
+ * - resolveIsAdminByGitHubAccount returns false for null/undefined userId
+ * - Admin access does NOT depend on user.role
+ * - Admin access does NOT depend on 2FA state
  *
- * Note: These tests require infrastructure (Redis, PostgreSQL) to be running.
+ * Note: These tests require infrastructure (PostgreSQL) to be running.
  * Run with: docker compose -f docker/docker-compose.yml up -d
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { db } from '@urlfy/data';
-import { twoFactor, user as userTable } from '@urlfy/data/schema/auth';
+import {
+  account as accountTable,
+  user as userTable
+} from '@urlfy/data/schema/auth';
 import { eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { validateEnv } from '@/lib/env';
+import { resolveIsAdminByGitHubAccount } from '@/server/services/admin.resolver';
 import { isDatabaseAvailable } from '../helpers/integration-helper';
+
+const AUTHORIZED_GITHUB_ACCOUNT_ID = 'test-github-account-authorized-999';
+const UNAUTHORIZED_GITHUB_ACCOUNT_ID = 'test-github-account-unauthorized-888';
+
+// Lock in ADMIN_GITHUB_ACCOUNT_ID before any module can call validateEnv()
+process.env.ADMIN_GITHUB_ACCOUNT_ID = AUTHORIZED_GITHUB_ACCOUNT_ID;
+validateEnv();
 
 const databaseAvailable = await isDatabaseAvailable();
 
-describe('Admin Authentication & 2FA Enforcement (integration)', () => {
+describe('Admin GitHub Identity Authority (integration)', () => {
   if (!databaseAvailable) {
     test('should skip tests when database is unavailable', () => {
       console.warn(
@@ -34,362 +50,181 @@ describe('Admin Authentication & 2FA Enforcement (integration)', () => {
     return;
   }
 
+  let testUserId: string;
+
+  beforeEach(async () => {
+    testUserId = `test-admin-github-${nanoid()}`;
+
+    await db.insert(userTable).values({
+      id: testUserId,
+      email: `test-github-admin-${nanoid()}@example.com`,
+      name: 'Test GitHub Admin',
+      emailVerified: true,
+      role: 'user' // role is deliberately 'user' — authority comes from GitHub only
+    });
+  });
+
+  afterEach(async () => {
+    await db.delete(accountTable).where(eq(accountTable.userId, testUserId));
+    await db.delete(userTable).where(eq(userTable.id, testUserId));
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Database Schema Verification
+  // ═══════════════════════════════════════════════════════════════════
+
   describe('Database Schema Verification', () => {
-    test('twoFactor table should have verified column', async () => {
+    test('account table has accountId and providerId columns', async () => {
       const result = await db
-        .select({ verified: twoFactor.verified })
-        .from(twoFactor)
+        .select({
+          accountId: accountTable.accountId,
+          providerId: accountTable.providerId
+        })
+        .from(accountTable)
         .limit(1);
 
-      // Should not throw even if empty
       expect(Array.isArray(result)).toBe(true);
     });
 
-    test('user table should have role column', async () => {
+    test('user table is queryable by id', async () => {
       const result = await db
-        .select({ role: userTable.role })
+        .select({ id: userTable.id })
         .from(userTable)
+        .where(eq(userTable.id, testUserId))
         .limit(1);
 
-      // Should not throw even if empty
-      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(1);
+      expect(result[0]?.id).toBe(testUserId);
     });
   });
 
-  describe('2FA Verification Logic', () => {
-    test('should return false when user has no 2FA record', async () => {
-      // Create a test user without 2FA
-      const testUserId = `test-user-${Date.now()}`;
+  // ═══════════════════════════════════════════════════════════════════
+  // Core Authority Resolution
+  // ═══════════════════════════════════════════════════════════════════
 
-      const [createdUser] = await db
-        .insert(userTable)
-        .values({
-          id: testUserId,
-          email: `test-${Date.now()}@example.com`,
-          name: 'Test User',
-          emailVerified: true,
-          role: 'admin'
-        })
-        .returning();
+  describe('resolveIsAdminByGitHubAccount', () => {
+    test('returns true when user has linked GitHub account matching ADMIN_GITHUB_ACCOUNT_ID', async () => {
+      await db.insert(accountTable).values({
+        id: nanoid(),
+        userId: testUserId,
+        accountId: AUTHORIZED_GITHUB_ACCOUNT_ID,
+        providerId: 'github',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
-      try {
-        // Check 2FA status (should be empty)
-        const [twoFactorRecord] = await db
-          .select({ verified: twoFactor.verified })
-          .from(twoFactor)
-          .where(eq(twoFactor.userId, createdUser.id))
-          .limit(1);
+      const isAdmin = await resolveIsAdminByGitHubAccount(testUserId);
 
-        // Should not have 2FA record
-        expect(twoFactorRecord).toBeUndefined();
-      } finally {
-        // Cleanup
-        await db.delete(userTable).where(eq(userTable.id, createdUser.id));
-      }
+      expect(isAdmin).toBe(true);
     });
 
-    test('should return false when user has unverified 2FA record', async () => {
-      // Create a test user with unverified 2FA
-      const testUserId = `test-user-2fa-unverified-${Date.now()}`;
+    test('returns false when linked GitHub accountId does not match ADMIN_GITHUB_ACCOUNT_ID', async () => {
+      await db.insert(accountTable).values({
+        id: nanoid(),
+        userId: testUserId,
+        accountId: UNAUTHORIZED_GITHUB_ACCOUNT_ID,
+        providerId: 'github',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
-      const [createdUser] = await db
-        .insert(userTable)
-        .values({
-          id: testUserId,
-          email: `test-2fa-${Date.now()}@example.com`,
-          name: 'Test User 2FA',
-          emailVerified: true,
-          role: 'admin'
-        })
-        .returning();
+      const isAdmin = await resolveIsAdminByGitHubAccount(testUserId);
 
-      try {
-        // Create unverified 2FA record
-        await db.insert(twoFactor).values({
-          id: `2fa-${testUserId}`,
-          userId: createdUser.id,
-          secret: 'test-secret',
-          backupCodes: '[]',
-          verified: false
-        });
-
-        // Check 2FA status
-        const [twoFactorRecord] = await db
-          .select({ verified: twoFactor.verified })
-          .from(twoFactor)
-          .where(eq(twoFactor.userId, createdUser.id))
-          .limit(1);
-
-        // Should have record but not verified
-        expect(twoFactorRecord).toBeDefined();
-        expect(twoFactorRecord?.verified).toBe(false);
-      } finally {
-        // Cleanup
-        await db.delete(twoFactor).where(eq(twoFactor.userId, createdUser.id));
-        await db.delete(userTable).where(eq(userTable.id, createdUser.id));
-      }
+      expect(isAdmin).toBe(false);
     });
 
-    test('should return true when user has verified 2FA record', async () => {
-      // Create a test user with verified 2FA
-      const testUserId = `test-user-2fa-verified-${Date.now()}`;
+    test('returns false when user has no linked GitHub account', async () => {
+      const isAdmin = await resolveIsAdminByGitHubAccount(testUserId);
 
-      const [createdUser] = await db
-        .insert(userTable)
-        .values({
-          id: testUserId,
-          email: `test-2fa-verified-${Date.now()}@example.com`,
-          name: 'Test User 2FA Verified',
-          emailVerified: true,
-          role: 'admin'
-        })
-        .returning();
+      expect(isAdmin).toBe(false);
+    });
 
-      try {
-        // Create verified 2FA record
-        await db.insert(twoFactor).values({
-          id: `2fa-${testUserId}`,
-          userId: createdUser.id,
-          secret: 'test-secret',
-          backupCodes: '[]',
-          verified: true
-        });
+    test('returns false when user has a non-GitHub provider linked with matching ID', async () => {
+      await db.insert(accountTable).values({
+        id: nanoid(),
+        userId: testUserId,
+        accountId: AUTHORIZED_GITHUB_ACCOUNT_ID, // same ID, wrong provider
+        providerId: 'google',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
-        // Check 2FA status
-        const [twoFactorRecord] = await db
-          .select({ verified: twoFactor.verified })
-          .from(twoFactor)
-          .where(eq(twoFactor.userId, createdUser.id))
-          .limit(1);
+      const isAdmin = await resolveIsAdminByGitHubAccount(testUserId);
 
-        // Should have verified record
-        expect(twoFactorRecord).toBeDefined();
-        expect(twoFactorRecord?.verified).toBe(true);
-      } finally {
-        // Cleanup
-        await db.delete(twoFactor).where(eq(twoFactor.userId, createdUser.id));
-        await db.delete(userTable).where(eq(userTable.id, createdUser.id));
-      }
+      expect(isAdmin).toBe(false);
+    });
+
+    test('returns false for null userId', async () => {
+      const isAdmin = await resolveIsAdminByGitHubAccount(null);
+
+      expect(isAdmin).toBe(false);
+    });
+
+    test('returns false for undefined userId', async () => {
+      const isAdmin = await resolveIsAdminByGitHubAccount(undefined);
+
+      expect(isAdmin).toBe(false);
+    });
+
+    test('returns false for empty string userId', async () => {
+      const isAdmin = await resolveIsAdminByGitHubAccount('');
+
+      expect(isAdmin).toBe(false);
     });
   });
 
-  describe('Role Authorization Logic', () => {
-    test('should identify admin role correctly', async () => {
-      const testUserId = `test-admin-${Date.now()}`;
+  // ═══════════════════════════════════════════════════════════════════
+  // Role and 2FA Independence
+  // ═══════════════════════════════════════════════════════════════════
 
-      const [createdUser] = await db
-        .insert(userTable)
-        .values({
-          id: testUserId,
-          email: `admin-${Date.now()}@example.com`,
-          name: 'Admin User',
-          emailVerified: true,
-          role: 'admin'
-        })
-        .returning();
+  describe('Role and 2FA independence', () => {
+    test('grants admin to user with role=user when GitHub account matches', async () => {
+      // User was created with role='user' in beforeEach
+      await db.insert(accountTable).values({
+        id: nanoid(),
+        userId: testUserId,
+        accountId: AUTHORIZED_GITHUB_ACCOUNT_ID,
+        providerId: 'github',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
-      try {
-        expect(createdUser.role).toBe('admin');
-      } finally {
-        await db.delete(userTable).where(eq(userTable.id, createdUser.id));
-      }
+      const isAdmin = await resolveIsAdminByGitHubAccount(testUserId);
+
+      // role is 'user' but GitHub account matches — must resolve as admin
+      expect(isAdmin).toBe(true);
     });
 
-    test('should identify non-admin role correctly', async () => {
-      const testUserId = `test-user-${Date.now()}`;
+    test('denies admin to user with role=admin but no authorized GitHub account', async () => {
+      // Update to legacy role=admin — this must NOT grant access
+      await db
+        .update(userTable)
+        .set({ role: 'admin' })
+        .where(eq(userTable.id, testUserId));
 
-      const [createdUser] = await db
-        .insert(userTable)
-        .values({
-          id: testUserId,
-          email: `user-${Date.now()}@example.com`,
-          name: 'Regular User',
-          emailVerified: true,
-          role: 'user'
-        })
-        .returning();
+      // No GitHub account linked
 
-      try {
-        expect(createdUser.role).toBe('user');
-        expect(createdUser.role).not.toBe('admin');
-      } finally {
-        await db.delete(userTable).where(eq(userTable.id, createdUser.id));
-      }
-    });
-  });
+      const isAdmin = await resolveIsAdminByGitHubAccount(testUserId);
 
-  describe('Complete Admin Access Flow', () => {
-    test('should grant access to admin with verified 2FA', async () => {
-      const testUserId = `test-complete-admin-${Date.now()}`;
-
-      const [createdUser] = await db
-        .insert(userTable)
-        .values({
-          id: testUserId,
-          email: `complete-admin-${Date.now()}@example.com`,
-          name: 'Complete Admin',
-          emailVerified: true,
-          role: 'admin'
-        })
-        .returning();
-
-      try {
-        // Create verified 2FA record
-        await db.insert(twoFactor).values({
-          id: `2fa-${testUserId}`,
-          userId: createdUser.id,
-          secret: 'test-secret',
-          backupCodes: '[]',
-          verified: true
-        });
-
-        // Verify all conditions
-        // 1. User exists (authentication)
-        expect(createdUser).toBeDefined();
-
-        // 2. User is admin (authorization)
-        expect(createdUser.role).toBe('admin');
-
-        // 3. User has verified 2FA (enforcement)
-        const [twoFactorRecord] = await db
-          .select({ verified: twoFactor.verified })
-          .from(twoFactor)
-          .where(eq(twoFactor.userId, createdUser.id))
-          .limit(1);
-
-        expect(twoFactorRecord?.verified).toBe(true);
-
-        // All guards should pass - access granted
-        const hasAccess =
-          createdUser &&
-          createdUser.role === 'admin' &&
-          twoFactorRecord?.verified === true;
-
-        expect(hasAccess).toBe(true);
-      } finally {
-        // Cleanup
-        await db.delete(twoFactor).where(eq(twoFactor.userId, createdUser.id));
-        await db.delete(userTable).where(eq(userTable.id, createdUser.id));
-      }
+      // role is 'admin' but no matching GitHub account — must deny
+      expect(isAdmin).toBe(false);
     });
 
-    test('should deny access to admin without verified 2FA', async () => {
-      const testUserId = `test-incomplete-admin-${Date.now()}`;
+    test('grants admin regardless of 2FA state when GitHub account matches', async () => {
+      // No 2FA record created — user has 2FA disabled
+      await db.insert(accountTable).values({
+        id: nanoid(),
+        userId: testUserId,
+        accountId: AUTHORIZED_GITHUB_ACCOUNT_ID,
+        providerId: 'github',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
-      const [createdUser] = await db
-        .insert(userTable)
-        .values({
-          id: testUserId,
-          email: `incomplete-admin-${Date.now()}@example.com`,
-          name: 'Incomplete Admin',
-          emailVerified: true,
-          role: 'admin'
-        })
-        .returning();
+      const isAdmin = await resolveIsAdminByGitHubAccount(testUserId);
 
-      try {
-        // No 2FA record created
-
-        // Verify conditions
-        expect(createdUser).toBeDefined();
-        expect(createdUser.role).toBe('admin');
-
-        const [twoFactorRecord] = await db
-          .select({ verified: twoFactor.verified })
-          .from(twoFactor)
-          .where(eq(twoFactor.userId, createdUser.id))
-          .limit(1);
-
-        // Should fail 2FA check
-        expect(twoFactorRecord).toBeUndefined();
-
-        // Access should be denied
-        const hasAccess =
-          createdUser &&
-          createdUser.role === 'admin' &&
-          twoFactorRecord?.verified === true;
-
-        expect(hasAccess).toBe(false);
-      } finally {
-        await db.delete(userTable).where(eq(userTable.id, createdUser.id));
-      }
-    });
-
-    test('should deny access to non-admin user even with verified 2FA', async () => {
-      const testUserId = `test-user-with-2fa-${Date.now()}`;
-
-      const [createdUser] = await db
-        .insert(userTable)
-        .values({
-          id: testUserId,
-          email: `user-with-2fa-${Date.now()}@example.com`,
-          name: 'User With 2FA',
-          emailVerified: true,
-          role: 'user'
-        })
-        .returning();
-
-      try {
-        // Create verified 2FA record
-        await db.insert(twoFactor).values({
-          id: `2fa-${testUserId}`,
-          userId: createdUser.id,
-          secret: 'test-secret',
-          backupCodes: '[]',
-          verified: true
-        });
-
-        // Verify conditions
-        expect(createdUser).toBeDefined();
-        expect(createdUser.role).toBe('user');
-
-        const [twoFactorRecord] = await db
-          .select({ verified: twoFactor.verified })
-          .from(twoFactor)
-          .where(eq(twoFactor.userId, createdUser.id))
-          .limit(1);
-
-        expect(twoFactorRecord?.verified).toBe(true);
-
-        // Should fail role check despite having 2FA
-        const hasAccess =
-          createdUser &&
-          createdUser.role === 'admin' &&
-          twoFactorRecord?.verified === true;
-
-        expect(hasAccess).toBe(false);
-      } finally {
-        // Cleanup
-        await db.delete(twoFactor).where(eq(twoFactor.userId, createdUser.id));
-        await db.delete(userTable).where(eq(userTable.id, createdUser.id));
-      }
-    });
-  });
-
-  describe('Security Edge Cases', () => {
-    test('should handle null/undefined userId gracefully', async () => {
-      // Try to query with null userId
-      const result = await db
-        .select({ verified: twoFactor.verified })
-        .from(twoFactor)
-        .where(eq(twoFactor.userId, 'non-existent-user'))
-        .limit(1);
-
-      expect(result.length).toBe(0);
-    });
-
-    test('should handle SQL injection attempts in userId', async () => {
-      const maliciousUserId = "'; DROP TABLE twoFactor; --";
-
-      // Drizzle should handle this safely with parameterized queries
-      const result = await db
-        .select({ verified: twoFactor.verified })
-        .from(twoFactor)
-        .where(eq(twoFactor.userId, maliciousUserId))
-        .limit(1);
-
-      // Should return empty result, not throw error or execute malicious SQL
-      expect(result.length).toBe(0);
+      // 2FA is absent but GitHub account matches — must resolve as admin
+      expect(isAdmin).toBe(true);
     });
   });
 });

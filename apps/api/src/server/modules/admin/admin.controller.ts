@@ -83,7 +83,7 @@ const adminUserManagementController = new Elysia()
       detail: {
         tags: ['Admin'],
         summary: 'Update user',
-        description: 'Update user role, ban status, or quota'
+        description: 'Update user ban status or quota'
       },
       params: t.Object({
         userId: t.String()

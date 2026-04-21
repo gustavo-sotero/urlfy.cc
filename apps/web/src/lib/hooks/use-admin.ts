@@ -191,25 +191,6 @@ export function useUsers(
   });
 }
 
-export function useUpdateUserRole(
-  options?: UseMutationOptions<
-    api.UserResponse,
-    Error,
-    { userId: string; role: string }
-  >
-) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: string }) =>
-      api.updateUserRole(userId, role),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.users({}) });
-    },
-    ...options
-  });
-}
-
 export function useBanUser(
   options?: UseMutationOptions<api.UserResponse, Error, string>
 ) {

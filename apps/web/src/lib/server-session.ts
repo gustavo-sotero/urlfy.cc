@@ -1,8 +1,8 @@
 import { getClientIpFromHeaders } from '@/server/lib/ip';
 import type { Session as AppSession, InternalUser } from '@/types/auth.types';
 
-interface ServerSession {
-  user: InternalUser;
+export interface ServerSession {
+  user: InternalUser & { isAdmin: boolean };
   session: AppSession;
 }
 
@@ -89,7 +89,7 @@ export async function getServerSession({
   }
 
   return {
-    user: session.user as InternalUser,
+    user: session.user as InternalUser & { isAdmin: boolean },
     session: session.session as AppSession
   };
 }

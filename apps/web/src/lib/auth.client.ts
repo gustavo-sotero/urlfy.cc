@@ -9,7 +9,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { adminClient, twoFactorClient } from 'better-auth/client/plugins';
+import { twoFactorClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 
 export const authClient = createAuthClient({
@@ -19,7 +19,7 @@ export const authClient = createAuthClient({
   fetchOptions: {
     credentials: 'include' // Required for cookies to be sent with requests
   },
-  plugins: [twoFactorClient(), adminClient()]
+  plugins: [twoFactorClient()]
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -43,9 +43,12 @@ export const {
 // Access via authClient.twoFactor.enable(), etc.
 export const twoFactor = authClient.twoFactor;
 
-// Admin (using actual Better-Auth API names)
-// Access via authClient.admin methods
-export const admin = authClient.admin;
+// NOTE: The Better Auth `admin()` plugin is configured on the SERVER side
+// (packages/auth-shared/src/auth-config.ts) for internal role management,
+// but it is NOT the authority source for admin access in this application.
+// Admin authority is derived exclusively from the linked GitHub account identity
+// (ADMIN_GITHUB_ACCOUNT_ID env var), resolved by the API's admin.resolver service.
+// The browser-side adminClient() plugin is intentionally omitted.
 
 // API key management is handled by the app's custom REST endpoints at /api/keys.
 // Better Auth 1.5 moved its API key plugin to a separate package, but this app

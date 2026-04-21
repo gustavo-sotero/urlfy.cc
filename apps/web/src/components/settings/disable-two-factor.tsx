@@ -21,14 +21,10 @@ import { Input } from '@/components/ui/input';
 import { authClient } from '@/lib/auth.client';
 
 interface DisableTwoFactorProps {
-  isAdmin?: boolean;
   onSuccess: () => void;
 }
 
-export function DisableTwoFactor({
-  isAdmin = false,
-  onSuccess
-}: DisableTwoFactorProps) {
+export function DisableTwoFactor({ onSuccess }: DisableTwoFactorProps) {
   const t = useTranslations('TwoFactor.disable');
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,13 +56,7 @@ export function DisableTwoFactor({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button
-          variant="destructive"
-          disabled={isAdmin}
-          title={isAdmin ? t('adminWarning') : undefined}
-        >
-          {t('button')}
-        </Button>
+        <Button variant="destructive">{t('button')}</Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

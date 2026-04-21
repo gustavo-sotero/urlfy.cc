@@ -317,7 +317,6 @@ export interface UsersQuery {
   page?: number;
   limit?: number;
   search?: string;
-  role?: string;
   isBanned?: boolean;
 }
 
@@ -332,7 +331,6 @@ export async function getUsers(
         page: query.page,
         limit: query.limit,
         search: query.search,
-        role: query.role,
         isBanned:
           query.isBanned !== undefined ? String(query.isBanned) : undefined
       })
@@ -343,12 +341,11 @@ export async function getUsers(
 }
 
 /**
- * Update user (role, ban status, quota)
+ * Update user (ban status, quota)
  */
 export async function updateUser(
   userId: string,
   data: {
-    role?: string;
     banned?: boolean;
     bannedReason?: string;
     linksQuota?: number;
@@ -356,16 +353,6 @@ export async function updateUser(
 ): Promise<UserResponse> {
   const response = await client.api.admin.users({ userId }).patch(data);
   return handleEden(response);
-}
-
-/**
- * Update user role (convenience wrapper)
- */
-export async function updateUserRole(
-  userId: string,
-  role: string
-): Promise<UserResponse> {
-  return updateUser(userId, { role });
 }
 
 /**

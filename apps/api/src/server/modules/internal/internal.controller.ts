@@ -13,6 +13,7 @@ import { Elysia, t } from 'elysia';
 import { auth } from '@/lib/auth';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
+import { resolveIsAdminByGitHubAccount } from '@/server/services/admin.resolver';
 import {
   InternalAcceptedResponse,
   InternalAnalyticsEventBody,
@@ -69,8 +70,10 @@ export const internalController = new Elysia({ prefix: '/internal' })
         return null;
       }
 
+      const isAdmin = await resolveIsAdminByGitHubAccount(session.user.id);
+
       return {
-        user: session.user,
+        user: { ...session.user, isAdmin },
         session: session.session
       };
     },

@@ -44,7 +44,7 @@
 | **Database**      | PostgreSQL 16            | Partitioned analytics, Drizzle ORM              |
 | **Cache**         | Redis 7                  | Hot-path caching, rate limiting, queues         |
 | **Queue**         | Redis Streams            | Async analytics ingestion, background jobs      |
-| **Auth**          | Better-Auth              | OAuth, 2FA, API keys, admin roles               |
+| **Auth**          | Better-Auth              | OAuth, 2FA, API keys, GitHub-based admin        |
 | **Observability** | Grafana LGTM + OTLP      | Distributed traces, metrics, structured logs    |
 | **GeoIP**         | MaxMind GeoLite2         | Credential-free auto-download (jsDelivr CDN)    |
 | **UI**            | TailwindCSS + shadcn/ui  | Accessible component library, responsive design |

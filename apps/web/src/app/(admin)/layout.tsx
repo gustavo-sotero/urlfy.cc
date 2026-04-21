@@ -30,60 +30,29 @@ export default async function AdminLayout({
   // Extract user data after authentication guard
   const { user } = session;
   const userId = user.id;
-  const userRole = user.role;
   const userEmail = user.email;
-  const twoFactorEnabled = user.twoFactorEnabled;
 
   // Derive client IP once using the canonical trust-aware helper
   const clientIp = getClientIpFromHeaders(requestHeaders);
 
   // ═══════════════════════════════════════════════════════════════════
-  // GUARD 2: Role Authorization Check
+  // GUARD 2: Admin authorization (derived from linked GitHub account)
   // ═══════════════════════════════════════════════════════════════════
-  if (userRole !== 'admin') {
-    // Log unauthorized access attempt
+  if (!user.isAdmin) {
     void auditLogService.log({
       userId,
       action: 'admin_access_denied',
       entityType: 'admin_panel',
-      entityId: 'role_check_failed',
+      entityId: 'github_account_check_failed',
       metadata: {
-        reason: 'insufficient_role',
-        userRole,
-        requiredRole: 'admin'
+        reason: 'not_authorized_admin_account',
+        userId
       },
       ipAddress: clientIp,
       userAgent: requestHeaders.get('user-agent') ?? undefined
     });
 
     redirect('/dashboard');
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // GUARD 3: 2FA Enforcement Check (Session-based)
-  // ═══════════════════════════════════════════════════════════════════
-  // Better-Auth provides 'twoFactorEnabled' directly on the user object
-  // This is the authoritative source maintained by the twoFactor plugin
-  const has2FAEnabled = twoFactorEnabled || false;
-
-  if (!has2FAEnabled) {
-    // Log 2FA enforcement failure
-    void auditLogService.log({
-      userId,
-      action: 'admin_access_denied',
-      entityType: 'admin_panel',
-      entityId: '2fa_check_failed',
-      metadata: {
-        reason: '2fa_not_enabled',
-        userRole,
-        twoFactorEnabled,
-        timestamp: new Date().toISOString()
-      },
-      ipAddress: clientIp,
-      userAgent: requestHeaders.get('user-agent') ?? undefined
-    });
-
-    redirect('/dashboard/settings?tab=security&error=2fa-required');
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -95,9 +64,7 @@ export default async function AdminLayout({
     entityType: 'admin_panel',
     entityId: 'access_granted',
     metadata: {
-      email: userEmail,
-      role: userRole,
-      has2FA: true
+      email: userEmail
     },
     ipAddress: clientIp,
     userAgent: requestHeaders.get('user-agent') ?? undefined

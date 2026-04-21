@@ -92,7 +92,7 @@ O urlfy.cc é um **monorepo Bun Workspaces + Turborepo** com três serviços ind
 | **Cache**         | Redis 7+                 | `Bun.RedisClient` nativo com protocolo RESP3                |
 | **Queue**         | Redis Streams (Bun)      | Event-driven com XADD/XREADGROUP nativo via `Bun.redis`     |
 | **ORM**           | Drizzle                  | Type-safe, compatível com Bun SQL (`@urlfy/data`)           |
-| **Auth**          | Better-Auth              | Plugins: `twoFactor`, `admin`, `apiKey`, `openAPI`          |
+| **Auth**          | Better-Auth              | Plugins: `twoFactor`, `admin`, `apiKey`, `openAPI`. Admin authority derived from linked GitHub account (`ADMIN_GITHUB_ACCOUNT_ID`), not from Better Auth `role` |
 | **Geo**           | GeoLite2 (jsDelivr CDN)  | Auto-download via public mirror, no credentials required    |
 | **Observability** | Grafana LGTM + OTLP      | OpenTelemetry nativo, logs/traces/métricas unificados       |
 | **Styling**       | TailwindCSS + Shadcn/UI  | Componentes acessíveis, design system                       |

@@ -37,8 +37,7 @@ export {
   unbanLink,
   unbanUser,
   updateMessageStatus,
-  updateUser,
-  updateUserRole
+  updateUser
 } from './admin';
 // ═══════════════════════════════════════════════════════════════════
 // ANALYTICS API

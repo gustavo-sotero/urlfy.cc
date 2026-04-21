@@ -10,27 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -40,19 +25,11 @@ import {
   TableRow
 } from '@/components/ui/table';
 import type { UserResponse } from '@/lib/api';
-import {
-  useBanUser,
-  useUnbanUser,
-  useUpdateUserRole,
-  useUsers
-} from '@/lib/hooks/use-admin';
+import { useBanUser, useUnbanUser, useUsers } from '@/lib/hooks/use-admin';
 
 export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserResponse | null>(null);
-  const [newRole, setNewRole] = useState('');
   const [banTarget, setBanTarget] = useState<UserResponse | null>(null);
 
   const { data, isLoading, isError, error, refetch } = useUsers({
@@ -61,30 +38,12 @@ export default function AdminUsersPage() {
     search: searchQuery || undefined
   });
 
-  const updateRole = useUpdateUserRole();
   const banUser = useBanUser();
   const unbanUser = useUnbanUser();
 
   const handleSearch = () => {
     setPage(1);
     refetch();
-  };
-
-  const handleRoleChange = async () => {
-    if (!selectedUser || !newRole) return;
-
-    try {
-      await updateRole.mutateAsync({ userId: selectedUser.id, role: newRole });
-      toast.success('Função atualizada com sucesso');
-      setRoleDialogOpen(false);
-      setSelectedUser(null);
-    } catch {
-      toast.error('Erro ao atualizar função');
-    }
-  };
-
-  const handleBan = async (user: UserResponse) => {
-    setBanTarget(user);
   };
 
   const confirmBan = async () => {
@@ -106,12 +65,6 @@ export default function AdminUsersPage() {
     } catch {
       toast.error('Erro ao reativar usuário');
     }
-  };
-
-  const openRoleDialog = (user: UserResponse) => {
-    setSelectedUser(user);
-    setNewRole(user.role);
-    setRoleDialogOpen(true);
   };
 
   return (
@@ -205,13 +158,7 @@ export default function AdminUsersPage() {
                         </TableCell>
                         <TableCell>{user.name || '-'}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              user.role === 'admin' ? 'default' : 'secondary'
-                            }
-                          >
-                            {user.role}
-                          </Badge>
+                          <Badge variant="secondary">{user.role}</Badge>
                         </TableCell>
                         <TableCell>{user.linksQuota}</TableCell>
                         <TableCell>
@@ -230,12 +177,7 @@ export default function AdminUsersPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => openRoleDialog(user)}
-                              >
-                                Alterar função
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleBan(user)}
+                                onClick={() => setBanTarget(user)}
                                 className="text-destructive"
                               >
                                 Banir usuário
@@ -282,40 +224,6 @@ export default function AdminUsersPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Role Change Dialog */}
-      <Dialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Alterar Função do Usuário</DialogTitle>
-            <DialogDescription>
-              Alterando função de {selectedUser?.email}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Select value={newRole} onValueChange={setNewRole}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione uma função" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">Usuário</SelectItem>
-                <SelectItem value="admin">Administrador</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRoleDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleRoleChange} disabled={updateRole.isPending}>
-              {updateRole.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -78,6 +78,10 @@ const envSchema = z.object({
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
 
+  // Admin identity (GitHub account ID for the single authorized admin)
+  // Must match Better Auth account.accountId for the linked GitHub account.
+  ADMIN_GITHUB_ACCOUNT_ID: z.string().min(1).optional(),
+
   // Email (Resend - verification, reset, welcome, LGPD)
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM: z.string().optional(),

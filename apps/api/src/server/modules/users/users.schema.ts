@@ -130,13 +130,6 @@ export const UserBanBody = t.Object({
 });
 export type UserBanBodyType = Static<typeof UserBanBody>;
 
-export const UserRoleUpdateBody = t.Object({
-  role: t.Union([t.Literal('user'), t.Literal('admin')], {
-    description: 'New user role'
-  })
-});
-export type UserRoleUpdateBodyType = Static<typeof UserRoleUpdateBody>;
-
 export const UserQuotaUpdateBody = t.Object({
   linksQuota: t.Integer({
     minimum: 0,
@@ -402,7 +395,6 @@ export const UsersModel = new Elysia({ name: 'users.model' }).model({
   'users.list.item': UserListItemResponse,
   'users.id.param': UserIdParam,
   'users.ban.body': UserBanBody,
-  'users.role.body': UserRoleUpdateBody,
   'users.quota.body': UserQuotaUpdateBody,
   'users.deletion.response': DeletionRequestResponse,
   'users.deletion.item': DeletionRequestListItem,

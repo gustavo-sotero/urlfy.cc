@@ -277,47 +277,12 @@ export const UserService = {
   },
 
   /**
-   * Update user role
-   */
-  async updateUserRole(
-    userId: string,
-    role: 'user' | 'admin',
-    adminId: string
-  ): Promise<User> {
-    const [user] = await db
-      .update(userTable)
-      .set({ role })
-      .where(eq(userTable.id, userId))
-      .returning();
-
-    if (!user) {
-      throw new AppError(ErrorCode.USER_NOT_FOUND, 'User not found');
-    }
-
-    // Log audit event
-    try {
-      await auditLogService.log({
-        userId: adminId,
-        action: 'update_user_role',
-        entityType: 'user',
-        entityId: userId,
-        metadata: { newRole: role }
-      });
-    } catch (_error) {
-      // Audit logging is best-effort - already logged by audit service
-    }
-
-    return user;
-  },
-
-  /**
    * Global user stats (admin)
    */
   async getGlobalStats(): Promise<{
     totalUsers: number;
     activeUsers: number;
     bannedUsers: number;
-    adminUsers: number;
   }> {
     const [{ totalUsers }] = await db
       .select({ totalUsers: sql<number>`count(*)` })
@@ -335,16 +300,10 @@ export const UserService = {
       .from(userTable)
       .where(sql`${userTable.bannedAt} IS NOT NULL`);
 
-    const [{ adminUsers }] = await db
-      .select({ adminUsers: sql<number>`count(*)` })
-      .from(userTable)
-      .where(eq(userTable.role, 'admin'));
-
     return {
       totalUsers: Number(totalUsers),
       activeUsers: Number(activeUsers),
-      bannedUsers: Number(bannedUsers),
-      adminUsers: Number(adminUsers)
+      bannedUsers: Number(bannedUsers)
     };
   },
 

@@ -129,7 +129,6 @@ export type AuditAction =
   | 'user_created'
   | 'ban_user'
   | 'unban_user'
-  | 'update_user_role'
   | 'ban_link'
   | 'unban_link'
   | 'delete_link'

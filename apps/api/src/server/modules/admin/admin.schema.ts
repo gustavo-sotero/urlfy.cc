@@ -142,7 +142,6 @@ export const AdminUserListQuery = t.Object({
   page: t.Optional(t.String({ description: 'Page number (1-indexed)' })),
   limit: t.Optional(t.String({ description: 'Items per page (max: 100)' })),
   search: t.Optional(t.String({ description: 'Search by name or email' })),
-  role: t.Optional(t.String({ description: 'Filter by role' })),
   isBanned: t.Optional(
     t.String({ description: 'Filter by ban status ("true" or "false")' })
   )
@@ -187,7 +186,6 @@ export const AdminUserResponse = t.Object(
 export type AdminUserResponseType = Static<typeof AdminUserResponse>;
 
 export const AdminUserUpdateBody = t.Object({
-  role: t.Optional(t.String({ description: 'User role (user, admin)' })),
   banned: t.Optional(t.Boolean({ description: 'Ban status' })),
   bannedReason: t.Optional(
     t.String({ maxLength: 255, description: 'Reason for ban/unban' })

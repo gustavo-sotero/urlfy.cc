@@ -30,7 +30,6 @@ export type {
   TwoFactorEnrollment,
   TwoFactorStatus,
   UpdateUserPayload,
-  UpdateUserRolePayload,
   UserDataExport,
   UserListFilters,
   UserRole,

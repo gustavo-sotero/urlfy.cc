@@ -107,4 +107,58 @@ describe('getServerSession', () => {
       'Failed to retrieve auth session from internal API: 503 Service Unavailable'
     );
   });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // isAdmin field propagation
+  // ═══════════════════════════════════════════════════════════════════
+
+  it('propagates isAdmin=true when the internal API returns an admin session', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: { id: 'admin-1', email: 'admin@example.com', isAdmin: true },
+          session: { id: 'session-admin', userId: 'admin-1' }
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      )
+    );
+
+    const { getServerSession } = await import('@/lib/server-session');
+
+    const session = await getServerSession({
+      headers: new Headers({ cookie: 'urlfy.session_token=admin-token' })
+    });
+
+    expect(session?.user).toEqual(
+      expect.objectContaining({ id: 'admin-1', isAdmin: true })
+    );
+  });
+
+  it('propagates isAdmin=false when the internal API returns a non-admin session', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: { id: 'user-2', email: 'user@example.com', isAdmin: false },
+          session: { id: 'session-user', userId: 'user-2' }
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      )
+    );
+
+    const { getServerSession } = await import('@/lib/server-session');
+
+    const session = await getServerSession({
+      headers: new Headers({ cookie: 'urlfy.session_token=user-token' })
+    });
+
+    expect(session?.user).toEqual(
+      expect.objectContaining({ id: 'user-2', isAdmin: false })
+    );
+  });
 });

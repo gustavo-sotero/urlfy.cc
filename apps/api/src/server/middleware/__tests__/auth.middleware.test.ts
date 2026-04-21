@@ -16,6 +16,9 @@
 
 // Set test environment before imports
 process.env.NODE_ENV = 'test';
+// Set admin GitHub account ID before any dynamic import triggers validateEnv()
+const ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST = `test-admin-mw-github-${Date.now()}`;
+process.env.ADMIN_GITHUB_ACCOUNT_ID = ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST;
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
@@ -33,7 +36,7 @@ let db: typeof import('@urlfy/data').db | null = null;
 let apiKeyTable: typeof import('@urlfy/data/schema/auth').apiKey | null = null;
 let sessionTable: typeof import('@urlfy/data/schema/auth').session | null =
   null;
-let twoFactorTable: typeof import('@urlfy/data/schema/auth').twoFactor | null =
+let accountTable: typeof import('@urlfy/data/schema/auth').account | null =
   null;
 let userTable: typeof import('@urlfy/data/schema/auth').user | null = null;
 let auth: typeof import('@/lib/auth').auth | null = null;
@@ -66,7 +69,7 @@ if (runAuthIntegration) {
     const schemaModule = await import('@urlfy/data/schema/auth');
     apiKeyTable = schemaModule.apiKey;
     sessionTable = schemaModule.session;
-    twoFactorTable = schemaModule.twoFactor;
+    accountTable = schemaModule.account;
     userTable = schemaModule.user;
     const authModule = await import('@/lib/auth');
     auth = authModule.auth;
@@ -182,23 +185,18 @@ describe('Auth Middleware', () => {
     if (adminSignUpResult?.user) {
       adminUser.id = adminSignUpResult.user.id;
 
-      if (!db || !userTable || !twoFactorTable) {
+      if (!db || !userTable || !accountTable) {
         throw new Error('Database tables not initialized');
       }
 
-      // Update to admin role
-      await db
-        .update(userTable)
-        .set({ role: 'admin' })
-        .where(eq(userTable.id, adminUser.id));
-
-      // Enable 2FA for admin
-      await db.insert(twoFactorTable).values({
+      // Link GitHub account for admin authority (GitHub-account-based model)
+      await db.insert(accountTable).values({
         id: nanoid(),
         userId: adminUser.id,
-        secret: 'test-secret',
-        backupCodes: JSON.stringify(['code1', 'code2']),
-        verified: true
+        accountId: ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST,
+        providerId: 'github',
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
     }
 
@@ -248,7 +246,7 @@ describe('Auth Middleware', () => {
 
   afterAll(async () => {
     // Cleanup - skip if infrastructure unavailable
-    if (!db || !apiKeyTable || !sessionTable || !userTable || !twoFactorTable) {
+    if (!db || !apiKeyTable || !sessionTable || !userTable || !accountTable) {
       return;
     }
 
@@ -259,8 +257,8 @@ describe('Auth Middleware', () => {
     }
     if (adminUser.id) {
       await db
-        .delete(twoFactorTable)
-        .where(eq(twoFactorTable.userId, adminUser.id));
+        .delete(accountTable)
+        .where(eq(accountTable.userId, adminUser.id));
       await db
         .delete(sessionTable)
         .where(eq(sessionTable.userId, adminUser.id));
@@ -577,7 +575,7 @@ describe('Auth Middleware', () => {
       });
     }
 
-    it('should allow admin users with 2FA enabled', async () => {
+    it('should allow users with authorized linked GitHub account', async () => {
       const app = createApp();
       const response = await app.handle(
         new Request('http://localhost:3000/test', {

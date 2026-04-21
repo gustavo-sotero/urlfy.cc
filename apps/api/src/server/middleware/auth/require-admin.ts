@@ -1,9 +1,7 @@
-import { db } from '@urlfy/data';
-import { twoFactor as twoFactorTable } from '@urlfy/data/schema/auth';
-import { eq } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 import type { Session, User } from '@/lib/auth';
 import { createLogger } from '@/server/lib/telemetry';
+import { resolveIsAdminByGitHubAccount } from '@/server/services/admin.resolver';
 import { buildErrorEnvelope, getOrCreateRequestId } from '../error-response';
 import { requireAuth } from './require-auth';
 
@@ -29,12 +27,11 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
       }
 
       const adminUser = user as User;
+      const isAdmin = await resolveIsAdminByGitHubAccount(adminUser.id);
 
-      // Check if user has admin role
-      if (adminUser.role !== 'admin') {
-        logger.debug('Admin access denied - insufficient role', {
-          userId: adminUser.id,
-          role: adminUser.role
+      if (!isAdmin) {
+        logger.debug('Admin access denied - not the authorized admin account', {
+          userId: adminUser.id
         });
         const requestId = getOrCreateRequestId(request);
         set.headers['x-request-id'] = requestId;
@@ -44,47 +41,12 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
         );
       }
 
-      // Check if 2FA is enabled for admin (required)
-      // Use twoFactorEnabled from Better-Auth session (authoritative source)
-      let hasTwoFactor = adminUser.twoFactorEnabled ?? false;
-
-      if (!hasTwoFactor) {
-        const [twoFactorRecord] = await db
-          .select({ verified: twoFactorTable.verified })
-          .from(twoFactorTable)
-          .where(eq(twoFactorTable.userId, adminUser.id))
-          .limit(1);
-
-        hasTwoFactor = !!twoFactorRecord?.verified;
-      }
-
-      if (!hasTwoFactor) {
-        logger.debug('Admin access denied - 2FA not enabled', {
-          userId: adminUser.id,
-          twoFactorEnabled: adminUser.twoFactorEnabled
-        });
-        const requestId = getOrCreateRequestId(request);
-        set.headers['x-request-id'] = requestId;
-        return status(
-          403,
-          buildErrorEnvelope(
-            'FORBIDDEN',
-            'Two-factor authentication is required for admin access',
-            requestId
-          )
-        );
-      }
-
-      logger.debug('Admin access granted', {
-        userId: adminUser.id,
-        role: adminUser.role,
-        has2FA: true
-      });
+      logger.debug('Admin access granted', { userId: adminUser.id });
     }
   )
   .derive({ as: 'scoped' }, ({ user, session }) => {
     return {
-      user: user as User & { role: 'admin' },
+      user: user as User,
       session: session as Session,
       isAuthenticated: true as const,
       isAdmin: true as const

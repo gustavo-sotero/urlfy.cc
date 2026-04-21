@@ -27,8 +27,6 @@ export {
   type UserQuotaResponseType,
   UserQuotaUpdateBody,
   type UserQuotaUpdateBodyType,
-  UserRoleUpdateBody,
-  type UserRoleUpdateBodyType,
   UsersModel
 } from './users.schema';
 // Service (Business logic)

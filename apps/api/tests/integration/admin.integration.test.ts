@@ -179,18 +179,6 @@ describe('Admin Module Integration Tests', () => {
       expect(result.meta.perPage).toBe(5);
     });
 
-    test('should filter by role', async () => {
-      const query: AdminUserListQueryType = {
-        role: 'admin'
-      };
-
-      const result = await AdminService.listUsers(query);
-
-      for (const user of result.data) {
-        expect(user.role).toBe('admin');
-      }
-    });
-
     test('should search by email', async () => {
       const query: AdminUserListQueryType = {
         search: 'admin-test'
@@ -229,32 +217,6 @@ describe('Admin Module Integration Tests', () => {
   });
 
   describe('AdminService.updateUserStatus', () => {
-    test('should update user role', async () => {
-      const updateData: AdminUserUpdateBodyType = {
-        role: 'user'
-      };
-
-      const updatedUser = await AdminService.updateUserStatus(
-        testUserId,
-        updateData,
-        adminUserId,
-        '127.0.0.1'
-      );
-
-      expect(updatedUser.id).toBe(testUserId);
-      expect(updatedUser.role).toBe('user');
-
-      // Verify audit log was created
-      const logs = await db
-        .select()
-        .from(auditLog)
-        .where(eq(auditLog.entityId, testUserId))
-        .limit(1);
-
-      expect(logs.length).toBeGreaterThan(0);
-      expect(logs[0].action).toMatch(/UPDATE_USER|BAN_USER/);
-    });
-
     test('should ban user', async () => {
       const updateData: AdminUserUpdateBodyType = {
         banned: true,
@@ -316,12 +278,12 @@ describe('Admin Module Integration Tests', () => {
           adminUserId,
           '127.0.0.1'
         )
-      ).rejects.toThrow('CANNOT_BAN_SELF');
+      ).rejects.toThrow('FORBIDDEN');
     });
 
     test('should throw error for non-existent user', async () => {
       const updateData: AdminUserUpdateBodyType = {
-        role: 'admin'
+        linksQuota: 999
       };
 
       await expect(
@@ -494,7 +456,6 @@ describe('Admin Module Integration Tests', () => {
         page: '1',
         limit: '10',
         search: 'test',
-        role: 'user',
         isBanned: 'false'
       };
 

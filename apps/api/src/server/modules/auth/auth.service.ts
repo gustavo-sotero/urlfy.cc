@@ -12,8 +12,7 @@ import { db } from '@urlfy/data';
 import {
   apiKey as apiKeyTable,
   session as sessionTable,
-  twoFactor as twoFactorTable,
-  user as userTable
+  twoFactor as twoFactorTable
 } from '@urlfy/data/schema/auth';
 import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
@@ -506,39 +505,6 @@ export const AuthService = {
       .limit(1);
 
     return result.length > 0 && result[0].verified;
-  },
-
-  /**
-   * Check if 2FA is required for admin access
-   */
-  async isAdminWithTwoFactor(userId: string): Promise<{
-    isAdmin: boolean;
-    hasTwoFactor: boolean;
-    canAccess: boolean;
-  }> {
-    const [user] = await db
-      .select({ role: userTable.role })
-      .from(userTable)
-      .where(eq(userTable.id, userId))
-      .limit(1);
-
-    if (!user) {
-      return { isAdmin: false, hasTwoFactor: false, canAccess: false };
-    }
-
-    const isAdmin = user.role === 'admin';
-
-    if (!isAdmin) {
-      return { isAdmin: false, hasTwoFactor: false, canAccess: true };
-    }
-
-    const hasTwoFactor = await AuthService.isTwoFactorEnabled(userId);
-
-    return {
-      isAdmin: true,
-      hasTwoFactor,
-      canAccess: hasTwoFactor // Admins must have 2FA
-    };
   },
 
   // ─────────────────────────────────────────────────────────────────

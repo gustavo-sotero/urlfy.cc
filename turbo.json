@@ -38,6 +38,7 @@
         "GOOGLE_CLIENT_SECRET",
         "GITHUB_CLIENT_ID",
         "GITHUB_CLIENT_SECRET",
+        "ADMIN_GITHUB_ACCOUNT_ID",
         "RESEND_API_KEY",
         "RESEND_FROM",
         "TELEGRAM_BOT_TOKEN",
@@ -78,6 +79,7 @@
         "GOOGLE_CLIENT_SECRET",
         "GITHUB_CLIENT_ID",
         "GITHUB_CLIENT_SECRET",
+        "ADMIN_GITHUB_ACCOUNT_ID",
         "RESEND_API_KEY",
         "RESEND_FROM",
         "TELEGRAM_BOT_TOKEN",
@@ -124,7 +126,8 @@
         "NEXT_PUBLIC_APP_URL",
         "NODE_ENV",
         "SKIP_ENV_VALIDATION",
-        "USE_REAL_REDIS"
+        "USE_REAL_REDIS",
+        "ADMIN_GITHUB_ACCOUNT_ID"
       ]
     },
     "test:security": {
@@ -139,7 +142,8 @@
         "JWT_SECRET",
         "INTERNAL_API_SECRET",
         "NODE_ENV",
-        "SKIP_ENV_VALIDATION"
+        "SKIP_ENV_VALIDATION",
+        "ADMIN_GITHUB_ACCOUNT_ID"
       ]
     },
     "test:perf": {

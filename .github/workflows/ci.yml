@@ -120,6 +120,7 @@ jobs:
       JWT_SECRET: ci-test-jwt-secret-minimum-32-characters
       INTERNAL_API_SECRET: ci-test-internal-secret
       NEXT_PUBLIC_APP_URL: http://localhost:3000
+      ADMIN_GITHUB_ACCOUNT_ID: ci-test-admin-github-account-id-00000000
       # SKIP_ENV_VALIDATION is intentionally NOT set at job level so that
       # integration and security test steps exercise env validation (including
       # rejectSentinelValues) against real CI secrets. Steps that genuinely

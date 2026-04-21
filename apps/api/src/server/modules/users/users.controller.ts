@@ -24,7 +24,6 @@ import {
   UserIdParam,
   UserListQuery,
   UserQuotaUpdateBody,
-  UserRoleUpdateBody,
   UsersModel
 } from './users.schema';
 import { UserService } from './users.service';
@@ -207,57 +206,6 @@ export const usersController = new Elysia({ prefix: '/users' })
   )
 
   // ═══════════════════════════════════════════════════════════════════
-  // UPDATE USER ROLE (ADMIN)
-  // ═══════════════════════════════════════════════════════════════════
-  .patch(
-    '/:userId/role',
-    async ({ params, body, user: adminUser }) => {
-      try {
-        const updatedUser = await UserService.updateUserRole(
-          params.userId,
-          body.role,
-          adminUser?.id
-        );
-
-        return {
-          success: true as const,
-          data: {
-            id: updatedUser.id,
-            email: updatedUser.email,
-            role: updatedUser.role
-          }
-        };
-      } catch (error) {
-        if (error instanceof AppError) throw error;
-        logger.error('Failed to update user role', {
-          userId: params.userId,
-          error: error instanceof Error ? error.message : String(error)
-        });
-        throw new AppError(
-          ErrorCode.INTERNAL_ERROR,
-          'Failed to update user role'
-        );
-      }
-    },
-    {
-      params: UserIdParam,
-      body: UserRoleUpdateBody,
-      response: {
-        200: SuccessResponse(
-          t.Object({
-            id: t.String(),
-            email: t.String(),
-            role: t.Union([t.Literal('user'), t.Literal('admin')])
-          })
-        ),
-        401: ErrorRef(401),
-        403: ErrorRef(403),
-        404: ErrorRef(404)
-      }
-    }
-  )
-
-  // ═══════════════════════════════════════════════════════════════════
   // UPDATE USER QUOTA (ADMIN)
   // ═══════════════════════════════════════════════════════════════════
   .patch(
@@ -323,8 +271,7 @@ export const usersController = new Elysia({ prefix: '/users' })
           t.Object({
             totalUsers: t.Number(),
             activeUsers: t.Number(),
-            bannedUsers: t.Number(),
-            adminUsers: t.Number()
+            bannedUsers: t.Number()
           })
         ),
         401: ErrorRef(401),
