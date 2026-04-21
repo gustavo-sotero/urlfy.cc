@@ -243,6 +243,14 @@ export function getPlugins(
   );
 
   if (!options.disableAdmin) {
+    // The Better Auth admin plugin is retained for its schema contributions
+    // (e.g. the `impersonatedBy` session field) and potential future use of
+    // session impersonation. It is NOT the admin authority source.
+    // Admin access is exclusively derived at runtime by comparing the
+    // authenticated user's linked GitHub account ID against
+    // ADMIN_GITHUB_ACCOUNT_ID (see apps/api/src/server/services/admin.resolver.ts).
+    // The `authClient.admin` client-side API is intentionally not exposed in the
+    // browser auth client (apps/web/src/lib/auth.client.ts).
     plugins.push(
       admin({
         impersonationSessionDuration: 60 * 60

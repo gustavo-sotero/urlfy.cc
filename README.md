@@ -245,6 +245,7 @@ remains directly reachable on `http://localhost:3001` for debugging.
 | `GOOGLE_CLIENT_SECRET`        | No       | —                               | Google OAuth client secret               |
 | `GITHUB_CLIENT_ID`            | No       | —                               | GitHub OAuth client ID                   |
 | `GITHUB_CLIENT_SECRET`        | No       | —                               | GitHub OAuth client secret               |
+| `ADMIN_GITHUB_ACCOUNT_ID`     | No       | —                               | GitHub `account.accountId` of the single authorized admin. Admin access is denied when unset. |
 | `RESEND_API_KEY`              | No       | —                               | Resend API key for transactional emails  |
 | `RESEND_FROM`                 | No       | —                               | Sender email address                     |
 | `TELEGRAM_BOT_TOKEN`          | No       | —                               | Telegram bot token for contact alerts    |
@@ -399,6 +400,15 @@ urlfy.cc/
 ```
 
 ## Testing
+
+Integration tests require infrastructure (PostgreSQL + Redis) and secret env vars. For local runs, copy the template and fill in real values:
+
+```bash
+cp .env.test.example .env.test
+# Edit .env.test with your local secrets (min 32 chars each)
+```
+
+CI injects all required env vars via GitHub Actions workflow env variables — `.env.test` is not needed in CI.
 
 ```bash
 # Run workspace suites
