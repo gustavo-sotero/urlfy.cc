@@ -96,8 +96,7 @@ describe('auth runtime parity contract (api vs web)', () => {
       readFromTestDir('../../../web/src/lib/auth.ts')
     ]);
 
-    const pluginContractRegex =
-      /plugins:\s*getPlugins\(\s*\{\s*disableAdmin:\s*process\.env\.NODE_ENV\s*===\s*'test'\s*\}\s*\)/;
+    const pluginContractRegex = /plugins:\s*getPlugins\(\s*\)/;
 
     expect(pluginContractRegex.test(apiSource)).toBe(true);
     expect(pluginContractRegex.test(webSource)).toBe(true);

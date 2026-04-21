@@ -159,11 +159,9 @@ export const auth = betterAuth({
   },
 
   // ===================================================================
-  // PLUGINS (with conditional admin based on environment)
+  // PLUGINS
   // ===================================================================
-  plugins: getPlugins({
-    disableAdmin: process.env.NODE_ENV === 'test'
-  }),
+  plugins: getPlugins(),
 
   // ===================================================================
   // CALLBACKS (Audit Logs & Email Notifications)

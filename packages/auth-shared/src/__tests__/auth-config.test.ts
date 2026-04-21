@@ -6,7 +6,7 @@
  *
  * 1. baseAuthConfig has the expected static shape (basePath, cookie posture)
  * 2. getPlugins() returns the correct number of plugins in the correct order
- * 3. getPlugins option flags correctly suppress admin / openAPI plugins
+ * 3. getPlugins option flags correctly suppress the OpenAPI plugin
  * 4. getAuthSecret() behaves correctly across build / runtime / test envs
  * 5. assertRuntimeAuthConfigSafe() rejects dangerous env combinations
  *
@@ -97,66 +97,36 @@ describe('baseAuthConfig — structural shape', () => {
 // ─── getPlugins — count and conditional flags ────────────────────────────────
 
 describe('getPlugins — plugin set', () => {
-  it('returns 3 plugins by default (twoFactor + admin + openAPI)', () => {
-    mutableEnv.NODE_ENV = 'production';
-    mutableEnv.BETTER_AUTH_SECRET = 'prod-secret-min-32-chars-long-xxxxxxxxx';
+  it('returns 2 plugins by default (twoFactor + openAPI)', () => {
     const plugins = getPlugins();
-    expect(plugins).toHaveLength(3);
-  });
-
-  it('returns 2 plugins when disableAdmin=true', () => {
-    const plugins = getPlugins({ disableAdmin: true });
     expect(plugins).toHaveLength(2);
   });
 
-  it('returns 2 plugins when disableOpenAPI=true', () => {
+  it('returns 1 plugin when disableOpenAPI=true', () => {
     const plugins = getPlugins({ disableOpenAPI: true });
-    expect(plugins).toHaveLength(2);
-  });
-
-  it('returns 1 plugin when both disableAdmin and disableOpenAPI are true', () => {
-    const plugins = getPlugins({ disableAdmin: true, disableOpenAPI: true });
     expect(plugins).toHaveLength(1);
   });
 
-  it('defaults disableAdmin to false when no options are passed', () => {
-    mutableEnv.NODE_ENV = 'production';
-    mutableEnv.BETTER_AUTH_SECRET = 'prod-secret-min-32-chars-long-xxxxxxxxx';
+  it('defaults disableOpenAPI to false when no options are passed', () => {
     const withDefault = getPlugins();
-    const withExplicit = getPlugins({ disableAdmin: false });
+    const withExplicit = getPlugins({ disableOpenAPI: false });
     expect(withDefault).toHaveLength(withExplicit.length);
   });
 
   it('twoFactor plugin is always present (first in list)', () => {
-    const plugins = getPlugins({ disableAdmin: true, disableOpenAPI: true });
+    const plugins = getPlugins({ disableOpenAPI: true });
     expect(plugins).toHaveLength(1);
     // twoFactor is the only remaining plugin — verify it is an object
     expect(typeof plugins[0]).toBe('object');
   });
 
   /**
-   * PARITY CONTRACT: Both apps/api and apps/web call
-   * getPlugins({ disableAdmin: process.env.NODE_ENV === 'test' }).
-   * This test encodes the expected call signature so any future divergence
-   * in either auth.ts would break the registry test in that app.
+   * PARITY CONTRACT: Both apps/api and apps/web call getPlugins() directly.
+   * This keeps the shared plugin surface identical across runtimes without
+   * preserving the retired admin-plugin toggle.
    */
-  it('test-env call pattern − disableAdmin=true matches NODE_ENV=test convention', () => {
-    mutableEnv.NODE_ENV = 'test';
-    const testEnvPlugins = getPlugins({
-      disableAdmin: process.env.NODE_ENV === 'test'
-    });
-    // In test env: twoFactor + openAPI only (admin disabled)
-    expect(testEnvPlugins).toHaveLength(2);
-  });
-
-  it('production call pattern − disableAdmin=false matches NODE_ENV=production convention', () => {
-    mutableEnv.NODE_ENV = 'production';
-    mutableEnv.BETTER_AUTH_SECRET = 'prod-secret-min-32-chars-long-xxxxxxxxx';
-    const prodEnvPlugins = getPlugins({
-      disableAdmin: process.env.NODE_ENV === 'test' // false in production
-    });
-    // In production: twoFactor + admin + openAPI
-    expect(prodEnvPlugins).toHaveLength(3);
+  it('runtime convention uses getPlugins() without a legacy admin toggle', () => {
+    expect(getPlugins()).toHaveLength(2);
   });
 });
 

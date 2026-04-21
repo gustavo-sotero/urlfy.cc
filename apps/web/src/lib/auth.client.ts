@@ -43,12 +43,9 @@ export const {
 // Access via authClient.twoFactor.enable(), etc.
 export const twoFactor = authClient.twoFactor;
 
-// NOTE: The Better Auth `admin()` plugin is configured on the SERVER side
-// (packages/auth-shared/src/auth-config.ts) for shared schema/session features,
-// but it is NOT the authority source for admin access in this application.
-// Admin authority is derived exclusively from the linked GitHub account identity
-// (ADMIN_GITHUB_ACCOUNT_ID env var), resolved by the API's admin.resolver service.
-// The browser-side adminClient() plugin is intentionally omitted.
+// Admin authority is derived exclusively by the API from the linked GitHub
+// account allowlist and exposed to the web through session.user.isAdmin on the
+// internal session bridge. There is intentionally no browser-side admin plugin.
 
 // API key management is handled by the app's custom REST endpoints at /api/keys.
 // Better Auth 1.5 moved its API key plugin to a separate package, but this app

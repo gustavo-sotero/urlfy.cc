@@ -1,5 +1,5 @@
 import type { BetterAuthOptions } from 'better-auth';
-import { admin, openAPI, twoFactor } from 'better-auth/plugins';
+import { openAPI, twoFactor } from 'better-auth/plugins';
 
 const BUILD_TIME_SENTINELS = new Set([
   'build-time-placeholder-secret-32chars',
@@ -230,9 +230,7 @@ export function buildPublicEmailVerificationUrl(
   return verificationUrl.toString();
 }
 
-export function getPlugins(
-  options: { disableAdmin?: boolean; disableOpenAPI?: boolean } = {}
-) {
+export function getPlugins(options: { disableOpenAPI?: boolean } = {}) {
   const plugins = [];
 
   plugins.push(
@@ -242,21 +240,11 @@ export function getPlugins(
     })
   );
 
-  if (!options.disableAdmin) {
-    // The Better Auth admin plugin is retained for its schema contributions
-    // (e.g. the `impersonatedBy` session field) and potential future use of
-    // session impersonation. It is NOT the admin authority source.
-    // Admin access is exclusively derived at runtime by comparing the
-    // authenticated user's linked GitHub account ID against
-    // ADMIN_GITHUB_ACCOUNT_ID (see apps/api/src/server/services/admin.resolver.ts).
-    // The `authClient.admin` client-side API is intentionally not exposed in the
-    // browser auth client (apps/web/src/lib/auth.client.ts).
-    plugins.push(
-      admin({
-        impersonationSessionDuration: 60 * 60
-      })
-    );
-  }
+  // The Better Auth admin plugin is intentionally retired. This application
+  // already owns the persisted role / ban / impersonatedBy schema fields and
+  // derives admin authority exclusively from the API-side GitHub allowlist
+  // resolver. Re-enabling the plugin would remount legacy role-based
+  // /api/auth/admin/* endpoints, creating a second admin source of truth.
 
   if (!options.disableOpenAPI) {
     plugins.push(openAPI({ path: '/api/auth/reference' }));
