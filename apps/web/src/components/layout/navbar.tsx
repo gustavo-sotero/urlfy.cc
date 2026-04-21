@@ -14,6 +14,7 @@
 'use client';
 
 import { Menu } from 'lucide-react';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { LanguageSwitcher } from '@/components/shared/language-switcher';
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/sheet';
 import { Link } from '@/i18n/routing';
 import { useAuthState } from '@/lib/session-provider';
+import logoSrc from '@/public/logo.png';
 
 // ═══════════════════════════════════════════════════════════════════
 // NAV LINK ITEM
@@ -86,16 +88,19 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-      <nav className="container mx-auto flex h-16 items-center justify-between px-4">
+      <nav className="container mx-auto flex h-24 items-center justify-between px-4">
         {/* Logo */}
         <Link
           href="/"
-          className="flex items-center gap-2 text-xl font-bold transition-colors hover:text-primary"
+          className="flex items-center transition-opacity hover:opacity-80"
         >
-          <span className="text-primary">
-            urlfy
-            <span className="text-muted-foreground">.cc</span>
-          </span>
+          <Image
+            src={logoSrc}
+            alt="urlfy.cc"
+            height={400}
+            quality={100}
+            className="h-24 w-auto"
+          />
         </Link>
 
         {/* Desktop Navigation */}
@@ -163,10 +168,15 @@ export function Navbar() {
               <Link
                 href="/"
                 onClick={closeMobileMenu}
-                className="flex items-center gap-2 text-xl font-bold"
+                className="flex items-center transition-opacity hover:opacity-80"
               >
-                <span className="text-primary">urlfy</span>
-                <span className="text-muted-foreground">.cc</span>
+                <Image
+                  src={logoSrc}
+                  alt="urlfy.cc"
+                  height={400}
+                  quality={100}
+                  className="h-24 w-auto"
+                />
               </Link>
 
               {/* Mobile Nav Links */}
@@ -183,13 +193,11 @@ export function Navbar() {
                 ))}
               </nav>
 
-              <div className="mt-6 border-t pt-6">
-                <div className="mb-3 px-3 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              <div className="mt-6 border-t pt-4">
+                <div className="mb-1 px-3 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                   {tCommon('language')}
                 </div>
-                <div className="flex items-center rounded-lg border bg-muted/40 px-3 py-2">
-                  <LanguageSwitcher />
-                </div>
+                <LanguageSwitcher variant="inline" onSwitch={closeMobileMenu} />
               </div>
 
               {/* Mobile Auth Section */}

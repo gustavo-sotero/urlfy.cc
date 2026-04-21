@@ -13,7 +13,7 @@
 [x] Correções email
     - Atualmente o e-mail para verificar conta, só é enviado caso o usuario faça login e na tela de login solicitar o email, e e-mail deve ser enviado logo assim que a conta for criada, e o usuario deve ser avisado disso.
     - tornar visual do e-mail similar ao do site.
-[ ] Alterar sistema de autenticação do admin
+[x] Alterar sistema de autenticação do admin
     - Por se tratar de um projeto pessoal, so terá um unico admin, entao seguinte o login do admin deverá ser feito pelo github, e verificar o id do usuario do github se é igual ao id salvo no .env
 [ ] Atualizar e revisar a pagina de sobre o projeto e readme.
     - Atualizar sobre as tecnologias, decisões, trade-offs, etc..

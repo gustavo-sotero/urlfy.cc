@@ -2,6 +2,7 @@
 'use client';
 
 import { LogOut, Menu, User } from 'lucide-react';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
@@ -27,6 +28,7 @@ import {
 } from '@/components/ui/sheet';
 import { Link } from '@/i18n/routing';
 import { signOut } from '@/lib/auth.client';
+import logoSrc from '@/public/logo.png';
 
 interface Props {
   user: {
@@ -92,7 +94,6 @@ export function Header({ user }: Props) {
                 <DashboardBrand
                   subtitle={tSidebar('dashboard')}
                   onNavigate={closeMobileMenu}
-                  iconClassName="size-10"
                 />
               </SheetHeader>
               <div className="flex h-full flex-col">
@@ -118,9 +119,13 @@ export function Header({ user }: Props) {
           </Sheet>
 
           <div className="min-w-0">
-            <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-              urlfy.cc
-            </p>
+            <Image
+              src={logoSrc}
+              alt="urlfy.cc"
+              height={400}
+              quality={100}
+              className="mb-1 h-20 w-auto"
+            />
             <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl md:text-2xl">
               {t('dashboard')}
             </h1>

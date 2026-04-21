@@ -1,19 +1,18 @@
-import { Shield } from 'lucide-react';
+import Image from 'next/image';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
+import logoSrc from '@/public/logo.png';
 
 interface DashboardBrandProps {
   subtitle: string;
   onNavigate?: () => void;
   className?: string;
-  iconClassName?: string;
 }
 
 export function DashboardBrand({
   subtitle,
   onNavigate,
-  className,
-  iconClassName
+  className
 }: DashboardBrandProps) {
   return (
     <Link
@@ -21,20 +20,14 @@ export function DashboardBrand({
       onClick={onNavigate}
       className={cn('flex items-center gap-3 font-semibold', className)}
     >
-      <span
-        className={cn(
-          'flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15',
-          iconClassName
-        )}
-      >
-        <Shield className="h-5 w-5" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-semibold tracking-tight">
-          urlfy.cc
-        </span>
-        <span className="block text-xs text-muted-foreground">{subtitle}</span>
-      </span>
+      <Image
+        src={logoSrc}
+        alt="urlfy.cc"
+        height={400}
+        quality={100}
+        className="h-24 w-auto"
+      />
+      <span className="block text-xs text-muted-foreground">{subtitle}</span>
     </Link>
   );
 }
