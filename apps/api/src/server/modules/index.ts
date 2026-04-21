@@ -49,6 +49,5 @@ export {
 export {
   consentController,
   meController,
-  UsersModel,
-  usersController
+  UsersModel
 } from './users';

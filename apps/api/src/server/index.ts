@@ -58,8 +58,7 @@ import { publicApiV1 } from '@/server/modules/public';
 import {
   consentController,
   meController,
-  UsersModel,
-  usersController
+  UsersModel
 } from '@/server/modules/users';
 
 const logger = createLogger('api-router');
@@ -402,7 +401,6 @@ export const api = new Elysia({ prefix: '/api' })
       .use(authController)
       .use(meController)
       .use(consentController)
-      .use(usersController)
       .use(apiKeysController)
       .use(contactController)
       .use(linksController)
