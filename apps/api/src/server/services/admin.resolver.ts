@@ -11,11 +11,59 @@
 
 import { db } from '@urlfy/data';
 import { account as accountTable } from '@urlfy/data/schema/auth';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { getEnv } from '@/lib/env';
 import { createLogger } from '@/server/lib/telemetry';
 
 const logger = createLogger('admin-resolver');
+const ADMIN_PROVIDER_ID = 'github' as const;
+
+function getConfiguredAdminGitHubAccountId(): string | undefined {
+  try {
+    return getEnv().ADMIN_GITHUB_ACCOUNT_ID || undefined;
+  } catch {
+    // env not yet validated (e.g. build time) — fail closed
+    return undefined;
+  }
+}
+
+export async function resolveAuthorizedAdminUserIds(
+  userIds: readonly string[]
+): Promise<Set<string>> {
+  const normalizedUserIds = [...new Set(userIds.filter((userId) => userId))];
+
+  if (normalizedUserIds.length === 0) {
+    return new Set();
+  }
+
+  const adminAccountId = getConfiguredAdminGitHubAccountId();
+
+  if (!adminAccountId) {
+    return new Set();
+  }
+
+  try {
+    const linkedAccounts = await db
+      .select({ userId: accountTable.userId })
+      .from(accountTable)
+      .where(
+        and(
+          inArray(accountTable.userId, normalizedUserIds),
+          eq(accountTable.providerId, ADMIN_PROVIDER_ID),
+          eq(accountTable.accountId, adminAccountId)
+        )
+      )
+      .limit(normalizedUserIds.length);
+
+    return new Set(linkedAccounts.map(({ userId }) => userId));
+  } catch (error) {
+    logger.error('Bulk admin resolution failed — denying admin access', {
+      userIds: normalizedUserIds,
+      error
+    });
+    return new Set();
+  }
+}
 
 /**
  * Determines whether the given userId is the single authorized admin by
@@ -34,13 +82,7 @@ export async function resolveIsAdminByGitHubAccount(
 ): Promise<boolean> {
   if (!userId) return false;
 
-  let adminAccountId: string | undefined;
-  try {
-    adminAccountId = getEnv().ADMIN_GITHUB_ACCOUNT_ID;
-  } catch {
-    // env not yet validated (e.g. build time) — fail closed
-    return false;
-  }
+  const adminAccountId = getConfiguredAdminGitHubAccountId();
 
   if (!adminAccountId) return false;
 
@@ -51,7 +93,7 @@ export async function resolveIsAdminByGitHubAccount(
       .where(
         and(
           eq(accountTable.userId, userId),
-          eq(accountTable.providerId, 'github')
+          eq(accountTable.providerId, ADMIN_PROVIDER_ID)
         )
       )
       .limit(1);

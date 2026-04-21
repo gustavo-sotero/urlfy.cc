@@ -23,6 +23,8 @@ process.env.INTERNAL_API_SECRET =
   process.env.INTERNAL_API_SECRET ?? 'test-internal-api-secret-32chars';
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import * as realDataModule from '@urlfy/data';
+import * as realTelemetryModule from '@/server/lib/telemetry';
 
 // ─── Mutable mock state ──────────────────────────────────────────────────────
 
@@ -79,14 +81,20 @@ describe('resolveIsAdminByGitHubAccount (unit)', () => {
     }));
 
     mock.module('@urlfy/data', () => ({
-      db: { select: mockDbSelect }
-    }));
+      ...realDataModule,
+      db: new Proxy(realDataModule.db, {
+        get(target, prop, receiver) {
+          if (prop === 'select') {
+            return mockDbSelect;
+          }
 
-    mock.module('@urlfy/data/schema/auth', () => ({
-      account: {}
+          return Reflect.get(target, prop, receiver);
+        }
+      })
     }));
 
     mock.module('@/server/lib/telemetry', () => ({
+      ...realTelemetryModule,
       createLogger: () => ({
         debug: mock(() => undefined),
         warn: mock(() => undefined),

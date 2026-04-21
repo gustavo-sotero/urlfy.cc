@@ -33,6 +33,12 @@ const getSessionMock = mock(
 );
 const resolveIsAdminMock = mock(async (_userId: string) => false);
 
+function importInternalController() {
+  return import(
+    `../internal.controller?internal-controller-test=${Date.now()}-${Math.random()}`
+  );
+}
+
 describe('internalController session route', () => {
   beforeEach(() => {
     process.env.INTERNAL_API_SECRET = 'test-internal-api-secret-32chars';
@@ -81,7 +87,7 @@ describe('internalController session route', () => {
   });
 
   test('returns the authenticated session at /api/internal/session', async () => {
-    const { internalController } = await import('../internal.controller');
+    const { internalController } = await importInternalController();
     const app = new Elysia({ prefix: '/api' }).use(internalController);
 
     const response = await app.handle(
@@ -109,7 +115,7 @@ describe('internalController session route', () => {
   test('serializes isAdmin=true when the linked GitHub account is authorized', async () => {
     resolveIsAdminMock.mockImplementation(async (_userId: string) => true);
 
-    const { internalController } = await import('../internal.controller');
+    const { internalController } = await importInternalController();
     const app = new Elysia({ prefix: '/api' }).use(internalController);
 
     const response = await app.handle(
@@ -135,7 +141,7 @@ describe('internalController session route', () => {
   test('returns 401 when no authenticated session is found', async () => {
     getSessionMock.mockImplementation(async (): Promise<null> => null);
 
-    const { internalController } = await import('../internal.controller');
+    const { internalController } = await importInternalController();
     const app = new Elysia({ prefix: '/api' }).use(internalController);
 
     const response = await app.handle(
