@@ -31,6 +31,7 @@ const getSessionMock = mock(
     }
   })
 );
+const resolveIsAdminMock = mock(async (_userId: string) => false);
 
 describe('internalController session route', () => {
   beforeEach(() => {
@@ -42,6 +43,10 @@ describe('internalController session route', () => {
           getSession: getSessionMock
         }
       }
+    }));
+
+    mock.module('@/server/services/admin.resolver', () => ({
+      resolveIsAdminByGitHubAccount: resolveIsAdminMock
     }));
 
     mock.module('@/server/lib/redis-stream', () => ({
@@ -67,6 +72,8 @@ describe('internalController session route', () => {
         }
       })
     );
+    resolveIsAdminMock.mockReset();
+    resolveIsAdminMock.mockImplementation(async (_userId: string) => false);
   });
 
   afterEach(() => {
@@ -87,14 +94,42 @@ describe('internalController session route', () => {
     );
 
     const body = (await response.json()) as {
-      user: { id: string };
+      user: { id: string; isAdmin: boolean };
       session: { id: string };
     };
 
     expect(response.status).toBe(200);
     expect(body.user.id).toBe('user-1');
+    expect(body.user.isAdmin).toBe(false);
     expect(body.session.id).toBe('session-1');
     expect(getSessionMock).toHaveBeenCalledTimes(1);
+    expect(resolveIsAdminMock).toHaveBeenCalledWith('user-1');
+  });
+
+  test('serializes isAdmin=true when the linked GitHub account is authorized', async () => {
+    resolveIsAdminMock.mockImplementation(async (_userId: string) => true);
+
+    const { internalController } = await import('../internal.controller');
+    const app = new Elysia({ prefix: '/api' }).use(internalController);
+
+    const response = await app.handle(
+      new Request('http://localhost/api/internal/session', {
+        headers: {
+          cookie: 'urlfy.session_token=test-token',
+          'x-internal-api': 'test-internal-api-secret-32chars'
+        }
+      })
+    );
+
+    const body = (await response.json()) as {
+      user: { id: string; isAdmin: boolean };
+      session: { id: string };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.user.id).toBe('user-1');
+    expect(body.user.isAdmin).toBe(true);
+    expect(resolveIsAdminMock).toHaveBeenCalledWith('user-1');
   });
 
   test('returns 401 when no authenticated session is found', async () => {

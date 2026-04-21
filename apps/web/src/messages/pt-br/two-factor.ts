@@ -97,7 +97,6 @@ export const TwoFactor = {
 
   disable: {
     button: 'Desativar 2FA',
-    adminWarning: 'Desativar o 2FA reduz a segurança da sua conta.',
     dialogTitle: 'Desativar Autenticação de Dois Fatores?',
     dialogDescription:
       'Isso tornará sua conta menos segura. Você precisará apenas da senha para fazer login.',

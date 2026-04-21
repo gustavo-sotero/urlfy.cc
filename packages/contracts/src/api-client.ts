@@ -142,6 +142,7 @@ export interface AdminUserResponse {
   name: string;
   email: string;
   role: string;
+  isAdmin: boolean;
   banned: boolean;
   bannedReason: string | null;
   bannedAt: string | null;
@@ -153,7 +154,6 @@ export interface AdminUserResponse {
 }
 
 export interface UpdateAdminUserRequest {
-  role?: string;
   banned?: boolean;
   bannedReason?: string;
   linksQuota?: number;
@@ -205,7 +205,6 @@ export type AdminUsersQuery = {
   page?: string;
   limit?: string;
   search?: string;
-  role?: string;
   isBanned?: string;
 };
 export type AuditLogsQuery = {
@@ -358,9 +357,12 @@ interface AdminUsersRoutes {
       body: UpdateAdminUserRequest
     ): Promise<ApiClientResponse<AdminUserResponse>>;
   };
-  get(options?: {
-    query?: AdminUsersQuery;
-  }): Promise<ApiClientResponse<AdminUserResponse[]>>;
+  get(options?: { query?: AdminUsersQuery }): Promise<
+    ApiClientResponse<{
+      data: AdminUserResponse[];
+      meta: PaginationMeta;
+    }>
+  >;
 }
 
 interface AdminMessagesRoutes {

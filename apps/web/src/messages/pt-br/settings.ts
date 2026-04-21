@@ -33,8 +33,6 @@ export const Settings = {
     twoFactorActive: 'Ativo',
     twoFactorRequired:
       'O 2FA é opcional, mas fortemente recomendado para proteger melhor a sua conta.',
-    adminWarning:
-      'O 2FA é opcional, mas fortemente recomendado para proteger melhor a sua conta.',
     enable2FA: 'Ativar 2FA',
     disable2FA: 'Desativar 2FA',
     backupCodes: 'Códigos de Backup',

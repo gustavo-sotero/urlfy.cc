@@ -113,7 +113,7 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 | ID        | Requisito                                         |
 | --------- | ------------------------------------------------- |
 | **RF-27** | Login via Email/Password + OAuth (Google, GitHub) |
-| **RF-28** | 2FA obrigatório para role admin (TOTP)            |
+| **RF-28** | Autenticação admin via conta GitHub vinculada (`ADMIN_GITHUB_ACCOUNT_ID`) |
 | **RF-29** | API Keys para acesso programático                 |
 | **RF-30** | Documentação automática em `/api/auth/reference`  |
 
@@ -123,7 +123,7 @@ O **urlfy.cc** é um serviço de encurtamento de URLs focado em performance e si
 | --------- | -------------------------------------------------- |
 | **RF-31** | Dashboard com KPIs: total links, cliques, usuários |
 | **RF-32** | Busca global de links + ação "Banir"               |
-| **RF-33** | Gestão de usuários: ban, unban, alterar role       |
+| **RF-33** | Gestão de usuários: ban, unban (role não é mutável via aplicação) |
 | **RF-34** | Logs de auditoria para ações administrativas       |
 
 ### 3.7 Compliance (LGPD/GDPR)

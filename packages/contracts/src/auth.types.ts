@@ -15,7 +15,11 @@ import type {
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * User role enum
+ * Persisted application role.
+ *
+ * This field may still contain legacy values like `admin`, but it is not an
+ * authority source for administrative access. Admin access is derived from the
+ * linked GitHub account allowlist and exposed separately via `isAdmin`.
  */
 export type UserRole = 'user' | 'admin';
 
@@ -63,7 +67,6 @@ export interface CreateUserPayload {
   email: string;
   password: string;
   name: string;
-  role?: UserRole;
 }
 
 /**

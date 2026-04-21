@@ -2,18 +2,43 @@
  * ═════════════════════════════════════════════════════════════════════
  * SEED TEST USERS FOR E2E TESTS
  * ═════════════════════════════════════════════════════════════════════
- * Creates test users with different roles and 2FA states for E2E testing.
+ * Creates deterministic test users for the GitHub allowlist admin model.
  *
- * Usage: bun run src/db/scripts/seed-test-users.ts
+ * Usage: bun run src/scripts/seed-test-users.ts
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import { db } from '../index';
 import { account, twoFactor, user } from '../schema/auth';
 
+const AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID =
+  process.env.ADMIN_GITHUB_ACCOUNT_ID ||
+  'local-dev-test-admin-github-account-id-00000000';
+
+type TestAccountSeed = {
+  accountId: string;
+  providerId: 'credential' | 'github';
+  passwordProtected?: boolean;
+};
+
+type TestUserSeed = {
+  id: string;
+  email: string;
+  password: string;
+  name: string;
+  role: 'user' | 'admin';
+  emailVerified: boolean;
+  twoFactorEnabled: boolean;
+  linksQuota: number;
+  seedTwoFactor: boolean;
+  accounts: TestAccountSeed[];
+};
+
 // Test user credentials (for E2E tests)
-const TEST_USERS = [
+// Exactly one seeded user is the authorized admin, derived from a linked
+// GitHub account whose accountId matches ADMIN_GITHUB_ACCOUNT_ID.
+const TEST_USERS: readonly TestUserSeed[] = [
   {
     id: 'test-user-regular',
     email: 'test-user@urlfy.test',
@@ -22,47 +47,175 @@ const TEST_USERS = [
     role: 'user' as const,
     emailVerified: true,
     twoFactorEnabled: false,
-    needsTwoFactor: false
+    linksQuota: 100,
+    seedTwoFactor: false,
+    accounts: [
+      {
+        accountId: 'test-user-regular',
+        providerId: 'credential',
+        passwordProtected: true
+      }
+    ]
   },
   {
-    id: 'test-admin-no-2fa',
-    email: 'admin-no-2fa@urlfy.test',
+    id: 'test-admin-authorized',
+    email: 'authorized-admin@urlfy.test',
     password: 'Admin123!',
-    name: 'Admin No 2FA',
-    role: 'admin' as const,
+    name: 'Authorized Admin',
+    role: 'user' as const,
     emailVerified: true,
     twoFactorEnabled: false,
-    needsTwoFactor: false
+    linksQuota: 10000,
+    seedTwoFactor: false,
+    accounts: [
+      {
+        accountId: 'test-admin-authorized',
+        providerId: 'credential',
+        passwordProtected: true
+      },
+      {
+        accountId: AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID,
+        providerId: 'github'
+      }
+    ]
   },
   {
-    id: 'test-admin-with-2fa',
-    email: 'admin-2fa@urlfy.test',
+    id: 'test-github-user-unauthorized',
+    email: 'unauthorized-github@urlfy.test',
+    password: 'Password123!',
+    name: 'Unauthorized GitHub User',
+    role: 'user' as const,
+    emailVerified: true,
+    twoFactorEnabled: false,
+    linksQuota: 100,
+    seedTwoFactor: false,
+    accounts: [
+      {
+        accountId: 'test-github-user-unauthorized',
+        providerId: 'credential',
+        passwordProtected: true
+      },
+      {
+        accountId: 'unauthorized-github-account-id-00000000',
+        providerId: 'github'
+      }
+    ]
+  },
+  {
+    id: 'test-legacy-role-admin',
+    email: 'legacy-admin@urlfy.test',
     password: 'Admin123!',
-    name: 'Admin With 2FA',
+    name: 'Legacy Role Admin',
     role: 'admin' as const,
     emailVerified: true,
     twoFactorEnabled: true,
-    needsTwoFactor: true
+    linksQuota: 10000,
+    seedTwoFactor: true,
+    accounts: [
+      {
+        accountId: 'test-legacy-role-admin',
+        providerId: 'credential',
+        passwordProtected: true
+      },
+      {
+        accountId: 'legacy-admin-github-account-id-00000000',
+        providerId: 'github'
+      }
+    ]
   }
 ] as const;
 
+async function ensureUserProfile(testUser: TestUserSeed) {
+  const existingUsers = await db
+    .select({ id: user.id, email: user.email })
+    .from(user)
+    .where(or(eq(user.id, testUser.id), eq(user.email, testUser.email)));
+
+  for (const existingUser of existingUsers) {
+    if (existingUser.id !== testUser.id) {
+      await db.delete(user).where(eq(user.id, existingUser.id));
+    }
+  }
+
+  const [existingUser] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.id, testUser.id))
+    .limit(1);
+
+  const persistedUserData = {
+    email: testUser.email,
+    name: testUser.name,
+    role: testUser.role,
+    emailVerified: testUser.emailVerified,
+    twoFactorEnabled: testUser.twoFactorEnabled,
+    linksQuota: testUser.linksQuota,
+    linksCount: 0,
+    banned: false,
+    bannedAt: null,
+    bannedReason: null,
+    deletedAt: null
+  };
+
+  if (existingUser) {
+    await db
+      .update(user)
+      .set(persistedUserData)
+      .where(eq(user.id, testUser.id));
+    return 'updated';
+  }
+
+  await db.insert(user).values({
+    id: testUser.id,
+    ...persistedUserData
+  });
+  return 'created';
+}
+
+async function replaceAccounts(testUser: TestUserSeed, passwordHash: string) {
+  await db.delete(account).where(eq(account.userId, testUser.id));
+
+  await db.insert(account).values(
+    testUser.accounts.map((entry, index) => ({
+      id: `${entry.providerId}-account-${testUser.id}-${index}`,
+      accountId: entry.accountId,
+      providerId: entry.providerId,
+      userId: testUser.id,
+      password: entry.passwordProtected ? passwordHash : null
+    }))
+  );
+}
+
+async function replaceTwoFactor(testUser: TestUserSeed) {
+  await db.delete(twoFactor).where(eq(twoFactor.userId, testUser.id));
+
+  if (!testUser.seedTwoFactor) {
+    return false;
+  }
+
+  await db.insert(twoFactor).values({
+    id: `2fa-${testUser.id}`,
+    userId: testUser.id,
+    secret: 'JBSWY3DPEHPK3PXP',
+    backupCodes: JSON.stringify([
+      'BACKUP-CODE-1',
+      'BACKUP-CODE-2',
+      'BACKUP-CODE-3'
+    ]),
+    verified: true
+  });
+
+  return true;
+}
+
 async function seedTestUsers() {
   console.log('🌱 Seeding test users...\n');
+  console.log(
+    `Using ADMIN_GITHUB_ACCOUNT_ID=${AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID}\n`
+  );
 
   for (const testUser of TEST_USERS) {
     try {
-      // Check if user already exists
-      const existing = await db
-        .select()
-        .from(user)
-        .where(eq(user.email, testUser.email))
-        .limit(1);
-
-      if (existing.length > 0) {
-        console.log(`⏭️  User ${testUser.email} already exists, skipping...`);
-        continue;
-      }
-
       // Hash password using Bun's native password hashing
       const passwordHash = await Bun.password.hash(testUser.password, {
         algorithm: 'argon2id',
@@ -70,53 +223,28 @@ async function seedTestUsers() {
         timeCost: 3
       });
 
-      // Insert user
-      // Note: Better-Auth handles password hashing during actual authentication
-      // For E2E tests, we create users directly without hashed passwords
-      // since we'll use Better-Auth's sign-in flow which handles hashing
-      const [createdUser] = await db
-        .insert(user)
-        .values({
-          id: testUser.id,
-          email: testUser.email,
-          name: testUser.name,
-          role: testUser.role,
-          emailVerified: testUser.emailVerified,
-          twoFactorEnabled: testUser.twoFactorEnabled,
-          linksQuota: testUser.role === 'admin' ? 10000 : 100,
-          linksCount: 0
-        })
-        .returning();
+      const operation = await ensureUserProfile(testUser);
+      await replaceAccounts(testUser, passwordHash);
+      const createdTwoFactor = await replaceTwoFactor(testUser);
 
-      // Create account record with password (Better-Auth requirement)
-      await db.insert(account).values({
-        id: `account-${testUser.id}`,
-        accountId: testUser.id,
-        providerId: 'credential', // Better-Auth uses 'credential' for email/password
-        userId: createdUser.id,
-        password: passwordHash
-      });
-
-      console.log(`✅ Created user: ${testUser.email}`);
+      console.log(
+        `${operation === 'created' ? '✅ Created' : '♻️  Updated'} user: ${testUser.email}`
+      );
       console.log(`   - Role: ${testUser.role}`);
       console.log(`   - 2FA Enabled: ${testUser.twoFactorEnabled}`);
-
-      // Create 2FA record if needed
-      if (testUser.needsTwoFactor) {
-        await db.insert(twoFactor).values({
-          id: `2fa-${testUser.id}`,
-          userId: createdUser.id,
-          secret: 'JBSWY3DPEHPK3PXP', // Test TOTP secret (for testing only)
-          backupCodes: JSON.stringify([
-            'BACKUP-CODE-1',
-            'BACKUP-CODE-2',
-            'BACKUP-CODE-3'
-          ]),
-          verified: true
-        });
-
-        console.log(`   - 2FA Record: Created and verified`);
-      }
+      console.log(
+        `   - GitHub Linked: ${testUser.accounts.some((entry) => entry.providerId === 'github')}`
+      );
+      console.log(
+        `   - Authorized Admin: ${testUser.accounts.some(
+          (entry) =>
+            entry.providerId === 'github' &&
+            entry.accountId === AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID
+        )}`
+      );
+      console.log(
+        `   - 2FA Record: ${createdTwoFactor ? 'Created and verified' : 'Not seeded'}`
+      );
 
       console.log('');
     } catch (error) {
@@ -130,21 +258,34 @@ async function seedTestUsers() {
   console.log('Regular User:');
   console.log(`  EMAIL: ${TEST_USERS[0].email}`);
   console.log(`  PASSWORD: ${TEST_USERS[0].password}\n`);
-  console.log('Admin without 2FA:');
+  console.log('Authorized Admin (linked GitHub allowlist):');
   console.log(`  EMAIL: ${TEST_USERS[1].email}`);
-  console.log(`  PASSWORD: ${TEST_USERS[1].password}\n`);
-  console.log('Admin with 2FA:');
+  console.log(`  PASSWORD: ${TEST_USERS[1].password}`);
+  console.log(`  GITHUB ACCOUNT ID: ${AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID}\n`);
+  console.log('Unauthorized GitHub-linked User:');
   console.log(`  EMAIL: ${TEST_USERS[2].email}`);
   console.log(`  PASSWORD: ${TEST_USERS[2].password}\n`);
+  console.log('Legacy role=admin User (not authorized):');
+  console.log(`  EMAIL: ${TEST_USERS[3].email}`);
+  console.log(`  PASSWORD: ${TEST_USERS[3].password}\n`);
   console.log('Environment variables for E2E tests:');
   console.log('```bash');
   console.log(`export TEST_USER_EMAIL="${TEST_USERS[0].email}"`);
   console.log(`export TEST_USER_PASSWORD="${TEST_USERS[0].password}"`);
+  console.log(`export TEST_ADMIN_EMAIL="${TEST_USERS[1].email}"`);
+  console.log(`export TEST_ADMIN_PASSWORD="${TEST_USERS[1].password}"`);
+  console.log(
+    `export TEST_ADMIN_GITHUB_ACCOUNT_ID="${AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID}"`
+  );
   console.log(`export TEST_ADMIN_NO_2FA_EMAIL="${TEST_USERS[1].email}"`);
   console.log(`export TEST_ADMIN_NO_2FA_PASSWORD="${TEST_USERS[1].password}"`);
-  console.log(`export TEST_ADMIN_WITH_2FA_EMAIL="${TEST_USERS[2].email}"`);
+  console.log(`export TEST_UNAUTHORIZED_GITHUB_EMAIL="${TEST_USERS[2].email}"`);
   console.log(
-    `export TEST_ADMIN_WITH_2FA_PASSWORD="${TEST_USERS[2].password}"`
+    `export TEST_UNAUTHORIZED_GITHUB_PASSWORD="${TEST_USERS[2].password}"`
+  );
+  console.log(`export TEST_LEGACY_ROLE_ADMIN_EMAIL="${TEST_USERS[3].email}"`);
+  console.log(
+    `export TEST_LEGACY_ROLE_ADMIN_PASSWORD="${TEST_USERS[3].password}"`
   );
   console.log('```\n');
 

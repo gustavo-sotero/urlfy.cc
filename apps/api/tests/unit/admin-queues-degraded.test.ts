@@ -26,8 +26,8 @@ mock.module('@/server/middleware/auth/require-admin', () => ({
     user: {
       id: 'admin-user',
       email: 'admin@urlfy.cc',
-      role: 'admin',
-      twoFactorEnabled: true
+      role: 'user',
+      twoFactorEnabled: false
     }
   }))
 }));
@@ -92,9 +92,7 @@ describe('admin queues degraded semantics', () => {
       new Request('http://localhost/admin/queues', {
         method: 'GET',
         headers: {
-          'x-test-user-id': 'admin-test',
-          'x-test-user-role': 'admin',
-          'x-test-2fa-enabled': 'true'
+          'x-test-user-id': 'admin-test'
         }
       })
     );
@@ -132,9 +130,7 @@ describe('admin queues degraded semantics', () => {
       new Request('http://localhost/admin/queues/cleanup', {
         method: 'GET',
         headers: {
-          'x-test-user-id': 'admin-test',
-          'x-test-user-role': 'admin',
-          'x-test-2fa-enabled': 'true'
+          'x-test-user-id': 'admin-test'
         }
       })
     );
