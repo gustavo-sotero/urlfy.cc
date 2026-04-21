@@ -48,6 +48,13 @@ const mockDbSelect = mock(() => ({ from: mockDbFrom }));
 // ─── getEnv mock ─────────────────────────────────────────────────────────────
 
 const mockGetEnv = mock(() => mockGetEnvImpl());
+let resolverImportCounter = 0;
+
+async function loadAdminResolver() {
+  return import(
+    `../../../services/admin.resolver?unit=${resolverImportCounter++}`
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -75,7 +82,7 @@ describe('resolveIsAdminByGitHubAccount (unit)', () => {
     mockDbSelect.mockImplementation(() => ({ from: mockDbFrom }));
     mockGetEnv.mockImplementation(() => mockGetEnvImpl());
 
-    // Register module mocks (Bun re-evaluates the dependency graph)
+    // Register module mocks for the next fresh import of admin.resolver.
     mock.module('@/lib/env', () => ({
       getEnv: mockGetEnv
     }));
@@ -113,25 +120,19 @@ describe('resolveIsAdminByGitHubAccount (unit)', () => {
 
   describe('falsy userId guard', () => {
     test('returns false for null userId', async () => {
-      const { resolveIsAdminByGitHubAccount } = await import(
-        '../../../services/admin.resolver'
-      );
+      const { resolveIsAdminByGitHubAccount } = await loadAdminResolver();
       expect(await resolveIsAdminByGitHubAccount(null)).toBe(false);
       expect(mockDbSelect).not.toHaveBeenCalled();
     });
 
     test('returns false for undefined userId', async () => {
-      const { resolveIsAdminByGitHubAccount } = await import(
-        '../../../services/admin.resolver'
-      );
+      const { resolveIsAdminByGitHubAccount } = await loadAdminResolver();
       expect(await resolveIsAdminByGitHubAccount(undefined)).toBe(false);
       expect(mockDbSelect).not.toHaveBeenCalled();
     });
 
     test('returns false for empty string userId', async () => {
-      const { resolveIsAdminByGitHubAccount } = await import(
-        '../../../services/admin.resolver'
-      );
+      const { resolveIsAdminByGitHubAccount } = await loadAdminResolver();
       expect(await resolveIsAdminByGitHubAccount('')).toBe(false);
       expect(mockDbSelect).not.toHaveBeenCalled();
     });
@@ -145,9 +146,7 @@ describe('resolveIsAdminByGitHubAccount (unit)', () => {
     test('returns false when ADMIN_GITHUB_ACCOUNT_ID is undefined', async () => {
       mockGetEnvImpl = () => ({ ADMIN_GITHUB_ACCOUNT_ID: undefined });
 
-      const { resolveIsAdminByGitHubAccount } = await import(
-        '../../../services/admin.resolver'
-      );
+      const { resolveIsAdminByGitHubAccount } = await loadAdminResolver();
       expect(await resolveIsAdminByGitHubAccount('user-1')).toBe(false);
       expect(mockDbSelect).not.toHaveBeenCalled();
     });
@@ -157,9 +156,7 @@ describe('resolveIsAdminByGitHubAccount (unit)', () => {
         ADMIN_GITHUB_ACCOUNT_ID: '' as unknown as undefined
       });
 
-      const { resolveIsAdminByGitHubAccount } = await import(
-        '../../../services/admin.resolver'
-      );
+      const { resolveIsAdminByGitHubAccount } = await loadAdminResolver();
       expect(await resolveIsAdminByGitHubAccount('user-1')).toBe(false);
       expect(mockDbSelect).not.toHaveBeenCalled();
     });
@@ -169,9 +166,7 @@ describe('resolveIsAdminByGitHubAccount (unit)', () => {
         throw new Error('Environment not validated. Call validateEnv() first.');
       });
 
-      const { resolveIsAdminByGitHubAccount } = await import(
-        '../../../services/admin.resolver'
-      );
+      const { resolveIsAdminByGitHubAccount } = await loadAdminResolver();
       expect(await resolveIsAdminByGitHubAccount('user-1')).toBe(false);
       expect(mockDbSelect).not.toHaveBeenCalled();
     });
@@ -185,27 +180,21 @@ describe('resolveIsAdminByGitHubAccount (unit)', () => {
     test('returns true when linked GitHub accountId matches configured value', async () => {
       mockDbLimitResult = [{ accountId: CONFIGURED_ACCOUNT_ID }];
 
-      const { resolveIsAdminByGitHubAccount } = await import(
-        '../../../services/admin.resolver'
-      );
+      const { resolveIsAdminByGitHubAccount } = await loadAdminResolver();
       expect(await resolveIsAdminByGitHubAccount('user-1')).toBe(true);
     });
 
     test('returns false when linked GitHub accountId does not match', async () => {
       mockDbLimitResult = [{ accountId: WRONG_ACCOUNT_ID }];
 
-      const { resolveIsAdminByGitHubAccount } = await import(
-        '../../../services/admin.resolver'
-      );
+      const { resolveIsAdminByGitHubAccount } = await loadAdminResolver();
       expect(await resolveIsAdminByGitHubAccount('user-1')).toBe(false);
     });
 
     test('returns false when user has no linked GitHub account (empty result)', async () => {
       mockDbLimitResult = [];
 
-      const { resolveIsAdminByGitHubAccount } = await import(
-        '../../../services/admin.resolver'
-      );
+      const { resolveIsAdminByGitHubAccount } = await loadAdminResolver();
       expect(await resolveIsAdminByGitHubAccount('user-1')).toBe(false);
     });
   });
@@ -218,9 +207,7 @@ describe('resolveIsAdminByGitHubAccount (unit)', () => {
     test('returns false when db query throws', async () => {
       mockDbThrows = true;
 
-      const { resolveIsAdminByGitHubAccount } = await import(
-        '../../../services/admin.resolver'
-      );
+      const { resolveIsAdminByGitHubAccount } = await loadAdminResolver();
       expect(await resolveIsAdminByGitHubAccount('user-1')).toBe(false);
     });
   });
