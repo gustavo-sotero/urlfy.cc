@@ -29,7 +29,7 @@ export const adminKeys = {
   search: (query: string) => [...adminKeys.all, 'search', query] as const,
   auditLogs: (filters: api.AuditLogsQuery) =>
     [...adminKeys.all, 'audit', filters] as const,
-  users: (filters: { page?: number; perPage?: number; search?: string }) =>
+  users: (filters: api.UsersQuery) =>
     [...adminKeys.all, 'users', filters] as const,
   messages: (status?: string) => [...adminKeys.all, 'messages', status] as const
 };
@@ -177,7 +177,7 @@ export function useAuditLogs(
 // ═══════════════════════════════════════════════════════════════════
 
 export function useUsers(
-  filters: { page?: number; perPage?: number; search?: string } = {},
+  filters: api.UsersQuery = {},
   options?: Omit<
     UseQueryOptions<PaginatedResponse<api.UserResponse>>,
     'queryKey' | 'queryFn'

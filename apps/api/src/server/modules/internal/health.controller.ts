@@ -192,7 +192,7 @@ const healthDetailed = new Elysia()
       detail: {
         summary: 'Detailed health check (Admin)',
         description:
-          'Returns detailed health metrics for all services. Requires admin authentication with 2FA enabled.',
+          'Returns detailed health metrics for all services. Requires authenticated admin access derived from the linked GitHub account allowlist.',
         tags: ['Health', 'Admin'],
         security: [{ bearerAuth: [] }, { cookieAuth: [] }]
       },

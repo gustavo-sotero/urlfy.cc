@@ -1,8 +1,11 @@
 import { getClientIpFromHeaders } from '@/server/lib/ip';
-import type { Session as AppSession, InternalUser } from '@/types/auth.types';
+import type {
+  Session as AppSession,
+  InternalSessionUser
+} from '@/types/auth.types';
 
 export interface ServerSession {
-  user: InternalUser & { isAdmin: boolean };
+  user: InternalSessionUser;
   session: AppSession;
 }
 
@@ -88,8 +91,16 @@ export async function getServerSession({
     return null;
   }
 
+  const isAdmin =
+    typeof (session.user as { isAdmin?: unknown }).isAdmin === 'boolean'
+      ? (session.user as { isAdmin: boolean }).isAdmin
+      : false;
+
   return {
-    user: session.user as InternalUser & { isAdmin: boolean },
+    user: {
+      ...(session.user as Omit<InternalSessionUser, 'isAdmin'>),
+      isAdmin
+    } as InternalSessionUser,
     session: session.session as AppSession
   };
 }

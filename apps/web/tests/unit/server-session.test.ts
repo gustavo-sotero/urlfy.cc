@@ -161,4 +161,29 @@ describe('getServerSession', () => {
       expect.objectContaining({ id: 'user-2', isAdmin: false })
     );
   });
+
+  it('fails closed to isAdmin=false when the internal API omits the field', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: { id: 'user-3', email: 'user3@example.com' },
+          session: { id: 'session-user-3', userId: 'user-3' }
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      )
+    );
+
+    const { getServerSession } = await import('@/lib/server-session');
+
+    const session = await getServerSession({
+      headers: new Headers({ cookie: 'urlfy.session_token=user-token-3' })
+    });
+
+    expect(session?.user).toEqual(
+      expect.objectContaining({ id: 'user-3', isAdmin: false })
+    );
+  });
 });

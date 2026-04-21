@@ -7,10 +7,11 @@
  */
 
 import { db } from '@urlfy/data';
-import { user as userTable } from '@urlfy/data/schema';
+import { account as accountTable, user as userTable } from '@urlfy/data/schema';
 import { auditLog } from '@urlfy/data/schema/audit';
-import { and, count, desc, eq, ilike, isNull, or } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { getEnv } from '@/lib/env';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { sanitizeSearchQuery } from '@/server/lib/sanitize';
 import { createLogger } from '@/server/lib/telemetry';
@@ -21,6 +22,37 @@ import type {
 } from './admin.schema';
 
 const logger = createLogger('admin-users-service');
+
+function requireAdminGitHubAccountId(): string {
+  const adminGitHubAccountId = getEnv().ADMIN_GITHUB_ACCOUNT_ID;
+
+  if (!adminGitHubAccountId) {
+    throw new AppError(
+      ErrorCode.SERVICE_UNAVAILABLE,
+      'ADMIN_GITHUB_ACCOUNT_ID is not configured'
+    );
+  }
+
+  return adminGitHubAccountId;
+}
+
+async function hasAuthorizedAdminLink(userId: string): Promise<boolean> {
+  const adminGitHubAccountId = requireAdminGitHubAccountId();
+
+  const [authorizedAdminLink] = await db
+    .select({ accountId: accountTable.accountId })
+    .from(accountTable)
+    .where(
+      and(
+        eq(accountTable.userId, userId),
+        eq(accountTable.providerId, 'github'),
+        eq(accountTable.accountId, adminGitHubAccountId)
+      )
+    )
+    .limit(1);
+
+  return Boolean(authorizedAdminLink);
+}
 
 export const AdminUsersService = {
   /**
@@ -42,6 +74,7 @@ export const AdminUsersService = {
       Math.max(1, Number.parseInt(query.limit || '20', 10))
     );
     const offset = (page - 1) * limit;
+    const adminGitHubAccountId = requireAdminGitHubAccountId();
 
     try {
       const conditions = [];
@@ -75,6 +108,13 @@ export const AdminUsersService = {
             name: userTable.name,
             email: userTable.email,
             role: userTable.role,
+            isAdmin: sql<boolean>`exists(
+              select 1
+              from ${accountTable}
+              where ${accountTable.userId} = ${userTable.id}
+                and ${accountTable.providerId} = 'github'
+                and ${accountTable.accountId} = ${adminGitHubAccountId}
+            )`,
             banned: userTable.banned,
             bannedReason: userTable.bannedReason,
             bannedAt: userTable.bannedAt,
@@ -100,6 +140,7 @@ export const AdminUsersService = {
           name: u.name,
           email: u.email,
           role: u.role,
+          isAdmin: u.isAdmin,
           banned: u.banned ?? false,
           bannedReason: u.bannedReason,
           bannedAt: u.bannedAt ? u.bannedAt.toISOString() : null,
@@ -124,7 +165,7 @@ export const AdminUsersService = {
   },
 
   /**
-   * Update user status (role, ban status, quota)
+   * Update user status (ban status, quota)
    * Creates audit log entry in transaction
    */
   async updateUserStatus(
@@ -172,8 +213,8 @@ export const AdminUsersService = {
           entityId: userId,
           metadata: {
             changes: data,
-            previousRole: updatedUser.role,
-            previousBanned: updatedUser.banned
+            previousBanned: updatedUser.banned,
+            previousLinksQuota: updatedUser.linksQuota
           },
           ipAddress: ipAddress || null,
           userAgent: null
@@ -182,11 +223,14 @@ export const AdminUsersService = {
         return updatedUser;
       });
 
+      const isAdmin = await hasAuthorizedAdminLink(result.id);
+
       return {
         id: result.id,
         name: result.name,
         email: result.email,
         role: result.role,
+        isAdmin,
         banned: result.banned ?? false,
         bannedReason: result.bannedReason,
         bannedAt: result.bannedAt ? result.bannedAt.toISOString() : null,

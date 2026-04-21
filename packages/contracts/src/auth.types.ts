@@ -40,6 +40,23 @@ export interface PublicUser {
 export type InternalUser = DbUser;
 
 /**
+ * Derived authorization state attached to normalized session/user payloads.
+ */
+export interface DerivedAdminState {
+  isAdmin: boolean;
+}
+
+/**
+ * Public session user enriched with derived admin authority.
+ */
+export type PublicSessionUser = PublicUser & DerivedAdminState;
+
+/**
+ * Internal session user enriched with derived admin authority.
+ */
+export type InternalSessionUser = InternalUser & DerivedAdminState;
+
+/**
  * User creation payload
  */
 export interface CreateUserPayload {
@@ -100,6 +117,7 @@ export interface RequireAuthContext {
  * Admin context (requires GitHub account identity verification)
  */
 export interface AdminContext extends RequireAuthContext {
+  user: PublicUser & { isAdmin: true };
   isAdmin: true;
 }
 

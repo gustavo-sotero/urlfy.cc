@@ -603,6 +603,8 @@ Authorization: Bearer <token>
 
 ## Endpoints Admin
 
+Todos os endpoints administrativos exigem uma sessao autenticada cujo usuario esteja vinculado a conta GitHub autorizada em `ADMIN_GITHUB_ACCOUNT_ID`. O campo persistido `user.role` e a configuracao de 2FA nao concedem privilegios administrativos por si so.
+
 ### KPIs Globais
 
 ```http
@@ -695,7 +697,7 @@ Authorization: Bearer <token>
 
 ```http
 GET /api/health/detailed
-Authorization: Bearer <token>  # Admin only
+Authorization: Bearer <token>  # Admin allowlisted via linked GitHub account
 ```
 
 **Response:**

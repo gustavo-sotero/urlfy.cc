@@ -44,7 +44,7 @@ export const {
 export const twoFactor = authClient.twoFactor;
 
 // NOTE: The Better Auth `admin()` plugin is configured on the SERVER side
-// (packages/auth-shared/src/auth-config.ts) for internal role management,
+// (packages/auth-shared/src/auth-config.ts) for shared schema/session features,
 // but it is NOT the authority source for admin access in this application.
 // Admin authority is derived exclusively from the linked GitHub account identity
 // (ADMIN_GITHUB_ACCOUNT_ID env var), resolved by the API's admin.resolver service.

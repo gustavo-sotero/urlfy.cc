@@ -53,7 +53,7 @@
     "start:web": "turbo run start --filter=web",
     "start:api": "turbo run start --filter=@urlfy/api",
     "start:worker": "turbo run start --filter=worker",
-    "lint": "turbo run lint --concurrency=6 --log-order=stream && bun run validate:catalog && bun run scripts/validate-module-boundaries.ts && bun run scripts/validate-proxy-headers.ts",
+    "lint": "bun scripts/run-lint-pipeline.ts",
     "type-check": "turbo run type-check --concurrency=6",
     "format": "bunx biome format . --write --unsafe",
     "validate:catalog": "bun run scripts/validate-workspace-catalog.ts",

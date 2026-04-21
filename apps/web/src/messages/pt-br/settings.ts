@@ -32,9 +32,9 @@ export const Settings = {
     active: 'Ativo',
     twoFactorActive: 'Ativo',
     twoFactorRequired:
-      'Como administrador, você é obrigado a manter o 2FA ativado para proteger o sistema.',
+      'O 2FA é opcional, mas fortemente recomendado para proteger melhor a sua conta.',
     adminWarning:
-      'Como administrador, você é obrigado a manter o 2FA ativado para proteger o sistema.',
+      'O 2FA é opcional, mas fortemente recomendado para proteger melhor a sua conta.',
     enable2FA: 'Ativar 2FA',
     disable2FA: 'Desativar 2FA',
     backupCodes: 'Códigos de Backup',

@@ -153,7 +153,16 @@ export const AdminUserResponse = t.Object(
     id: t.String({ examples: ['user_123abc'] }),
     name: t.String({ examples: ['John Doe'] }),
     email: t.String({ examples: ['john@example.com'] }),
-    role: t.String({ examples: ['user'] }),
+    role: t.String({
+      description:
+        'Stored application role (non-authoritative for admin access)',
+      examples: ['user']
+    }),
+    isAdmin: t.Boolean({
+      description:
+        'Derived admin authority from the linked GitHub account allowlist',
+      examples: [false]
+    }),
     banned: t.Boolean({ examples: [false] }),
     bannedReason: t.Nullable(t.String({ examples: ['Spam/Phishing'] })),
     bannedAt: t.Nullable(t.String({ examples: ['2026-01-06T12:00:00Z'] })),
@@ -171,6 +180,7 @@ export const AdminUserResponse = t.Object(
         name: 'John Doe',
         email: 'john@example.com',
         role: 'user',
+        isAdmin: false,
         banned: false,
         bannedReason: null,
         bannedAt: null,
@@ -324,6 +334,7 @@ export const ADMIN_USER_EXAMPLE: AdminUserResponseType = {
   name: 'John Doe',
   email: 'john@example.com',
   role: 'user',
+  isAdmin: false,
   banned: false,
   bannedReason: null,
   bannedAt: null,

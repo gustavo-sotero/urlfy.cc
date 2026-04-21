@@ -303,6 +303,7 @@ export interface UserResponse {
   name: string;
   email: string;
   role: string;
+  isAdmin: boolean;
   banned: boolean;
   bannedReason: string | null;
   bannedAt: string | null;

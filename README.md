@@ -245,7 +245,7 @@ remains directly reachable on `http://localhost:3001` for debugging.
 | `GOOGLE_CLIENT_SECRET`        | No       | —                               | Google OAuth client secret               |
 | `GITHUB_CLIENT_ID`            | No       | —                               | GitHub OAuth client ID                   |
 | `GITHUB_CLIENT_SECRET`        | No       | —                               | GitHub OAuth client secret               |
-| `ADMIN_GITHUB_ACCOUNT_ID`     | No       | —                               | GitHub `account.accountId` of the single authorized admin. Admin access is denied when unset. |
+| `ADMIN_GITHUB_ACCOUNT_ID`     | Yes      | —                               | GitHub `account.accountId` of the single authorized admin. API startup fails when unset, and stored roles do not grant admin access. |
 | `RESEND_API_KEY`              | No       | —                               | Resend API key for transactional emails  |
 | `RESEND_FROM`                 | No       | —                               | Sender email address                     |
 | `TELEGRAM_BOT_TOKEN`          | No       | —                               | Telegram bot token for contact alerts    |

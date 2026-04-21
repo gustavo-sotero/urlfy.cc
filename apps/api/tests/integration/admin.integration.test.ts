@@ -17,7 +17,9 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { db } from '@urlfy/data';
 import { links, user as userTable } from '@urlfy/data/schema';
 import { auditLog } from '@urlfy/data/schema/audit';
+import { account as accountTable } from '@urlfy/data/schema/auth';
 import { eq } from 'drizzle-orm';
+import { validateEnv } from '@/lib/env';
 import { AdminService } from '@/server/modules/admin';
 import type {
   AdminStatsResponseType,
@@ -25,6 +27,13 @@ import type {
   AdminUserUpdateBodyType
 } from '@/server/modules/admin/admin.schema';
 import { isDatabaseAvailable } from '../helpers/integration-helper';
+
+const AUTHORIZED_GITHUB_ACCOUNT_ID =
+  process.env.ADMIN_GITHUB_ACCOUNT_ID ||
+  'integration-admin-github-account-id-00000000';
+
+process.env.ADMIN_GITHUB_ACCOUNT_ID = AUTHORIZED_GITHUB_ACCOUNT_ID;
+validateEnv();
 
 const databaseAvailable = await isDatabaseAvailable();
 
@@ -52,11 +61,20 @@ describe('Admin Module Integration Tests', () => {
         email: `admin-test-${Date.now()}@example.com`,
         name: 'Admin Test User',
         emailVerified: true,
-        role: 'admin'
+        role: 'user'
       })
       .returning();
 
     adminUserId = adminUser.id;
+
+    await db.insert(accountTable).values({
+      id: `account-${Date.now()}`,
+      userId: adminUserId,
+      accountId: AUTHORIZED_GITHUB_ACCOUNT_ID,
+      providerId: 'github',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
 
     // Create test regular user
     const [regularUser] = await db
@@ -91,6 +109,7 @@ describe('Admin Module Integration Tests', () => {
     // Cleanup test data
     try {
       await db.delete(auditLog).where(eq(auditLog.userId, adminUserId));
+      await db.delete(accountTable).where(eq(accountTable.userId, adminUserId));
       await db.delete(links).where(eq(links.id, testLinkId));
       await db.delete(userTable).where(eq(userTable.id, testUserId));
       await db.delete(userTable).where(eq(userTable.id, adminUserId));
@@ -206,6 +225,7 @@ describe('Admin Module Integration Tests', () => {
         expect(user).toHaveProperty('name');
         expect(user).toHaveProperty('email');
         expect(user).toHaveProperty('role');
+        expect(user).toHaveProperty('isAdmin');
         expect(user).toHaveProperty('banned');
         expect(user).toHaveProperty('twoFactorEnabled');
         expect(user).toHaveProperty('linksQuota');
@@ -213,6 +233,19 @@ describe('Admin Module Integration Tests', () => {
         expect(user).toHaveProperty('createdAt');
         expect(user).toHaveProperty('updatedAt');
       }
+    });
+
+    test('should derive isAdmin from the linked GitHub account, not from role', async () => {
+      const query: AdminUserListQueryType = {
+        search: 'admin-test'
+      };
+
+      const result = await AdminService.listUsers(query);
+      const adminUser = result.data.find((user) => user.id === adminUserId);
+
+      expect(adminUser).toBeDefined();
+      expect(adminUser?.role).toBe('user');
+      expect(adminUser?.isAdmin).toBe(true);
     });
   });
 

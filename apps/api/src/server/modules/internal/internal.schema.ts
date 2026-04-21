@@ -36,8 +36,19 @@ export const InternalAcceptedResponse = t.Object({
   })
 });
 
+const InternalSessionUser = t.Object(
+  {
+    id: t.String(),
+    email: t.String(),
+    isAdmin: t.Boolean()
+  },
+  {
+    additionalProperties: true
+  }
+);
+
 export const InternalSessionResponse = t.Object({
-  user: t.Any(),
+  user: InternalSessionUser,
   session: t.Any()
 });
 

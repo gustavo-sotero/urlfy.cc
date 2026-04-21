@@ -79,7 +79,8 @@ const envSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().optional(),
 
   // Admin identity (GitHub account ID for the single authorized admin)
-  // Must match Better Auth account.accountId for the linked GitHub account.
+  // Required at API runtime. Must match Better Auth account.accountId for the
+  // linked GitHub account that is allowed to access admin routes.
   ADMIN_GITHUB_ACCOUNT_ID: z.string().min(1).optional(),
 
   // Email (Resend - verification, reset, welcome, LGPD)
@@ -166,6 +167,13 @@ export function validateEnv(): Env {
 
     // Reject build-time placeholder sentinels at runtime, regardless of NODE_ENV.
     rejectSentinelValues(parsedEnv);
+
+    if (!parsedEnv.ADMIN_GITHUB_ACCOUNT_ID) {
+      throw new Error(
+        'ADMIN_GITHUB_ACCOUNT_ID is required at runtime. ' +
+          'It must match the Better Auth account.accountId of the single authorized GitHub admin.'
+      );
+    }
 
     env = {
       ...parsedEnv,

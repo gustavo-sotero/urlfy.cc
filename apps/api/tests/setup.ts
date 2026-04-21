@@ -45,29 +45,34 @@ if (!process.env.INTERNAL_API_SECRET) {
     process.env.AUTH_SECRET || process.env.BETTER_AUTH_SECRET || '';
 }
 
-const requiredSecrets = [
+const requiredTestEnv = [
   'JWT_SECRET',
   'BETTER_AUTH_SECRET',
   'AUTH_SECRET',
-  'INTERNAL_API_SECRET'
+  'INTERNAL_API_SECRET',
+  'ADMIN_GITHUB_ACCOUNT_ID'
 ] as const;
 
-for (const secret of requiredSecrets) {
-  const secretValue = process.env[secret];
+for (const envVar of requiredTestEnv) {
+  const envValue = process.env[envVar];
 
-  if (!secretValue) {
+  if (!envValue) {
     throw new Error(
-      `Missing required test secret: ${secret}\n` +
+      `Missing required test environment variable: ${envVar}\n` +
         'Please ensure .env.test exists with all required secrets.\n' +
         'Generate secrets with: openssl rand -base64 32'
     );
   }
 
-  if (secretValue.length < 32) {
+  if (envVar === 'ADMIN_GITHUB_ACCOUNT_ID') {
+    continue;
+  }
+
+  if (envValue.length < 32) {
     throw new Error(
-      `Test secret ${secret} must be at least 32 characters long.\n` +
+      `Test secret ${envVar} must be at least 32 characters long.\n` +
         'Current length: ' +
-        secretValue.length +
+        envValue.length +
         '\n' +
         'Generate a secure secret with: openssl rand -base64 32'
     );

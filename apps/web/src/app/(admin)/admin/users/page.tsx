@@ -34,7 +34,7 @@ export default function AdminUsersPage() {
 
   const { data, isLoading, isError, error, refetch } = useUsers({
     page,
-    perPage: 20,
+    limit: 20,
     search: searchQuery || undefined
   });
 
@@ -81,7 +81,7 @@ export default function AdminUsersPage() {
       <div>
         <h1 className="text-3xl font-bold">Gestão de Usuários</h1>
         <p className="text-muted-foreground">
-          Gerencie usuários e suas permissões
+          Gerencie usuários, bloqueios e quotas de links
         </p>
       </div>
 
@@ -131,7 +131,7 @@ export default function AdminUsersPage() {
                   <TableRow>
                     <TableHead>E-mail</TableHead>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Função</TableHead>
+                    <TableHead>Acesso admin</TableHead>
                     <TableHead>Quota</TableHead>
                     <TableHead>Criado em</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -158,7 +158,11 @@ export default function AdminUsersPage() {
                         </TableCell>
                         <TableCell>{user.name || '-'}</TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{user.role}</Badge>
+                          <Badge
+                            variant={user.isAdmin ? 'default' : 'secondary'}
+                          >
+                            {user.isAdmin ? 'Autorizado' : 'Sem acesso'}
+                          </Badge>
                         </TableCell>
                         <TableCell>{user.linksQuota}</TableCell>
                         <TableCell>

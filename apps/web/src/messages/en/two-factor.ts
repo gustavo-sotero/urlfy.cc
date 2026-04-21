@@ -54,7 +54,7 @@ export const TwoFactor = {
     success: {
       activated: '2FA activated successfully!',
       adminNote:
-        'Wait up to 30 seconds to access admin areas due to session cache.',
+        'Wait up to 30 seconds for your session state to refresh across the app.',
       codesCopied: 'Codes copied to clipboard',
       codesDownloaded: 'Codes downloaded'
     }
@@ -95,8 +95,7 @@ export const TwoFactor = {
 
   disable: {
     button: 'Disable 2FA',
-    adminWarning:
-      'Administrators are required to keep 2FA enabled for security',
+    adminWarning: 'Disabling 2FA reduces the security of your account.',
     dialogTitle: 'Disable Two-Factor Authentication?',
     dialogDescription:
       'This will make your account less secure. You will only need your password to log in.',
