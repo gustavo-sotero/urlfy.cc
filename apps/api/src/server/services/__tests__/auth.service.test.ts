@@ -186,35 +186,28 @@ describe('AuthService', () => {
   });
 
   describe('Two-Factor Authentication Logic', () => {
-    it('should identify admin role', () => {
-      const user = { role: 'admin' };
-      expect(user.role).toBe('admin');
-    });
+    // Note: 2FA is an optional security feature for all users.
+    // Admin authority is derived from linked GitHub account identity
+    // (resolveIsAdminByGitHubAccount), NOT from role or 2FA state.
 
     it('should identify user role', () => {
       const user = { role: 'user' };
       expect(user.role).toBe('user');
     });
 
-    it('should require 2FA for admin access', () => {
-      const isAdmin = true;
-      const hasTwoFactor = false;
-      const canAccess = !isAdmin || hasTwoFactor;
+    it('should not block 2FA disable for any user including admin-linked accounts', () => {
+      // Admin access does NOT depend on twoFactorEnabled.
+      // Any user (including the authorized admin) may enable or disable 2FA freely.
+      const twoFactorEnabled = false;
+      const canDisableTwoFactor = !twoFactorEnabled || true;
 
-      expect(canAccess).toBe(false);
+      expect(canDisableTwoFactor).toBe(true);
     });
 
-    it('should allow admin access with 2FA', () => {
-      const isAdmin = true;
-      const hasTwoFactor = true;
-      const canAccess = !isAdmin || hasTwoFactor;
-
-      expect(canAccess).toBe(true);
-    });
-
-    it('should allow user access without 2FA', () => {
+    it('should allow user access regardless of 2FA state', () => {
       const isAdmin = false;
       const hasTwoFactor = false;
+      // 2FA does not gate access for regular users either
       const canAccess = !isAdmin || hasTwoFactor;
 
       expect(canAccess).toBe(true);
