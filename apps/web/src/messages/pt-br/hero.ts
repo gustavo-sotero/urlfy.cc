@@ -11,6 +11,8 @@ export const Hero = {
     'Um encurtador de URLs self-hosted tratado como projeto de produto real — usado também como portfólio, pesquisa aplicada e estudo contínuo.',
   loading: 'Carregando...',
   goToDashboard: 'Ir para Dashboard',
+  welcomeBack: 'Bem-vindo de volta, {name}',
+  goToDashboardShort: 'Dashboard →',
   getStarted: 'Começar gratuitamente',
   signIn: 'Fazer login',
 

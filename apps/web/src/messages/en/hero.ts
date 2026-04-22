@@ -11,6 +11,8 @@ export const Hero = {
     'A self-hosted URL shortener built as a real product project — also used as portfolio, applied research, and ongoing study.',
   loading: 'Loading...',
   goToDashboard: 'Go to Dashboard',
+  welcomeBack: 'Welcome back, {name}',
+  goToDashboardShort: 'Dashboard →',
   getStarted: 'Get Started for Free',
   signIn: 'Sign In',
 

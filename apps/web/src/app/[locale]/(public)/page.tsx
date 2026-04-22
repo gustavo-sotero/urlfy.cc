@@ -13,8 +13,8 @@ import { getTranslations } from 'next-intl/server';
 import type { JSX } from 'react';
 import { LinkForm } from '@/components/forms/link-form';
 import { HeroActions } from '@/components/home/hero-actions';
+import { HeroAuthBanner } from '@/components/home/hero-auth-banner';
 import { RevealSection } from '@/components/shared/reveal-section';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -45,24 +45,6 @@ export default async function LandingPage(): Promise<JSX.Element> {
   const tLinkForm = await getTranslations('LinkForm');
   return (
     <div>
-      {/* Project Disclaimer */}
-      <RevealSection>
-        <section className="border-b bg-muted/50 py-4">
-          <div className="container mx-auto px-4">
-            <Alert className="border-primary/50 bg-primary/5">
-              <Info className="h-4 w-4 text-primary" />
-              <AlertTitle>{tHero('projectDisclaimer')}</AlertTitle>
-              <AlertDescription>
-                {tHero('projectDescription')}{' '}
-                <Link href="/project" className="underline font-medium">
-                  {tHero('ctaSecondary')}
-                </Link>
-              </AlertDescription>
-            </Alert>
-          </div>
-        </section>
-      </RevealSection>
-
       {/* Hero Section */}
       <RevealSection delay={200}>
         <section className="container mx-auto px-4 py-20">
@@ -78,9 +60,21 @@ export default async function LandingPage(): Promise<JSX.Element> {
               <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
                 {tHero('description')}
               </p>
+              <p className="text-xs text-muted-foreground/60">
+                <Info className="inline h-3 w-3 mr-1 align-middle" />
+                {tHero('projectDisclaimer')}
+                {' ·'}{' '}
+                <Link
+                  href="/project"
+                  className="underline underline-offset-2 hover:text-muted-foreground transition-colors"
+                >
+                  {tHero('ctaSecondary')}
+                </Link>
+              </p>
             </div>
 
             {/* Link Form */}
+            <HeroAuthBanner />
             <div className="mx-auto max-w-2xl">
               <LinkForm />
             </div>
