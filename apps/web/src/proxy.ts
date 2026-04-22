@@ -45,7 +45,9 @@ const SYSTEM_ROUTES = [
   '/favicon.ico', // Favicon
   '/robots.txt', // Robots
   '/sitemap.xml', // Sitemap
-  '/.well-known' // Well-known URIs
+  '/.well-known', // Well-known URIs
+  '/404', // Next.js 404 error page — must not be treated as a shortlink slug
+  '/500' // Next.js 500 error page — must not be treated as a shortlink slug
 ];
 
 /**

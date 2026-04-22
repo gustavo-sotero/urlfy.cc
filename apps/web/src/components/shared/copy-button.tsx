@@ -15,6 +15,7 @@ interface CopyButtonProps {
   size?: 'default' | 'sm' | 'lg' | 'icon';
   copiedLabel?: string;
   copyLabel?: string;
+  showLabel?: boolean;
 }
 
 export function CopyButton({
@@ -23,7 +24,8 @@ export function CopyButton({
   variant = 'ghost',
   size = 'icon',
   copiedLabel,
-  copyLabel
+  copyLabel,
+  showLabel = false
 }: CopyButtonProps) {
   const t = useTranslations('Common');
   const [copied, setCopied] = useState(false);
@@ -54,6 +56,11 @@ export function CopyButton({
         <Check className="h-4 w-4 text-green-500" />
       ) : (
         <Copy className="h-4 w-4" />
+      )}
+      {showLabel && (
+        <span className="sm:hidden">
+          {copied ? (copiedLabel ?? t('copied')) : (copyLabel ?? t('copy'))}
+        </span>
       )}
     </Button>
   );

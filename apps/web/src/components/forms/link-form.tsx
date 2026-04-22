@@ -63,6 +63,7 @@ export function LinkForm() {
             variant="default"
             size="default"
             className="w-full sm:w-auto"
+            showLabel
           />
         </div>
         <Button
