@@ -1,4 +1,3 @@
-import { About } from './about';
 import { Admin } from './admin';
 import { Analytics } from './analytics';
 import { Auth } from './auth';
@@ -33,7 +32,6 @@ export const enMessages = {
   Dashboard,
   Analytics,
   Settings,
-  About,
   Admin,
   Contact,
   Help,

@@ -1,4 +1,4 @@
-import { BarChart3, Database, Layers, Zap } from 'lucide-react';
+import { BarChart3, Database, ExternalLink, Layers, Zap } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -24,6 +24,15 @@ export function ArchitectureSection({ t }: ArchitectureSectionProps) {
               <p className="text-lg text-muted-foreground">
                 {t('architecture.subtitle')}
               </p>
+              <a
+                href="https://github.com/gustavo-sotero/urlfy.cc/blob/main/docs/architecture/overview.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
+                {t('architecture.docsLink')}
+                <ExternalLink className="h-3 w-3" />
+              </a>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -91,6 +100,15 @@ export function ArchitectureSection({ t }: ArchitectureSectionProps) {
               <p className="text-lg text-muted-foreground">
                 {t('infrastructure.subtitle')}
               </p>
+              <a
+                href="https://github.com/gustavo-sotero/urlfy.cc/blob/main/docs/architecture/overview.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
+                {t('infrastructure.docsLink')}
+                <ExternalLink className="h-3 w-3" />
+              </a>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">

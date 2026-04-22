@@ -71,7 +71,7 @@ describe('I18n Routing', () => {
         { path: '/en/', isLocale: true },
         { path: '/en/dashboard', isLocale: true },
         { path: '/pt-br', isLocale: true },
-        { path: '/pt-br/about', isLocale: true },
+        { path: '/pt-br/project', isLocale: true },
         { path: '/enjoy', isLocale: false },
         { path: '/pt-brasil', isLocale: false },
         { path: '/abc123', isLocale: false },

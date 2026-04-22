@@ -15,7 +15,7 @@ export const Contact = {
   connectWithUs: 'Connect with us',
   quickLinks: 'Quick Links',
   helpCenter: 'Help Center',
-  aboutUs: 'About Us',
+  aboutUs: 'The Project',
   termsOfService: 'Terms of Service',
   privacyPolicy: 'Privacy Policy',
   responseTime: 'We usually respond within 24-48 hours on business days.',

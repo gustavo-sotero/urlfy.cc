@@ -87,7 +87,7 @@ export default async function ContactPage() {
                   {t('helpCenter')}
                 </Link>
                 <Link
-                  href="/about"
+                  href="/project"
                   className="block text-sm text-muted-foreground hover:text-foreground"
                 >
                   {t('aboutUs')}

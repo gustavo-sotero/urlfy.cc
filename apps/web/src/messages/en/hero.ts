@@ -6,9 +6,9 @@ export const Hero = {
   ctaSecondary: 'Learn More',
   placeholder: 'Paste your long URL here...',
   shortenButton: 'Shorten',
-  projectDisclaimer: 'Personal Research & Development Project & Portfolio',
+  projectDisclaimer: 'Real Project · Portfolio · Applied Research',
   projectDescription:
-    'This project is a technical demonstration of modern web development practices, not a commercial product. Built with Next.js 16, Bun, ElysiaJS, and TypeScript.',
+    'A production-grade URL shortener built with modern full-stack architecture — serving real users, doubling as a portfolio and applied-research platform.',
   loading: 'Loading...',
   goToDashboard: 'Go to Dashboard',
   getStarted: 'Get Started for Free',
@@ -21,8 +21,8 @@ export const Hero = {
   },
   aboutProject: {
     title: 'About the Project',
-    p1: 'urlfy.cc is a portfolio project and case study on modern software architecture. Developed with a focus on performance, type-safety, and engineering best practices.',
-    p2: 'Combining cutting-edge technologies like Bun, Next.js and ElysiaJS, this project demonstrates technical competencies in full-stack architecture, performance optimization, and containerized infrastructure.',
+    p1: 'urlfy.cc is a production-grade URL shortener — also a portfolio and applied-research project. Built with a focus on performance, type-safety, and engineering best practices.',
+    p2: 'Combining Bun, Next.js 16, and ElysiaJS, this project demonstrates competencies in full-stack architecture, performance engineering, and containerized infrastructure through a living codebase.',
     technicalDetails: 'Technical Details'
   },
   developer: {
@@ -30,7 +30,7 @@ export const Hero = {
     name: 'Gustavo Sotero',
     role: 'Full-Stack Developer',
     description:
-      'Developer specialized in high-performance systems architecture, TypeScript, and modern infrastructure. This project represents a practical demonstration of technical competencies in software engineering.',
+      'Software architect and developer focused on high-performance systems, TypeScript, and modern infrastructure. This project demonstrates competencies in architecture, performance engineering, and best practices through a living codebase.',
     portfolio: 'Portfolio'
   },
   cta: {

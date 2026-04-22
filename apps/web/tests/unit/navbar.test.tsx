@@ -107,8 +107,9 @@ describe('Navbar', () => {
   it('renders logo correctly', () => {
     render(<Navbar />);
 
-    expect(screen.getByText('urlfy')).toBeDefined();
-    expect(screen.getByText('.cc')).toBeDefined();
+    // Navbar uses next/image for the logo (alt="urlfy.cc")
+    const logos = screen.getAllByAltText('urlfy.cc');
+    expect(logos.length).toBeGreaterThan(0);
   });
 
   it('renders navigation links', () => {

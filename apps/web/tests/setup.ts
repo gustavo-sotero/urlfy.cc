@@ -190,3 +190,40 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 (window as any).TypeError = TypeError;
 // biome-ignore lint/suspicious/noExplicitAny: patching happy-dom window at test bootstrap
 (window as any).RangeError = RangeError;
+
+// ═══════════════════════════════════════════════════════════════════
+// NEXT/IMAGE MOCK
+// Prevents URL parsing failures when next/image processes static
+// import paths (Windows absolute paths break the image optimizer URL).
+// ═══════════════════════════════════════════════════════════════════
+import React from 'react';
+
+mock.module('next/image', () => ({
+  default: function MockNextImage({
+    src,
+    alt,
+    width,
+    height,
+    className,
+    quality: _quality,
+    ...rest
+  }: {
+    src: string | { src: string };
+    alt: string;
+    width?: number;
+    height?: number;
+    className?: string;
+    quality?: number;
+    [key: string]: unknown;
+  }) {
+    const resolvedSrc = typeof src === 'object' && src !== null ? src.src : src;
+    return React.createElement('img', {
+      src: resolvedSrc,
+      alt,
+      width,
+      height,
+      className,
+      ...rest
+    });
+  }
+}));

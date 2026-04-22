@@ -15,7 +15,7 @@ export const Privacy = {
       warningTitle:
         '📚 Contexto: Projeto pessoal de pesquisa e desenvolvimento',
       warningContent:
-        'O urlfy.cc é um projeto de portfólio e demonstração técnica, não um produto comercial. Os dados coletados são utilizados exclusivamente para demonstração das funcionalidades de analytics e para aprendizado sobre compliance (LGPD/GDPR).',
+        'O urlfy.cc é um encurtador de URLs em produção que também serve como portfólio e projeto de pesquisa aplicada. Os dados coletados são utilizados para operar o serviço e para demonstrar práticas de analytics e compliance (LGPD/GDPR).',
       warningNote:
         'Importante: Por se tratar de um ambiente de demonstração, dados podem ser periodicamente apagados ou modificados sem aviso prévio. Não recomendamos o uso deste serviço para links críticos de negócio.',
       content:

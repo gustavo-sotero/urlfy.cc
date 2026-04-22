@@ -6,10 +6,9 @@ export const Hero = {
   ctaSecondary: 'Saiba Mais',
   placeholder: 'Cole sua URL longa aqui...',
   shortenButton: 'Encurtar',
-  projectDisclaimer:
-    'Projeto Pessoal de Pesquisa & Desenvolvimento & Portfólio',
+  projectDisclaimer: 'Projeto Real · Portfólio · Pesquisa Aplicada',
   projectDescription:
-    'Este projeto é uma demonstração técnica de práticas modernas de desenvolvimento web, não um produto comercial. Construído com Next.js 16, Bun, ElysiaJS e TypeScript.',
+    'Um encurtador de URLs em produção construído com arquitetura full-stack moderna — servindo usuários reais, funcionando também como portfólio e plataforma de pesquisa aplicada.',
   loading: 'Carregando...',
   goToDashboard: 'Ir para Dashboard',
   getStarted: 'Começar gratuitamente',
@@ -22,8 +21,8 @@ export const Hero = {
   },
   aboutProject: {
     title: 'Sobre o Projeto',
-    p1: 'O urlfy.cc é um projeto de portfólio e estudo de caso sobre arquitetura de software moderna. Desenvolvido com foco em performance, type-safety e boas práticas de engenharia.',
-    p2: 'Combinando tecnologias de ponta como Bun, Next.js e ElysiaJS, este projeto demonstra competências técnicas em arquitetura full-stack, otimização de performance e infraestrutura containerizada.',
+    p1: 'O urlfy.cc é um encurtador de URLs em produção — e também um projeto de portfólio e pesquisa aplicada. Construído com foco em performance, type-safety e boas práticas de engenharia.',
+    p2: 'Combinando Bun, Next.js 16 e ElysiaJS, este projeto demonstra competências em arquitetura full-stack, performance engineering e infraestrutura containerizada através de uma codebase viva.',
     technicalDetails: 'Detalhes Técnicos'
   },
   developer: {
@@ -31,7 +30,7 @@ export const Hero = {
     name: 'Gustavo Sotero',
     role: 'Desenvolvedor Full-Stack',
     description:
-      'Desenvolvedor especializado em arquitetura de sistemas de alta performance, TypeScript e infraestrutura moderna. Este projeto representa uma demonstração prática de competências técnicas em engenharia de software.',
+      'Arquiteto de software e desenvolvedor focado em sistemas de alta performance, TypeScript e infraestrutura moderna. Este projeto demonstra competências em arquitetura, performance engineering e boas práticas através de uma codebase viva.',
     portfolio: 'Portfólio'
   },
   cta: {

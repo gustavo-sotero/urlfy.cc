@@ -3,7 +3,6 @@ export const Common = {
   settings: 'Configurações',
   language: 'Idioma',
   home: 'Início',
-  about: 'Sobre',
   contact: 'Contato',
   help: 'Ajuda',
   terms: 'Termos',

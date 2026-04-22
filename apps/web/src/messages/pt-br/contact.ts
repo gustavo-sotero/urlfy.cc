@@ -16,7 +16,7 @@ export const Contact = {
   connectWithUs: 'Conecte-se conosco',
   quickLinks: 'Links Rápidos',
   helpCenter: 'Central de Ajuda',
-  aboutUs: 'Sobre Nós',
+  aboutUs: 'O Projeto',
   termsOfService: 'Termos de Serviço',
   privacyPolicy: 'Política de Privacidade',
   responseTime:

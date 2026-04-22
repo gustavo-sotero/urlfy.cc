@@ -14,7 +14,7 @@ export const Privacy = {
       title: '1. Introduction',
       warningTitle: '📚 Context: Personal R&D project',
       warningContent:
-        'urlfy.cc is a portfolio and technical demonstration project, not a commercial product. Collected data is used exclusively to demonstrate analytics features and to learn about compliance (LGPD/GDPR).',
+        'urlfy.cc is a production-grade URL shortener that also serves as a portfolio and applied-research project. Collected data is used to operate the service and to demonstrate analytics and compliance (LGPD/GDPR) practices.',
       warningNote:
         'Important: As this is a demonstration environment, data may be periodically deleted or modified without prior notice. We do not recommend using this service for business-critical links.',
       content:

@@ -1,22 +1,23 @@
 export const ProjectPage = {
-  metaTitle: 'About the Project - urlfy.cc',
+  metaTitle: 'The Project - urlfy.cc',
   metaDescription:
-    'A technical journey through architecture, decisions, and trade-offs in developing a modern, high-performance URL shortener.',
+    'Architecture, decisions, and trade-offs behind urlfy.cc — a production-grade URL shortener, portfolio, and applied-research project.',
   ogTitle: 'Behind the code: urlfy.cc',
   ogDescription:
-    'Architecture, technical decisions, and trade-offs of a modern full-stack project',
+    'Architecture, decisions, and trade-offs of a modern full-stack project',
 
   hero: {
-    badge: 'Portfolio & Research Project',
+    badge: 'Real Project · Portfolio · Applied Research',
     title: 'Behind the code',
     subtitle: 'urlfy.cc',
     description:
-      'A technical journey through architecture, decisions, and trade-offs in developing a modern, high-performance URL shortener.'
+      'A production-grade URL shortener with modern full-stack architecture — running in production, also serving as portfolio and applied-research platform.'
   },
 
   architecture: {
     title: 'Hybrid Architecture',
-    subtitle: 'Next.js for UI + ElysiaJS for API = End-to-End Type-Safety',
+    subtitle: 'Next.js for UI + ElysiaJS for API — end-to-end type-safety',
+    docsLink: 'See architecture docs →',
     frontend: {
       title: 'Frontend (Next.js 16)',
       appRouter: 'Server Components for SEO and performance',
@@ -33,7 +34,8 @@ export const ProjectPage = {
 
   infrastructure: {
     title: 'Infrastructure & Stack',
-    subtitle: '100% containerized, self-hosted and production-ready',
+    subtitle: '100% containerized and self-hosted',
+    docsLink: 'See infrastructure docs →',
     persistence: {
       title: 'Persistence',
       subtitle: 'PostgreSQL 16 + Drizzle ORM',
@@ -96,39 +98,41 @@ export const ProjectPage = {
       },
       monolith: {
         title: 'Monolith Self-Hosted (Docker Compose)',
-        why: 'Operational simplicity for a portfolio project. Lower infrastructure cost.',
+        why: 'Operational simplicity for a project at this scale. Lower infrastructure cost.',
         impact:
           'Easy to deploy and maintain, but scales vertically (vs. horizontally with microservices).',
         alternatives:
-          'Microservices would be more scalable, but much more complex and expensive for a personal R&D project.'
+          'Microservices would be more scalable, but much more complex and expensive at this stage.'
       }
     }
   },
 
   metrics: {
-    title: 'Technical Impact (Simulated)',
-    subtitle: 'Metrics and SLOs for engineering demonstration',
+    title: 'Performance Targets',
+    subtitle:
+      'SLO targets — baselines and measurement methodology in the architecture docs',
     latency: {
       value: '< 30ms',
-      label: 'Redirect P50 Latency',
+      label: 'Redirect P50 (target)',
       description: 'Redis Cache + Edge Middleware'
     },
     throughput: {
       value: '10K+',
-      label: 'Requests/second',
+      label: 'Requests/second (target)',
       description: 'Bun Runtime + Native APIs'
     },
     availability: {
       value: '99.9%',
-      label: 'Availability Target',
+      label: 'Availability SLO',
       description: 'Health Checks + Circuit Breaker'
     }
   },
 
   security: {
     title: 'Security & Compliance',
+    docsLink: 'See security docs →',
     protections: {
-      title: 'Implemented Protections',
+      title: 'Protections',
       rateLimit: 'Rate Limiting (Sliding Window)',
       headers: 'Security Headers (CSP, HSTS)',
       csrf: 'CSRF Protection',
@@ -150,7 +154,7 @@ export const ProjectPage = {
     name: 'Gustavo Sotero',
     role: 'Full-Stack Developer',
     description:
-      'This project was developed as a demonstration of technical skills in software architecture, performance engineering and development best practices. It is not a commercial product, but rather a case study and portfolio.',
+      'Software architect and developer focused on high-performance systems, TypeScript, and modern infrastructure. This project demonstrates competencies in architecture, performance engineering, and best practices through a living codebase.',
     portfolio: 'Portfolio',
     github: 'View on GitHub'
   },
@@ -158,7 +162,7 @@ export const ProjectPage = {
   cta: {
     title: 'Explore the Documentation',
     description:
-      'Dive into the technical details through the complete API documentation and source code on GitHub.',
+      'Architecture, database, caching, security, and API reference — all in the docs.',
     apiDocs: 'API Documentation',
     repository: 'Repository'
   }

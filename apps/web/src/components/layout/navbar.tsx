@@ -97,6 +97,7 @@ export function Navbar() {
           <Image
             src={logoSrc}
             alt="urlfy.cc"
+            width={400}
             height={400}
             quality={100}
             className="h-24 w-auto"

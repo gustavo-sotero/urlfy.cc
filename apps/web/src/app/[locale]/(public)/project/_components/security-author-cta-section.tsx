@@ -1,4 +1,4 @@
-import { Code2, Github, Rocket, Shield } from 'lucide-react';
+import { Code2, ExternalLink, Github, Rocket, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
@@ -18,6 +18,15 @@ export function SecurityAuthorCtaSection({ t }: SecurityAuthorCtaSectionProps) {
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 {t('security.title')}
               </h2>
+              <a
+                href="https://github.com/gustavo-sotero/urlfy.cc/blob/main/docs/architecture/security.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
+                {t('security.docsLink')}
+                <ExternalLink className="h-3 w-3" />
+              </a>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">

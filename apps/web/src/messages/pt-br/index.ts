@@ -1,4 +1,3 @@
-import { About } from './about';
 import { Admin } from './admin';
 import { Analytics } from './analytics';
 import { Auth } from './auth';
@@ -34,7 +33,6 @@ export const ptMessages = {
   Dashboard,
   Analytics,
   Settings,
-  About,
   Contact,
   Help,
   Terms,

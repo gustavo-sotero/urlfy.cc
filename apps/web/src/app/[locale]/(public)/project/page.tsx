@@ -2,8 +2,8 @@
  * ═════════════════════════════════════════════════════════════════════
  * PROJECT PAGE - Technical Deep Dive (Internationalized)
  * ═════════════════════════════════════════════════════════════════════
- * Technical showcase page positioning urlfy.cc as a portfolio/educational
- * project rather than a commercial product.
+ * Technical showcase page for urlfy.cc — a production-grade URL shortener
+ * that also serves as a portfolio and applied-research platform.
  * ═════════════════════════════════════════════════════════════════════
  */
 

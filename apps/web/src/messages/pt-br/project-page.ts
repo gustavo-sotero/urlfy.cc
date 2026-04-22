@@ -1,22 +1,23 @@
 export const ProjectPage = {
-  metaTitle: 'Sobre o Projeto - urlfy.cc',
+  metaTitle: 'O Projeto - urlfy.cc',
   metaDescription:
-    'Uma jornada técnica sobre arquitetura, decisões e trade-offs no desenvolvimento de um encurtador de URLs moderno.',
+    'Arquitetura, decisões e trade-offs por trás do urlfy.cc — encurtador de URLs em produção, portfólio e projeto de pesquisa aplicada.',
   ogTitle: 'Por trás do código: urlfy.cc',
   ogDescription:
-    'Arquitetura, decisões técnicas e trade-offs de um projeto full-stack moderno',
+    'Arquitetura, decisões e trade-offs de um projeto full-stack moderno',
 
   hero: {
-    badge: 'Projeto de Portfólio & Pesquisa',
+    badge: 'Projeto Real · Portfólio · Pesquisa Aplicada',
     title: 'Por trás do código',
     subtitle: 'urlfy.cc',
     description:
-      'Uma jornada técnica sobre arquitetura, decisões e trade-offs no desenvolvimento de um encurtador de URLs moderno e de alta performance.'
+      'Um encurtador de URLs em produção com arquitetura full-stack moderna — rodando em produção, funcionando também como portfólio e plataforma de pesquisa aplicada.'
   },
 
   architecture: {
     title: 'Arquitetura Híbrida',
-    subtitle: 'Next.js para UI + ElysiaJS para API = Type-Safety End-to-End',
+    subtitle: 'Next.js para UI + ElysiaJS para API — type-safety end-to-end',
+    docsLink: 'Ver docs de arquitetura →',
     frontend: {
       title: 'Frontend (Next.js 16)',
       appRouter: 'Server Components para SEO e performance',
@@ -33,7 +34,8 @@ export const ProjectPage = {
 
   infrastructure: {
     title: 'Infraestrutura & Stack',
-    subtitle: '100% containerizado, self-hosted e pronto para produção',
+    subtitle: '100% containerizado e self-hosted',
+    docsLink: 'Ver docs de infraestrutura →',
     persistence: {
       title: 'Persistência',
       subtitle: 'PostgreSQL 16 + Drizzle ORM',
@@ -96,39 +98,41 @@ export const ProjectPage = {
       },
       monolith: {
         title: 'Monolith Self-Hosted (Docker Compose)',
-        why: 'Simplicidade operacional para um projeto de portfólio. Menor custo de infraestrutura.',
+        why: 'Simplicidade operacional para um projeto nesta escala. Menor custo de infraestrutura.',
         impact:
           'Fácil de deployar e manter, mas escala vertical (vs. horizontal com microservices).',
         alternatives:
-          'Microservices seria mais escalável, mas muito mais complexo e caro para um projeto pessoal de pesquisa e desenvolvimento.'
+          'Microservices seria mais escalável, mas muito mais complexo e caro neste estágio.'
       }
     }
   },
 
   metrics: {
-    title: 'Impacto Técnico (Simulado)',
-    subtitle: 'Métricas e SLOs para demonstração de engenharia',
+    title: 'Targets de Performance',
+    subtitle:
+      'Targets de SLO — baselines e metodologia de medição nos docs de arquitetura',
     latency: {
       value: '< 30ms',
-      label: 'Latência P50 de Redirect',
+      label: 'Redirect P50 (target)',
       description: 'Cache Redis + Middleware Edge'
     },
     throughput: {
       value: '10K+',
-      label: 'Requisições/segundo',
+      label: 'Requisições/segundo (target)',
       description: 'Bun Runtime + APIs Nativas'
     },
     availability: {
       value: '99.9%',
-      label: 'Availability Target',
+      label: 'SLO de Availability',
       description: 'Health Checks + Circuit Breaker'
     }
   },
 
   security: {
     title: 'Segurança & Compliance',
+    docsLink: 'Ver docs de segurança →',
     protections: {
-      title: 'Proteções Implementadas',
+      title: 'Proteções',
       rateLimit: 'Rate Limiting (Sliding Window)',
       headers: 'Headers de Segurança (CSP, HSTS)',
       csrf: 'CSRF Protection',
@@ -140,7 +144,7 @@ export const ProjectPage = {
       anonymization: 'Anonimização de IPs (SHA-256)',
       consent: 'Consentimento explícito',
       export: 'Exportação de dados',
-      forgotten: 'Right to be forgotten (72h)',
+      forgotten: 'Direito ao esquecimento (72h)',
       retention: 'Data retention (90 dias)'
     }
   },
@@ -150,7 +154,7 @@ export const ProjectPage = {
     name: 'Gustavo Sotero',
     role: 'Full-Stack Developer',
     description:
-      'Este projeto foi desenvolvido como demonstração de habilidades técnicas em arquitetura de software, performance engineering e boas práticas de desenvolvimento. Não se trata de um produto comercial, mas sim de um estudo de caso e portfólio.',
+      'Arquiteto de software e desenvolvedor focado em sistemas de alta performance, TypeScript e infraestrutura moderna. Este projeto demonstra competências em arquitetura, performance engineering e boas práticas através de uma codebase viva.',
     portfolio: 'Portfólio',
     github: 'Ver no GitHub'
   },
@@ -158,7 +162,7 @@ export const ProjectPage = {
   cta: {
     title: 'Explore a Documentação',
     description:
-      'Mergulhe nos detalhes técnicos através da documentação completa da API e código-fonte no GitHub.',
+      'Arquitetura, banco de dados, cache, segurança e referência de API — tudo nos docs.',
     apiDocs: 'API Documentation',
     repository: 'Repositório'
   }
