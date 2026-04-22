@@ -23,8 +23,8 @@ export function DashboardBrand({
       <Image
         src={logoSrc}
         alt="urlfy.cc"
-        height={400}
-        className="h-24 w-auto"
+        height={100}
+        className="h-12 w-auto"
       />
       <span className="block text-xs text-muted-foreground">{subtitle}</span>
     </Link>
