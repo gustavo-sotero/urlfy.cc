@@ -1,7 +1,7 @@
 export const Navigation = {
   features: 'Recursos',
   pricing: 'Preços',
-  docs: 'Documentação',
+  docs: 'Docs da API',
   github: 'GitHub',
   getStarted: 'Começar',
   project: 'O Projeto',

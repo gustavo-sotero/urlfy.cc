@@ -39,7 +39,7 @@ mock.module('next-intl', () => ({
       Navigation: {
         features: 'Recursos',
         project: 'O Projeto',
-        docs: 'API Docs',
+        docs: 'Docs da API',
         closeMenu: 'Fechar menu'
       },
       Common: {
@@ -117,7 +117,7 @@ describe('Navbar', () => {
 
     expect(screen.getAllByText('Recursos').length).toBeGreaterThan(0);
     expect(screen.getAllByText('O Projeto').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('API Docs').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Docs da API').length).toBeGreaterThan(0);
   });
 
   it('shows guest auth buttons when not authenticated', () => {

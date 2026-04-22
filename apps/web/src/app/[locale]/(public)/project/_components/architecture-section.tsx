@@ -45,19 +45,12 @@ export function ArchitectureSection({ t }: ArchitectureSectionProps) {
                     <CardTitle>{t('architecture.frontend.title')}</CardTitle>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm text-muted-foreground">
-                  <p>
-                    <strong className="text-foreground">App Router</strong>:{' '}
-                    {t('architecture.frontend.appRouter')}
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Middleware</strong>:{' '}
-                    {t('architecture.frontend.middleware')}
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Shadcn/UI</strong>:{' '}
-                    {t('architecture.frontend.ui')}
-                  </p>
+                <CardContent className="text-sm text-muted-foreground">
+                  <ul className="space-y-2">
+                    <li>{t('architecture.frontend.appRouter')}</li>
+                    <li>{t('architecture.frontend.middleware')}</li>
+                    <li>{t('architecture.frontend.ui')}</li>
+                  </ul>
                 </CardContent>
               </Card>
 
@@ -70,19 +63,14 @@ export function ArchitectureSection({ t }: ArchitectureSectionProps) {
                     <CardTitle>{t('architecture.api.title')}</CardTitle>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm text-muted-foreground">
-                  <p>
-                    <strong className="text-foreground">Type-Safe</strong>:{' '}
-                    {t('architecture.api.typeSafe')}
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Fast</strong>:{' '}
-                    {t('architecture.api.fast')}
-                  </p>
-                  <p>
-                    <strong className="text-foreground">OpenAPI</strong>:{' '}
-                    {t('architecture.api.openapi')} <code>/api/docs</code>
-                  </p>
+                <CardContent className="text-sm text-muted-foreground">
+                  <ul className="space-y-2">
+                    <li>{t('architecture.api.typeSafe')}</li>
+                    <li>{t('architecture.api.fast')}</li>
+                    <li>
+                      {t('architecture.api.openapi')} <code>/api/docs</code>
+                    </li>
+                  </ul>
                 </CardContent>
               </Card>
             </div>

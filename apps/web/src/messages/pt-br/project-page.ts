@@ -1,169 +1,188 @@
 export const ProjectPage = {
-  metaTitle: 'O Projeto - urlfy.cc',
+  metaTitle: 'Notas do Projeto - urlfy.cc',
   metaDescription:
-    'Arquitetura, decisões e trade-offs por trás do urlfy.cc — encurtador de URLs em produção, portfólio e projeto de pesquisa aplicada.',
-  ogTitle: 'Por trás do código: urlfy.cc',
+    'O que o urlfy.cc implementa hoje, por que a arquitetura é assim e como ler seus targets de engenharia documentados.',
+  ogTitle: 'Por dentro do urlfy.cc',
   ogDescription:
-    'Arquitetura, decisões e trade-offs de um projeto full-stack moderno',
+    'Arquitetura atual, trade-offs e targets de validação de um projeto de produto real em evolução.',
 
   hero: {
-    badge: 'Projeto Real · Portfólio · Pesquisa Aplicada',
-    title: 'Por trás do código',
+    badge: 'Projeto de Produto Real · Portfólio · Pesquisa Aplicada',
+    title: 'Notas do Projeto',
     subtitle: 'urlfy.cc',
     description:
-      'Um encurtador de URLs em produção com arquitetura full-stack moderna — rodando em produção, funcionando também como portfólio e plataforma de pesquisa aplicada.'
+      'Um encurtador de URLs self-hosted tratado como projeto de produto real: app web localizado, API dedicada, worker em Bun, operação com Docker e documentação mantida perto do código.'
   },
 
   architecture: {
-    title: 'Arquitetura Híbrida',
-    subtitle: 'Next.js para UI + ElysiaJS para API — type-safety end-to-end',
-    docsLink: 'Ver docs de arquitetura →',
+    title: 'Arquitetura Atual',
+    subtitle:
+      'O que existe hoje e por que o navegador permanece same-origin enquanto web, API e worker seguem desacoplados.',
+    docsLink: 'Ler os docs de arquitetura →',
     frontend: {
-      title: 'Frontend (Next.js 16)',
-      appRouter: 'Server Components para SEO e performance',
-      middleware: 'Middleware para redirecionamento de links',
-      ui: 'Design system acessível e consistente'
+      title: 'Aplicação web',
+      appRouter:
+        'O App Router do Next.js 16 entrega páginas públicas, fluxos de auth, dashboard e entradas do redirect.',
+      middleware:
+        'O proxy de borda mantém o tráfego do navegador same-origin no desenvolvimento local e atrás do ingress em produção.',
+      ui: 'Shell público e dashboard compartilham uma UI localizada, sem virar frontends separados.'
     },
     api: {
-      title: 'API (ElysiaJS + Bun)',
-      typeSafe: 'TypeBox para validação runtime com inferência de tipos',
-      fast: 'Bun Native APIs (SQL, Redis, Password)',
-      openapi: 'Documentação automática em'
+      title: 'API e trabalho em background',
+      typeSafe:
+        'Um serviço Elysia dedicado concentra /api, saída OpenAPI e validação em runtime.',
+      fast: 'Um worker em Bun processa analytics, limpeza e outros jobs assíncronos fora do request path.',
+      openapi: 'As referências interativas e do repositório começam em'
     }
   },
 
   infrastructure: {
-    title: 'Infraestrutura & Stack',
-    subtitle: '100% containerizado e self-hosted',
-    docsLink: 'Ver docs de infraestrutura →',
+    title: 'Escolhas Operacionais',
+    subtitle:
+      'Pequeno o suficiente para entender de ponta a ponta, explícito o suficiente para rodar e documentar.',
+    docsLink: 'Ver docs de deploy e do sistema →',
     persistence: {
-      title: 'Persistência',
-      subtitle: 'PostgreSQL 16 + Drizzle ORM',
-      feature1: 'Particionamento mensal de eventos',
-      feature2: 'Type-safe queries com Drizzle',
-      feature3: 'Migrações versionadas'
+      title: 'Camada de dados compartilhada',
+      subtitle: 'PostgreSQL + Drizzle + packages do workspace',
+      feature1:
+        'Schema, migrações e slugs reservados vivem em packages compartilhados, não em cópias por app.',
+      feature2:
+        'Lógica de redirect e domínio é reutilizada entre web, API e worker.',
+      feature3:
+        'O estado fica próximo dos contratos, em vez de ficar enterrado em adapters de framework.'
     },
     cache: {
-      title: 'Cache',
-      subtitle: 'Redis 7 (Bun Native)',
-      feature1: 'Hot-path caching para redirects',
-      feature2: 'Rate limiting (Sliding Window)',
-      feature3: 'Cache negativo para códigos inválidos'
+      title: 'Cache e roteamento',
+      subtitle: 'Redis + caminho de redirect same-origin',
+      feature1:
+        'Redirects usam leitura de cache no hot path antes de tocar o banco.',
+      feature2:
+        'Helpers de rate limiting, locking e cache negativo são compartilhados entre os serviços.',
+      feature3:
+        'O hot path do redirect permanece na web, evitando o antigo hop interno para a API.'
     },
     observability: {
-      title: 'Observabilidade',
-      subtitle: 'Grafana LGTM + OpenTelemetry',
-      feature1: 'Traces distribuídos',
-      feature2: 'Métricas de performance (SLOs)',
-      feature3: 'Logs estruturados'
+      title: 'Feedback operacional',
+      subtitle: 'Health, readiness, logs e docs de validação',
+      feature1:
+        'Endpoints de health e readiness fazem parte da superfície entregue.',
+      feature2:
+        'Telemetria estruturada é compartilhada entre os serviços do monorepo.',
+      feature3:
+        'A validação de performance vive em docs e testes, não em claims de marketing.'
     }
   },
 
   tradeoffs: {
-    title: 'Decisões Técnicas & Trade-offs',
-    subtitle: 'Escolhas arquiteturais, motivações e alternativas consideradas',
-    why: 'Por quê?',
-    impact: 'Impacto',
-    alternatives: 'Alternativas Consideradas',
+    title: 'Trade-offs Escolhidos de Propósito',
+    subtitle:
+      'Por que a codebase se parece com isso hoje, e não com um starter genérico.',
+    why: 'Por que agora?',
+    impact: 'Custo assumido',
+    alternatives: 'Alternativa',
     decisions: {
       typeSafety: {
-        title: 'Type-Safety First (TypeScript Strict + Drizzle)',
-        why: 'Capturar erros em tempo de build, não em produção. Melhor developer experience com autocompleção e refactoring seguro.',
+        title: 'Contratos compartilhados primeiro',
+        why: 'Uma superfície única de contratos entre web, API e worker torna mudanças mais seguras do que duplicar tipos manualmente.',
         impact:
-          'Reduz bugs em produção, mas aumenta tempo de desenvolvimento inicial e curva de aprendizado.',
+          'Refactors mais seguros e ownership mais claro, com mais trabalho inicial de schema.',
         alternatives:
-          'JavaScript puro seria mais rápido de prototipar, mas menos seguro e escalável.'
+          'Uma configuração mais solta seria mais rápida de rascunhar, mas deixaria drift aparecer com facilidade.'
       },
       bunRuntime: {
-        title: 'Bun Runtime vs Node.js',
-        why: 'APIs nativas para SQL, Redis e Password Hashing reduzem dependências externas. Performance superior em I/O.',
+        title: 'Bun como runtime padrão',
+        why: 'Ferramentas nativas para Redis, SQL e senhas reduzem código de cola no caminho principal da aplicação.',
         impact:
-          'Menos dependências (bcrypt, ioredis), mas ecossistema ainda em maturação. Menor community support.',
+          'Dependências mais enxutas e bom perfil de I/O, com ecossistema menor que o Node.js.',
         alternatives:
-          'Node.js teria melhor compatibilidade, mas mais overhead e dependências.'
+          'Node.js ampliaria a compatibilidade, mas reintroduziria mais código de adaptação.'
       },
       mvcPattern: {
-        title: 'Feature-Based MVC (Elysia Best Practices)',
-        why: 'Separação clara de responsabilidades, facilita testes unitários e manutenção de longo prazo.',
-        impact: 'Mais boilerplate inicial, mas código escalável e testável.',
+        title: 'Controllers finos, services explícitos',
+        why: 'O handling do request fica próximo do framework enquanto as regras de negócio continuam testáveis e reutilizáveis.',
+        impact:
+          'Mais arquivos e um modelo de ownership mais claro, ao custo de menos simplicidade aparente.',
         alternatives:
-          'Next.js Route Handlers seria mais simples, mas perderia type-safety e validação runtime.'
+          'Colocar tudo em route handlers pareceria menor no início, mas seria mais difícil de evoluir.'
       },
       eventDriven: {
-        title: 'Event-Driven Analytics (Redis Streams)',
-        why: 'Não bloquear o redirect com writes de analytics. Native Bun implementation para zero deps.',
-        impact: 'Performance excelente e type-safe. Sem BullMQ/Redis externo.',
+        title: 'Analytics assíncrono em vez de bloquear redirects',
+        why: 'O redirect precisa continuar rápido mesmo quando analytics, limpeza ou sistemas downstream estiverem ocupados.',
+        impact:
+          'Melhor latência no hot path, com mais trabalho em background jobs e observabilidade.',
         alternatives:
-          'BullMQ adicionaria dependências desnecessárias (ioredis).'
+          'Escritas inline são mais simples, mas gastam orçamento de latência em trabalho não crítico.'
       },
       monolith: {
-        title: 'Monolith Self-Hosted (Docker Compose)',
-        why: 'Simplicidade operacional para um projeto nesta escala. Menor custo de infraestrutura.',
+        title: 'Um monorepo, múltiplos serviços',
+        why: 'O projeto fica mais fácil de entender quando as fronteiras de runtime são explícitas, mas o código ainda é entregue a partir de um único repositório.',
         impact:
-          'Fácil de deployar e manter, mas escala vertical (vs. horizontal com microservices).',
+          'Menor sobrecarga operacional hoje, com menos garantias de isolamento do que um sistema mais distribuído.',
         alternatives:
-          'Microservices seria mais escalável, mas muito mais complexo e caro neste estágio.'
+          'Uma divisão em microservices adicionaria cerimônia antes de a codebase realmente precisar disso.'
       }
     }
   },
 
   metrics: {
-    title: 'Targets de Performance',
+    title: 'Números em Contexto',
     subtitle:
-      'Targets de SLO — baselines e metodologia de medição nos docs de arquitetura',
+      'Estes cards mostram targets documentados de validação, não telemetria pública ao vivo.',
     latency: {
       value: '< 30ms',
-      label: 'Redirect P50 (target)',
-      description: 'Cache Redis + Middleware Edge'
+      label: 'Target de redirect P50',
+      description: 'Meta de warm-cache no runbook de baseline do redirect'
     },
     throughput: {
-      value: '10K+',
-      label: 'Requisições/segundo (target)',
-      description: 'Bun Runtime + APIs Nativas'
+      value: '< 300ms',
+      label: 'Target de redirect P99',
+      description: 'Limite superior acompanhado durante a validação de carga'
     },
     availability: {
-      value: '99.9%',
-      label: 'SLO de Availability',
-      description: 'Health Checks + Circuit Breaker'
+      value: '> 70%',
+      label: 'Target de cache hit em warm-cache',
+      description: 'Esperado após warm-up nos checks de redirect com k6'
     }
   },
 
   security: {
-    title: 'Segurança & Compliance',
-    docsLink: 'Ver docs de segurança →',
+    title: 'Segurança e Guardrails Operacionais',
+    docsLink: 'Ler os docs de segurança →',
     protections: {
-      title: 'Proteções',
-      rateLimit: 'Rate Limiting (Sliding Window)',
-      headers: 'Headers de Segurança (CSP, HSTS)',
-      csrf: 'CSRF Protection',
-      sanitization: 'Input Sanitization (DOMPurify)',
-      blacklist: 'Blacklist de URLs maliciosas'
+      title: 'Guardrails implementados',
+      rateLimit: 'Rate limiting nas superfícies públicas de escrita e redirect',
+      headers: 'Headers de segurança definidos por policy compartilhada',
+      csrf: 'Proteção CSRF nos fluxos interativos com formulários',
+      sanitization: 'Validação em runtime e sanitização perto dos handlers',
+      blacklist: 'Caminhos operacionais de revisão para destinos suspeitos'
     },
     compliance: {
-      title: 'Compliance LGPD/GDPR',
-      anonymization: 'Anonimização de IPs (SHA-256)',
-      consent: 'Consentimento explícito',
-      export: 'Exportação de dados',
-      forgotten: 'Direito ao esquecimento (72h)',
-      retention: 'Data retention (90 dias)'
+      title: 'Postura de privacidade',
+      anonymization: 'Os fluxos de analytics minimizam exposição direta de IP',
+      consent: 'Analytics com consentimento explícito na web pública',
+      export:
+        'Exportação e exclusão continuam visíveis como superfícies do produto',
+      forgotten: 'Fluxos de privacidade ficam explícitos em vez de implícitos',
+      retention:
+        'Detalhes de política vivem nos docs e no PRD, não nesta página'
     }
   },
 
   author: {
-    title: 'Sobre o Desenvolvedor',
+    title: 'Construído e mantido por',
     name: 'Gustavo Sotero',
-    role: 'Full-Stack Developer',
+    role: 'Engenheiro full-stack',
     description:
-      'Arquiteto de software e desenvolvedor focado em sistemas de alta performance, TypeScript e infraestrutura moderna. Este projeto demonstra competências em arquitetura, performance engineering e boas práticas através de uma codebase viva.',
+      'urlfy.cc é o lugar onde enquadramento de produto, escolhas de runtime e trade-offs operacionais são exercitados em código, em vez de ficarem só em diagramas ou slides.',
     portfolio: 'Portfólio',
-    github: 'Ver no GitHub'
+    github: 'Repositório do projeto'
   },
 
   cta: {
-    title: 'Explore a Documentação',
+    title: 'Comece pelo README',
     description:
-      'Arquitetura, banco de dados, cache, segurança e referência de API — tudo nos docs.',
-    apiDocs: 'API Documentation',
-    repository: 'Repositório'
+      'O README é a porta de entrada curta. Os docs de arquitetura aprofundam as decisões, e /api/docs reflete a superfície viva da API.',
+    apiDocs: 'Abrir docs da API',
+    repository: 'README do repositório'
   }
 } as const;

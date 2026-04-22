@@ -8,7 +8,7 @@ export const Hero = {
   shortenButton: 'Shorten',
   projectDisclaimer: 'Real Project · Portfolio · Applied Research',
   projectDescription:
-    'A production-grade URL shortener built with modern full-stack architecture — serving real users, doubling as a portfolio and applied-research platform.',
+    'A self-hosted URL shortener built as a real product project — also used as portfolio, applied research, and ongoing study.',
   loading: 'Loading...',
   goToDashboard: 'Go to Dashboard',
   getStarted: 'Get Started for Free',
@@ -22,7 +22,7 @@ export const Hero = {
   aboutProject: {
     title: 'About the Project',
     p1: 'urlfy.cc is a production-grade URL shortener — also a portfolio and applied-research project. Built with a focus on performance, type-safety, and engineering best practices.',
-    p2: 'Combining Bun, Next.js 16, and ElysiaJS, this project demonstrates competencies in full-stack architecture, performance engineering, and containerized infrastructure through a living codebase.',
+    p2: 'Bun, Next.js 16, and ElysiaJS are used here to test and document architecture choices in a living codebase while keeping future scope separated in the PRD.',
     technicalDetails: 'Technical Details'
   },
   developer: {

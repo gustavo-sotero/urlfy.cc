@@ -8,7 +8,7 @@ export const Hero = {
   shortenButton: 'Encurtar',
   projectDisclaimer: 'Projeto Real · Portfólio · Pesquisa Aplicada',
   projectDescription:
-    'Um encurtador de URLs em produção construído com arquitetura full-stack moderna — servindo usuários reais, funcionando também como portfólio e plataforma de pesquisa aplicada.',
+    'Um encurtador de URLs self-hosted tratado como projeto de produto real — usado também como portfólio, pesquisa aplicada e estudo contínuo.',
   loading: 'Carregando...',
   goToDashboard: 'Ir para Dashboard',
   getStarted: 'Começar gratuitamente',
@@ -22,7 +22,7 @@ export const Hero = {
   aboutProject: {
     title: 'Sobre o Projeto',
     p1: 'O urlfy.cc é um encurtador de URLs em produção — e também um projeto de portfólio e pesquisa aplicada. Construído com foco em performance, type-safety e boas práticas de engenharia.',
-    p2: 'Combinando Bun, Next.js 16 e ElysiaJS, este projeto demonstra competências em arquitetura full-stack, performance engineering e infraestrutura containerizada através de uma codebase viva.',
+    p2: 'Bun, Next.js 16 e ElysiaJS são usados aqui para testar e documentar escolhas de arquitetura em uma codebase viva, mantendo o escopo futuro separado no PRD.',
     technicalDetails: 'Detalhes Técnicos'
   },
   developer: {

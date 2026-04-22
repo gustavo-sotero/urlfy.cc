@@ -123,7 +123,6 @@ export function Header({ user }: Props) {
               src={logoSrc}
               alt="urlfy.cc"
               height={400}
-              quality={100}
               className="mb-1 h-20 w-auto"
             />
             <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl md:text-2xl">

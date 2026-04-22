@@ -43,9 +43,9 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/api/docs" className={linkClass}>
+                <a href="/api/docs" className={linkClass}>
                   {tNav('docs')}
-                </Link>
+                </a>
               </li>
             </ul>
           </div>

@@ -1,9 +1,9 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * PROJECT PAGE - Technical Deep Dive (Internationalized)
+ * PROJECT PAGE - Public Project Notes (Internationalized)
  * ═════════════════════════════════════════════════════════════════════
- * Technical showcase page for urlfy.cc — a production-grade URL shortener
- * that also serves as a portfolio and applied-research platform.
+ * Public-facing project route for the current product surface, architectural
+ * decisions, trade-offs, and links into the README and deeper docs.
  * ═════════════════════════════════════════════════════════════════════
  */
 

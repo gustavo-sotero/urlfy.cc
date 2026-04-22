@@ -1,11 +1,11 @@
 export const Footer = {
   description:
-    'Encurtador de URL de alta performance com analytics e segurança.',
+    'Encurtador de URL self-hosted tratado como projeto de produto real.',
   product: 'Produto',
   features: 'Recursos',
   pricing: 'Preços',
   api: 'API',
-  docs: 'Documentação',
+  docs: 'Docs da API',
   company: 'Empresa',
   contact: 'Contato',
   legal: 'Legal',

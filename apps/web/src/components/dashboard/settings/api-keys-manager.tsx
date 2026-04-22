@@ -67,7 +67,6 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { Link } from '@/i18n/routing';
 import type { ApiKeyPublic } from '@/lib/api';
 import {
   useApiKeys,
@@ -457,10 +456,10 @@ export function ApiKeysManager() {
             <p className="text-sm text-muted-foreground">{t('description')}</p>
           </div>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/api/docs" target="_blank" rel="noopener noreferrer">
+            <a href="/api/docs" target="_blank" rel="noopener noreferrer">
               <ExternalLink className="mr-2 h-4 w-4" />
               {t('documentation')}
-            </Link>
+            </a>
           </Button>
         </div>
       </CardHeader>

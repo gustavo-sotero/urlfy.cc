@@ -1,7 +1,6 @@
 import { Code2, ExternalLink, Github, Rocket, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Link } from '@/i18n/routing';
 
 interface SecurityAuthorCtaSectionProps {
   t: (key: string) => string;
@@ -129,19 +128,19 @@ export function SecurityAuthorCtaSection({ t }: SecurityAuthorCtaSectionProps) {
             <p className="text-muted-foreground">{t('cta.description')}</p>
             <div className="flex flex-wrap justify-center gap-4">
               <Button asChild variant="default">
-                <Link href="/api/docs">
-                  <Code2 className="mr-2 h-4 w-4" />
-                  {t('cta.apiDocs')}
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
                 <a
-                  href="https://github.com/gustavo-sotero/urlfy.cc"
+                  href="https://github.com/gustavo-sotero/urlfy.cc/blob/main/README.md"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   <Github className="mr-2 h-4 w-4" />
                   {t('cta.repository')}
+                </a>
+              </Button>
+              <Button asChild variant="outline">
+                <a href="/api/docs">
+                  <Code2 className="mr-2 h-4 w-4" />
+                  {t('cta.apiDocs')}
                 </a>
               </Button>
             </div>

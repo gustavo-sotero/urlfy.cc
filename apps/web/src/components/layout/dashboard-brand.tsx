@@ -24,7 +24,6 @@ export function DashboardBrand({
         src={logoSrc}
         alt="urlfy.cc"
         height={400}
-        quality={100}
         className="h-24 w-auto"
       />
       <span className="block text-xs text-muted-foreground">{subtitle}</span>
