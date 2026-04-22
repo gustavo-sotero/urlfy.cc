@@ -1,42 +1,71 @@
 # urlfy.cc
 
-Self-hosted URL shortener built as a real product project. This repository also serves as portfolio material, applied research, and an ongoing study in Bun, React 19, Next.js 16, Elysia, and operational trade-offs.
+Self-hosted URL shortener built as a portfolio project — applied research in Bun, React 19, Next.js 16, ElysiaJS, and operational trade-offs.
 
-## What Exists Today
+## What Exists
 
-- Next.js 16 + React 19 web app with localized public pages, auth flows, dashboard, and redirect hot path
-- Dedicated Elysia API under `/api/*`, with interactive docs at `/api/docs`
-- Bun worker for analytics, cleanup, and other asynchronous jobs
+- Next.js 16 + React 19 web app: localized public pages, auth flows, dashboard, and redirect hot path
+- ElysiaJS API at `/api/*` with interactive docs at `/api/docs`
+- Bun worker for analytics, cleanup, and async jobs
 - Shared packages for contracts, cache, data, auth, telemetry, and redirect-domain logic
-- Docker-based local and production topologies with same-origin browser access in dev and ingress-based routing in production
+- Docker-based local and production topologies
 
-## Stage And Scope
+## Stack
 
-- Current codebase: a working product surface with concrete runtime and operational decisions documented in-repo
-- Applied-research / proof-of-concept areas: some runtime, caching, observability, and deployment choices are exercised here as part of the learning and validation process
-- Roadmap and future requirements: [docs/prd.md](docs/prd.md)
+| Layer | Technology | Notes |
+|---|---|---|
+| Runtime | Bun 1.x+ | Native SQL and Redis APIs |
+| Frontend | Next.js 16 App Router | SSR, RSC, Edge proxy |
+| API | ElysiaJS (`apps/api`, :3001) | Shared contracts via `@urlfy/contracts` |
+| Database | PostgreSQL 16+ | Drizzle ORM + Bun SQL |
+| Cache / Queue | Redis 7+ | `Bun.RedisClient` (RESP3), Redis Streams |
+| Auth | Better-Auth | OAuth (Google, GitHub); admin via `ADMIN_GITHUB_ACCOUNT_ID` |
+| Geo | GeoLite2 via jsDelivr | No credentials required |
+| Observability | Grafana LGTM + OTLP | OpenTelemetry: logs, traces, metrics |
+| Styling | Tailwind CSS + shadcn/ui | |
+| Monorepo | Bun Workspaces + Turborepo | Incremental build graph |
 
 ## Topology
 
 ```text
 Browser
-  -> same-origin web entrypoint (:3000 locally)
-     -> /api/*   -> apps/api (Elysia, :3001)
-     -> /r/:code -> apps/web redirect hot path
-     -> pages/*  -> apps/web (Next.js 16)
+  -> :3000 (same-origin)
+       /api/*     -> apps/api  (ElysiaJS, :3001)
+       /r/:code   -> apps/web  redirect hot path (no HTTP hop)
+       /*         -> apps/web  (Next.js pages)
 
-Background work
-  -> apps/worker (Bun worker)
+Background
+  -> apps/worker  (Redis Streams consumers)
 ```
 
-In local development, `next.config.ts` rewrites keep browser calls same-origin. In production, ingress routes `/api/*` to the dedicated API service while the web app keeps the public shell and redirect entrypoints.
+Local dev: `next.config.ts` rewrites keep everything same-origin.  
+Production: Traefik routes `/api/*` to `apps/api`; `/r/:code` stays in `apps/web`.
+
+## Monorepo Layout
+
+```
+apps/
+  web/     Next.js 16 App Router — public pages, auth, dashboard, /r/[code]
+  api/     ElysiaJS REST API — all /api/* endpoints
+  worker/  Bun workers — analytics aggregation, cleanup, deferred deletion
+packages/
+  contracts/       Shared envelopes, error codes, rate-limit & CORS policies
+  redirect-domain/ Cache-aside resolve logic (no framework coupling)
+  data/            Drizzle schema + Bun SQL client
+  cache/           Redis client, cache keys, circuit breaker, rate-limiter core
+  telemetry/       OpenTelemetry helpers, canonical IP derivation
+  auth-shared/     Better-Auth config primitives, scopes
+  config-ts/       Base tsconfig presets
+  config-biome/    Shared Biome config
+docker/
+  docker-compose.yml        Dev: PostgreSQL + Redis + GeoIP downloader
+  docker-compose.apps.yml   Local multi-service overlay
+  docker-compose.prod.yml   Production: migrate + web + api + worker
+```
 
 ## Quick Start
 
-### Prerequisites
-
-- [Bun](https://bun.sh) `1.3.11+`
-- [Docker](https://www.docker.com/) with Compose
+**Prerequisites:** [Bun](https://bun.sh) `1.3.11+`, Docker with Compose
 
 ```bash
 git clone https://github.com/gustavo-sotero/urlfy.cc.git
@@ -45,12 +74,14 @@ bun install
 bun run docker:up
 ```
 
-Copy `.env.example` to `.env`, then set at least:
+Copy `.env.example` → `.env` and set at minimum:
 
-- `DATABASE_URL`
-- `BETTER_AUTH_SECRET`
-- `INTERNAL_API_SECRET`
-- `ADMIN_GITHUB_ACCOUNT_ID`
+```
+DATABASE_URL
+BETTER_AUTH_SECRET
+INTERNAL_API_SECRET
+ADMIN_GITHUB_ACCOUNT_ID
+```
 
 ```bash
 bun run db:migrate
@@ -58,48 +89,136 @@ bun run db:seed
 bun run dev
 ```
 
-Local services:
+| URL | Service |
+|---|---|
+| `http://localhost:3000` | Web app |
+| `http://localhost:3000/api/docs` | API docs (same-origin) |
+| `http://localhost:3001/api/docs` | API docs (direct) |
+| `http://localhost:3001/api/health/ready` | Readiness probe |
 
-- Web app: `http://localhost:3000`
-- Same-origin API docs: `http://localhost:3000/api/docs`
-- Direct API service: `http://localhost:3001/api/docs`
-- Health checks: `http://localhost:3001/api/health` and `http://localhost:3001/api/health/ready`
-
-## Useful Commands
+## Commands
 
 | Command | Purpose |
-| --- | --- |
-| `bun run dev` | Start web, api, and worker via Turborepo |
-| `bun run dev:web` | Start only the Next.js app |
-| `bun run dev:api` | Start only the Elysia API |
-| `bun run dev:worker` | Start only the Bun worker |
-| `bun run lint` | Run the Biome lint pipeline |
+|---|---|
+| `bun run dev` | Start web + api + worker (Turborepo) |
+| `bun run dev:web` / `dev:api` / `dev:worker` | Start individual service |
+| `bun run lint` | Biome lint pipeline |
 | `bun run type-check` | Type-check all workspaces |
-| `bun run test` | Run the workspace test suites |
-| `bun run test:unit` | Run unit tests |
-| `bun run test:integration` | Run integration tests |
-| `bun run test:e2e` | Run Playwright end-to-end tests |
-| `bun run test:load` | Run redirect load validation (`k6`) |
-| `bun run docker:up` | Start PostgreSQL and Redis locally |
+| `bun run test` | All test suites |
+| `bun run test:unit` / `test:integration` / `test:e2e` | Scoped test runs |
+| `bun run test:load` | Redirect load validation (k6) |
+| `bun run docker:up` | Start PostgreSQL + Redis locally |
 | `bun run db:migrate` | Apply database migrations |
 
-## Documentation
+## Key Design Decisions
 
-The README is intentionally short. Use the docs according to depth:
+### Redirect Hot Path
 
-- [docs/architecture/overview.md](docs/architecture/overview.md): overall system shape, service topology, Docker, and deployment notes
-- [docs/architecture/monorepo-decoupling.md](docs/architecture/monorepo-decoupling.md): current split between web, api, worker, and shared packages
-- [docs/architecture/database-schema.md](docs/architecture/database-schema.md): schema, indexes, and partitioning
-- [docs/architecture/caching-strategy.md](docs/architecture/caching-strategy.md): redirect cache, locks, and invalidation strategy
-- [docs/architecture/security.md](docs/architecture/security.md): rate limiting, headers, privacy, and security posture
-- [docs/architecture/observability-elysia.md](docs/architecture/observability-elysia.md): telemetry and OTLP/LGTM setup
-- [docs/api/endpoints.md](docs/api/endpoints.md): full API reference
-- [docs/development/redirect-performance-baseline.md](docs/development/redirect-performance-baseline.md): redirect validation workflow and targets
-- [docs/prd.md](docs/prd.md): roadmap and future scope
+`/r/[code]` resolves inside `apps/web` via `packages/redirect-domain` — no HTTP round-trip to `apps/api`. The flow:
+
+1. Check Redis (`link:{code}`, TTL 1h) — serve immediately on hit
+2. On miss: acquire distributed lock (SETNX, TTL 5s), query PostgreSQL, populate cache
+3. Validate: `isActive`, `!isBanned`, `!expired`, `clicks < maxClicks`, `X-Redirect-Depth < 3`
+4. Fire-and-forget analytics via Redis Streams
+5. Return 301/302 with `X-Request-Id`
+
+### Caching
+
+| Key pattern | TTL | Purpose |
+|---|---|---|
+| `link:{code}` | 1h | Redirect data |
+| `link:meta:{code}` | 5m | OG metadata |
+| `link:404:{code}` | 5m | Negative cache |
+| `link:banned:{code}` | 24h | Banned links |
+| `qr:{code}:{size}:{fmt}` | 24h | QR codes |
+| `rl:{key}` | sliding | Rate limiting |
+| `lock:link:{code}` | 5s | Stampede lock |
+
+Invalidation is synchronous on link update/ban/delete; stampede protection uses SETNX with 50ms backoff for waiters.
+
+### Rate Limiting
+
+Sliding window via Redis Sorted Sets. Three non-overlapping layers:
+- **API edge (`/api/*`):** global limit applied in `apps/api` `onBeforeHandle`
+- **Redirect (`/r/:code`):** per-IP + per-link limit, dedicated handler
+- **Link abuse guard:** per `shortCode`, redirect flow only
+
+No double-charging within a single request path.
+
+### Security
+
+- **IP derivation:** canonical helpers in `@urlfy/telemetry` (`getClientIp`, `getClientIpFromHeaders`); direct proxy-header parsing in app code is forbidden and CI-enforced.
+- **URL validation:** format, protocol (`http`/`https` only), domain blacklist, shortener block.
+- **Redirect loop guard:** `X-Redirect-Depth` header; max depth 3 → HTTP 421.
+- **IP anonymization:** SHA-256 hash stored; raw IP never persisted.
+- **Runtime secret guards:** `BETTER_AUTH_SECRET` and other critical env vars reject placeholder values at boot.
+
+### Observability
+
+`@elysiajs/opentelemetry` registered as the first Elysia plugin; spans are named after handler functions (`createLink`, `listUserLinks`, etc.). OTLP HTTP exports to Grafana LGTM. All app services initialize the SDK via `@urlfy/telemetry` before the first request.
+
+### Authentication & Authorization
+
+Better-Auth with `twoFactor` and `apiKey` plugins. Three auth methods:
+
+| Method | Credential | Use case |
+|---|---|---|
+| Session | Cookie `session` | Browser / frontend |
+| Bearer | `Authorization: Bearer <token>` | External API calls |
+| API Key | `x-api-key: urlfy_sk_...` | Programmatic access |
+
+Admin authority is derived from `ADMIN_GITHUB_ACCOUNT_ID` (linked GitHub account), not from a mutable `role` field.
+
+## Database
+
+| Table | Description |
+|---|---|
+| `users`, `sessions`, `accounts`, `verifications` | Better-Auth core |
+| `twoFactors`, `apikeys` | Better-Auth plugins |
+| `links` | Short links — `short_code` (unique), `original_url`, `redirect_type` (301/302), `clicks_count`, `max_clicks`, `password_hash`, `expires_at`, OG meta fields, UTM fields, soft delete (`deleted_at`) |
+| `analytics_events` | Partitioned by month — `visitor_hash`, `country`, `city`, `browser`, `os`, `device_type`, `referrer`, UTM fields, `is_bot` |
+| `link_clicks_daily` | Pre-aggregated daily analytics |
+| `deleted_links_audit` | Audit trail for deleted links |
+
+Key indexes: `short_code` (unique), `user_id + deleted_at` (partial, listings), `expires_at` (partial, cleanup job), GIN `pg_trgm` on `short_code` + `original_url` (admin fuzzy search), GIN on `tags`.
+
+## API Response Format
+
+```jsonc
+// Success
+{ "success": true, "data": { ... } }
+
+// Paginated
+{ "success": true, "data": [...], "meta": { "total": 1000, "page": 1, "perPage": 20, "lastPage": 50, "hasMore": true } }
+
+// Error
+{ "success": false, "error": { "code": "LINK_NOT_FOUND", "message": "..." }, "requestId": "req_abc123" }
+```
+
+| Error code | HTTP | Meaning |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | Invalid input |
+| `UNAUTHORIZED` | 401 | Missing / invalid token |
+| `PASSWORD_REQUIRED` | 401 | Password-protected link |
+| `FORBIDDEN` | 403 | Insufficient permission |
+| `LINK_NOT_FOUND` | 404 | Unknown short code |
+| `LINK_EXPIRED` | 410 | Link past expiry |
+| `REDIRECT_LOOP` | 421 | Max redirect depth exceeded |
+| `URL_MALICIOUS` | 422 | Blocked URL |
+| `RATE_LIMITED` | 429 | Too many requests |
+| `LINK_BANNED` | 451 | Admin-banned link |
+| `QUOTA_EXCEEDED` | 402 | Plan link quota reached |
+
+Full interactive reference: `/api/docs` (Swagger) and `/api/auth/reference` (Better-Auth OpenAPI).
+
+## Disaster Recovery
+
+- **RTO / RPO:** < 1 hour
+- PostgreSQL backup schedule: hourly (7-day retention), daily full at 02:00 UTC (30-day retention)
+- Redis is ephemeral — cache rebuilds automatically on cold start
 
 ## Notes
 
 - Runtime and configuration files are the source of truth for what exists today.
-- This README is the short repo entry point; architecture and API docs are the deeper references.
-- The PRD describes roadmap and future requirements, not guaranteed current implementation.
+- The PRD (`.github/instructions/prd.instructions.md`) describes roadmap and future requirements, not guaranteed current implementation.
 - This repository is private and not licensed for public use.
