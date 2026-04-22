@@ -37,10 +37,12 @@ mock.module('next-intl', () => ({
   useTranslations: mock((namespace: string) => {
     const messages: Record<string, Record<string, string>> = {
       Navigation: {
+        home: 'Início',
         features: 'Recursos',
         project: 'Notas do Projeto',
         docs: 'Docs da API',
-        closeMenu: 'Fechar menu'
+        closeMenu: 'Fechar menu',
+        menuTitle: 'Menu'
       },
       Common: {
         language: 'Idioma',

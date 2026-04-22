@@ -86,9 +86,15 @@ export function Navbar() {
     { href: '/api/docs', label: t('docs'), external: true }
   ] as const;
 
+  // Mobile-only links (includes home)
+  const MOBILE_NAV_LINKS = [
+    { href: '/', label: t('home') },
+    ...NAV_LINKS
+  ] as const;
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-      <nav className="container mx-auto flex h-24 items-center justify-between px-4">
+      <nav className="container mx-auto flex h-14 items-center justify-between px-4">
         {/* Logo */}
         <Link
           href="/"
@@ -98,7 +104,7 @@ export function Navbar() {
             src={logoSrc}
             alt="urlfy.cc"
             height={100}
-            className="h-12 w-auto"
+            className="h-10 w-auto"
           />
         </Link>
 
@@ -160,26 +166,20 @@ export function Navbar() {
             closeLabel={t('closeMenu')}
             className="w-[min(22rem,calc(100vw-1rem))] p-0"
           >
-            {/* Visually hidden title for screen-reader accessibility (Radix requirement) */}
+            {/* Visible sheet title */}
             <SheetTitle className="sr-only">{t('closeMenu')}</SheetTitle>
             <div className="flex h-full flex-col px-5 pb-6 pt-14 sm:px-6">
-              {/* Mobile Logo */}
-              <Link
-                href="/"
-                onClick={closeMobileMenu}
-                className="flex items-center transition-opacity hover:opacity-80"
+              {/* Mobile Menu Title */}
+              <p
+                className="text-lg font-semibold text-foreground"
+                aria-hidden="true"
               >
-                <Image
-                  src={logoSrc}
-                  alt="urlfy.cc"
-                  height={100}
-                  className="h-12 w-auto"
-                />
-              </Link>
+                {t('menuTitle')}
+              </p>
 
               {/* Mobile Nav Links */}
-              <nav className="mt-8 flex flex-col gap-2">
-                {NAV_LINKS.map((link) => (
+              <nav className="mt-6 flex flex-col gap-2">
+                {MOBILE_NAV_LINKS.map((link) => (
                   <NavLinkItem
                     key={link.href}
                     href={link.href}
