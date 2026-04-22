@@ -18,7 +18,7 @@ export const ProjectPage = {
     title: 'Arquitetura Atual',
     subtitle:
       'O que existe hoje e por que o navegador permanece same-origin enquanto web, API e worker seguem desacoplados.',
-    docsLink: 'Ler os docs de arquitetura →',
+    docsLink: 'Ler os docs de arquitetura no repositório →',
     frontend: {
       title: 'Aplicação web',
       appRouter:
@@ -40,7 +40,7 @@ export const ProjectPage = {
     title: 'Escolhas Operacionais',
     subtitle:
       'Pequeno o suficiente para entender de ponta a ponta, explícito o suficiente para rodar e documentar.',
-    docsLink: 'Ver docs de deploy e do sistema →',
+    docsLink: 'Ver os docs de deploy e do sistema no repositório →',
     persistence: {
       title: 'Camada de dados compartilhada',
       subtitle: 'PostgreSQL + Drizzle + packages do workspace',
@@ -127,27 +127,28 @@ export const ProjectPage = {
   metrics: {
     title: 'Números em Contexto',
     subtitle:
-      'Estes cards mostram targets documentados de validação, não telemetria pública ao vivo.',
-    latency: {
+      'Estes cards resumem targets documentados de validação nos docs de baseline do redirect, não telemetria pública ao vivo.',
+    contextLabel: 'Target documentado',
+    latencyP50: {
       value: '< 30ms',
-      label: 'Target de redirect P50',
+      label: 'Latência de redirect P50',
       description: 'Meta de warm-cache no runbook de baseline do redirect'
     },
-    throughput: {
+    latencyP99: {
       value: '< 300ms',
-      label: 'Target de redirect P99',
+      label: 'Latência de redirect P99',
       description: 'Limite superior acompanhado durante a validação de carga'
     },
-    availability: {
+    cacheHitRate: {
       value: '> 70%',
-      label: 'Target de cache hit em warm-cache',
+      label: 'Cache hit em warm-cache',
       description: 'Esperado após warm-up nos checks de redirect com k6'
     }
   },
 
   security: {
     title: 'Segurança e Guardrails Operacionais',
-    docsLink: 'Ler os docs de segurança →',
+    docsLink: 'Ler os docs de segurança no repositório →',
     protections: {
       title: 'Guardrails implementados',
       rateLimit: 'Rate limiting nas superfícies públicas de escrita e redirect',
@@ -181,7 +182,7 @@ export const ProjectPage = {
   cta: {
     title: 'Comece pelo README',
     description:
-      'O README é a porta de entrada curta. Os docs de arquitetura aprofundam as decisões, e /api/docs reflete a superfície viva da API.',
+      'O README é a porta de entrada curta do repositório. Os docs de arquitetura no repositório aprofundam as decisões, e /api/docs reflete a superfície viva da API.',
     apiDocs: 'Abrir docs da API',
     repository: 'README do repositório'
   }

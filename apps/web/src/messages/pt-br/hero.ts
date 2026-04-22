@@ -19,11 +19,11 @@ export const Hero = {
     p1: 'O urlfy.cc nasceu com a missão de tornar a web mais simples e acessível. Acreditamos que compartilhar conteúdo online deve ser rápido, seguro e sem complicações.',
     p2: 'Combinamos tecnologia de ponta com design intuitivo para oferecer a melhor experiência em encurtamento de URLs. Seja você um criador de conteúdo, profissional de marketing ou apenas alguém que quer compartilhar um link, estamos aqui para ajudar.'
   },
-  aboutProject: {
-    title: 'Sobre o Projeto',
+  projectNotes: {
+    title: 'Notas do Projeto',
     p1: 'O urlfy.cc é um encurtador de URLs em produção — e também um projeto de portfólio e pesquisa aplicada. Construído com foco em performance, type-safety e boas práticas de engenharia.',
     p2: 'Bun, Next.js 16 e ElysiaJS são usados aqui para testar e documentar escolhas de arquitetura em uma codebase viva, mantendo o escopo futuro separado no PRD.',
-    technicalDetails: 'Detalhes Técnicos'
+    technicalDetails: 'Ler Notas do Projeto'
   },
   developer: {
     title: 'Conheça o Desenvolvedor',

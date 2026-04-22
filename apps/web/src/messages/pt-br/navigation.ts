@@ -4,6 +4,6 @@ export const Navigation = {
   docs: 'Docs da API',
   github: 'GitHub',
   getStarted: 'Começar',
-  project: 'O Projeto',
+  project: 'Notas do Projeto',
   closeMenu: 'Fechar menu'
 } as const;

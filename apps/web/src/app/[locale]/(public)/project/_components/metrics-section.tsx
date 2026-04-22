@@ -6,6 +6,8 @@ import {
   CardTitle
 } from '@/components/ui/card';
 
+const METRIC_IDS = ['latencyP50', 'latencyP99', 'cacheHitRate'] as const;
+
 interface MetricsSectionProps {
   t: (key: string) => string;
 }
@@ -25,51 +27,26 @@ export function MetricsSection({ t }: MetricsSectionProps) {
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
-            <Card className="text-center">
-              <CardHeader>
-                <CardTitle className="text-4xl font-bold text-primary">
-                  {t('metrics.latency.value')}
-                </CardTitle>
-                <CardDescription>{t('metrics.latency.label')}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {t('metrics.latency.description')}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="text-center">
-              <CardHeader>
-                <CardTitle className="text-4xl font-bold text-primary">
-                  {t('metrics.throughput.value')}
-                </CardTitle>
-                <CardDescription>
-                  {t('metrics.throughput.label')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {t('metrics.throughput.description')}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="text-center">
-              <CardHeader>
-                <CardTitle className="text-4xl font-bold text-primary">
-                  {t('metrics.availability.value')}
-                </CardTitle>
-                <CardDescription>
-                  {t('metrics.availability.label')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {t('metrics.availability.description')}
-                </p>
-              </CardContent>
-            </Card>
+            {METRIC_IDS.map((metricId) => (
+              <Card key={metricId} className="text-center">
+                <CardHeader>
+                  <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                    {t('metrics.contextLabel')}
+                  </p>
+                  <CardTitle className="text-4xl font-bold text-primary">
+                    {t(`metrics.${metricId}.value`)}
+                  </CardTitle>
+                  <CardDescription>
+                    {t(`metrics.${metricId}.label`)}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {t(`metrics.${metricId}.description`)}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </div>

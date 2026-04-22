@@ -12,7 +12,7 @@ export const Footer = {
   terms: 'Termos',
   privacy: 'Privacidade',
   project: 'Projeto',
-  aboutProject: 'O Projeto',
+  projectNotes: 'Notas do Projeto',
   repository: 'Repositório',
   portfolio: 'Portfólio',
   copyright: '© {year} urlfy.cc. Todos os direitos reservados.',

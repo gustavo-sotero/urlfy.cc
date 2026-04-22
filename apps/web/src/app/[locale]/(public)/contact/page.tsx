@@ -1,4 +1,4 @@
-import { Github, Linkedin, MessageCircle } from 'lucide-react';
+import { FileText, Github, Rocket } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { ContactForm } from '@/components/forms/contact-form';
@@ -42,37 +42,35 @@ export default async function ContactPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Social Links */}
+            {/* Project Links */}
             <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <h3 className="mb-4 font-semibold">{t('connectWithUs')}</h3>
+              <h3 className="mb-4 font-semibold">{t('projectLinks')}</h3>
               <div className="space-y-3">
                 <a
-                  href="https://github.com/yourusername/urlfy.cc"
+                  href="https://github.com/gustavo-sotero/urlfy.cc"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-accent"
                 >
                   <Github className="h-5 w-5" />
-                  <span>GitHub</span>
+                  <span>{t('repositoryLink')}</span>
                 </a>
                 <a
-                  href="https://linkedin.com/in/yourprofile"
+                  href="https://gustavo-sotero.dev"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-accent"
                 >
-                  <Linkedin className="h-5 w-5" />
-                  <span>LinkedIn</span>
+                  <Rocket className="h-5 w-5" />
+                  <span>{t('portfolioLink')}</span>
                 </a>
-                <a
-                  href="https://t.me/yourusername"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/project"
                   className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-accent"
                 >
-                  <MessageCircle className="h-5 w-5" />
-                  <span>Telegram</span>
-                </a>
+                  <FileText className="h-5 w-5" />
+                  <span>{t('projectNotesLink')}</span>
+                </Link>
               </div>
             </div>
 
@@ -90,7 +88,7 @@ export default async function ContactPage() {
                   href="/project"
                   className="block text-sm text-muted-foreground hover:text-foreground"
                 >
-                  {t('aboutUs')}
+                  {t('projectNotes')}
                 </Link>
                 <Link
                   href="/terms"

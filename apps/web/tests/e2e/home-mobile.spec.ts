@@ -610,7 +610,9 @@ test.describe('Home page — desktop regression guard', () => {
 
       await expect(
         page
-          .getByRole('link', { name: /recursos|o projeto|documentação/i })
+          .getByRole('link', {
+            name: /recursos|notas do projeto|documentação/i
+          })
           .first()
       ).toBeVisible();
 

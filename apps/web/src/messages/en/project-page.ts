@@ -18,7 +18,7 @@ export const ProjectPage = {
     title: 'Current Architecture',
     subtitle:
       'What exists today and why the browser stays same-origin while web, API, and worker remain decoupled.',
-    docsLink: 'Read the architecture docs →',
+    docsLink: 'Read the repository architecture docs →',
     frontend: {
       title: 'Web application',
       appRouter:
@@ -40,7 +40,7 @@ export const ProjectPage = {
     title: 'Operational Choices',
     subtitle:
       'Small enough to understand end-to-end, explicit enough to run and document.',
-    docsLink: 'See deployment and system docs →',
+    docsLink: 'See the repository deployment and system docs →',
     persistence: {
       title: 'Shared data layer',
       subtitle: 'PostgreSQL + Drizzle + workspace packages',
@@ -126,27 +126,28 @@ export const ProjectPage = {
   metrics: {
     title: 'Numbers In Context',
     subtitle:
-      'These are documented validation targets, not live public telemetry.',
-    latency: {
+      'These cards summarize documented validation targets from the redirect baseline docs, not live public telemetry.',
+    contextLabel: 'Documented target',
+    latencyP50: {
       value: '< 30ms',
-      label: 'Redirect P50 target',
+      label: 'Redirect latency P50',
       description: 'Warm-cache goal from the redirect baseline runbook'
     },
-    throughput: {
+    latencyP99: {
       value: '< 300ms',
-      label: 'Redirect P99 target',
+      label: 'Redirect latency P99',
       description: 'Upper bound tracked during load validation'
     },
-    availability: {
+    cacheHitRate: {
       value: '> 70%',
-      label: 'Warm-cache hit-rate target',
+      label: 'Warm-cache hit rate',
       description: 'Expected after warm-up in k6 redirect checks'
     }
   },
 
   security: {
     title: 'Security and Operational Guardrails',
-    docsLink: 'Read the security docs →',
+    docsLink: 'Read the repository security docs →',
     protections: {
       title: 'Implemented guardrails',
       rateLimit: 'Rate limiting on public write and redirect surfaces',
@@ -178,7 +179,7 @@ export const ProjectPage = {
   cta: {
     title: 'Start with the README',
     description:
-      'The README is the short entry point. The architecture docs go deeper, and /api/docs reflects the live API surface.',
+      'The README is the short repo entry point. The architecture docs in the repository go deeper, and /api/docs reflects the live API surface.',
     apiDocs: 'Open API docs',
     repository: 'Repository README'
   }

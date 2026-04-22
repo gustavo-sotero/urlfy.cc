@@ -2,8 +2,8 @@
  * ═════════════════════════════════════════════════════════════════════
  * LANDING PAGE - Homepage
  * ═════════════════════════════════════════════════════════════════════
- * Main landing page with Hero, Features, About, and CTA sections.
- * Positioned as an educational/portfolio project.
+ * Main landing page with Hero, Features, Mission, and CTA sections.
+ * Positioned as a real product project with portfolio and research framing.
  * ═════════════════════════════════════════════════════════════════════
  */
 
@@ -132,8 +132,8 @@ export default async function LandingPage(): Promise<JSX.Element> {
           </div>
         </section>
 
-        {/* About Section */}
-        <section id="about" className="border-t bg-muted/30 py-20">
+        {/* Mission Section */}
+        <section id="mission" className="border-t bg-muted/30 py-20">
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-3xl space-y-8 text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -157,22 +157,22 @@ export default async function LandingPage(): Promise<JSX.Element> {
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-3xl space-y-8 text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                {tHero('aboutProject.title')}
+                {tHero('projectNotes.title')}
               </h2>
               <div className="space-y-4 text-lg text-muted-foreground">
                 <p>
                   <span className="font-semibold text-foreground">
                     urlfy.cc
                   </span>{' '}
-                  {tHero('aboutProject.p1')}
+                  {tHero('projectNotes.p1')}
                 </p>
-                <p>{tHero('aboutProject.p2')}</p>
+                <p>{tHero('projectNotes.p2')}</p>
               </div>
               <div className="flex justify-center gap-4">
                 <Button asChild>
                   <Link href="/project">
                     <Rocket className="mr-2 h-4 w-4" />
-                    {tHero('aboutProject.technicalDetails')}
+                    {tHero('projectNotes.technicalDetails')}
                   </Link>
                 </Button>
               </div>

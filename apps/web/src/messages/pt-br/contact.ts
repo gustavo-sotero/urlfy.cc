@@ -13,10 +13,13 @@ export const Contact = {
   error: 'Falha ao enviar mensagem. Por favor, tente novamente.',
 
   sendUsMessage: 'Envie-nos uma mensagem',
-  connectWithUs: 'Conecte-se conosco',
+  projectLinks: 'Links do Projeto',
   quickLinks: 'Links Rápidos',
   helpCenter: 'Central de Ajuda',
-  aboutUs: 'O Projeto',
+  projectNotes: 'Notas do Projeto',
+  repositoryLink: 'Repositório no GitHub',
+  portfolioLink: 'Portfólio',
+  projectNotesLink: 'Notas do Projeto',
   termsOfService: 'Termos de Serviço',
   privacyPolicy: 'Política de Privacidade',
   responseTime:

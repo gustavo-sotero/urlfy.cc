@@ -38,7 +38,7 @@ mock.module('next-intl', () => ({
     const messages: Record<string, Record<string, string>> = {
       Navigation: {
         features: 'Recursos',
-        project: 'O Projeto',
+        project: 'Notas do Projeto',
         docs: 'Docs da API',
         closeMenu: 'Fechar menu'
       },
@@ -116,7 +116,7 @@ describe('Navbar', () => {
     render(<Navbar />);
 
     expect(screen.getAllByText('Recursos').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('O Projeto').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Notas do Projeto').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Docs da API').length).toBeGreaterThan(0);
   });
 
@@ -169,7 +169,7 @@ describe('Navbar', () => {
 
     // Mobile nav links should be visible in the drawer
     expect(screen.getAllByText('Recursos').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('O Projeto').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Notas do Projeto').length).toBeGreaterThan(0);
   });
 
   it('shows language controls inside the mobile drawer', async () => {

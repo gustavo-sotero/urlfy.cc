@@ -4,7 +4,7 @@ import { SecurityAuthorCtaSection } from '@/app/[locale]/(public)/project/_compo
 
 const translations: Record<string, string> = {
   'security.title': 'Security and Operational Guardrails',
-  'security.docsLink': 'Read the security docs ->',
+  'security.docsLink': 'Read the repository security docs ->',
   'security.protections.title': 'Implemented guardrails',
   'security.protections.rateLimit':
     'Rate limiting on public write and redirect surfaces',
@@ -34,7 +34,7 @@ const translations: Record<string, string> = {
   'author.github': 'Project Repository',
   'cta.title': 'Start with the README',
   'cta.description':
-    'The README is the short entry point. The architecture docs go deeper, and /api/docs reflects the live API surface.',
+    'The README is the short repo entry point. The architecture docs in the repository go deeper, and /api/docs reflects the live API surface.',
   'cta.apiDocs': 'Open API docs',
   'cta.repository': 'Repository README'
 };
