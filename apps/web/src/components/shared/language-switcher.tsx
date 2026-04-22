@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, ChevronDown } from 'lucide-react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { startTransition, useState } from 'react';
 import {
   Popover,
@@ -31,12 +31,14 @@ export function LanguageSwitcher({
   variant = 'compact',
   onSwitch
 }: LanguageSwitcherProps) {
+  const tCommon = useTranslations('Common');
   const pathname = usePathname();
   const router = useRouter();
   const currentLocale = useLocale() as Locale;
   const [open, setOpen] = useState(false);
 
   const current = LOCALE_META[currentLocale];
+  const languageLabel = tCommon('language');
 
   const handleSwitch = (locale: Locale) => {
     if (locale === currentLocale) {
@@ -55,7 +57,11 @@ export function LanguageSwitcher({
 
   if (variant === 'inline') {
     return (
-      <div role="group" aria-label="Language" className="flex flex-col gap-1">
+      <div
+        role="group"
+        aria-label={languageLabel}
+        className="flex flex-col gap-1"
+      >
         {routing.locales.map((locale) => {
           const { flag, label, region } = LOCALE_META[locale];
           const isActive = locale === currentLocale;
@@ -64,6 +70,7 @@ export function LanguageSwitcher({
               key={locale}
               type="button"
               onClick={() => handleSwitch(locale)}
+              aria-label={`${languageLabel}: ${label}`}
               aria-current={isActive ? 'true' : undefined}
               className={cn(
                 'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left',
@@ -98,7 +105,7 @@ export function LanguageSwitcher({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`Language: ${current.label}`}
+          aria-label={`${languageLabel}: ${current.label}`}
           aria-expanded={open}
           className={cn(
             'group flex h-9 items-center gap-2 rounded-lg border border-border/60 bg-background px-3',
@@ -131,7 +138,7 @@ export function LanguageSwitcher({
       >
         <div className="mb-1.5 px-2 pt-1 pb-0.5">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-            Language
+            {languageLabel}
           </p>
         </div>
 

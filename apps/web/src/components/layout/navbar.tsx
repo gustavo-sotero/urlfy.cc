@@ -196,7 +196,9 @@ export function Navbar() {
                 <div className="mb-1 px-3 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                   {tCommon('language')}
                 </div>
-                <LanguageSwitcher variant="inline" onSwitch={closeMobileMenu} />
+                <div className="px-3">
+                  <LanguageSwitcher onSwitch={closeMobileMenu} />
+                </div>
               </div>
 
               {/* Mobile Auth Section */}
