@@ -62,7 +62,7 @@ export function LinkForm() {
             text={result.shortUrl}
             variant="default"
             size="default"
-            className="justify-self-end sm:justify-self-auto"
+            className="w-full sm:w-auto"
           />
         </div>
         <Button

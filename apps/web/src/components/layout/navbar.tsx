@@ -171,14 +171,14 @@ export function Navbar() {
             <div className="flex h-full flex-col px-5 pb-6 pt-14 sm:px-6">
               {/* Mobile Menu Title */}
               <p
-                className="text-lg font-semibold text-foreground"
+                className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase"
                 aria-hidden="true"
               >
                 {t('menuTitle')}
               </p>
 
               {/* Mobile Nav Links */}
-              <nav className="mt-6 flex flex-col gap-2">
+              <nav className="mt-3 flex flex-col gap-1">
                 {MOBILE_NAV_LINKS.map((link) => (
                   <NavLinkItem
                     key={link.href}
