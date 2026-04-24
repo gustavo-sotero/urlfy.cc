@@ -265,72 +265,255 @@ export default function NewLinkPage() {
         className="space-y-6 pb-24 xl:pb-0"
       >
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
-          <Card className="border-border/60 bg-card/90">
-            <CardHeader className="space-y-2">
-              <CardTitle>{t('sections.basic')}</CardTitle>
-              <CardDescription>{t('sections.basicDesc')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <AccessibleFormField
-                id="url"
-                label={t('fields.url.label')}
-                required
-                error={form.formState.errors.url?.message}
-                hint={t('fields.url.hint')}
-              >
-                <Input
+          <div className="space-y-6">
+            <Card className="border-border/60 bg-card/90">
+              <CardHeader className="space-y-2">
+                <CardTitle>{t('sections.basic')}</CardTitle>
+                <CardDescription>{t('sections.basicDesc')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <AccessibleFormField
                   id="url"
-                  type="url"
-                  placeholder={t('fields.url.placeholder')}
-                  {...form.register('url')}
-                  aria-invalid={!!form.formState.errors.url}
-                  aria-required
-                  className="h-12"
-                />
-              </AccessibleFormField>
-
-              <AccessibleFormField
-                id="customAlias"
-                label={t('fields.alias.label')}
-                error={form.formState.errors.customAlias?.message}
-                hint={t('fields.alias.hint')}
-              >
-                <Input
-                  id="customAlias"
-                  placeholder={t('fields.alias.placeholder')}
-                  {...form.register('customAlias')}
-                  className="h-11"
-                />
-              </AccessibleFormField>
-
-              <div className="space-y-2">
-                <Label htmlFor="redirectType">
-                  {t('fields.redirectType.label')}
-                </Label>
-                <Select
-                  value={redirectType}
-                  onValueChange={(value) =>
-                    form.setValue('redirectType', value as '301' | '302', {
-                      shouldDirty: true,
-                      shouldTouch: true,
-                      shouldValidate: true
-                    })
-                  }
+                  label={t('fields.url.label')}
+                  required
+                  error={form.formState.errors.url?.message}
+                  hint={t('fields.url.hint')}
                 >
-                  <SelectTrigger id="redirectType" className="h-11">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="301">301 - {t('permanent')}</SelectItem>
-                    <SelectItem value="302">302 - {t('temporary')}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-muted-foreground">
-                  {t('fields.redirectType.hint')}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+                  <Input
+                    id="url"
+                    type="url"
+                    placeholder={t('fields.url.placeholder')}
+                    {...form.register('url')}
+                    aria-invalid={!!form.formState.errors.url}
+                    aria-required
+                    className="h-12"
+                  />
+                </AccessibleFormField>
+
+                <AccessibleFormField
+                  id="customAlias"
+                  label={t('fields.alias.label')}
+                  error={form.formState.errors.customAlias?.message}
+                  hint={t('fields.alias.hint')}
+                >
+                  <Input
+                    id="customAlias"
+                    placeholder={t('fields.alias.placeholder')}
+                    {...form.register('customAlias')}
+                    className="h-11"
+                  />
+                </AccessibleFormField>
+
+                <div className="space-y-2">
+                  <Label htmlFor="redirectType">
+                    {t('fields.redirectType.label')}
+                  </Label>
+                  <Select
+                    value={redirectType}
+                    onValueChange={(value) =>
+                      form.setValue('redirectType', value as '301' | '302', {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true
+                      })
+                    }
+                  >
+                    <SelectTrigger id="redirectType" className="h-11">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="301">
+                        301 - {t('permanent')}
+                      </SelectItem>
+                      <SelectItem value="302">
+                        302 - {t('temporary')}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    {t('fields.redirectType.hint')}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <LinkFormCollapsibleSection
+                title={t('sections.advanced')}
+                description={t('sections.advancedDesc')}
+                summary={limitsLabel || undefined}
+                defaultOpen={Boolean(
+                  expiresAtValue || maxClicksValue || passwordValue?.trim()
+                )}
+              >
+                <div className="space-y-4">
+                  <AccessibleFormField
+                    id="expiresAt"
+                    label={t('fields.expiresAt.label')}
+                    error={form.formState.errors.expiresAt?.message}
+                    hint={t('fields.expiresAt.hint')}
+                  >
+                    <Input
+                      id="expiresAt"
+                      type="datetime-local"
+                      {...form.register('expiresAt')}
+                    />
+                  </AccessibleFormField>
+
+                  <AccessibleFormField
+                    id="maxClicks"
+                    label={t('fields.maxClicks.label')}
+                    error={form.formState.errors.maxClicks?.message}
+                    hint={t('fields.maxClicks.hint')}
+                  >
+                    <Input
+                      id="maxClicks"
+                      type="number"
+                      min="1"
+                      placeholder="1000"
+                      {...form.register('maxClicks', { valueAsNumber: true })}
+                    />
+                  </AccessibleFormField>
+
+                  <AccessibleFormField
+                    id="password"
+                    label={t('fields.password.label')}
+                    error={form.formState.errors.password?.message}
+                    hint={t('fields.password.hint')}
+                  >
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder={t('fields.password.placeholder')}
+                      {...form.register('password')}
+                    />
+                  </AccessibleFormField>
+                </div>
+              </LinkFormCollapsibleSection>
+
+              <LinkFormCollapsibleSection
+                title={t('sections.meta')}
+                description={t('sections.metaDesc')}
+                summary={hasMetadata ? t('summary.metadataPill') : undefined}
+                defaultOpen={hasMetadata}
+              >
+                <div className="space-y-4">
+                  <AccessibleFormField
+                    id="metaTitle"
+                    label={t('fields.metaTitle.label')}
+                    error={form.formState.errors.metaTitle?.message}
+                    hint={t('fields.metaTitle.hint')}
+                  >
+                    <Input
+                      id="metaTitle"
+                      maxLength={60}
+                      placeholder={t('metaTitle')}
+                      {...form.register('metaTitle')}
+                    />
+                  </AccessibleFormField>
+
+                  <AccessibleFormField
+                    id="metaDescription"
+                    label={t('fields.metaDescription.label')}
+                    error={form.formState.errors.metaDescription?.message}
+                    hint={t('fields.metaDescription.hint')}
+                  >
+                    <Textarea
+                      id="metaDescription"
+                      maxLength={160}
+                      placeholder={t('metaDescription')}
+                      {...form.register('metaDescription')}
+                    />
+                  </AccessibleFormField>
+
+                  <AccessibleFormField
+                    id="metaImage"
+                    label={t('fields.metaImage.label')}
+                    error={form.formState.errors.metaImage?.message}
+                    hint={t('fields.metaImage.hint')}
+                  >
+                    <Input
+                      id="metaImage"
+                      type="url"
+                      placeholder={t('metaImagePlaceholder')}
+                      {...form.register('metaImage')}
+                    />
+                  </AccessibleFormField>
+                </div>
+              </LinkFormCollapsibleSection>
+
+              <LinkFormCollapsibleSection
+                title={t('sections.tracking')}
+                description={t('sections.trackingDesc')}
+                summary={hasTracking ? t('summary.trackingPill') : undefined}
+                defaultOpen={hasTracking}
+              >
+                <div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <AccessibleFormField
+                      id="utmSource"
+                      label={t('utmSource')}
+                      error={form.formState.errors.utmSource?.message}
+                    >
+                      <Input
+                        id="utmSource"
+                        placeholder="twitter"
+                        {...form.register('utmSource')}
+                      />
+                    </AccessibleFormField>
+
+                    <AccessibleFormField
+                      id="utmMedium"
+                      label={t('utmMedium')}
+                      error={form.formState.errors.utmMedium?.message}
+                    >
+                      <Input
+                        id="utmMedium"
+                        placeholder="social"
+                        {...form.register('utmMedium')}
+                      />
+                    </AccessibleFormField>
+
+                    <AccessibleFormField
+                      id="utmCampaign"
+                      label={t('utmCampaign')}
+                      error={form.formState.errors.utmCampaign?.message}
+                    >
+                      <Input
+                        id="utmCampaign"
+                        placeholder="launch"
+                        {...form.register('utmCampaign')}
+                      />
+                    </AccessibleFormField>
+                  </div>
+                </div>
+              </LinkFormCollapsibleSection>
+
+              <LinkFormCollapsibleSection
+                title={t('fields.notes.label')}
+                description={t('fields.notes.hint')}
+                summary={
+                  notesValue?.trim() ? t('summary.notesPill') : undefined
+                }
+                defaultOpen={Boolean(notesValue?.trim())}
+              >
+                <div>
+                  <AccessibleFormField
+                    id="notes"
+                    label={t('fields.notes.label')}
+                    error={form.formState.errors.notes?.message}
+                    hint={t('fields.notes.hint')}
+                  >
+                    <Textarea
+                      id="notes"
+                      placeholder={t('notesPlaceholder')}
+                      {...form.register('notes')}
+                    />
+                  </AccessibleFormField>
+                </div>
+              </LinkFormCollapsibleSection>
+            </div>
+          </div>
 
           <LinkSummaryPanel
             title={t('summary.title')}
@@ -393,181 +576,6 @@ export default function NewLinkPage() {
               </div>
             }
           />
-
-          <div className="space-y-6">
-            <LinkFormCollapsibleSection
-              title={t('sections.advanced')}
-              description={t('sections.advancedDesc')}
-              summary={limitsLabel || undefined}
-              defaultOpen={Boolean(
-                expiresAtValue || maxClicksValue || passwordValue?.trim()
-              )}
-            >
-              <div className="space-y-4">
-                <AccessibleFormField
-                  id="expiresAt"
-                  label={t('fields.expiresAt.label')}
-                  error={form.formState.errors.expiresAt?.message}
-                  hint={t('fields.expiresAt.hint')}
-                >
-                  <Input
-                    id="expiresAt"
-                    type="datetime-local"
-                    {...form.register('expiresAt')}
-                  />
-                </AccessibleFormField>
-
-                <AccessibleFormField
-                  id="maxClicks"
-                  label={t('fields.maxClicks.label')}
-                  error={form.formState.errors.maxClicks?.message}
-                  hint={t('fields.maxClicks.hint')}
-                >
-                  <Input
-                    id="maxClicks"
-                    type="number"
-                    min="1"
-                    placeholder="1000"
-                    {...form.register('maxClicks', { valueAsNumber: true })}
-                  />
-                </AccessibleFormField>
-
-                <AccessibleFormField
-                  id="password"
-                  label={t('fields.password.label')}
-                  error={form.formState.errors.password?.message}
-                  hint={t('fields.password.hint')}
-                >
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder={t('fields.password.placeholder')}
-                    {...form.register('password')}
-                  />
-                </AccessibleFormField>
-              </div>
-            </LinkFormCollapsibleSection>
-
-            <LinkFormCollapsibleSection
-              title={t('sections.meta')}
-              description={t('sections.metaDesc')}
-              summary={hasMetadata ? t('summary.metadataPill') : undefined}
-              defaultOpen={hasMetadata}
-            >
-              <div className="space-y-4">
-                <AccessibleFormField
-                  id="metaTitle"
-                  label={t('fields.metaTitle.label')}
-                  error={form.formState.errors.metaTitle?.message}
-                  hint={t('fields.metaTitle.hint')}
-                >
-                  <Input
-                    id="metaTitle"
-                    maxLength={60}
-                    placeholder={t('metaTitle')}
-                    {...form.register('metaTitle')}
-                  />
-                </AccessibleFormField>
-
-                <AccessibleFormField
-                  id="metaDescription"
-                  label={t('fields.metaDescription.label')}
-                  error={form.formState.errors.metaDescription?.message}
-                  hint={t('fields.metaDescription.hint')}
-                >
-                  <Textarea
-                    id="metaDescription"
-                    maxLength={160}
-                    placeholder={t('metaDescription')}
-                    {...form.register('metaDescription')}
-                  />
-                </AccessibleFormField>
-
-                <AccessibleFormField
-                  id="metaImage"
-                  label={t('fields.metaImage.label')}
-                  error={form.formState.errors.metaImage?.message}
-                  hint={t('fields.metaImage.hint')}
-                >
-                  <Input
-                    id="metaImage"
-                    type="url"
-                    placeholder={t('metaImagePlaceholder')}
-                    {...form.register('metaImage')}
-                  />
-                </AccessibleFormField>
-              </div>
-            </LinkFormCollapsibleSection>
-
-            <LinkFormCollapsibleSection
-              title={t('sections.tracking')}
-              description={t('sections.trackingDesc')}
-              summary={hasTracking ? t('summary.trackingPill') : undefined}
-              defaultOpen={hasTracking}
-            >
-              <div>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <AccessibleFormField
-                    id="utmSource"
-                    label={t('utmSource')}
-                    error={form.formState.errors.utmSource?.message}
-                  >
-                    <Input
-                      id="utmSource"
-                      placeholder="twitter"
-                      {...form.register('utmSource')}
-                    />
-                  </AccessibleFormField>
-
-                  <AccessibleFormField
-                    id="utmMedium"
-                    label={t('utmMedium')}
-                    error={form.formState.errors.utmMedium?.message}
-                  >
-                    <Input
-                      id="utmMedium"
-                      placeholder="social"
-                      {...form.register('utmMedium')}
-                    />
-                  </AccessibleFormField>
-
-                  <AccessibleFormField
-                    id="utmCampaign"
-                    label={t('utmCampaign')}
-                    error={form.formState.errors.utmCampaign?.message}
-                  >
-                    <Input
-                      id="utmCampaign"
-                      placeholder="launch"
-                      {...form.register('utmCampaign')}
-                    />
-                  </AccessibleFormField>
-                </div>
-              </div>
-            </LinkFormCollapsibleSection>
-
-            <LinkFormCollapsibleSection
-              title={t('fields.notes.label')}
-              description={t('fields.notes.hint')}
-              summary={notesValue?.trim() ? t('summary.notesPill') : undefined}
-              defaultOpen={Boolean(notesValue?.trim())}
-            >
-              <div>
-                <AccessibleFormField
-                  id="notes"
-                  label={t('fields.notes.label')}
-                  error={form.formState.errors.notes?.message}
-                  hint={t('fields.notes.hint')}
-                >
-                  <Textarea
-                    id="notes"
-                    placeholder={t('notesPlaceholder')}
-                    {...form.register('notes')}
-                  />
-                </AccessibleFormField>
-              </div>
-            </LinkFormCollapsibleSection>
-          </div>
         </div>
 
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 px-4 py-3 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/80 xl:hidden">

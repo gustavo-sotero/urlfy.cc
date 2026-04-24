@@ -11,13 +11,66 @@ function toRelativePath(url: URL): string {
   return `${url.pathname}${url.search}`;
 }
 
+function buildLocalizedDashboardPath(locale: string): string {
+  return `/${locale}/dashboard`;
+}
+
+function toAppUrl(pathOrUrl: string): URL | null {
+  try {
+    return new URL(pathOrUrl, URL_BASE);
+  } catch {
+    return null;
+  }
+}
+
 export function buildLocalizedDashboardUrl(
   origin: string,
   locale: string
 ): string {
   const normalizedOrigin = new URL(origin).origin;
 
-  return new URL(`/${locale}/dashboard`, normalizedOrigin).toString();
+  return new URL(
+    buildLocalizedDashboardPath(locale),
+    normalizedOrigin
+  ).toString();
+}
+
+export function buildPostLoginCallbackPath(
+  locale: string,
+  rawCallbackUrl?: string | null
+): string {
+  const fallbackUrl = new URL(buildLocalizedDashboardPath(locale), URL_BASE);
+
+  if (!rawCallbackUrl) {
+    return toRelativePath(fallbackUrl);
+  }
+
+  const callbackUrl = toAppUrl(rawCallbackUrl);
+
+  if (!callbackUrl || callbackUrl.origin !== fallbackUrl.origin) {
+    return toRelativePath(fallbackUrl);
+  }
+
+  if (
+    callbackUrl.pathname === '/dashboard' ||
+    callbackUrl.pathname.startsWith('/dashboard/')
+  ) {
+    callbackUrl.pathname = `${buildLocalizedDashboardPath(locale)}${callbackUrl.pathname.slice('/dashboard'.length)}`;
+  }
+
+  return toRelativePath(callbackUrl);
+}
+
+export function buildPostLoginCallbackUrl(
+  origin: string,
+  locale: string,
+  rawCallbackUrl?: string | null
+): string {
+  const normalizedOrigin = new URL(origin).origin;
+  return new URL(
+    buildPostLoginCallbackPath(locale, rawCallbackUrl),
+    normalizedOrigin
+  ).toString();
 }
 
 export function buildPostSignupDashboardPath(): string {
@@ -56,6 +109,6 @@ export function buildEmailVerificationCallbackUrl(
 
 export function buildPostVerificationLoginPath(locale: string): string {
   const loginUrl = new URL(`/${locale}/login`, URL_BASE);
-  loginUrl.searchParams.set('callbackUrl', `/${locale}/dashboard`);
+  loginUrl.searchParams.set('callbackUrl', buildPostLoginCallbackPath(locale));
   return toRelativePath(loginUrl);
 }

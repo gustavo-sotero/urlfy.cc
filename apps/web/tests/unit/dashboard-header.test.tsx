@@ -6,6 +6,7 @@ import {
   render,
   screen
 } from '@testing-library/react';
+import type { ReactNode } from 'react';
 
 beforeAll(() => {
   if (
@@ -24,6 +25,8 @@ beforeAll(() => {
 
 const pushMock = mock(() => {});
 const signOutMock = mock(async () => {});
+const setQueryDataMock = mock(() => {});
+const invalidateQueriesMock = mock(async () => {});
 const redirectMock = mock(
   (_args: { href: string; locale: string }) => undefined
 );
@@ -32,6 +35,17 @@ mock.module('next/navigation', () => ({
   usePathname: () => '/dashboard/links',
   useRouter: () => ({ push: pushMock }),
   useParams: () => ({ id: 'link-1' })
+}));
+
+mock.module('@tanstack/react-query', () => ({
+  useQueryClient: () => ({
+    setQueryData: setQueryDataMock,
+    invalidateQueries: invalidateQueriesMock
+  })
+}));
+
+mock.module('@/lib/session-provider', () => ({
+  SESSION_QUERY_KEY: ['session']
 }));
 
 mock.module('next-intl', () => ({
@@ -79,6 +93,36 @@ mock.module('@/components/shared/language-switcher', () => ({
   LanguageSwitcher: () => <div>Language</div>
 }));
 
+mock.module('@/components/ui/dropdown-menu', () => ({
+  DropdownMenu: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => children,
+  DropdownMenuContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuLabel: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSeparator: () => <hr />,
+  DropdownMenuItem: ({
+    children,
+    onClick,
+    asChild
+  }: {
+    children: ReactNode;
+    onClick?: () => void;
+    asChild?: boolean;
+  }) =>
+    asChild ? (
+      children
+    ) : (
+      <button type="button" onClick={onClick}>
+        {children}
+      </button>
+    )
+}));
+
 mock.module('@/lib/auth.client', () => ({
   signOut: signOutMock
 }));
@@ -88,6 +132,8 @@ describe('Dashboard Header', () => {
     cleanup();
     pushMock.mockClear();
     signOutMock.mockClear();
+    setQueryDataMock.mockClear();
+    invalidateQueriesMock.mockClear();
     redirectMock.mockClear();
   });
 
@@ -159,5 +205,20 @@ describe('Dashboard Header', () => {
     });
 
     expect(screen.getByRole('dialog')).toBeDefined();
+  });
+
+  it('clears the cached session before redirecting home on logout', async () => {
+    await renderHeader();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Logout'));
+    });
+
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+    expect(setQueryDataMock).toHaveBeenCalledWith(['session'], null);
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: ['session']
+    });
+    expect(pushMock).toHaveBeenCalledWith('/');
   });
 });

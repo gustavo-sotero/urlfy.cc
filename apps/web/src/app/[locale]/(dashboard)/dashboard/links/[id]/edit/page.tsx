@@ -267,80 +267,161 @@ export default function EditLinkPage() {
         className="space-y-6 pb-24 xl:pb-0"
       >
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
-          <Card className="border-border/60 bg-card/90">
-            <CardHeader className="space-y-2">
-              <CardTitle>{t('sections.limits')}</CardTitle>
-              <CardDescription>{t('sections.limitsDesc')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="grid gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
-                    {t('summary.shortLink')}
-                  </p>
-                  <p className="break-all text-sm font-medium text-foreground">
-                    {link.shortUrl}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
-                    {t('summary.destination')}
-                  </p>
-                  <p className="break-all text-sm font-medium text-foreground">
-                    {destinationLabel}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="isActive">{t('fields.isActive.label')}</Label>
-                  <div className="text-sm text-muted-foreground">
-                    {t('fields.isActive.hint')}
+          <div className="space-y-6">
+            <Card className="border-border/60 bg-card/90">
+              <CardHeader className="space-y-2">
+                <CardTitle>{t('sections.limits')}</CardTitle>
+                <CardDescription>{t('sections.limitsDesc')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                      {t('summary.shortLink')}
+                    </p>
+                    <p className="break-all text-sm font-medium text-foreground">
+                      {link.shortUrl}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                      {t('summary.destination')}
+                    </p>
+                    <p className="break-all text-sm font-medium text-foreground">
+                      {destinationLabel}
+                    </p>
                   </div>
                 </div>
-                <Controller
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <Switch
-                      id="isActive"
-                      checked={field.value ?? false}
-                      onCheckedChange={field.onChange}
-                    />
-                  )}
-                />
-              </div>
 
-              <AccessibleFormField
-                id="expiresAt"
-                label={t('fields.expiresAt.label')}
-                error={form.formState.errors.expiresAt?.message}
-                hint={t('fields.expiresAt.hint')}
-              >
-                <Input
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="isActive">
+                      {t('fields.isActive.label')}
+                    </Label>
+                    <div className="text-sm text-muted-foreground">
+                      {t('fields.isActive.hint')}
+                    </div>
+                  </div>
+                  <Controller
+                    control={form.control}
+                    name="isActive"
+                    render={({ field }) => (
+                      <Switch
+                        id="isActive"
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                </div>
+
+                <AccessibleFormField
                   id="expiresAt"
-                  type="datetime-local"
-                  {...form.register('expiresAt')}
-                />
-              </AccessibleFormField>
+                  label={t('fields.expiresAt.label')}
+                  error={form.formState.errors.expiresAt?.message}
+                  hint={t('fields.expiresAt.hint')}
+                >
+                  <Input
+                    id="expiresAt"
+                    type="datetime-local"
+                    {...form.register('expiresAt')}
+                  />
+                </AccessibleFormField>
 
-              <AccessibleFormField
-                id="maxClicks"
-                label={t('fields.maxClicks.label')}
-                error={form.formState.errors.maxClicks?.message}
-                hint={t('hints.currentClicks', { count: link.clicksCount })}
-              >
-                <Input
+                <AccessibleFormField
                   id="maxClicks"
-                  type="number"
-                  min="1"
-                  placeholder="1000"
-                  {...form.register('maxClicks', { valueAsNumber: true })}
-                />
-              </AccessibleFormField>
-            </CardContent>
-          </Card>
+                  label={t('fields.maxClicks.label')}
+                  error={form.formState.errors.maxClicks?.message}
+                  hint={t('hints.currentClicks', { count: link.clicksCount })}
+                >
+                  <Input
+                    id="maxClicks"
+                    type="number"
+                    min="1"
+                    placeholder="1000"
+                    {...form.register('maxClicks', { valueAsNumber: true })}
+                  />
+                </AccessibleFormField>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <LinkFormCollapsibleSection
+                title={t('sections.meta')}
+                description={t('sections.metaDesc')}
+                summary={hasMetadata ? t('summary.metadataPill') : undefined}
+                defaultOpen={hasMetadata}
+              >
+                <div className="space-y-4">
+                  <AccessibleFormField
+                    id="metaTitle"
+                    label={t('fields.metaTitle.label')}
+                    error={form.formState.errors.metaTitle?.message}
+                    hint={t('fields.metaTitle.hint')}
+                  >
+                    <Input
+                      id="metaTitle"
+                      maxLength={60}
+                      placeholder={t('metaTitle')}
+                      {...form.register('metaTitle')}
+                    />
+                  </AccessibleFormField>
+
+                  <AccessibleFormField
+                    id="metaDescription"
+                    label={t('fields.metaDescription.label')}
+                    error={form.formState.errors.metaDescription?.message}
+                    hint={t('fields.metaDescription.hint')}
+                  >
+                    <Textarea
+                      id="metaDescription"
+                      maxLength={160}
+                      placeholder={t('metaDescription')}
+                      {...form.register('metaDescription')}
+                    />
+                  </AccessibleFormField>
+
+                  <AccessibleFormField
+                    id="metaImage"
+                    label={t('fields.metaImage.label')}
+                    error={form.formState.errors.metaImage?.message}
+                    hint={t('fields.metaImage.hint')}
+                  >
+                    <Input
+                      id="metaImage"
+                      type="url"
+                      placeholder={t('metaImagePlaceholder')}
+                      {...form.register('metaImage')}
+                    />
+                  </AccessibleFormField>
+                </div>
+              </LinkFormCollapsibleSection>
+
+              <LinkFormCollapsibleSection
+                title={t('fields.notes.label')}
+                description={t('fields.notes.hint')}
+                summary={
+                  notesValue?.trim() ? t('summary.notesPill') : undefined
+                }
+                defaultOpen={Boolean(notesValue?.trim())}
+              >
+                <div>
+                  <AccessibleFormField
+                    id="notes"
+                    label={t('fields.notes.label')}
+                    error={form.formState.errors.notes?.message}
+                  >
+                    <Textarea
+                      id="notes"
+                      placeholder={t('notesPlaceholder')}
+                      rows={4}
+                      {...form.register('notes')}
+                    />
+                  </AccessibleFormField>
+                </div>
+              </LinkFormCollapsibleSection>
+            </div>
+          </div>
 
           <LinkSummaryPanel
             title={t('summary.title')}
@@ -407,81 +488,6 @@ export default function EditLinkPage() {
               </div>
             }
           />
-
-          <div className="space-y-6">
-            <LinkFormCollapsibleSection
-              title={t('sections.meta')}
-              description={t('sections.metaDesc')}
-              summary={hasMetadata ? t('summary.metadataPill') : undefined}
-              defaultOpen={hasMetadata}
-            >
-              <div className="space-y-4">
-                <AccessibleFormField
-                  id="metaTitle"
-                  label={t('fields.metaTitle.label')}
-                  error={form.formState.errors.metaTitle?.message}
-                  hint={t('fields.metaTitle.hint')}
-                >
-                  <Input
-                    id="metaTitle"
-                    maxLength={60}
-                    placeholder={t('metaTitle')}
-                    {...form.register('metaTitle')}
-                  />
-                </AccessibleFormField>
-
-                <AccessibleFormField
-                  id="metaDescription"
-                  label={t('fields.metaDescription.label')}
-                  error={form.formState.errors.metaDescription?.message}
-                  hint={t('fields.metaDescription.hint')}
-                >
-                  <Textarea
-                    id="metaDescription"
-                    maxLength={160}
-                    placeholder={t('metaDescription')}
-                    {...form.register('metaDescription')}
-                  />
-                </AccessibleFormField>
-
-                <AccessibleFormField
-                  id="metaImage"
-                  label={t('fields.metaImage.label')}
-                  error={form.formState.errors.metaImage?.message}
-                  hint={t('fields.metaImage.hint')}
-                >
-                  <Input
-                    id="metaImage"
-                    type="url"
-                    placeholder={t('metaImagePlaceholder')}
-                    {...form.register('metaImage')}
-                  />
-                </AccessibleFormField>
-              </div>
-            </LinkFormCollapsibleSection>
-
-            <LinkFormCollapsibleSection
-              title={t('fields.notes.label')}
-              description={t('fields.notes.hint')}
-              summary={notesValue?.trim() ? t('summary.notesPill') : undefined}
-              defaultOpen={Boolean(notesValue?.trim())}
-            >
-              <div>
-                <AccessibleFormField
-                  id="notes"
-                  label={t('fields.notes.label')}
-                  error={form.formState.errors.notes?.message}
-                >
-                  <Textarea
-                    id="notes"
-                    placeholder={t('notesPlaceholder')}
-                    rows={4}
-                    {...form.register('notes')}
-                  />
-                </AccessibleFormField>
-              </div>
-            </LinkFormCollapsibleSection>
-          </div>
         </div>
 
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 px-4 py-3 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/80 xl:hidden">

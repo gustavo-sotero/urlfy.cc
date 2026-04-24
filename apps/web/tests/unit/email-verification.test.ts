@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test';
 import {
   buildEmailVerificationCallbackUrl,
   buildEmailVerificationResultPath,
+  buildPostLoginCallbackPath,
+  buildPostLoginCallbackUrl,
   buildPostSignupDashboardPath,
   buildPostVerificationLoginPath,
   isPostSignupVerificationSent
@@ -43,5 +45,37 @@ describe('email verification navigation helpers', () => {
 
     expect(loginUrl.pathname).toBe('/en/login');
     expect(loginUrl.searchParams.get('callbackUrl')).toBe('/en/dashboard');
+  });
+
+  it('localizes legacy dashboard callback paths before OAuth redirects back', () => {
+    expect(buildPostLoginCallbackPath('pt-br', '/dashboard?from=oauth')).toBe(
+      '/pt-br/dashboard?from=oauth'
+    );
+  });
+
+  it('keeps root-level callback paths that intentionally bypass i18n', () => {
+    expect(buildPostLoginCallbackPath('en', '/admin')).toBe('/admin');
+  });
+
+  it('preserves already localized dashboard callback paths', () => {
+    expect(
+      buildPostLoginCallbackPath('pt-br', '/pt-br/dashboard?tab=links')
+    ).toBe('/pt-br/dashboard?tab=links');
+  });
+
+  it('falls back to the localized dashboard for external callback URLs', () => {
+    expect(
+      buildPostLoginCallbackPath('en', 'https://malicious.example/dashboard')
+    ).toBe('/en/dashboard');
+  });
+
+  it('builds an absolute OAuth callback URL from the current origin', () => {
+    expect(
+      buildPostLoginCallbackUrl(
+        'https://urlfy.cc/stray/path',
+        'en',
+        '/dashboard?from=oauth'
+      )
+    ).toBe('https://urlfy.cc/en/dashboard?from=oauth');
   });
 });

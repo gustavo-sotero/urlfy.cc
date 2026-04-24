@@ -44,13 +44,13 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-svh bg-muted/20" data-dashboard-shell="authenticated">
-      <div className="flex min-h-svh overflow-hidden">
+      <div className="flex min-h-svh">
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <Header user={user} />
           <main
             id="dashboard-content"
-            className="flex-1 overflow-x-clip overflow-y-auto overscroll-y-contain"
+            className="min-w-0 flex-1 overflow-x-clip"
             data-dashboard-main="content"
           >
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 pt-4 sm:px-6 md:gap-8 md:pb-10 lg:px-8">

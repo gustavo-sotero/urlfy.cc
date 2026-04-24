@@ -18,15 +18,17 @@ export function DashboardBrand({
     <Link
       href="/"
       onClick={onNavigate}
-      className={cn('flex items-center gap-3 font-semibold', className)}
+      className={cn('flex min-w-0 items-center gap-3 font-semibold', className)}
     >
       <Image
         src={logoSrc}
         alt="urlfy.cc"
         height={100}
-        className="h-12 w-auto"
+        className="h-8 w-auto max-w-36 object-contain"
       />
-      <span className="block text-xs text-muted-foreground">{subtitle}</span>
+      <span className="block min-w-0 truncate text-xs text-muted-foreground">
+        {subtitle}
+      </span>
     </Link>
   );
 }

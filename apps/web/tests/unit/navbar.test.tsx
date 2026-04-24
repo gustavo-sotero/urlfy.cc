@@ -11,13 +11,14 @@ import {
   screen,
   within
 } from '@testing-library/react';
-import { Navbar } from '@/components/layout/navbar';
+
+let Navbar: typeof import('@/components/layout/navbar')['Navbar'];
 
 // react-remove-scroll-bar (used by Radix Sheet/Dialog) calls
 // window.getComputedStyle when a scroll-locked overlay is mounted.
 // happy-dom provides it, but mock.restore() in other test files can
 // strip it. Restore it here as a safety-net.
-beforeAll(() => {
+beforeAll(async () => {
   if (
     typeof window !== 'undefined' &&
     typeof window.getComputedStyle !== 'function'
@@ -30,6 +31,8 @@ beforeAll(() => {
         overflowY: 'visible'
       }) as unknown as CSSStyleDeclaration;
   }
+
+  ({ Navbar } = await import('@/components/layout/navbar'));
 });
 
 // Mock next-intl
@@ -57,6 +60,9 @@ mock.module('next-intl', () => ({
 
 // Mock i18n routing
 mock.module('@/i18n/routing', () => ({
+  routing: {
+    locales: ['en', 'pt-br']
+  },
   Link: ({
     children,
     href,

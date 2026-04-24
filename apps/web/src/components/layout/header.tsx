@@ -1,8 +1,8 @@
 // src/components/layout/header.tsx
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { LogOut, Menu, User } from 'lucide-react';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/sheet';
 import { Link } from '@/i18n/routing';
 import { signOut } from '@/lib/auth.client';
-import logoSrc from '@/public/logo.png';
+import { SESSION_QUERY_KEY } from '@/lib/session-provider';
 
 interface Props {
   user: {
@@ -40,6 +40,7 @@ interface Props {
 
 export function Header({ user }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const pathname = usePathname();
   const t = useTranslations('Common');
   const tSidebar = useTranslations('Dashboard.sidebar');
@@ -61,6 +62,8 @@ export function Header({ user }: Props) {
 
   const handleSignOut = async () => {
     await signOut();
+    queryClient.setQueryData(SESSION_QUERY_KEY, null);
+    await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
     router.push('/');
   };
 
@@ -119,12 +122,6 @@ export function Header({ user }: Props) {
           </Sheet>
 
           <div className="min-w-0">
-            <Image
-              src={logoSrc}
-              alt="urlfy.cc"
-              height={100}
-              className="mb-1 h-10 w-auto"
-            />
             <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl md:text-2xl">
               {t('dashboard')}
             </h1>

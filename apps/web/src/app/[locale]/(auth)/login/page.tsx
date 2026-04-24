@@ -13,7 +13,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Github, Loader2, Mail } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -34,11 +34,16 @@ import { Separator } from '@/components/ui/separator';
 import { Link, useRouter } from '@/i18n/routing';
 import { authClient } from '@/lib/auth.client';
 import { reportActionError } from '@/lib/browser-logger';
+import {
+  buildPostLoginCallbackPath,
+  buildPostLoginCallbackUrl
+} from '@/lib/email-verification';
 
 function LoginForm() {
   const t = useTranslations('Auth.login');
   const tErrors = useTranslations('Auth.errors');
   const tOAuth = useTranslations('Auth.oauth');
+  const locale = useLocale();
 
   // Define schema with translated messages
   const schema = z.object({
@@ -53,7 +58,11 @@ function LoginForm() {
   const [isTwoFactorStep, setIsTwoFactorStep] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const rawCallbackUrl = searchParams.get('callbackUrl');
+  const callbackPath = buildPostLoginCallbackPath(locale, rawCallbackUrl);
+
+  const buildOAuthCallbackURL = (): string =>
+    buildPostLoginCallbackUrl(window.location.origin, locale, rawCallbackUrl);
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -89,7 +98,7 @@ function LoginForm() {
       }
 
       // Success - redirect
-      router.push(callbackUrl);
+      router.push(callbackPath);
     } catch {
       setError(tErrors('tryAgain'));
     } finally {
@@ -114,7 +123,7 @@ function LoginForm() {
       }
 
       // Success - redirect
-      router.push(callbackUrl);
+      router.push(callbackPath);
     } catch (err) {
       reportActionError(err, { step: '2fa-verification' });
       setError(tErrors('invalidCode'));
@@ -134,7 +143,7 @@ function LoginForm() {
     try {
       await authClient.signIn.social({
         provider,
-        callbackURL: callbackUrl
+        callbackURL: buildOAuthCallbackURL()
       });
     } catch {
       setError(tErrors('tryAgain'));

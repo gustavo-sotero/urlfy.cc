@@ -186,6 +186,37 @@ async function assertNoHorizontalOverflow(page: Page) {
   expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
 }
 
+async function assertPageCanScrollVertically(
+  page: Page,
+  options: { wheelSupported?: boolean } = {}
+) {
+  const viewport = page.viewportSize();
+  const viewportHeight = viewport?.height ?? 0;
+  const viewportWidth = viewport?.width ?? 0;
+
+  await expect
+    .poll(async () =>
+      page.evaluate(
+        () =>
+          document.scrollingElement?.scrollHeight ?? document.body.scrollHeight
+      )
+    )
+    .toBeGreaterThan(viewportHeight + 40);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+
+  if (options.wheelSupported ?? true) {
+    await page.mouse.move(viewportWidth / 2, viewportHeight / 2);
+    await page.mouse.wheel(0, 500);
+  } else {
+    await page.evaluate(() => window.scrollBy(0, 500));
+  }
+
+  await expect
+    .poll(async () => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(0);
+}
+
 async function createLinkForMobileTests(page: Page) {
   const slug = `m${Date.now().toString(36)}${Math.floor(Math.random() * 1296)
     .toString(36)
@@ -384,6 +415,18 @@ test.describe('Dashboard — mobile smoke', () => {
   test('create link page has no horizontal overflow', async ({ page }) => {
     await visitDashboard(page, '/dashboard/links/new');
     await assertNoHorizontalOverflow(page);
+  });
+
+  test('create link page scrolls vertically from the content area', async ({
+    browserName,
+    page
+  }) => {
+    await visitDashboard(page, '/dashboard/links/new');
+    await waitForCreateLinkPage(page);
+
+    await assertPageCanScrollVertically(page, {
+      wheelSupported: browserName !== 'webkit'
+    });
   });
 
   test('create link form keeps advanced sections collapsed by default', async ({
