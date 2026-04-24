@@ -104,6 +104,30 @@ export function getPublicAuthOrigin(): string {
   );
 }
 
+/**
+ * Builds the exact OAuth callback URL that must match the registered redirect
+ * URI in the provider console (Google Cloud or GitHub OAuth App).
+ *
+ * Derived from the same public-origin source of truth as email verification
+ * URLs — `getPublicAuthOrigin()` — so that host/scheme/path are never
+ * independently configured and cannot drift.
+ *
+ * Public callback route: /api/auth/callback/{provider}
+ * (Better Auth basePath is /auth, but the API mounts it under /api/auth)
+ *
+ * Expected values:
+ *   localhost:  http://localhost:3000/api/auth/callback/google
+ *   production: https://urlfy.cc/api/auth/callback/google
+ */
+export function getSocialProviderCallbackUrl(
+  provider: 'google' | 'github'
+): string {
+  return new URL(
+    `/api/auth/callback/${provider}`,
+    getPublicAuthOrigin()
+  ).toString();
+}
+
 function getAllowedAuthHosts(): string[] {
   const hosts = new Set<string>(DEFAULT_ALLOWED_AUTH_HOSTS);
 
@@ -145,14 +169,16 @@ export const baseAuthConfig = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
       enabled: !!(
         process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      )
+      ),
+      redirectURI: getSocialProviderCallbackUrl('google')
     },
     github: {
       clientId: process.env.GITHUB_CLIENT_ID || '',
       clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
       enabled: !!(
         process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-      )
+      ),
+      redirectURI: getSocialProviderCallbackUrl('github')
     }
   },
 

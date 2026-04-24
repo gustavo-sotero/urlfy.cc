@@ -73,6 +73,11 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
       - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-}
+      # Required when running behind Traefik/Dokploy reverse proxy: ensures
+      # Better Auth infers the correct public host/scheme from X-Forwarded-*
+      # headers and generates OAuth callback URLs that match the registered
+      # provider redirect URIs.
+      - TRUST_PROXY=true
       # OAuth (optional)
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}

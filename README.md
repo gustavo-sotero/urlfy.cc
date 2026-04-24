@@ -169,6 +169,27 @@ Better-Auth with `twoFactor` and `apiKey` plugins. Three auth methods:
 
 Admin authority is derived from `ADMIN_GITHUB_ACCOUNT_ID` (linked GitHub account), not from a mutable `role` field.
 
+#### Social OAuth Setup
+
+`NEXT_PUBLIC_APP_URL` is the single source of truth for the public OAuth origin. Both Google and GitHub callback URLs are derived from it at startup — no separate callback env var is needed.
+
+**Google Cloud Console** — register both authorised redirect URIs:
+
+```
+http://localhost:3000/api/auth/callback/google   ← local dev
+https://urlfy.cc/api/auth/callback/google        ← production
+```
+
+**GitHub OAuth App** — register the authorization callback URL:
+
+```
+https://urlfy.cc/api/auth/callback/github        ← production
+```
+
+For local GitHub OAuth, create a **separate** dedicated app pointing to `http://localhost:3000/api/auth/callback/github` instead of sharing the production app (GitHub supports only one callback URL per app in the free tier).
+
+Providers are enabled only when **both** `CLIENT_ID` and `CLIENT_SECRET` are set. See `.env.example` for the exact variable names and full registration guidance.
+
 ## Database
 
 | Table | Description |

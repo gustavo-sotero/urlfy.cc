@@ -20,7 +20,8 @@ import {
   buildPublicEmailVerificationUrl,
   getAuthBaseUrl,
   getAuthSecret,
-  getPlugins
+  getPlugins,
+  getSocialProviderCallbackUrl
 } from '../auth-config';
 
 // ─── Env isolation ───────────────────────────────────────────────────────────
@@ -236,6 +237,78 @@ describe('assertRuntimeAuthConfigSafe', () => {
     mutableEnv.NEXT_PHASE = 'phase-production-build';
     mutableEnv.NODE_ENV = 'production';
     expect(() => assertRuntimeAuthConfigSafe()).not.toThrow();
+  });
+});
+
+// ─── getSocialProviderCallbackUrl ────────────────────────────────────────────
+
+describe('getSocialProviderCallbackUrl — OAuth callback URL contract', () => {
+  it('targets /api/auth/callback/google for the google provider', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc';
+    const result = getSocialProviderCallbackUrl('google');
+    const url = new URL(result);
+    expect(url.pathname).toBe('/api/auth/callback/google');
+  });
+
+  it('targets /api/auth/callback/github for the github provider', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc';
+    const result = getSocialProviderCallbackUrl('github');
+    const url = new URL(result);
+    expect(url.pathname).toBe('/api/auth/callback/github');
+  });
+
+  it('returns a fully qualified URL from NEXT_PUBLIC_APP_URL in production', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc';
+    delete mutableEnv.BETTER_AUTH_URL;
+    expect(getSocialProviderCallbackUrl('google')).toBe(
+      'https://urlfy.cc/api/auth/callback/google'
+    );
+    expect(getSocialProviderCallbackUrl('github')).toBe(
+      'https://urlfy.cc/api/auth/callback/github'
+    );
+  });
+
+  it('falls back to localhost:3000 callback when no env vars are set', () => {
+    delete mutableEnv.NEXT_PUBLIC_APP_URL;
+    delete mutableEnv.BETTER_AUTH_URL;
+    expect(getSocialProviderCallbackUrl('google')).toBe(
+      'http://localhost:3000/api/auth/callback/google'
+    );
+    expect(getSocialProviderCallbackUrl('github')).toBe(
+      'http://localhost:3000/api/auth/callback/github'
+    );
+  });
+
+  it('NEXT_PUBLIC_APP_URL takes precedence over BETTER_AUTH_URL', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc';
+    mutableEnv.BETTER_AUTH_URL = 'https://legacy-api.urlfy.cc';
+    expect(getSocialProviderCallbackUrl('google')).toBe(
+      'https://urlfy.cc/api/auth/callback/google'
+    );
+  });
+
+  it('strips path suffix from NEXT_PUBLIC_APP_URL and uses only the origin', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc/some/stray/path';
+    delete mutableEnv.BETTER_AUTH_URL;
+    const url = new URL(getSocialProviderCallbackUrl('google'));
+    expect(url.origin).toBe('https://urlfy.cc');
+    expect(url.pathname).toBe('/api/auth/callback/google');
+  });
+
+  it('strips path suffix from BETTER_AUTH_URL when NEXT_PUBLIC_APP_URL is absent', () => {
+    delete mutableEnv.NEXT_PUBLIC_APP_URL;
+    mutableEnv.BETTER_AUTH_URL = 'https://urlfy.cc/stray/path';
+    const url = new URL(getSocialProviderCallbackUrl('github'));
+    expect(url.origin).toBe('https://urlfy.cc');
+    expect(url.pathname).toBe('/api/auth/callback/github');
+  });
+
+  it('uses BETTER_AUTH_URL when NEXT_PUBLIC_APP_URL is absent', () => {
+    delete mutableEnv.NEXT_PUBLIC_APP_URL;
+    mutableEnv.BETTER_AUTH_URL = 'https://urlfy.cc';
+    expect(getSocialProviderCallbackUrl('google')).toBe(
+      'https://urlfy.cc/api/auth/callback/google'
+    );
   });
 });
 

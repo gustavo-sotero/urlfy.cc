@@ -10,7 +10,8 @@ export {
   baseAuthConfig,
   buildPublicEmailVerificationUrl,
   getAuthSecret,
-  getPlugins
+  getPlugins,
+  getSocialProviderCallbackUrl
 } from './auth-config';
 export type { Scope } from './scopes';
 export {
