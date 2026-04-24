@@ -18,6 +18,7 @@ import {
   assertRuntimeAuthConfigSafe,
   baseAuthConfig,
   buildPublicEmailVerificationUrl,
+  createBaseAuthConfig,
   getAuthBaseUrl,
   getAuthSecret,
   getPlugins,
@@ -28,6 +29,15 @@ import {
 
 const originalEnv = { ...process.env };
 const mutableEnv = process.env as Record<string, string | undefined>;
+
+type SocialProviderTestShape = {
+  enabled?: boolean;
+  redirectURI?: string;
+};
+
+function asSocialProviderTestShape(provider: unknown): SocialProviderTestShape {
+  return provider as SocialProviderTestShape;
+}
 
 beforeEach(() => {
   // Reset to known state before each test
@@ -243,6 +253,23 @@ describe('assertRuntimeAuthConfigSafe', () => {
 // ─── getSocialProviderCallbackUrl ────────────────────────────────────────────
 
 describe('getSocialProviderCallbackUrl — OAuth callback URL contract', () => {
+  it('wires the shared social provider redirectURI fields to the public callback URLs', () => {
+    const authConfig = createBaseAuthConfig();
+    const google = asSocialProviderTestShape(
+      authConfig.socialProviders?.google
+    );
+    const github = asSocialProviderTestShape(
+      authConfig.socialProviders?.github
+    );
+
+    expect(google.redirectURI).toBe(
+      'http://localhost:3000/api/auth/callback/google'
+    );
+    expect(github.redirectURI).toBe(
+      'http://localhost:3000/api/auth/callback/github'
+    );
+  });
+
   it('targets /api/auth/callback/google for the google provider', () => {
     mutableEnv.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc';
     const result = getSocialProviderCallbackUrl('google');
@@ -309,6 +336,78 @@ describe('getSocialProviderCallbackUrl — OAuth callback URL contract', () => {
     expect(getSocialProviderCallbackUrl('google')).toBe(
       'https://urlfy.cc/api/auth/callback/google'
     );
+  });
+
+  it('recomputes socialProviders redirectURI from NEXT_PUBLIC_APP_URL when both public origin vars are set', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc';
+    mutableEnv.BETTER_AUTH_URL = 'https://legacy-api.urlfy.cc';
+
+    const authConfig = createBaseAuthConfig();
+    const google = asSocialProviderTestShape(
+      authConfig.socialProviders?.google
+    );
+    const github = asSocialProviderTestShape(
+      authConfig.socialProviders?.github
+    );
+
+    expect(google.redirectURI).toBe(
+      'https://urlfy.cc/api/auth/callback/google'
+    );
+    expect(github.redirectURI).toBe(
+      'https://urlfy.cc/api/auth/callback/github'
+    );
+  });
+
+  it('recomputes socialProviders redirectURI after stripping path suffixes from public origin env vars', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc/some/stray/path';
+    delete mutableEnv.BETTER_AUTH_URL;
+
+    let authConfig = createBaseAuthConfig();
+    const google = asSocialProviderTestShape(
+      authConfig.socialProviders?.google
+    );
+
+    expect(google.redirectURI).toBe(
+      'https://urlfy.cc/api/auth/callback/google'
+    );
+
+    delete mutableEnv.NEXT_PUBLIC_APP_URL;
+    mutableEnv.BETTER_AUTH_URL = 'https://urlfy.cc/another/path';
+
+    authConfig = createBaseAuthConfig();
+    const github = asSocialProviderTestShape(
+      authConfig.socialProviders?.github
+    );
+
+    expect(github.redirectURI).toBe(
+      'https://urlfy.cc/api/auth/callback/github'
+    );
+  });
+
+  it('keeps social providers disabled unless both client id and secret are set', () => {
+    delete mutableEnv.GOOGLE_CLIENT_ID;
+    delete mutableEnv.GOOGLE_CLIENT_SECRET;
+    delete mutableEnv.GITHUB_CLIENT_ID;
+    delete mutableEnv.GITHUB_CLIENT_SECRET;
+
+    let authConfig = createBaseAuthConfig();
+    let google = asSocialProviderTestShape(authConfig.socialProviders?.google);
+    let github = asSocialProviderTestShape(authConfig.socialProviders?.github);
+
+    expect(google.enabled).toBe(false);
+    expect(github.enabled).toBe(false);
+
+    mutableEnv.GOOGLE_CLIENT_ID = 'google-client-id';
+    mutableEnv.GOOGLE_CLIENT_SECRET = 'google-client-secret';
+    mutableEnv.GITHUB_CLIENT_ID = 'github-client-id';
+    mutableEnv.GITHUB_CLIENT_SECRET = 'github-client-secret';
+
+    authConfig = createBaseAuthConfig();
+    google = asSocialProviderTestShape(authConfig.socialProviders?.google);
+    github = asSocialProviderTestShape(authConfig.socialProviders?.github);
+
+    expect(google.enabled).toBe(true);
+    expect(github.enabled).toBe(true);
   });
 });
 

@@ -150,142 +150,146 @@ export function getAuthBaseUrl(): DynamicBaseUrlConfig {
   };
 }
 
-export const baseAuthConfig = {
-  appName: 'urlfy.cc',
-  baseURL: getAuthBaseUrl(),
-  basePath: '/auth',
-  secret: getAuthSecret(),
+export function createBaseAuthConfig() {
+  return {
+    appName: 'urlfy.cc',
+    baseURL: getAuthBaseUrl(),
+    basePath: '/auth',
+    secret: getAuthSecret(),
 
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: false,
-    minPasswordLength: 8,
-    maxPasswordLength: 128
-  },
-
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      enabled: !!(
-        process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      ),
-      redirectURI: getSocialProviderCallbackUrl('google')
-    },
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID || '',
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-      enabled: !!(
-        process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-      ),
-      redirectURI: getSocialProviderCallbackUrl('github')
-    }
-  },
-
-  advanced: {
-    cookiePrefix: 'urlfy',
-    useSecureCookies: process.env.NODE_ENV === 'production',
-    trustedProxyHeaders: process.env.TRUST_PROXY === 'true',
-    crossSubDomainCookies: {
-      enabled: false
-    },
-    defaultCookieAttributes: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax' as const
-    }
-  },
-
-  user: {
-    additionalFields: {
-      role: {
-        type: 'string' as const,
-        defaultValue: 'user',
-        required: true,
-        input: false
-      },
-      linksQuota: {
-        type: 'number' as const,
-        defaultValue: 100,
-        required: true,
-        input: false
-      },
-      linksCount: {
-        type: 'number' as const,
-        defaultValue: 0,
-        required: true,
-        input: false
-      },
-      banned: {
-        type: 'boolean' as const,
-        defaultValue: false,
-        required: true,
-        input: false
-      },
-      banReason: {
-        type: 'string' as const,
-        required: false,
-        input: false
-      },
-      banExpires: {
-        type: 'date' as const,
-        required: false,
-        input: false
-      },
-      bannedAt: {
-        type: 'date' as const,
-        required: false,
-        input: false
-      },
-      bannedReason: {
-        type: 'string' as const,
-        required: false,
-        input: false
-      },
-      deletedAt: {
-        type: 'date' as const,
-        required: false,
-        input: false
-      },
-      locale: {
-        type: 'string' as const,
-        defaultValue: 'en',
-        required: false,
-        input: false
-      },
-      twoFactorEnabled: {
-        type: 'boolean' as const,
-        defaultValue: false,
-        required: false,
-        input: false
-      }
-    }
-  },
-
-  session: {
-    expiresIn: 60 * 60 * 24 * 7,
-    updateAge: 60 * 60 * 24,
-    cookieCache: {
+    emailAndPassword: {
       enabled: true,
-      maxAge: 30
+      requireEmailVerification: false,
+      minPasswordLength: 8,
+      maxPasswordLength: 128
     },
-    additionalFields: {
-      impersonatedBy: {
-        type: 'string' as const,
-        required: false,
-        input: false
+
+    socialProviders: {
+      google: {
+        clientId: process.env.GOOGLE_CLIENT_ID || '',
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+        enabled: !!(
+          process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+        ),
+        redirectURI: getSocialProviderCallbackUrl('google')
+      },
+      github: {
+        clientId: process.env.GITHUB_CLIENT_ID || '',
+        clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+        enabled: !!(
+          process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+        ),
+        redirectURI: getSocialProviderCallbackUrl('github')
       }
-    }
-  },
+    },
 
-  rateLimit: {
-    enabled: true,
-    window: 60,
-    max: 100
-  },
+    advanced: {
+      cookiePrefix: 'urlfy',
+      useSecureCookies: process.env.NODE_ENV === 'production',
+      trustedProxyHeaders: process.env.TRUST_PROXY === 'true',
+      crossSubDomainCookies: {
+        enabled: false
+      },
+      defaultCookieAttributes: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax' as const
+      }
+    },
 
-  trustedOrigins: process.env.TRUSTED_ORIGINS?.split(',') || []
-} satisfies Partial<BetterAuthOptions>;
+    user: {
+      additionalFields: {
+        role: {
+          type: 'string' as const,
+          defaultValue: 'user',
+          required: true,
+          input: false
+        },
+        linksQuota: {
+          type: 'number' as const,
+          defaultValue: 100,
+          required: true,
+          input: false
+        },
+        linksCount: {
+          type: 'number' as const,
+          defaultValue: 0,
+          required: true,
+          input: false
+        },
+        banned: {
+          type: 'boolean' as const,
+          defaultValue: false,
+          required: true,
+          input: false
+        },
+        banReason: {
+          type: 'string' as const,
+          required: false,
+          input: false
+        },
+        banExpires: {
+          type: 'date' as const,
+          required: false,
+          input: false
+        },
+        bannedAt: {
+          type: 'date' as const,
+          required: false,
+          input: false
+        },
+        bannedReason: {
+          type: 'string' as const,
+          required: false,
+          input: false
+        },
+        deletedAt: {
+          type: 'date' as const,
+          required: false,
+          input: false
+        },
+        locale: {
+          type: 'string' as const,
+          defaultValue: 'en',
+          required: false,
+          input: false
+        },
+        twoFactorEnabled: {
+          type: 'boolean' as const,
+          defaultValue: false,
+          required: false,
+          input: false
+        }
+      }
+    },
+
+    session: {
+      expiresIn: 60 * 60 * 24 * 7,
+      updateAge: 60 * 60 * 24,
+      cookieCache: {
+        enabled: true,
+        maxAge: 30
+      },
+      additionalFields: {
+        impersonatedBy: {
+          type: 'string' as const,
+          required: false,
+          input: false
+        }
+      }
+    },
+
+    rateLimit: {
+      enabled: true,
+      window: 60,
+      max: 100
+    },
+
+    trustedOrigins: process.env.TRUSTED_ORIGINS?.split(',') || []
+  } satisfies Partial<BetterAuthOptions>;
+}
+
+export const baseAuthConfig = createBaseAuthConfig();
 
 // ─── Public email verification URL builder ──────────────────────────────────
 

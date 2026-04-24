@@ -9,6 +9,7 @@ export {
   assertRuntimeAuthConfigSafe,
   baseAuthConfig,
   buildPublicEmailVerificationUrl,
+  createBaseAuthConfig,
   getAuthSecret,
   getPlugins,
   getSocialProviderCallbackUrl
