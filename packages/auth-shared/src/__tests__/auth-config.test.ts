@@ -74,9 +74,9 @@ describe('baseAuthConfig — structural shape', () => {
     expect(baseAuthConfig.advanced?.cookiePrefix).toBe('urlfy');
   });
 
-  it('sets SameSite=strict on cookies', () => {
+  it('sets SameSite=lax on cookies for OAuth callback compatibility', () => {
     expect(baseAuthConfig.advanced?.defaultCookieAttributes?.sameSite).toBe(
-      'strict'
+      'lax'
     );
   });
 

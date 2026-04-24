@@ -166,7 +166,7 @@ export const baseAuthConfig = {
     defaultCookieAttributes: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const
+      sameSite: 'lax' as const
     }
   },
 
