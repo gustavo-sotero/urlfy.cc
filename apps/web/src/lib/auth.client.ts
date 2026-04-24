@@ -13,9 +13,9 @@ import { twoFactorClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 
 export const authClient = createAuthClient({
-  // On the client side, only NEXT_PUBLIC_* vars are available (inlined at build).
-  // Use empty string to default to the current origin (relative requests).
-  baseURL: process.env.NEXT_PUBLIC_APP_URL || '',
+  // Keep auth calls relative to the current origin so OAuth starts from the
+  // same host the browser actually loaded, regardless of preview/local URLs.
+  baseURL: '',
   fetchOptions: {
     credentials: 'include' // Required for cookies to be sent with requests
   },

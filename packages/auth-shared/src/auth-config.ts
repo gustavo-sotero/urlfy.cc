@@ -8,6 +8,19 @@ const BUILD_TIME_SENTINELS = new Set([
   'build-time-placeholder-analytics-secret'
 ]);
 
+const DEFAULT_PUBLIC_AUTH_ORIGIN = 'http://localhost:3000';
+const DEFAULT_ALLOWED_AUTH_HOSTS = [
+  'localhost:*',
+  '127.0.0.1:*',
+  'urlfy.cc',
+  'www.urlfy.cc'
+] as const;
+
+type DynamicBaseUrlConfig = Exclude<
+  NonNullable<BetterAuthOptions['baseURL']>,
+  string
+>;
+
 function isNextProductionBuild(): boolean {
   return process.env.NEXT_PHASE === 'phase-production-build';
 }
@@ -52,12 +65,70 @@ export function getAuthSecret(): string {
   return authSecret;
 }
 
+function getConfiguredAuthOrigins(): string[] {
+  const configuredOrigins = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.BETTER_AUTH_URL,
+    ...(process.env.TRUSTED_ORIGINS?.split(',') ?? [])
+  ];
+
+  return configuredOrigins
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+}
+
+function toOrigin(rawUrl: string): string | null {
+  try {
+    return new URL(rawUrl).origin;
+  } catch {
+    return null;
+  }
+}
+
+function toHost(rawUrl: string): string | null {
+  try {
+    return new URL(rawUrl).host;
+  } catch {
+    return null;
+  }
+}
+
+export function getPublicAuthOrigin(): string {
+  // This app serves Better Auth under the public web origin (`/api/auth`).
+  // Prefer the web URL when both vars are present so a stale legacy
+  // BETTER_AUTH_URL does not generate the wrong OAuth callback host.
+  return (
+    toOrigin(process.env.NEXT_PUBLIC_APP_URL || '') ||
+    toOrigin(process.env.BETTER_AUTH_URL || '') ||
+    DEFAULT_PUBLIC_AUTH_ORIGIN
+  );
+}
+
+function getAllowedAuthHosts(): string[] {
+  const hosts = new Set<string>(DEFAULT_ALLOWED_AUTH_HOSTS);
+
+  for (const rawOrigin of getConfiguredAuthOrigins()) {
+    const host = toHost(rawOrigin);
+
+    if (host) {
+      hosts.add(host);
+    }
+  }
+
+  return [...hosts];
+}
+
+export function getAuthBaseUrl(): DynamicBaseUrlConfig {
+  return {
+    allowedHosts: getAllowedAuthHosts(),
+    protocol: 'auto',
+    fallback: getPublicAuthOrigin()
+  };
+}
+
 export const baseAuthConfig = {
   appName: 'urlfy.cc',
-  baseURL:
-    process.env.BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:3000',
+  baseURL: getAuthBaseUrl(),
   basePath: '/auth',
   secret: getAuthSecret(),
 
@@ -88,6 +159,7 @@ export const baseAuthConfig = {
   advanced: {
     cookiePrefix: 'urlfy',
     useSecureCookies: process.env.NODE_ENV === 'production',
+    trustedProxyHeaders: process.env.TRUST_PROXY === 'true',
     crossSubDomainCookies: {
       enabled: false
     },
@@ -205,7 +277,7 @@ export interface BuildPublicEmailVerificationUrlInput {
  * match what the domain actually serves.
  *
  * This helper derives the correct public URL by:
- *  - taking only the origin from BETTER_AUTH_URL / NEXT_PUBLIC_APP_URL
+ *  - taking only the origin from NEXT_PUBLIC_APP_URL / BETTER_AUTH_URL
  *    (ignoring any accidental path suffix in the env var)
  *  - always targeting /api/auth/verify-email as the public endpoint
  *  - preserving the token and optional callbackURL in the query string
@@ -213,14 +285,10 @@ export interface BuildPublicEmailVerificationUrlInput {
 export function buildPublicEmailVerificationUrl(
   input: BuildPublicEmailVerificationUrlInput
 ): string {
-  const rawBase =
-    process.env.BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:3000';
-
-  // Use only the origin so that any accidental path in the env var is ignored
-  const origin = new URL(rawBase).origin;
-  const verificationUrl = new URL('/api/auth/verify-email', origin);
+  const verificationUrl = new URL(
+    '/api/auth/verify-email',
+    getPublicAuthOrigin()
+  );
   verificationUrl.searchParams.set('token', input.token);
 
   if (input.callbackURL) {

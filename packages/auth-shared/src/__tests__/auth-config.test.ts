@@ -18,6 +18,7 @@ import {
   assertRuntimeAuthConfigSafe,
   baseAuthConfig,
   buildPublicEmailVerificationUrl,
+  getAuthBaseUrl,
   getAuthSecret,
   getPlugins
 } from '../auth-config';
@@ -91,6 +92,36 @@ describe('baseAuthConfig — structural shape', () => {
 
   it('sets session TTL to 7 days', () => {
     expect(baseAuthConfig.session?.expiresIn).toBe(60 * 60 * 24 * 7);
+  });
+
+  it('uses dynamic baseURL host validation with localhost fallback', () => {
+    expect(baseAuthConfig.baseURL).toEqual(
+      expect.objectContaining({
+        protocol: 'auto',
+        fallback: 'http://localhost:3000'
+      })
+    );
+    expect(
+      (baseAuthConfig.baseURL as { allowedHosts: string[] }).allowedHosts
+    ).toEqual(expect.arrayContaining(['localhost:*', 'urlfy.cc']));
+  });
+});
+
+describe('getAuthBaseUrl — dynamic host resolution', () => {
+  it('adds configured public origins to the allowed host list', () => {
+    mutableEnv.NEXT_PUBLIC_APP_URL = 'https://preview.urlfy.cc';
+    mutableEnv.TRUSTED_ORIGINS =
+      'https://urlfy.cc, https://staging.urlfy.cc/some/path';
+
+    const baseUrl = getAuthBaseUrl();
+
+    expect(baseUrl.allowedHosts).toEqual(
+      expect.arrayContaining([
+        'preview.urlfy.cc',
+        'urlfy.cc',
+        'staging.urlfy.cc'
+      ])
+    );
   });
 });
 
@@ -225,14 +256,15 @@ describe('buildPublicEmailVerificationUrl — public URL construction', () => {
     expect(result.startsWith('https://urlfy.cc/')).toBe(true);
   });
 
-  it('prefers BETTER_AUTH_URL over NEXT_PUBLIC_APP_URL', () => {
+  it('prefers NEXT_PUBLIC_APP_URL over BETTER_AUTH_URL', () => {
     mutableEnv.BETTER_AUTH_URL = 'https://api.urlfy.cc';
     mutableEnv.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc';
     const result = buildPublicEmailVerificationUrl({ token: 'tok789' });
-    expect(result.startsWith('https://api.urlfy.cc/')).toBe(true);
+    expect(result.startsWith('https://urlfy.cc/')).toBe(true);
   });
 
   it('strips accidental path suffix from the base URL', () => {
+    delete mutableEnv.NEXT_PUBLIC_APP_URL;
     mutableEnv.BETTER_AUTH_URL = 'https://urlfy.cc/some/stray/path';
     const result = buildPublicEmailVerificationUrl({ token: 'tok-strip' });
     const url = new URL(result);
