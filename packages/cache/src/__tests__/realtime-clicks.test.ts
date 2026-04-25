@@ -11,7 +11,11 @@ import {
 describe('realtime-clicks', () => {
   beforeEach(async () => {
     const redis = createInMemoryRedisClient();
-    (globalThis as { __REDIS_CLIENT__?: ReturnType<typeof createInMemoryRedisClient> }).__REDIS_CLIENT__ = redis;
+    (
+      globalThis as {
+        __REDIS_CLIENT__?: ReturnType<typeof createInMemoryRedisClient>;
+      }
+    ).__REDIS_CLIENT__ = redis;
     await redis.send('FLUSHALL', []);
   });
 

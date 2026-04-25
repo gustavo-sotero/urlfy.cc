@@ -8,8 +8,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { db } from '@urlfy/data';
 import { getPendingClicksTotal } from '@urlfy/cache';
+import { db } from '@urlfy/data';
 import {
   analyticsBrowserBreakdown,
   analyticsCountryBreakdown,
@@ -503,10 +503,7 @@ export const AnalyticsGlobalService = {
           .orderBy(desc(sql`clicks`))
           .limit(1),
 
-        db
-          .select({ id: links.id })
-          .from(links)
-          .where(eq(links.userId, userId))
+        db.select({ id: links.id }).from(links).where(eq(links.userId, userId))
       ]);
 
       const uniqueVisitors = toNumber(currentUniques[0]?.uniqueVisitors);

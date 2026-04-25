@@ -24,9 +24,9 @@ export async function applyPendingClicksToEntity<T extends ClickCountEntity>(
   };
 }
 
-export async function applyPendingClicksToEntities<
-  T extends ClickCountEntity
->(entities: T[]): Promise<T[]> {
+export async function applyPendingClicksToEntities<T extends ClickCountEntity>(
+  entities: T[]
+): Promise<T[]> {
   if (entities.length === 0) {
     return entities;
   }

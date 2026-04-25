@@ -36,10 +36,7 @@ export async function getDashboardSummary(
       .from(links)
       .where(filters),
 
-    db
-      .select({ id: links.id })
-      .from(links)
-      .where(filters)
+    db.select({ id: links.id }).from(links).where(filters)
   ]);
 
   const pendingClicks = await getPendingClicksTotalForLinkIds(

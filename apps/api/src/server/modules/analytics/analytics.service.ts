@@ -12,8 +12,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { db } from '@urlfy/data';
 import { getPendingClicks } from '@urlfy/cache';
+import { db } from '@urlfy/data';
 import {
   analyticsBrowserBreakdown,
   analyticsCountryBreakdown,

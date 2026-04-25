@@ -15,12 +15,12 @@ import {
 } from 'drizzle-orm';
 import { PAGINATION_LIMITS } from '@/server/config/limits';
 import { sanitizeSearchQuery, sanitizeTags } from '@/server/lib/sanitize';
+import { applyPendingClicksToEntities } from '@/server/services/realtime-clicks.service';
 import type {
   LinkResponse,
   ListLinksQuery,
   PaginatedResponse
 } from '@/types/links.types';
-import { applyPendingClicksToEntities } from '@/server/services/realtime-clicks.service';
 import { formatLinkResponse } from './format-link';
 import { filterFields } from './utils';
 

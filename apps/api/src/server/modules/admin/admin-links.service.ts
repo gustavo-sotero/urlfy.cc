@@ -14,8 +14,8 @@ import { nanoid } from 'nanoid';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { redis } from '@/server/lib/redis';
 import { sanitizeSearchQuery } from '@/server/lib/sanitize';
-import { applyPendingClicksToEntities } from '@/server/services/realtime-clicks.service';
 import { createLogger } from '@/server/lib/telemetry';
+import { applyPendingClicksToEntities } from '@/server/services/realtime-clicks.service';
 
 const logger = createLogger('admin-links-service');
 

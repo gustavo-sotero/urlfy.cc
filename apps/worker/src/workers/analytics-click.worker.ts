@@ -8,8 +8,8 @@
  * - Batch cache increments per link
  */
 
-import { db } from '@urlfy/data';
 import { drainPendingClicks } from '@urlfy/cache';
+import { db } from '@urlfy/data';
 import { analyticsEvents, links } from '@urlfy/data/schema';
 import { eq, sql } from 'drizzle-orm';
 import { CACHE_KEYS } from '@/server/lib/cache-keys';

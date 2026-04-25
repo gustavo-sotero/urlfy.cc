@@ -156,7 +156,7 @@ async function checkSecurityHeaders(
     checks.push({
       category: 'Headers',
       check: 'Server Header',
-      status: !server || !server.includes('/') ? 'pass' : 'warning',
+      status: !server?.includes('/') ? 'pass' : 'warning',
       details: server || 'Not present (good)'
     });
   } catch (error) {
