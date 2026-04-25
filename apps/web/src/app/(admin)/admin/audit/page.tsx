@@ -131,7 +131,7 @@ export default function AdminAuditPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.data.length === 0 ? (
+                  {(data?.data.length ?? 0) === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center">
                         Nenhum registro encontrado

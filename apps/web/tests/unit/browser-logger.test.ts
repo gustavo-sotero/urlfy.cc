@@ -40,6 +40,16 @@ describe('browser logger', () => {
     );
   });
 
+  test('never returns an empty string', () => {
+    // Error with empty message falls back to the error name
+    expect(normalizeError(new Error(''))).toBe('Error');
+    // Empty string input falls back to the unknown sentinel
+    expect(normalizeError('')).toBe('Unknown error');
+    // null/undefined fall back to the unknown sentinel
+    expect(normalizeError(null)).toBe('null');
+    expect(normalizeError(undefined)).toBe('Unknown error');
+  });
+
   test('posts sanitized payloads to the monitoring route in production', () => {
     mutableEnv.NODE_ENV = 'production';
 

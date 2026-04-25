@@ -19,10 +19,11 @@ export type BrowserLogLevel = 'error' | 'warn';
 
 /** Extracts a safe message string from any thrown value. */
 export function normalizeError(value: unknown): string {
-  if (value instanceof Error) return value.message;
-  if (typeof value === 'string') return value;
+  if (value instanceof Error)
+    return value.message || value.name || 'Unknown error';
+  if (typeof value === 'string') return value || 'Unknown error';
   try {
-    return JSON.stringify(value);
+    return JSON.stringify(value) || 'Unknown error';
   } catch {
     return 'Unknown error';
   }
