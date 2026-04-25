@@ -2,7 +2,8 @@ export const Errors = {
   notFound: {
     title: 'Page Not Found',
     description: 'The page you are looking for does not exist.',
-    backHome: 'Back to Home'
+    backHome: 'Back to Home',
+    helpCenter: 'Help Center'
   },
 
   linkNotFound: {
@@ -32,6 +33,9 @@ export const Errors = {
   serverError: {
     title: 'Server Error',
     description: 'Something went wrong on our end. Please try again later.',
-    retry: 'Retry'
+    retry: 'Retry',
+    backHome: 'Back to Home',
+    errorIdLabel: 'Error ID',
+    detailsLabel: 'Error details (development only)'
   }
 } as const;

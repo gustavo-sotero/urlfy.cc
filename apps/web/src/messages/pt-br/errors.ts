@@ -2,7 +2,8 @@ export const Errors = {
   notFound: {
     title: 'Página Não Encontrada',
     description: 'A página que você está procurando não existe.',
-    backHome: 'Voltar ao Início'
+    backHome: 'Voltar ao Início',
+    helpCenter: 'Central de Ajuda'
   },
 
   linkNotFound: {
@@ -32,6 +33,9 @@ export const Errors = {
     title: 'Erro no Servidor',
     description:
       'Algo deu errado do nosso lado. Por favor, tente novamente mais tarde.',
-    retry: 'Tentar Novamente'
+    retry: 'Tentar Novamente',
+    backHome: 'Voltar ao Início',
+    errorIdLabel: 'ID do Erro',
+    detailsLabel: 'Detalhes do erro (apenas em desenvolvimento)'
   }
 } as const;
