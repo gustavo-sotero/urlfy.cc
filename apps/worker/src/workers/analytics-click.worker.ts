@@ -49,7 +49,7 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
       stream: STREAM_NAMES.analyticsClicks,
       group: CONSUMER_GROUPS.analytics,
       batchSize: 20,
-      blockMs: 5000,
+      blockMs: 1000, // reduced from 5000ms — events processed within ~1s of arriving
       gcIntervalMs: 60000,
       gcMinIdleMs: 300000,
       enableGC: true,

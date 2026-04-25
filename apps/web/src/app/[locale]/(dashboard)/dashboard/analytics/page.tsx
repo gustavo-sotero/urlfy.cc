@@ -34,16 +34,19 @@ export default function AnalyticsPage() {
   const [selectedLinkId, setSelectedLinkId] = useState<string>('all');
   const [days, setDays] = useState('30');
 
-  // Get user's links
+  // Get user's links (dropdown selector only — no polling needed)
   const {
     data: linksData,
     isLoading: linksLoading,
     isError: linksError,
     error: linksErrorDetails,
     refetch: refetchLinks
-  } = useLinks({
-    perPage: 100
-  });
+  } = useLinks(
+    {
+      perPage: 100
+    },
+    { refetchInterval: false, staleTime: 60_000 }
+  );
 
   // Fetch real analytics data
   const {

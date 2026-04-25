@@ -38,8 +38,8 @@ export function useDailyStats(
   return useQuery({
     queryKey: analyticsKeys.daily(linkId, days),
     queryFn: () => api.getDailyStats(linkId, days),
-    staleTime: 30_000, // aligned with refetchInterval
-    refetchInterval: 30_000, // poll every 30s — today's timeseries updates
+    staleTime: 0, // always stale — refetchOnWindowFocus fires on tab return
+    refetchInterval: 30_000,
     refetchIntervalInBackground: false,
     enabled: !!linkId,
     ...options
@@ -59,7 +59,9 @@ export function useAnalyticsBreakdown(
   return useQuery({
     queryKey: analyticsKeys.breakdown(linkId, days.toString()),
     queryFn: () => api.getAnalyticsBreakdown(linkId, { days }),
-    staleTime: 60_000, // 1 minute
+    staleTime: 0, // always stale — refetchOnWindowFocus fires on tab return
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     enabled: !!linkId,
     ...queryOptions
   });
@@ -75,8 +77,8 @@ export function useAnalyticsSummary(
   return useQuery({
     queryKey: analyticsKeys.summary(linkId, days.toString()),
     queryFn: () => api.getAnalyticsSummary(linkId, { days }),
-    staleTime: 30_000, // aligned with refetchInterval
-    refetchInterval: 30_000, // poll every 30s so summary totals stay current
+    staleTime: 0, // always stale — refetchOnWindowFocus fires on tab return
+    refetchInterval: 30_000,
     refetchIntervalInBackground: false,
     enabled: !!linkId,
     ...queryOptions
