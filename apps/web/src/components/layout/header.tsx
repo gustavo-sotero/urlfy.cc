@@ -94,10 +94,7 @@ export function Header({ user }: Props) {
             >
               <SheetTitle className="sr-only">{t('dashboard')}</SheetTitle>
               <SheetHeader className="border-b px-5 py-4 pr-14 sm:px-6">
-                <DashboardBrand
-                  subtitle={tSidebar('dashboard')}
-                  onNavigate={closeMobileMenu}
-                />
+                <DashboardBrand onNavigate={closeMobileMenu} />
               </SheetHeader>
               <div className="flex h-full flex-col">
                 <nav className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">

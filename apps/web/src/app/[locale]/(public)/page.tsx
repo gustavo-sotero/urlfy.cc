@@ -47,8 +47,8 @@ export default async function LandingPage(): Promise<JSX.Element> {
     <div>
       {/* Hero Section */}
       <RevealSection delay={200}>
-        <section className="container mx-auto px-4 py-20">
-          <div className="mx-auto max-w-4xl space-y-8 text-center">
+        <section className="container mx-auto flex min-h-[calc(100svh-4rem)] flex-col items-center justify-center px-4 py-12">
+          <div className="mx-auto w-full max-w-4xl space-y-8 text-center">
             <div className="space-y-4">
               <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border bg-muted px-4 py-2 text-sm">
                 <Zap className="h-4 w-4 text-primary" />

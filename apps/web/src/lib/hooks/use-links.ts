@@ -51,7 +51,9 @@ export function useLinks(
   return useQuery({
     queryKey: linkKeys.list(filters),
     queryFn: () => api.getLinks(filters),
-    staleTime: 30_000, // 30 seconds
+    staleTime: 10_000, // aligned with refetchInterval
+    refetchInterval: 10_000, // poll every 10s for real-time click counts
+    refetchIntervalInBackground: false,
     ...options
   });
 }
@@ -63,7 +65,9 @@ export function useLink(
   return useQuery({
     queryKey: linkKeys.detail(id),
     queryFn: () => api.getLink(id),
-    staleTime: 60_000, // 1 minute
+    staleTime: 10_000, // aligned with refetchInterval
+    refetchInterval: 10_000, // poll every 10s so detail page shows live clicksCount
+    refetchIntervalInBackground: false,
     enabled: !!id,
     ...options
   });
@@ -114,7 +118,9 @@ export function useDashboardSummary(
   return useQuery({
     queryKey: linkKeys.summary(),
     queryFn: () => api.getDashboardSummary(),
-    staleTime: 30_000, // 30 seconds
+    staleTime: 10_000, // aligned with refetchInterval
+    refetchInterval: 10_000, // poll every 10s for real-time totals
+    refetchIntervalInBackground: false,
     ...options
   });
 }

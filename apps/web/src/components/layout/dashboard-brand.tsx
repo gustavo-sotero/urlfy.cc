@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import logoSrc from '@/public/logo.png';
 
 interface DashboardBrandProps {
-  subtitle: string;
+  subtitle?: string;
   onNavigate?: () => void;
   className?: string;
 }
@@ -26,9 +26,11 @@ export function DashboardBrand({
         height={100}
         className="h-8 w-auto max-w-36 object-contain"
       />
-      <span className="block min-w-0 truncate text-xs text-muted-foreground">
-        {subtitle}
-      </span>
+      {subtitle && (
+        <span className="block min-w-0 truncate text-xs text-muted-foreground">
+          {subtitle}
+        </span>
+      )}
     </Link>
   );
 }
