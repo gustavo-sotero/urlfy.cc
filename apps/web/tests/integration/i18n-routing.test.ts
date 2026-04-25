@@ -10,7 +10,12 @@
  */
 
 import { describe, expect, it } from 'bun:test';
+import { resolve } from 'node:path';
 import { hasLocalePrefix, routing } from '../../src/i18n/routing';
+
+function routeFile(relativePath: string) {
+  return Bun.file(resolve(import.meta.dir, '../../', relativePath));
+}
 
 describe('I18n Routing', () => {
   describe('Locale Configuration', () => {
@@ -81,6 +86,31 @@ describe('I18n Routing', () => {
 
       for (const { path, isLocale } of testPaths) {
         expect(hasLocalePrefix(path)).toBe(isLocale);
+      }
+    });
+  });
+
+  describe('Localized Route Contracts', () => {
+    it('should include a localized catch-all route for unknown locale paths', () => {
+      const file = routeFile('src/app/[locale]/[...rest]/page.tsx');
+
+      expect(file.size).toBeGreaterThan(0);
+    });
+
+    it('should keep explicit localized routes alongside the catch-all', () => {
+      const explicitRoutes = [
+        'src/app/[locale]/(public)/page.tsx',
+        'src/app/[locale]/(public)/help/page.tsx',
+        'src/app/[locale]/(public)/email-verification/page.tsx',
+        'src/app/[locale]/(public)/preview/[code]/page.tsx',
+        'src/app/[locale]/(public)/unlock/[code]/page.tsx',
+        'src/app/[locale]/(auth)/login/page.tsx',
+        'src/app/[locale]/(auth)/signup/page.tsx',
+        'src/app/[locale]/(dashboard)/dashboard/page.tsx'
+      ];
+
+      for (const route of explicitRoutes) {
+        expect(routeFile(route).size).toBeGreaterThan(0);
       }
     });
   });
