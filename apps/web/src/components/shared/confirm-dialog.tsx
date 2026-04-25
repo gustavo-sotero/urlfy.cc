@@ -2,7 +2,6 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,15 +36,13 @@ export function ConfirmDialog({
   cancelText,
   loading = false
 }: ConfirmDialogProps) {
-  const t = useTranslations('Common');
-
   const handleConfirm = async (e: React.MouseEvent) => {
     e.preventDefault();
     await onConfirm();
   };
 
-  const resolvedConfirmText = confirmText ?? t('confirm');
-  const resolvedCancelText = cancelText ?? t('cancel');
+  const resolvedConfirmText = confirmText ?? 'Confirmar';
+  const resolvedCancelText = cancelText ?? 'Cancelar';
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
