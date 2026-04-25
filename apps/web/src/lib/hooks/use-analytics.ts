@@ -78,7 +78,7 @@ export function useAnalyticsSummary(
     queryKey: analyticsKeys.summary(linkId, days.toString()),
     queryFn: () => api.getAnalyticsSummary(linkId, { days }),
     staleTime: 0, // always stale — refetchOnWindowFocus fires on tab return
-    refetchInterval: 30_000,
+    refetchInterval: 5_000,
     refetchIntervalInBackground: false,
     enabled: !!linkId,
     ...queryOptions

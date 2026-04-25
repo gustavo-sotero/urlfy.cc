@@ -52,7 +52,7 @@ export function useLinks(
     queryKey: linkKeys.list(filters),
     queryFn: () => api.getLinks(filters),
     staleTime: 0, // always stale so refetchOnWindowFocus fires immediately on tab return
-    refetchInterval: 10_000, // poll every 10s for real-time click counts
+    refetchInterval: 5_000, // poll every 5s so click counters feel live while the page stays open
     refetchIntervalInBackground: false,
     ...options
   });
@@ -66,7 +66,7 @@ export function useLink(
     queryKey: linkKeys.detail(id),
     queryFn: () => api.getLink(id),
     staleTime: 0, // always stale so refetchOnWindowFocus fires immediately on tab return
-    refetchInterval: 10_000, // poll every 10s so detail page shows live clicksCount
+    refetchInterval: 5_000, // poll every 5s so detail page shows live clicksCount
     refetchIntervalInBackground: false,
     enabled: !!id,
     ...options
@@ -119,7 +119,7 @@ export function useDashboardSummary(
     queryKey: linkKeys.summary(),
     queryFn: () => api.getDashboardSummary(),
     staleTime: 0, // always stale so refetchOnWindowFocus fires immediately on tab return
-    refetchInterval: 10_000, // poll every 10s for real-time totals
+    refetchInterval: 5_000, // poll every 5s for real-time totals
     refetchIntervalInBackground: false,
     ...options
   });

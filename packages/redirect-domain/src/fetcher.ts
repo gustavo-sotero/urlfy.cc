@@ -3,6 +3,7 @@ import {
   acquireLock,
   CACHE_KEYS,
   CACHE_TTL as CANONICAL_CACHE_TTL,
+  getPendingClicks,
   releaseLock
 } from '@urlfy/cache';
 import { CircuitBreaker } from '@urlfy/cache/circuit-breaker';
@@ -81,6 +82,25 @@ async function findLinkByCodeFromDatabase(
     utmMedium: link.utmMedium,
     utmCampaign: link.utmCampaign
   } as CachedLink;
+}
+
+async function applyPendingClicks(
+  link: CachedLink | null
+): Promise<CachedLink | null> {
+  if (!link) {
+    return null;
+  }
+
+  const pendingClicks = await getPendingClicks(link.id);
+
+  if (pendingClicks <= 0) {
+    return link;
+  }
+
+  return {
+    ...link,
+    clicksCount: link.clicksCount + pendingClicks
+  };
 }
 
 async function checkCodeAvailabilityInDatabase(code: string): Promise<boolean> {
@@ -186,7 +206,7 @@ export async function getLink(
               span.setAttribute('cache.type', 'link');
               span.setAttribute('cache.hit', true);
               recordCacheHit(1, { type: 'link' });
-              return { link: parsed, cacheHit: true };
+              return { link: await applyPendingClicks(parsed), cacheHit: true };
             }
           } else {
             // No _cachedAt timestamp — serve normally
@@ -194,7 +214,7 @@ export async function getLink(
             span.setAttribute('cache.type', 'link');
             span.setAttribute('cache.hit', true);
             recordCacheHit(1, { type: 'link' });
-            return { link: parsed, cacheHit: true };
+            return { link: await applyPendingClicks(parsed), cacheHit: true };
           }
         }
 
@@ -276,7 +296,7 @@ async function fetchWithStampedeProtection(
   // Try to get from cache again (probably already populated)
   const cached = await dependencies.cache.getLink(code);
   if (cached) {
-    return cached;
+    return applyPendingClicks(cached);
   }
 
   // If still not in cache, fallback to direct fetch
@@ -294,7 +314,7 @@ async function fetchFromDatabase(
   dependencies: RedirectFetcherDependencies = defaultRedirectFetcherDependencies
 ): Promise<CachedLink | null> {
   return dependencies.circuitBreaker.execute(async () =>
-    dependencies.links.findByCode(code)
+    applyPendingClicks(await dependencies.links.findByCode(code))
   );
 }
 

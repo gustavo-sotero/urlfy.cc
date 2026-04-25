@@ -11,6 +11,7 @@ import { analyticsEvents, links, user as userTable } from '@urlfy/data/schema';
 import { and, count, eq, gte, isNull, or, sql } from 'drizzle-orm';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
+import { getPendingClicksTotalForLinkIds } from '@/server/services/realtime-clicks.service';
 import type { AdminStatsResponseType } from './admin.schema';
 
 const logger = createLogger('admin-stats-service');
@@ -26,7 +27,8 @@ export const AdminStatsService = {
         totalLinksResult,
         totalUsersResult,
         activeLinksResult,
-        totalClicksResult
+        totalClicksResult,
+        linkIdsResult
       ] = await Promise.all([
         db
           .select({ count: count() })
@@ -44,13 +46,17 @@ export const AdminStatsService = {
               or(isNull(links.expiresAt), gte(links.expiresAt, new Date()))
             )
           ),
-        db.select({ count: count() }).from(analyticsEvents)
+        db.select({ count: count() }).from(analyticsEvents),
+        db.select({ id: links.id }).from(links)
       ]);
 
       const totalLinks = totalLinksResult[0]?.count ?? 0;
       const totalUsers = totalUsersResult[0]?.count ?? 0;
       const activeLinksToday = activeLinksResult[0]?.count ?? 0;
-      const totalClicks = totalClicksResult[0]?.count ?? 0;
+      const pendingClicks = await getPendingClicksTotalForLinkIds(
+        linkIdsResult.map((link) => link.id)
+      );
+      const totalClicks = (totalClicksResult[0]?.count ?? 0) + pendingClicks;
 
       let requestsPerSecond = 0;
       try {

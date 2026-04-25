@@ -14,6 +14,7 @@ import { nanoid } from 'nanoid';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { redis } from '@/server/lib/redis';
 import { sanitizeSearchQuery } from '@/server/lib/sanitize';
+import { applyPendingClicksToEntities } from '@/server/services/realtime-clicks.service';
 import { createLogger } from '@/server/lib/telemetry';
 
 const logger = createLogger('admin-links-service');
@@ -192,7 +193,9 @@ export const AdminLinksService = {
         .orderBy(desc(links.createdAt))
         .limit(limit);
 
-      return results.map((link) => ({
+      const liveResults = await applyPendingClicksToEntities(results);
+
+      return liveResults.map((link) => ({
         id: link.id,
         shortCode: link.shortCode,
         originalUrl: link.originalUrl,
@@ -286,8 +289,10 @@ export const AdminLinksService = {
       const total = Number(totalResult[0]?.count ?? 0);
       const lastPage = Math.ceil(total / limit);
 
+      const liveResults = await applyPendingClicksToEntities(results);
+
       return {
-        data: results.map((link) => ({
+        data: liveResults.map((link) => ({
           id: link.id,
           shortCode: link.shortCode,
           originalUrl: link.originalUrl,

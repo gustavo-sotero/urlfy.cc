@@ -39,6 +39,14 @@ export {
 export { CACHE_KEYS, CACHE_TTL } from './keys';
 // Metrics service (degradation-aware RPS tracking)
 export { MetricsService } from './metrics-service';
+// Realtime click deltas (Redis-backed live counters)
+export {
+  drainPendingClicks,
+  getPendingClicks,
+  getPendingClicksMap,
+  getPendingClicksTotal,
+  incrementPendingClicks
+} from './realtime-clicks';
 // In-memory Redis mock (for testing)
 export { createInMemoryRedisClient } from './mock';
 // Canonical rate limiter core

@@ -142,6 +142,18 @@ export function createInMemoryRedisClient(): RedisClient {
       setStoreValue(key, String(next));
       return next;
     },
+    incrby: async (key: string, amount: number) => {
+      const current = Number.parseInt(getStoreValue(key) ?? '0', 10);
+      const next = current + amount;
+      setStoreValue(key, String(next));
+      return next;
+    },
+    decrby: async (key: string, amount: number) => {
+      const current = Number.parseInt(getStoreValue(key) ?? '0', 10);
+      const next = current - amount;
+      setStoreValue(key, String(next));
+      return next;
+    },
     expire: async (key: string, ttl: number) => {
       const entry = inMemoryStore.get(key);
       if (!entry) return 0;
@@ -225,6 +237,15 @@ export function createInMemoryRedisClient(): RedisClient {
         }
         case 'INCR': {
           return client.incr(args[0]);
+        }
+        case 'INCRBY': {
+          return client.incrby(args[0], Number(args[1]));
+        }
+        case 'DECRBY': {
+          return client.decrby(args[0], Number(args[1]));
+        }
+        case 'MGET': {
+          return args.map((key) => getStoreValue(key));
         }
         case 'PEXPIRE': {
           return client.pexpire(args[0], Number(args[1]));

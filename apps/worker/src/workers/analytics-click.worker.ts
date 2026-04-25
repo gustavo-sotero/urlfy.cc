@@ -9,6 +9,7 @@
  */
 
 import { db } from '@urlfy/data';
+import { drainPendingClicks } from '@urlfy/cache';
 import { analyticsEvents, links } from '@urlfy/data/schema';
 import { eq, sql } from 'drizzle-orm';
 import { CACHE_KEYS } from '@/server/lib/cache-keys';
@@ -80,9 +81,12 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
       })
       .where(eq(links.id, enriched.linkId));
 
-    if (enriched.shortCode) {
-      await cacheService.incrementClicksCount(enriched.shortCode);
-    }
+    await Promise.all([
+      enriched.shortCode
+        ? cacheService.incrementClicksCount(enriched.shortCode)
+        : Promise.resolve(null),
+      drainPendingClicks(enriched.linkId)
+    ]);
 
     this.invalidateAnalyticsCache(enriched.linkId).catch((err) => {
       this.logger.warn(
@@ -207,10 +211,14 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
 
       // Step 5: Single cache increment per unique link
       await Promise.all(
-        Array.from(linkClickCounts.values()).map(({ count, shortCode }) =>
-          shortCode
-            ? cacheService.incrementClicksCount(shortCode, count)
-            : Promise.resolve(null)
+        Array.from(linkClickCounts.entries()).map(
+          ([linkId, { count, shortCode }]) =>
+            Promise.all([
+              shortCode
+                ? cacheService.incrementClicksCount(shortCode, count)
+                : Promise.resolve(null),
+              drainPendingClicks(linkId, count)
+            ])
         )
       );
 

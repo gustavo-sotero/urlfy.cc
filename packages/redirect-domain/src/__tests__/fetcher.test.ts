@@ -106,6 +106,7 @@ mock.module('../cache-service', () => ({
 // ─── Mutable lock state ────────────────────────────────────────────────────────
 
 const lockState = { acquired: true };
+let pendingClicksValue = 0;
 const redisMock = {
   get: async () => null,
   set: async () => 'OK'
@@ -119,6 +120,7 @@ mock.module('@urlfy/cache', () => ({
     LOCK: 5 // seconds — LOCK_TTL_MS = 5 * 1000 = 5000ms
   },
   acquireLock: async () => lockState.acquired,
+  getPendingClicks: async () => pendingClicksValue,
   getRedisClient: () => redisMock,
   redis: redisMock,
   releaseLock: async () => {}
@@ -220,6 +222,7 @@ describe('getLink', () => {
     cacheState.linkState = { link: null, isNotFound: false, isBanned: false };
     cacheState.linkAfterWait = null;
     lockState.acquired = true;
+    pendingClicksValue = 0;
     dbRows = [];
   });
 
@@ -267,6 +270,20 @@ describe('getLink', () => {
       expect(result.cacheHit).toBe(true);
     });
 
+    it('overlays pending clicks on cached links before validation reads them', async () => {
+      pendingClicksValue = 3;
+      cacheState.linkState = {
+        link: makeCachedLink({ clicksCount: 5 }),
+        isNotFound: false,
+        isBanned: false
+      };
+
+      const result = await getLink('abc1234');
+
+      expect(result.link?.clicksCount).toBe(8);
+      expect(result.cacheHit).toBe(true);
+    });
+
     it('returns cached link even without _cachedAt metadata', async () => {
       const cached = makeCachedLink({ _cachedAt: undefined });
       cacheState.linkState = {
@@ -293,6 +310,16 @@ describe('getLink', () => {
       expect(result.link).not.toBeNull();
       expect(result.link?.originalUrl).toBe('https://example.com/page');
       expect(result.link?.clicksCount).toBe(42);
+      expect(result.cacheHit).toBe(false);
+    });
+
+    it('overlays pending clicks on DB-fetched links too', async () => {
+      pendingClicksValue = 2;
+      dbRows = [makeDbRow()];
+
+      const result = await getLink('abc1234');
+
+      expect(result.link?.clicksCount).toBe(44);
       expect(result.cacheHit).toBe(false);
     });
 

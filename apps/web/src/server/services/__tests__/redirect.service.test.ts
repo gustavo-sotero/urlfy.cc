@@ -71,11 +71,24 @@ mock.module('@urlfy/redirect-domain', () => ({
 
 // RedisStream.add — fire-and-forget analytics (we track if it was called)
 let analyticsAddCalled = false;
+let analyticsAddShouldFail = false;
+let pendingClicksIncremented = false;
+let pendingClicksDrained = false;
 mock.module('@urlfy/cache', () => ({
   RedisStream: {
     add: async (): Promise<void> => {
+      if (analyticsAddShouldFail) {
+        throw new Error('stream enqueue failed');
+      }
       analyticsAddCalled = true;
     }
+  },
+  drainPendingClicks: async (): Promise<void> => {
+    pendingClicksDrained = true;
+  },
+  incrementPendingClicks: async (): Promise<number> => {
+    pendingClicksIncremented = true;
+    return 1;
   },
   STREAM_NAMES: { analyticsClicks: 'analytics:clicks' }
 }));
@@ -170,8 +183,11 @@ describe('GET /r/[code] — redirect hot path', () => {
     mockResolveResult = { success: false, error: 'NOT_FOUND' };
     mockCookieValue = undefined;
     analyticsAddCalled = false;
+    analyticsAddShouldFail = false;
     ipRateLimitResult = { allowed: true };
     linkRateLimitResult = { allowed: true };
+    pendingClicksIncremented = false;
+    pendingClicksDrained = false;
     process.env.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc';
     process.env.JWT_SECRET = 'test-secret-minimum-32-characters-long!!';
   });
@@ -345,10 +361,30 @@ describe('GET /r/[code] — redirect hot path', () => {
 
     // Response is available immediately — no await on analytics
     expect(res.status).toBe(302);
+    expect(pendingClicksIncremented).toBe(true);
 
     // Give the fire-and-forget microtask a chance to run
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(analyticsAddCalled).toBe(true);
+  });
+
+  it('reverts the pending click delta if analytics enqueue fails', async () => {
+    analyticsAddShouldFail = true;
+    mockResolveResult = {
+      success: true,
+      url: 'https://example.com',
+      redirectType: 302,
+      linkId: 'link-analytics',
+      cacheHit: false
+    };
+
+    const res = await callGET('abc1234');
+
+    expect(res.status).toBe(302);
+    expect(pendingClicksIncremented).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(pendingClicksDrained).toBe(true);
   });
 
   it('does not dispatch analytics when the resolve fails', async () => {

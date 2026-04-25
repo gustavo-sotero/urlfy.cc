@@ -7,6 +7,7 @@
 import { db } from '@urlfy/data';
 import { links } from '@urlfy/data/schema';
 import { and, eq, isNull, sql } from 'drizzle-orm';
+import { getPendingClicksTotalForLinkIds } from '@/server/services/realtime-clicks.service';
 
 export interface DashboardSummary {
   totalLinks: number;
@@ -24,17 +25,29 @@ export interface DashboardSummary {
 export async function getDashboardSummary(
   userId: string
 ): Promise<DashboardSummary> {
-  const [result] = await db
-    .select({
-      totalLinks: sql<number>`count(*)::int`,
-      activeLinks: sql<number>`count(case when ${links.isActive} then 1 end)::int`,
-      totalClicks: sql<number>`coalesce(sum(${links.clicksCount}), 0)::int`
-    })
-    .from(links)
-    .where(and(eq(links.userId, userId), isNull(links.deletedAt)));
+  const filters = and(eq(links.userId, userId), isNull(links.deletedAt));
+  const [[result], linkRows] = await Promise.all([
+    db
+      .select({
+        totalLinks: sql<number>`count(*)::int`,
+        activeLinks: sql<number>`count(case when ${links.isActive} then 1 end)::int`,
+        totalClicks: sql<number>`coalesce(sum(${links.clicksCount}), 0)::int`
+      })
+      .from(links)
+      .where(filters),
+
+    db
+      .select({ id: links.id })
+      .from(links)
+      .where(filters)
+  ]);
+
+  const pendingClicks = await getPendingClicksTotalForLinkIds(
+    linkRows.map((link) => link.id)
+  );
 
   const totalLinks = result?.totalLinks ?? 0;
-  const totalClicks = result?.totalClicks ?? 0;
+  const totalClicks = (result?.totalClicks ?? 0) + pendingClicks;
 
   return {
     totalLinks,

@@ -12,7 +12,12 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { RedisStream, STREAM_NAMES } from '@urlfy/cache';
+import {
+  drainPendingClicks,
+  incrementPendingClicks,
+  RedisStream,
+  STREAM_NAMES
+} from '@urlfy/cache';
 import { REDIRECT_RATE_LIMIT_CONFIG } from '@urlfy/contracts';
 import { redirectService } from '@urlfy/redirect-domain';
 import { createLogger, fireAndForget } from '@urlfy/telemetry';
@@ -162,6 +167,7 @@ function handleError(
 
 /**
  * Dispatch click analytics event to Redis stream (non-blocking).
+ * Reverts the pending live-click delta if enqueueing fails.
  */
 function dispatchAnalytics(
   request: NextRequest,
@@ -172,20 +178,26 @@ function dispatchAnalytics(
 
   fireAndForget(
     'analytics-emit',
-    () =>
-      RedisStream.add(STREAM_NAMES.analyticsClicks, {
-        linkId,
-        shortCode: code,
-        ip: getClientIp(request),
-        userAgent: request.headers.get('user-agent') ?? '',
-        referer: request.headers.get('referer') ?? '',
-        utmSource: searchParams.get('utm_source') ?? '',
-        utmMedium: searchParams.get('utm_medium') ?? '',
-        utmCampaign: searchParams.get('utm_campaign') ?? '',
-        utmContent: searchParams.get('utm_content') ?? '',
-        utmTerm: searchParams.get('utm_term') ?? '',
-        timestamp: new Date().toISOString()
-      }),
+    async () => {
+      try {
+        await RedisStream.add(STREAM_NAMES.analyticsClicks, {
+          linkId,
+          shortCode: code,
+          ip: getClientIp(request),
+          userAgent: request.headers.get('user-agent') ?? '',
+          referer: request.headers.get('referer') ?? '',
+          utmSource: searchParams.get('utm_source') ?? '',
+          utmMedium: searchParams.get('utm_medium') ?? '',
+          utmCampaign: searchParams.get('utm_campaign') ?? '',
+          utmContent: searchParams.get('utm_content') ?? '',
+          utmTerm: searchParams.get('utm_term') ?? '',
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        await drainPendingClicks(linkId);
+        throw error;
+      }
+    },
     { shortCode: code, linkId }
   );
 }
@@ -280,6 +292,7 @@ export async function GET(
 
     // ── 6. Dispatch analytics (fire-and-forget) ──────────────────
     if (result.linkId) {
+      await incrementPendingClicks(result.linkId);
       dispatchAnalytics(request, code, result.linkId);
     }
 

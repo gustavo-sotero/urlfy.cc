@@ -51,6 +51,10 @@ export const CACHE_KEYS = {
   /** Set tracking cached analytics keys per link (for deterministic invalidation) */
   ANALYTICS_KEYS_SET: (linkId: string) => `analytics:keys:${linkId}`,
 
+  /** Pending click deltas not yet drained into PostgreSQL/analytics_events */
+  ANALYTICS_PENDING_CLICKS: (linkId: string) =>
+    `analytics:pending-clicks:${linkId}`,
+
   // ═══════════════════════════════════════════════════════════════════
   // GEOLOCATION CACHE
   // ═══════════════════════════════════════════════════════════════════
@@ -106,6 +110,9 @@ export const CACHE_TTL = {
   ANALYTICS_TIMESERIES: 300, // 5 minutes
   ANALYTICS_BREAKDOWN: 300, // 5 minutes
 
+  /** Pending click deltas survive brief worker outages and are drained on success */
+  ANALYTICS_PENDING_CLICKS: 86400, // 24 hours
+
   /** Analytics key tracking set — outlives individual cache entries */
   ANALYTICS_KEYS_SET: 360, // 6 minutes (TTL headroom over cached data)
 
@@ -134,6 +141,8 @@ export function getTTLForKey(key: string): number {
     return CACHE_TTL.ANALYTICS_TIMESERIES;
   if (key.startsWith('analytics:breakdown:'))
     return CACHE_TTL.ANALYTICS_BREAKDOWN;
+  if (key.startsWith('analytics:pending-clicks:'))
+    return CACHE_TTL.ANALYTICS_PENDING_CLICKS;
   if (key.startsWith('geo:')) return CACHE_TTL.GEO;
   if (key.startsWith('idempotency:')) return CACHE_TTL.IDEMPOTENCY;
   if (key.startsWith('lock:')) return CACHE_TTL.LOCK;

@@ -2,6 +2,7 @@ import { db } from '@urlfy/data';
 import { links } from '@urlfy/data/schema';
 import { and, eq, isNull } from 'drizzle-orm';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
+import { applyPendingClicksToEntity } from '@/server/services/realtime-clicks.service';
 import type { Link } from '@/types/links.types';
 
 /**
@@ -20,7 +21,7 @@ export async function getLinkById(id: string, userId: string): Promise<Link> {
     throw createLinkAppError('LINK_NOT_FOUND');
   }
 
-  return link;
+  return applyPendingClicksToEntity(link);
 }
 
 /**
@@ -37,7 +38,7 @@ export async function getLinkByIdUnsafe(id: string): Promise<Link> {
     throw createLinkAppError('LINK_NOT_FOUND');
   }
 
-  return link;
+  return applyPendingClicksToEntity(link);
 }
 
 /**
@@ -50,5 +51,9 @@ export async function getLinkByCode(code: string): Promise<Link | null> {
     .where(and(eq(links.shortCode, code), isNull(links.deletedAt)))
     .limit(1);
 
-  return link ?? null;
+  if (!link) {
+    return null;
+  }
+
+  return applyPendingClicksToEntity(link);
 }

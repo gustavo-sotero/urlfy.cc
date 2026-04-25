@@ -9,6 +9,7 @@
  */
 
 import { db } from '@urlfy/data';
+import { getPendingClicksTotal } from '@urlfy/cache';
 import {
   analyticsBrowserBreakdown,
   analyticsCountryBreakdown,
@@ -443,7 +444,8 @@ export const AnalyticsGlobalService = {
         currentUniques,
         previousUniques,
         breakdownCounts,
-        topReferrerRow
+        topReferrerRow,
+        userLinks
       ] = await Promise.all([
         getPeriodClicks(currentStart, tomorrowDate),
         getPeriodClicks(previousStart, previousEnd),
@@ -499,20 +501,29 @@ export const AnalyticsGlobalService = {
           )
           .groupBy(analyticsEvents.referrerDomain)
           .orderBy(desc(sql`clicks`))
-          .limit(1)
+          .limit(1),
+
+        db
+          .select({ id: links.id })
+          .from(links)
+          .where(eq(links.userId, userId))
       ]);
 
       const uniqueVisitors = toNumber(currentUniques[0]?.uniqueVisitors);
       const previousVisitors = toNumber(previousUniques[0]?.uniqueVisitors);
+      const pendingClicks = await getPendingClicksTotal(
+        userLinks.map((link) => link.id)
+      );
+      const liveTotalClicks = totalClicks + pendingClicks;
 
       return {
-        totalClicks,
+        totalClicks: liveTotalClicks,
         uniqueVisitors,
-        avgClicksPerDay: days > 0 ? Math.round(totalClicks / days) : 0,
+        avgClicksPerDay: days > 0 ? Math.round(liveTotalClicks / days) : 0,
         topCountry: breakdownCounts.countries[0]?.key ?? null,
         topBrowser: breakdownCounts.browsers[0]?.key ?? null,
         topReferrer: topReferrerRow[0]?.domain ?? null,
-        totalClicksGrowth: calculateGrowth(totalClicks, previousClicks),
+        totalClicksGrowth: calculateGrowth(liveTotalClicks, previousClicks),
         uniqueVisitorsGrowth: calculateGrowth(uniqueVisitors, previousVisitors)
       };
     } catch (error) {

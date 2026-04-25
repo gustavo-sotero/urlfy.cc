@@ -20,6 +20,7 @@ import type {
   ListLinksQuery,
   PaginatedResponse
 } from '@/types/links.types';
+import { applyPendingClicksToEntities } from '@/server/services/realtime-clicks.service';
 import { formatLinkResponse } from './format-link';
 import { filterFields } from './utils';
 
@@ -244,7 +245,8 @@ export async function listUserLinks(
       const total = countResult?.count ?? 0;
       const lastPage = Math.ceil(total / perPage);
 
-      const filteredItems = pageItems
+      const liveItems = await applyPendingClicksToEntities(pageItems);
+      const filteredItems = liveItems
         .map((item) => formatLinkResponse(item))
         .map((item) => filterFields(item, query.fields));
 
@@ -293,7 +295,8 @@ export async function listUserLinks(
     });
   }
 
-  const filteredItems = items
+  const liveItems = await applyPendingClicksToEntities(items);
+  const filteredItems = liveItems
     .map((item) => formatLinkResponse(item))
     .map((item) => filterFields(item, query.fields));
 
