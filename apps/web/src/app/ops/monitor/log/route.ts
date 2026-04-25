@@ -104,28 +104,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const body = (await request.json()) as ClientError;
 
-    // Validate required fields
-    const reportUrl = body.url;
-
-    if (!body.error || !reportUrl) {
+    // Validate required fields — url is optional per BrowserLogPayload contract
+    if (!body.error) {
       return NextResponse.json(
         {
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'Missing required fields: error, url'
+            message: 'Missing required field: error'
           }
         },
         { status: 400 }
       );
     }
 
+    // url is optional; fall back to referer header when absent
+    const reportUrl = body.url || request.headers.get('referer') || undefined;
+
     // Sanitize and truncate inputs
     const sanitizedError = sanitizeForLog(truncate(body.error, 500));
     const sanitizedStack = sanitizeForLog(truncate(body.componentStack, 2000));
-    const sanitizedUrl = sanitizeForLog(
-      stripQueryParams(truncate(reportUrl, 500))
-    );
+    const sanitizedUrl = reportUrl
+      ? sanitizeForLog(stripQueryParams(truncate(reportUrl, 500)))
+      : '';
     const sanitizedContext = sanitizeContext(body.context);
     const requestId = sanitizeForLog(
       truncate(

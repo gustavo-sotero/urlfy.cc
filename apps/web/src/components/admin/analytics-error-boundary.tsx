@@ -36,13 +36,15 @@ export class AnalyticsErrorBoundary extends Component<Props, State> {
         <Card>
           <CardHeader>
             <CardTitle>
-              {this.props.fallbackTitle || 'Failed to load data'}
+              {this.props.fallbackTitle || 'Falha ao carregar dados'}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <AlertCircle className="h-5 w-5" />
-              <p>Failed to load analytics data. Please try again later.</p>
+              <p>
+                Falha ao carregar dados analíticos. Tente novamente mais tarde.
+              </p>
             </div>
           </CardContent>
         </Card>

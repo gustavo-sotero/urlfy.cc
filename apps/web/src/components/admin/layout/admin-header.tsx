@@ -23,14 +23,14 @@ export function AdminHeader() {
               variant="ghost"
               size="icon"
               className="md:hidden"
-              aria-label="Open navigation menu"
+              aria-label="Abrir menu de navegação"
             >
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0">
             <SheetHeader className="sr-only">
-              <SheetTitle>Navigation Menu</SheetTitle>
+              <SheetTitle>Menu de Navegação</SheetTitle>
             </SheetHeader>
             <AdminSidebar className="h-full" />
           </SheetContent>

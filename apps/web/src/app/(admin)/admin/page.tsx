@@ -58,7 +58,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-3xl font-bold">Painel Administrativo</h1>
       </div>
 
       {/* Global Stats */}
@@ -79,7 +79,7 @@ export default function AdminDashboard() {
         <Card className="border-destructive">
           <CardContent className="pt-6">
             <p className="text-sm text-destructive">
-              Failed to load statistics. Please try again.
+              Falha ao carregar estatísticas. Tente novamente.
             </p>
           </CardContent>
         </Card>
@@ -88,10 +88,10 @@ export default function AdminDashboard() {
       ) : null}
 
       {/* Growth Analytics */}
-      <AnalyticsErrorBoundary fallbackTitle="Platform Growth">
+      <AnalyticsErrorBoundary fallbackTitle="Crescimento da Plataforma">
         <Card>
           <CardHeader>
-            <CardTitle>Platform Growth</CardTitle>
+            <CardTitle>Crescimento da Plataforma</CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs
@@ -100,8 +100,8 @@ export default function AdminDashboard() {
               className="space-y-4"
             >
               <TabsList>
-                <TabsTrigger value="7d">Last 7 days</TabsTrigger>
-                <TabsTrigger value="30d">Last 30 days</TabsTrigger>
+                <TabsTrigger value="7d">Últimos 7 dias</TabsTrigger>
+                <TabsTrigger value="30d">Últimos 30 dias</TabsTrigger>
               </TabsList>
               <TabsContent value={growthRange}>
                 {growthLoading ? (
@@ -110,13 +110,13 @@ export default function AdminDashboard() {
                   </div>
                 ) : growthError ? (
                   <div className="text-center text-sm text-destructive py-8">
-                    Failed to load growth data
+                    Falha ao carregar dados de crescimento
                   </div>
                 ) : growthStats && growthStats.length > 0 ? (
                   <GrowthChart data={growthStats} />
                 ) : (
                   <div className="text-center text-sm text-muted-foreground py-8">
-                    No data available
+                    Nenhum dado disponível
                   </div>
                 )}
               </TabsContent>
@@ -129,13 +129,13 @@ export default function AdminDashboard() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Performance</CardTitle>
+            <CardTitle>Desempenho</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  Requests/second
+                  Requisições/segundo
                 </span>
                 {statsLoading ? (
                   <Skeleton className="h-5 w-12" />
@@ -151,7 +151,7 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle>Ações Rápidas</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -159,13 +159,13 @@ export default function AdminDashboard() {
                 href="/admin/links"
                 className="block rounded-md border p-3 text-sm hover:bg-muted"
               >
-                Manage Links →
+                Gerenciar Links →
               </a>
               <a
                 href="/admin/users"
                 className="block rounded-md border p-3 text-sm hover:bg-muted"
               >
-                Manage Users →
+                Gerenciar Usuários →
               </a>
             </div>
           </CardContent>

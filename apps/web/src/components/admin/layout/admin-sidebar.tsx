@@ -28,40 +28,40 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    title: 'Overview',
+    title: 'Visão Geral',
     href: '/admin',
     icon: LayoutDashboard,
-    description: 'Dashboard and statistics'
+    description: 'Dashboard e estatísticas'
   },
   {
-    title: 'Links Management',
+    title: 'Gerenciar Links',
     href: '/admin/links',
     icon: LinkIcon,
-    description: 'Search and manage links'
+    description: 'Buscar e gerenciar links'
   },
   {
-    title: 'Users Management',
+    title: 'Gerenciar Usuários',
     href: '/admin/users',
     icon: Users,
-    description: 'User administration'
+    description: 'Administração de usuários'
   },
   {
-    title: 'Messages',
+    title: 'Mensagens',
     href: '/admin/messages',
     icon: Mail,
-    description: 'Contact form submissions'
+    description: 'Envios do formulário de contato'
   },
   {
-    title: 'Queues',
+    title: 'Filas',
     href: '/admin/queues',
     icon: Activity,
-    description: 'Background jobs and workers'
+    description: 'Jobs em segundo plano'
   },
   {
-    title: 'Audit Log',
+    title: 'Auditoria',
     href: '/admin/audit',
     icon: ScrollText,
-    description: 'Administrative actions history'
+    description: 'Histórico de ações administrativas'
   }
 ];
 
@@ -72,7 +72,7 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
     <aside className={cn('flex flex-col border-r bg-muted/30', className)}>
       {/* Logo/Title */}
       <div className="p-6">
-        <h2 className="text-lg font-semibold">Admin Panel</h2>
+        <h2 className="text-lg font-semibold">Painel Admin</h2>
         <p className="text-sm text-muted-foreground">urlfy.cc</p>
       </div>
 

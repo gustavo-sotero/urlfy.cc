@@ -55,19 +55,19 @@ export function BanLinkDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Ban Link</AlertDialogTitle>
+          <AlertDialogTitle>Banir Link</AlertDialogTitle>
           <AlertDialogDescription>
-            You are about to ban the link{' '}
+            Você está prestes a banir o link{' '}
             <span className="font-mono font-semibold">{link?.shortCode}</span>.
-            This action will block all access to this link.
+            Esta ação bloqueará todo acesso a este link.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="space-y-2 py-4">
-          <Label htmlFor="ban-reason">Ban reason *</Label>
+          <Label htmlFor="ban-reason">Motivo do banimento *</Label>
           <Textarea
             id="ban-reason"
-            placeholder="e.g. Spam, phishing, malicious content..."
+            placeholder="Ex: Spam, phishing, conteúdo malicioso..."
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={4}
@@ -76,12 +76,14 @@ export function BanLinkDialog({
             aria-required="true"
           />
           <p className="text-xs text-muted-foreground">
-            This reason will be recorded in the audit logs.
+            Este motivo será registrado nos logs de auditoria.
           </p>
         </div>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isSubmitting}>
+            Cancelar
+          </AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
@@ -90,7 +92,7 @@ export function BanLinkDialog({
             disabled={!reason.trim() || isSubmitting}
             className="bg-destructive hover:bg-destructive/90"
           >
-            {isSubmitting ? 'Banning...' : 'Ban Link'}
+            {isSubmitting ? 'Banindo...' : 'Banir Link'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

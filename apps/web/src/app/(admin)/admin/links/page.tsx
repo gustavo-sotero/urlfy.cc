@@ -50,9 +50,9 @@ export default function AdminLinksPage() {
         id: selectedLink.id,
         reason
       });
-      toast.success('Link banned successfully');
+      toast.success('Link banido com sucesso');
     } catch (error) {
-      toast.error('Failed to ban link');
+      toast.error('Falha ao banir link');
       throw error;
     }
   };
@@ -60,9 +60,9 @@ export default function AdminLinksPage() {
   const handleUnban = async (link: LinkResponse) => {
     try {
       await unbanMutation.mutateAsync(link.id);
-      toast.success('Link reactivated successfully');
+      toast.success('Link reativado com sucesso');
     } catch (error) {
-      toast.error('Failed to reactivate link');
+      toast.error('Falha ao reativar link');
       reportActionError(error, {
         action: 'admin-unban-link',
         linkId: link.id
@@ -86,24 +86,24 @@ export default function AdminLinksPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Manage Links</h1>
+        <h1 className="text-3xl font-bold">Gerenciar Links</h1>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Search Links</CardTitle>
+          <CardTitle>Buscar Links</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
             <Input
-              placeholder="Search by code, URL..."
+              placeholder="Buscar por código, URL..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
             <Button onClick={handleSearch} disabled={isFetching}>
               <Search className="mr-2 h-4 w-4" />
-              {isFetching ? 'Searching...' : 'Search'}
+              {isFetching ? 'Buscando...' : 'Buscar'}
             </Button>
           </div>
 
@@ -125,7 +125,7 @@ export default function AdminLinksPage() {
               {meta.lastPage > 1 && (
                 <div className="mt-4 flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Showing {results?.data.length ?? 0} of {meta.total} links
+                    Exibindo {results?.data.length ?? 0} de {meta.total} links
                   </p>
                   <div className="flex gap-2">
                     <Button
@@ -134,10 +134,10 @@ export default function AdminLinksPage() {
                       onClick={() => handlePageChange(meta.page - 1)}
                       disabled={meta.page === 1 || isFetching}
                     >
-                      Previous
+                      Anterior
                     </Button>
                     <span className="flex items-center px-3 text-sm">
-                      Page {meta.page} of {meta.lastPage}
+                      Página {meta.page} de {meta.lastPage}
                     </span>
                     <Button
                       variant="outline"
@@ -145,7 +145,7 @@ export default function AdminLinksPage() {
                       onClick={() => handlePageChange(meta.page + 1)}
                       disabled={!meta.hasMore || isFetching}
                     >
-                      Next
+                      Próxima
                     </Button>
                   </div>
                 </div>
