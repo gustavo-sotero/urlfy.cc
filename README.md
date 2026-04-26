@@ -56,7 +56,7 @@ packages/
   telemetry/       OpenTelemetry helpers, canonical IP derivation
   auth-shared/     Better-Auth config primitives, scopes
   config-ts/       Base tsconfig presets
-  config-biome/    Shared Biome config
+  config-biome/    Biome config package (currently unused; active config is root biome.json)
 docker/
   docker-compose.yml        Dev: PostgreSQL + Redis + GeoIP downloader
   docker-compose.apps.yml   Local multi-service overlay

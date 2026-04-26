@@ -175,12 +175,9 @@ export function getElysiaCorsConfig() {
       const origin = request.headers.get('origin');
       if (!origin) return true;
 
-      if (process.env.NODE_ENV === 'development') {
-        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-          return true;
-        }
-      }
-
+      // Delegate to the validated allowlist for all environments.
+      // This prevents substring-matching attacks (e.g. localhost.attacker.com)
+      // by comparing exact protocol+host+port tuples.
       return isOriginAllowed(origin);
     },
     methods: ALLOWED_METHODS,

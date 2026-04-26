@@ -39,7 +39,7 @@ COPY scripts ./scripts
 
 # Copia código fonte
 COPY src ./src
-COPY drizzle ./drizzle
+COPY packages/data/migrations ./packages/data/migrations
 
 # ── Build-time args for NEXT_PUBLIC_* (inlined by Next.js bundler) ──
 # These MUST be provided as --build-arg during docker build.
@@ -79,7 +79,7 @@ RUN apt-get update && \
 COPY --from=builder --chown=urlfy:urlfy /app/.next/standalone ./
 COPY --from=builder --chown=urlfy:urlfy /app/.next/static ./.next/static
 COPY --from=builder --chown=urlfy:urlfy /app/.next/BUILD_NEXT_PUBLIC_APP_URL ./.next/BUILD_NEXT_PUBLIC_APP_URL
-COPY --from=builder --chown=urlfy:urlfy /app/drizzle ./drizzle
+COPY --from=builder --chown=urlfy:urlfy /app/packages/data/migrations ./drizzle
 
 # Copia migration script, db health check e entrypoint
 COPY --chown=urlfy:urlfy docker/migrate.ts ./migrate.ts

@@ -12,9 +12,9 @@ import { auditLog } from '@urlfy/data/schema/audit';
 import { and, count, desc, eq, ilike, isNull, or } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
-import { redis } from '@/server/lib/redis';
 import { sanitizeSearchQuery } from '@/server/lib/sanitize';
 import { createLogger } from '@/server/lib/telemetry';
+import { cacheService } from '@/server/services/cache.service';
 import { applyPendingClicksToEntities } from '@/server/services/realtime-clicks.service';
 
 const logger = createLogger('admin-links-service');
@@ -66,11 +66,7 @@ export const AdminLinksService = {
 
         try {
           const code = updatedLink.shortCode;
-          await Promise.all([
-            redis.del(`link:${code}`),
-            redis.del(`link:meta:${code}`),
-            redis.set(`link:banned:${code}`, '1', 'EX', 86400)
-          ]);
+          await cacheService.invalidateLinkAndQR(code, 'ban');
         } catch (cacheError) {
           logger.warn('Failed to invalidate cache after ban', {
             cacheError,
@@ -130,11 +126,7 @@ export const AdminLinksService = {
 
         try {
           const code = updatedLink.shortCode;
-          await Promise.all([
-            redis.del(`link:${code}`),
-            redis.del(`link:meta:${code}`),
-            redis.del(`link:banned:${code}`)
-          ]);
+          await cacheService.invalidateLink(code);
         } catch (cacheError) {
           logger.warn('Failed to invalidate cache after unban', {
             cacheError,

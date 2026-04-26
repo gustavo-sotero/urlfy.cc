@@ -6,8 +6,6 @@
       "@urlfy/cache/*": ["../../packages/cache/src/*.ts"],
       "@urlfy/contracts": ["../../packages/contracts/src/index.ts"],
       "@urlfy/contracts/*": ["../../packages/contracts/src/*.ts"],
-      "@urlfy/data": ["../../packages/data/src/index.ts"],
-      "@urlfy/data/*": ["../../packages/data/src/*.ts"],
       "@urlfy/telemetry": ["../../packages/telemetry/src/index.ts"]
     }
   },

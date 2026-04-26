@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
   index,
@@ -8,29 +8,37 @@ import {
   timestamp
 } from 'drizzle-orm/pg-core';
 
-export const user = pgTable('user', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  email: text('email').notNull().unique(),
-  emailVerified: boolean('email_verified').default(false).notNull(),
-  image: text('image'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at')
-    .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-  twoFactorEnabled: boolean('two_factor_enabled').default(false),
-  role: text('role').default('user').notNull(),
-  banned: boolean('banned').default(false),
-  banReason: text('ban_reason'),
-  banExpires: timestamp('ban_expires'),
-  linksQuota: integer('links_quota').default(100).notNull(),
-  linksCount: integer('links_count').default(0).notNull(),
-  bannedAt: timestamp('banned_at'),
-  bannedReason: text('banned_reason'),
-  deletedAt: timestamp('deleted_at'),
-  locale: text('locale').default('en')
-});
+export const user = pgTable(
+  'user',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    email: text('email').notNull().unique(),
+    emailVerified: boolean('email_verified').default(false).notNull(),
+    image: text('image'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    twoFactorEnabled: boolean('two_factor_enabled').default(false),
+    role: text('role').default('user').notNull(),
+    banned: boolean('banned').default(false),
+    banReason: text('ban_reason'),
+    banExpires: timestamp('ban_expires'),
+    linksQuota: integer('links_quota').default(100).notNull(),
+    linksCount: integer('links_count').default(0).notNull(),
+    bannedAt: timestamp('banned_at'),
+    bannedReason: text('banned_reason'),
+    deletedAt: timestamp('deleted_at'),
+    locale: text('locale').default('en')
+  },
+  (table) => [
+    // GIN trigram indexes for admin ILIKE search (pg_trgm)
+    index('idx_user_name_trgm').using('gin', sql`${table.name} gin_trgm_ops`),
+    index('idx_user_email_trgm').using('gin', sql`${table.email} gin_trgm_ops`)
+  ]
+);
 
 export const session = pgTable(
   'session',

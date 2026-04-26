@@ -15,17 +15,30 @@ const KNOWN_TEST_SECRETS = [
   'test-password'
 ];
 
-const secretsToCheck = [
-  { name: 'JWT_SECRET', value: process.env.JWT_SECRET },
-  { name: 'BETTER_AUTH_SECRET', value: process.env.BETTER_AUTH_SECRET },
-  { name: 'AUTH_SECRET', value: process.env.AUTH_SECRET },
-  { name: 'INTERNAL_API_SECRET', value: process.env.INTERNAL_API_SECRET },
+const secretsToCheck: Array<{
+  name: string;
+  value: string | undefined;
+  required: boolean;
+}> = [
+  { name: 'JWT_SECRET', value: process.env.JWT_SECRET, required: true },
+  {
+    name: 'BETTER_AUTH_SECRET',
+    value: process.env.BETTER_AUTH_SECRET,
+    required: true
+  },
+  { name: 'AUTH_SECRET', value: process.env.AUTH_SECRET, required: true },
+  {
+    name: 'INTERNAL_API_SECRET',
+    value: process.env.INTERNAL_API_SECRET,
+    required: true
+  },
   // INTERNAL_ANALYTICS_SECRET is optional but must not be weak if provided
   ...(process.env.INTERNAL_ANALYTICS_SECRET
     ? [
         {
           name: 'INTERNAL_ANALYTICS_SECRET',
-          value: process.env.INTERNAL_ANALYTICS_SECRET
+          value: process.env.INTERNAL_ANALYTICS_SECRET,
+          required: false
         }
       ]
     : [])
@@ -35,9 +48,14 @@ let hasTestSecrets = false;
 
 console.log('🔍 Checking for test secrets in environment...\n');
 
-for (const { name, value } of secretsToCheck) {
+for (const { name, value, required } of secretsToCheck) {
   if (!value) {
-    console.log(`⚠️  ${name}: Not set (will fail in production)`);
+    if (required) {
+      console.error(`❌ ${name}: Not set (mandatory in production)`);
+      hasTestSecrets = true;
+    } else {
+      console.log(`⚠️  ${name}: Not set (optional)`);
+    }
     continue;
   }
 

@@ -1,5 +1,4 @@
 // src/types/links.types.ts
-import type { links } from '@urlfy/data/schema';
 
 // ═══════════════════════════════════════════════════════════════════
 // INPUT TYPES

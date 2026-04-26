@@ -5,10 +5,48 @@
  * authorization, and user management.
  */
 
-import type {
-  Session as DbSession,
-  User as DbUser
-} from '@urlfy/data/schema/auth';
+// ═══════════════════════════════════════════════════════════════════
+// STANDALONE DB-MIRROR TYPES
+// Defined inline so @urlfy/contracts carries no runtime dependency on
+// @urlfy/data.  Shapes mirror the auth schema exactly; TypeScript
+// structural typing ensures full compatibility with Drizzle-inferred
+// types across the monorepo.
+// ═══════════════════════════════════════════════════════════════════
+
+/** Full persisted user record (mirrors `typeof user.$inferSelect`). */
+export interface DbUser {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  image: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  twoFactorEnabled: boolean | null;
+  role: string;
+  banned: boolean | null;
+  banReason: string | null;
+  banExpires: Date | null;
+  linksQuota: number;
+  linksCount: number;
+  bannedAt: Date | null;
+  bannedReason: string | null;
+  deletedAt: Date | null;
+  locale: string | null;
+}
+
+/** Full persisted session record (mirrors `typeof session.$inferSelect`). */
+export interface DbSession {
+  id: string;
+  expiresAt: Date;
+  token: string;
+  createdAt: Date;
+  updatedAt: Date;
+  ipAddress: string | null;
+  userAgent: string | null;
+  userId: string;
+  impersonatedBy: string | null;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // USER TYPES

@@ -69,11 +69,13 @@ jobs:
         run: bun audit --audit-level=moderate
 
       - name: Check for weak/placeholder secrets
-        # Fails CI if any secret environment variable contains a known sentinel
+        # Fails CI if any mandatory secret is missing or contains a known sentinel
         # value (e.g. 'changeme', 'secret', placeholder strings).
         run: bun run scripts/check-test-secrets.ts
         env:
-          BETTER_AUTH_SECRET: ci-audit-secret-minimum-32-characters-long
+          JWT_SECRET: ci-audit-jwt-secret-minimum-32-characters-long
+          BETTER_AUTH_SECRET: ci-audit-better-auth-secret-minimum-32-chars
+          AUTH_SECRET: ci-audit-auth-secret-minimum-32-characters-long
           INTERNAL_API_SECRET: ci-audit-internal-secret-minimum-32-chars
           NODE_ENV: production
 

@@ -17,7 +17,8 @@
     "./schema/links": "./src/schema/links.ts",
     "./schema/reserved-slugs": "./src/schema/reserved-slugs.ts",
     "./cli": "./src/cli.ts",
-    "./scripts/partition-manager": "./src/scripts/partition-manager.ts"
+    "./scripts/partition-manager": "./src/scripts/partition-manager.ts",
+    "./redirect-repository": "./src/redirect-repository.ts"
   },
   "scripts": {
     "type-check": "bunx tsc --noEmit",

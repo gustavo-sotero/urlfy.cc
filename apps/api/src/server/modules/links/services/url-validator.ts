@@ -58,10 +58,52 @@ const BLOCKED_SHORTENERS = new Set([
   'bl.ink'
 ]);
 
+/** Known self-shortener production hostnames (always blocked as redirect targets). */
+const SELF_SHORTENER_HOSTS = new Set(['urlfy.cc', 'www.urlfy.cc']);
+
+/**
+ * Returns the set of hostnames that belong to the urlfy shortener service,
+ * including any additional host from NEXT_PUBLIC_APP_URL.
+ */
+function getSelfShortenerHosts(): Set<string> {
+  const hosts = new Set(SELF_SHORTENER_HOSTS);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (appUrl) {
+    try {
+      hosts.add(new URL(appUrl).hostname.toLowerCase());
+    } catch {
+      // ignore malformed env var
+    }
+  }
+  return hosts;
+}
+
+/**
+ * Returns true when the URL targets the urlfy shortener's own redirect surfaces.
+ * Blocks:
+ *   - {appHost}/r/{code}  — explicit redirect route
+ *   - {appHost}/{code}    — proxy-intercepted shortcode path (3–20 chars)
+ *
+ * Does NOT block multi-segment paths (e.g. /en/about, /docs/api).
+ */
+export function isSelfShortenerTarget(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    if (!getSelfShortenerHosts().has(hostname)) return false;
+    const path = parsed.pathname;
+    // Explicit redirect route
+    if (/^\/r\/[a-zA-Z0-9_-]{3,20}\/?$/.test(path)) return true;
+    // Shortcode-like single-segment path intercepted by the proxy
+    if (/^\/[a-zA-Z0-9_-]{3,20}\/?$/.test(path)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // In-memory cache for banned domains (loaded from database)
-const BLOCKED_DOMAINS = new Set<string>([
-  // Loaded from banned_urls table on init
-]);
+const BLOCKED_DOMAINS = new Set<string>();
 
 // Cache state
 let bannedDomainsLoaded = false;
@@ -78,6 +120,7 @@ export type ValidationError =
   | 'INVALID_FORMAT'
   | 'INVALID_PROTOCOL'
   | 'SHORTENER_BLOCKED'
+  | 'SELF_SHORTENER_BLOCKED'
   | 'DOMAIN_BANNED'
   | 'URL_TOO_LONG'
   | 'URL_INTERNAL_BLOCKED'
@@ -95,6 +138,8 @@ async function loadBannedDomainsFromDb(): Promise<void> {
     return;
   }
 
+  const isFirstLoad = !bannedDomainsLoaded;
+
   try {
     const results = await db
       .select({
@@ -104,20 +149,44 @@ async function loadBannedDomainsFromDb(): Promise<void> {
       .from(bannedUrls)
       .where(eq(bannedUrls.matchType, 'domain'));
 
-    // Clear and reload
-    BLOCKED_DOMAINS.clear();
+    // Build staging set first; only replace the live set on full success
+    const staging = new Set<string>();
     for (const row of results) {
       const normalized = row.urlPattern.replace(/^www\./, '').toLowerCase();
-      BLOCKED_DOMAINS.add(normalized);
+      staging.add(normalized);
+    }
+
+    // Atomic swap: clear and refill from staging in the same sync block
+    BLOCKED_DOMAINS.clear();
+    for (const domain of staging) {
+      BLOCKED_DOMAINS.add(domain);
     }
 
     bannedDomainsLoaded = true;
     bannedDomainsLastLoad = now;
   } catch (error) {
-    // Log but don't fail - continue with in-memory cache
     logger.error('Failed to load banned domains from database', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      snapshotDomains: BLOCKED_DOMAINS.size,
+      isFirstLoad
     });
+
+    if (isFirstLoad) {
+      logger.error(
+        'Banned-domain enforcement is degraded: no snapshot available on first load'
+      );
+      // Do not update bannedDomainsLastLoad so the next request retries
+    } else {
+      logger.warn(
+        'Banned-domain reload failed; retaining last-known-good snapshot',
+        {
+          snapshotAge:
+            Math.round((now - bannedDomainsLastLoad) / 1000).toString() + 's'
+        }
+      );
+      // Update timestamp to avoid hammering the DB on every request
+      bannedDomainsLastLoad = now;
+    }
   }
 }
 
@@ -180,13 +249,18 @@ export function validateUrl(url: string): ValidationResult {
     return { valid: false, error: 'INVALID_PROTOCOL' };
   }
 
-  // 4. Block other URL shorteners
+  // 4. Block self-shortener targets (prevents shortlink loops)
+  if (isSelfShortenerTarget(url)) {
+    return { valid: false, error: 'SELF_SHORTENER_BLOCKED' };
+  }
+
+  // 5. Block other URL shorteners
   const domain = parsed.hostname.replace(/^www\./, '').toLowerCase();
   if (BLOCKED_SHORTENERS.has(domain)) {
     return { valid: false, error: 'SHORTENER_BLOCKED' };
   }
 
-  // 5. Domain blacklist (from in-memory cache)
+  // 6. Domain blacklist (from in-memory cache)
   if (BLOCKED_DOMAINS.has(domain)) {
     return { valid: false, error: 'DOMAIN_BANNED' };
   }

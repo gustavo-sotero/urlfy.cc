@@ -22,10 +22,8 @@
   "dependencies": {
     "@urlfy/cache": "workspace:*",
     "@urlfy/contracts": "workspace:*",
-    "@urlfy/data": "workspace:*",
     "@urlfy/telemetry": "workspace:*",
-    "@opentelemetry/api": "catalog:",
-    "drizzle-orm": "catalog:"
+    "@opentelemetry/api": "catalog:"
   },
   "devDependencies": {
     "@urlfy/config-ts": "workspace:*"

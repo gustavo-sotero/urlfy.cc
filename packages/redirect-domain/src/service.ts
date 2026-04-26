@@ -13,6 +13,39 @@ import { validateLink } from './validator';
 const logger = createLogger('redirect-service');
 const tracer = trace.getTracer('redirect-service');
 
+/** Canonical self-shortener hostnames for redirect-loop detection. */
+const SELF_SHORTENER_HOSTS = new Set(['urlfy.cc', 'www.urlfy.cc']);
+
+/**
+ * Returns true when the resolved URL would re-enter the shortener's own
+ * redirect handler, forming a self-referential loop.
+ * Matches:
+ *   - {appHost}/r/{code}  — explicit redirect route
+ *   - {appHost}/{code}    — proxy-intercepted shortcode path (3–20 chars)
+ */
+function isSelfShortenerLoop(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const selfHosts = new Set(SELF_SHORTENER_HOSTS);
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (appUrl) {
+      try {
+        selfHosts.add(new URL(appUrl).hostname.toLowerCase());
+      } catch {
+        // ignore malformed env var
+      }
+    }
+    if (!selfHosts.has(hostname)) return false;
+    const path = parsed.pathname;
+    if (/^\/r\/[a-zA-Z0-9_-]{3,20}\/?$/.test(path)) return true;
+    if (/^\/[a-zA-Z0-9_-]{3,20}\/?$/.test(path)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 const defaultRedirectServiceDependencies: RedirectServiceDependencies = {
   fetchLink: (code) => getLink(code),
   isCodeAvailable: (code) => isCodeAvailable(code),
@@ -94,26 +127,7 @@ export class RedirectService {
       },
       async (span) => {
         try {
-          // 1. Check redirect depth
-          if (depth >= 3) {
-            logger.warn('Redirect loop detected', {
-              code,
-              depth,
-              requestId: resolvedInput.requestMeta?.requestId
-            });
-            span.setStatus({ code: 1, message: 'REDIRECT_LOOP' });
-
-            recordRedirectMetrics({
-              latencyMs: performance.now() - startTime,
-              success: false,
-              cacheHit: false,
-              errorType: 'REDIRECT_LOOP'
-            });
-
-            return { success: false, error: 'REDIRECT_LOOP' as RedirectError };
-          }
-
-          // 2. Fetch link (cache-first with fallback) via Fetcher
+          // 1. Fetch link (cache-first with fallback) via Fetcher
           const resolved = await this.dependencies.fetchLink(code);
           const link = resolved.link;
           cacheHit = resolved.cacheHit;
@@ -155,6 +169,31 @@ export class RedirectService {
 
           // 4. Build final URL with UTMs
           const finalUrl = this.dependencies.buildFinalUrl(link);
+
+          // 5. Server-side redirect-loop detection
+          // Checks the resolved destination URL rather than a client-controlled
+          // header, so the guard works correctly across real browser hops.
+          if (isSelfShortenerLoop(finalUrl)) {
+            logger.warn('Redirect loop detected via destination URL', {
+              code,
+              finalUrl,
+              requestId: resolvedInput.requestMeta?.requestId
+            });
+            span.setStatus({ code: 1, message: 'REDIRECT_LOOP' });
+
+            recordRedirectMetrics({
+              latencyMs: performance.now() - startTime,
+              success: false,
+              cacheHit,
+              errorType: 'REDIRECT_LOOP'
+            });
+
+            return {
+              success: false,
+              error: 'REDIRECT_LOOP' as RedirectError,
+              linkId: link.id
+            };
+          }
 
           const latency = performance.now() - startTime;
           logger.info('Redirect resolved', {

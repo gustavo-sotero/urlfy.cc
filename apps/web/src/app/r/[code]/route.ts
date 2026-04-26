@@ -19,21 +19,18 @@ import {
   STREAM_NAMES
 } from '@urlfy/cache';
 import { REDIRECT_RATE_LIMIT_CONFIG } from '@urlfy/contracts';
-import { redirectService } from '@urlfy/redirect-domain';
 import { createLogger, fireAndForget } from '@urlfy/telemetry';
 import { cookies } from 'next/headers';
 import { type NextRequest, NextResponse } from 'next/server';
 import { getClientIp } from '@/server/lib/ip';
 import { rateLimiter } from '@/server/lib/rate-limiter';
 import { MetricsService } from '@/server/services/metrics.service';
+import { redirectService } from '@/server/services/redirect-service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const logger = createLogger('redirect-handler');
-
-/** Maximum redirect depth to prevent loops */
-const MAX_REDIRECT_DEPTH = 3;
 
 /** Public app base URL for user-facing redirects */
 function getPublicBaseUrl(): string {
@@ -167,7 +164,7 @@ function handleError(
 
 /**
  * Dispatch click analytics event to Redis stream (non-blocking).
- * Reverts the pending live-click delta if enqueueing fails.
+ * Increments pending clicks and reverts on stream-enqueue failure.
  */
 function dispatchAnalytics(
   request: NextRequest,
@@ -179,6 +176,10 @@ function dispatchAnalytics(
   fireAndForget(
     'analytics-emit',
     async () => {
+      // Increment pending clicks inside the fire-and-forget so it does not
+      // block the redirect response. The drain on failure keeps the counter
+      // consistent if the stream enqueue fails.
+      await incrementPendingClicks(linkId);
       try {
         await RedisStream.add(STREAM_NAMES.analyticsClicks, {
           linkId,
@@ -218,15 +219,7 @@ export async function GET(
   const clientIp = getClientIp(request);
 
   try {
-    // ── 1. Redirect depth check ──────────────────────────────────
-    const depthHeader = request.headers.get('x-redirect-depth');
-    const depth = depthHeader ? Number.parseInt(depthHeader, 10) : 0;
-
-    if (depth >= MAX_REDIRECT_DEPTH) {
-      return handleError('REDIRECT_LOOP', code, requestId);
-    }
-
-    // ── 2. Rate limiting (IP + per-link) ─────────────────────────
+    // ── 1. Rate limiting (IP + per-link) ─────────────────────────
     const redirectConfig = REDIRECT_RATE_LIMIT_CONFIG;
     if (redirectConfig) {
       // Run both checks in parallel — they are independent Redis operations
@@ -258,7 +251,7 @@ export async function GET(
       }
     }
 
-    // ── 3. Password token verification ───────────────────────────
+    // ── 2. Password token verification ───────────────────────────
     let bypassPassword = false;
     const cookieStore = await cookies();
     const passwordToken = cookieStore.get(`urlfy_unlock_${code}`)?.value;
@@ -267,22 +260,21 @@ export async function GET(
       bypassPassword = verifyUnlockToken(passwordToken, code);
     }
 
-    // ── 4. Track RPS metrics (non-blocking) ──────────────────────
+    // ── 3. Track RPS metrics (non-blocking) ──────────────────────
     fireAndForget('rps-metrics', () => MetricsService.trackRequest(), {
       shortCode: code
     });
 
-    // ── 5. Resolve link (cache-first → DB fallback) ──────────────
+    // ── 4. Resolve link (cache-first → DB fallback) ──────────────
     const result = await redirectService.resolve({
       linkCode: code,
-      currentDepth: depth,
+      currentDepth: 0,
       bypassPassword,
       requestMeta: {
         ip: clientIp,
         userAgent: request.headers.get('user-agent'),
         referrer: request.headers.get('referer'),
-        requestId,
-        depth
+        requestId
       }
     });
 
@@ -290,22 +282,14 @@ export async function GET(
       return handleError(result.error || 'UNKNOWN_ERROR', code, requestId);
     }
 
-    // ── 6. Dispatch analytics (fire-and-forget) ──────────────────
+    // ── 5. Dispatch analytics (fire-and-forget) ──────────────────
+    // Pending-click increment and stream enqueue happen inside dispatchAnalytics
+    // so the redirect response is not blocked by Redis writes.
     if (result.linkId) {
-      await incrementPendingClicks(result.linkId);
       dispatchAnalytics(request, code, result.linkId);
     }
 
-    // ── 7. Log and return redirect ───────────────────────────────
-    const latency = performance.now() - startTime;
-    logger.info('Redirect completed', {
-      shortCode: code,
-      redirectType: result.redirectType,
-      latencyMs: latency.toFixed(2),
-      cacheHit: result.cacheHit ?? false,
-      requestId
-    });
-
+    // ── 6. Return redirect ───────────────────────────────────────
     const redirectUrl = result.url ?? `${getPublicBaseUrl()}/`;
     const redirectType = (result.redirectType as 301 | 302) ?? 302;
 
@@ -313,7 +297,6 @@ export async function GET(
       status: redirectType,
       headers: {
         'X-Request-Id': requestId,
-        'X-Redirect-Depth': String(depth + 1),
         'X-Cache-Status': result.cacheHit ? 'HIT' : 'MISS',
         'Cache-Control': 'no-store, no-cache, must-revalidate',
         'X-Content-Type-Options': 'nosniff'

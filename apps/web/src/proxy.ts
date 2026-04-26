@@ -13,7 +13,6 @@
  *    - If YES: Use next-intl middleware
  * 4. If NO (e.g., /abc1234): Treat as potential Short URL
  *
- * @see docs/architecture/edge-proxy.md
  * @see .github/prompts/plan-i18nImplementation.prompt.md
  * ═════════════════════════════════════════════════════════════════════
  */
@@ -92,8 +91,6 @@ export async function proxy(req: NextRequest) {
   const isProduction = process.env.NODE_ENV === 'production';
   const csp = buildCspDirectives({ nonce, isProduction });
   const requestHeaders = new Headers(req.headers);
-
-  requestHeaders.delete('x-redirect-depth');
 
   requestHeaders.set('x-csp-nonce', nonce);
   const requestWithNonce = new NextRequest(req, { headers: requestHeaders });

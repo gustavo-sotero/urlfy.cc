@@ -10,7 +10,7 @@
  *  2. Inactive / banned / expired / maxClicks link → 410 / 451
  *  3. Password-protected link without cookie → 302 to /unlock/:code
  *  4. Password-protected link with valid unlock cookie → 3xx redirect
- *  5. Redirect depth ≥ 3 → 421 Misdirected Request
+ *  5. Redirect loop detected by service (REDIRECT_LOOP) → 421
  *  6. Rate-limited request → 429 with Retry-After header
  *  7. Analytics fire-and-forget — does NOT block the response
  *  8. Unlock token lifecycle — exp enforcement, signature validation
@@ -59,7 +59,7 @@ let mockResolveResult: RedirectResult = {
   error: 'NOT_FOUND'
 };
 
-mock.module('@urlfy/redirect-domain', () => ({
+mock.module('@/server/services/redirect-service', () => ({
   redirectService: {
     resolve: async (
       _code: string,
@@ -239,32 +239,13 @@ describe('GET /r/[code] — redirect hot path', () => {
     expect(res.headers.get('location')).toContain('/unlock/locked1');
   });
 
-  // ── 4. Depth guard ────────────────────────────────────────────────────────────
+  // ── 4. Redirect loop ─────────────────────────────────────────────────────────
 
-  it('returns 421 Misdirected Request when x-redirect-depth is 3', async () => {
-    const res = await callGET('abc1234', { 'x-redirect-depth': '3' });
+  it('returns 421 Misdirected Request when service returns REDIRECT_LOOP', async () => {
+    mockResolveResult = { success: false, error: 'REDIRECT_LOOP' };
+    const res = await callGET('abc1234');
     expect(res.status).toBe(421);
     expect(res.headers.get('x-error-code')).toBe('REDIRECT_LOOP');
-  });
-
-  it('returns 421 when depth exceeds 3', async () => {
-    const res = await callGET('abc1234', { 'x-redirect-depth': '5' });
-    expect(res.status).toBe(421);
-  });
-
-  it('proceeds normally when x-redirect-depth is 2', async () => {
-    mockResolveResult = {
-      success: true,
-      url: 'https://example.com',
-      redirectType: 302,
-      linkId: 'link-1',
-      cacheHit: false
-    };
-    const res = await callGET('abc1234', { 'x-redirect-depth': '2' });
-    expect(res.status).toBe(302);
-    // NextResponse.redirect normalises the URL (adds trailing slash for bare hosts)
-    // biome-ignore lint/style/noNonNullAssertion: location header is set on a 302 response
-    expect(new URL(res.headers.get('location')!).hostname).toBe('example.com');
   });
 
   // ── 5. Rate limiting ──────────────────────────────────────────────────────────
@@ -333,18 +314,6 @@ describe('GET /r/[code] — redirect hot path', () => {
     };
     const res = await callGET('abc1234');
     expect(res.headers.get('x-cache-status')).toBe('MISS');
-  });
-
-  it('increments X-Redirect-Depth in the response headers', async () => {
-    mockResolveResult = {
-      success: true,
-      url: 'https://example.com',
-      redirectType: 302,
-      linkId: 'link-4',
-      cacheHit: false
-    };
-    const res = await callGET('abc1234', { 'x-redirect-depth': '1' });
-    expect(res.headers.get('x-redirect-depth')).toBe('2');
   });
 
   // ── 7. Analytics fire-and-forget ─────────────────────────────────────────────

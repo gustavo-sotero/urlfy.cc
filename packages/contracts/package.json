@@ -21,8 +21,7 @@
     "lint": "bunx biome check . --write"
   },
   "dependencies": {
-    "@urlfy/auth-shared": "workspace:*",
-    "@urlfy/data": "workspace:*"
+    "@urlfy/auth-shared": "workspace:*"
   },
   "devDependencies": {
     "@urlfy/config-ts": "workspace:*"

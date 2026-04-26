@@ -5,7 +5,38 @@
  */
 
 import type { Scope } from '@urlfy/auth-shared';
-import type { ApiKey as DbApiKey } from '@urlfy/data/schema/auth';
+
+/**
+ * Full persisted API key record (mirrors `typeof apikey.$inferSelect`).
+ * Defined inline so @urlfy/contracts carries no runtime dependency on @urlfy/data.
+ */
+export interface DbApiKey {
+  id: string;
+  name: string | null;
+  prefix: string;
+  keyHash: string;
+  userId: string;
+  refillInterval: number | null;
+  refillAmount: number | null;
+  lastRefillAt: Date | null;
+  enabled: boolean | null;
+  rateLimit: boolean | null;
+  rateLimitEnabled: boolean | null;
+  rateLimitTimeWindow: number | null;
+  rateLimitMax: number | null;
+  requestCount: number | null;
+  usageCount: number | null;
+  remaining: number | null;
+  lastRequest: Date | null;
+  lastUsedAt: Date | null;
+  expiresAt: Date | null;
+  revokedAt: Date | null;
+  deletedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  permissions: string | null;
+  metadata: string | null;
+}
 
 /**
  * API Key as returned to the user (sensitive fields omitted).

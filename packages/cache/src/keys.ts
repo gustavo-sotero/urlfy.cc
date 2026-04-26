@@ -24,6 +24,9 @@ export const CACHE_KEYS = {
   QR_CODE: (code: string, size: number, format: string) =>
     `qr:${code}:${size}:${format}`,
 
+  /** Set tracking all QR cache keys for a given short code (for O(M) invalidation) */
+  QR_KEYS_SET: (code: string) => `qr:keys:${code}`,
+
   // ═══════════════════════════════════════════════════════════════════
   // ANALYTICS CACHE KEYS (NEW)
   // ═══════════════════════════════════════════════════════════════════

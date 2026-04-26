@@ -8,8 +8,6 @@ import {
 } from '@urlfy/cache';
 import { CircuitBreaker } from '@urlfy/cache/circuit-breaker';
 import type { CachedLink } from '@urlfy/contracts/redirect';
-import { db } from '@urlfy/data';
-import * as schema from '@urlfy/data/schema';
 import {
   createLogger,
   recordCacheHit,
@@ -18,11 +16,8 @@ import {
   stampedeLocksAcquired,
   stampedeLocksWaited
 } from '@urlfy/telemetry';
-import { eq } from 'drizzle-orm';
 import { CACHE_TTL, cacheService } from './cache-service';
 import type { LinkFetchResult, RedirectFetcherDependencies } from './types';
-
-const { links } = schema;
 
 const logger = createLogger('redirect-fetcher');
 const tracer = trace.getTracer('redirect-fetcher');
@@ -38,51 +33,6 @@ const dbCircuitBreaker = new CircuitBreaker({
   timeout: 30000,
   resetTimeout: 10000
 });
-
-async function findLinkByCodeFromDatabase(
-  code: string
-): Promise<CachedLink | null> {
-  const results = await db
-    .select({
-      id: links.id,
-      originalUrl: links.originalUrl,
-      redirectType: links.redirectType,
-      isActive: links.isActive,
-      isBanned: links.isBanned,
-      expiresAt: links.expiresAt,
-      maxClicks: links.maxClicks,
-      clicksCount: links.clicksCount,
-      passwordHash: links.passwordHash,
-      utmSource: links.utmSource,
-      utmMedium: links.utmMedium,
-      utmCampaign: links.utmCampaign
-    })
-    .from(links)
-    .where(eq(links.shortCode, code))
-    .limit(1);
-
-  const link = results[0];
-
-  if (!link) {
-    logger.debug('Link not found in database', { code });
-    return null;
-  }
-
-  return {
-    id: link.id,
-    originalUrl: link.originalUrl,
-    redirectType: link.redirectType as 301 | 302,
-    isActive: link.isActive,
-    isBanned: link.isBanned,
-    expiresAt: link.expiresAt?.toISOString() ?? null,
-    maxClicks: link.maxClicks,
-    clicksCount: link.clicksCount,
-    passwordHash: link.passwordHash,
-    utmSource: link.utmSource,
-    utmMedium: link.utmMedium,
-    utmCampaign: link.utmCampaign
-  } as CachedLink;
-}
 
 async function applyPendingClicks(
   link: CachedLink | null
@@ -103,21 +53,23 @@ async function applyPendingClicks(
   };
 }
 
-async function checkCodeAvailabilityInDatabase(code: string): Promise<boolean> {
-  const results = await db
-    .select({ id: links.id })
-    .from(links)
-    .where(eq(links.shortCode, code))
-    .limit(1);
-
-  return results.length === 0;
-}
-
 export const defaultRedirectFetcherDependencies: RedirectFetcherDependencies = {
   cache: cacheService,
   links: {
-    findByCode: findLinkByCodeFromDatabase,
-    isCodeAvailable: checkCodeAvailabilityInDatabase
+    findByCode: (_code: string) => {
+      throw new Error(
+        '[redirect-domain] No links repository configured. ' +
+          'Wire createRedirectLinkRepository() from @urlfy/data/redirect-repository ' +
+          'before calling redirectService.'
+      );
+    },
+    isCodeAvailable: (_code: string) => {
+      throw new Error(
+        '[redirect-domain] No links repository configured. ' +
+          'Wire createRedirectLinkRepository() from @urlfy/data/redirect-repository ' +
+          'before calling redirectService.'
+      );
+    }
   },
   lock: {
     acquire: (key, ttlMs) => acquireLock(key, ttlMs),
@@ -206,7 +158,14 @@ export async function getLink(
               span.setAttribute('cache.type', 'link');
               span.setAttribute('cache.hit', true);
               recordCacheHit(1, { type: 'link' });
-              return { link: await applyPendingClicks(parsed), cacheHit: true };
+              // Only overlay pending clicks when MAX_CLICKS enforcement is
+              // active. Links without a click limit don't need the extra
+              // Redis round-trip on the hot path.
+              const link =
+                parsed.maxClicks != null
+                  ? await applyPendingClicks(parsed)
+                  : parsed;
+              return { link, cacheHit: true };
             }
           } else {
             // No _cachedAt timestamp — serve normally
@@ -214,7 +173,11 @@ export async function getLink(
             span.setAttribute('cache.type', 'link');
             span.setAttribute('cache.hit', true);
             recordCacheHit(1, { type: 'link' });
-            return { link: await applyPendingClicks(parsed), cacheHit: true };
+            const link =
+              parsed.maxClicks != null
+                ? await applyPendingClicks(parsed)
+                : parsed;
+            return { link, cacheHit: true };
           }
         }
 

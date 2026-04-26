@@ -1,5 +1,6 @@
 // src/server/modules/links/services/qr.service.ts
 
+import { CACHE_KEYS, CACHE_TTL as CANONICAL_CACHE_TTL } from '@urlfy/cache';
 import QRCode from 'qrcode';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
@@ -10,9 +11,6 @@ export type { QRFormat, QRSize } from './qr.utils';
 export { validateQRFormat, validateQRSize } from './qr.utils';
 
 const logger = createLogger('qr-service');
-
-const CACHE_TTL = 86400; // 24 hours
-const QR_KEYS_SET_PREFIX = 'qr:keys:'; // Tracking set prefix
 
 /**
  * Generate a QR Code for a shortened link
@@ -30,7 +28,7 @@ export async function generateQRCode(
   size: QRSize = 200,
   format: QRFormat = 'png'
 ): Promise<Buffer | string> {
-  const cacheKey = `qr:${code}:${size}:${format}`;
+  const cacheKey = CACHE_KEYS.QR_CODE(code, size, format);
 
   try {
     // Check cache
@@ -59,9 +57,9 @@ export async function generateQRCode(
     result = await QRCode.toString(shortUrl, { ...options, type: 'svg' });
 
     try {
-      await redis.set(cacheKey, result, 'EX', CACHE_TTL);
+      await redis.set(cacheKey, result, 'EX', CANONICAL_CACHE_TTL.QR_CODE);
       // Track the cache key in a Set for efficient invalidation (O(M) vs O(N) SCAN)
-      await redis.send('SADD', [`${QR_KEYS_SET_PREFIX}${code}`, cacheKey]);
+      await redis.send('SADD', [CACHE_KEYS.QR_KEYS_SET(code), cacheKey]);
     } catch (error) {
       logger.warn('Failed to cache QR SVG', {
         code,
@@ -72,9 +70,14 @@ export async function generateQRCode(
     result = await QRCode.toBuffer(shortUrl, { ...options, type: 'png' });
 
     try {
-      await redis.set(cacheKey, result.toString('base64'), 'EX', CACHE_TTL);
+      await redis.set(
+        cacheKey,
+        result.toString('base64'),
+        'EX',
+        CANONICAL_CACHE_TTL.QR_CODE
+      );
       // Track the cache key in a Set for efficient invalidation (O(M) vs O(N) SCAN)
-      await redis.send('SADD', [`${QR_KEYS_SET_PREFIX}${code}`, cacheKey]);
+      await redis.send('SADD', [CACHE_KEYS.QR_KEYS_SET(code), cacheKey]);
     } catch (error) {
       logger.warn('Failed to cache QR PNG', {
         code,
@@ -94,7 +97,7 @@ export async function generateQRCode(
  */
 export async function invalidateQRCache(code: string): Promise<void> {
   try {
-    const setKey = `${QR_KEYS_SET_PREFIX}${code}`;
+    const setKey = CACHE_KEYS.QR_KEYS_SET(code);
 
     // Use the tracking Set for O(M) invalidation instead of O(N) SCAN
     const qrKeys = (await redis.send('SMEMBERS', [setKey])) as string[];

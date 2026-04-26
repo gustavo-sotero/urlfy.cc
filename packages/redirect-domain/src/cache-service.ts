@@ -284,7 +284,7 @@ export class CacheService {
       ];
 
       // Remove related QR codes using the tracking Set (O(M) vs O(N) SCAN)
-      const qrSetKey = `qr:keys:${code}`;
+      const qrSetKey = CACHE_KEYS.QR_KEYS_SET(code);
       const qrKeys = (await redis.send('SMEMBERS', [qrSetKey])) as string[];
 
       if (qrKeys.length > 0) {

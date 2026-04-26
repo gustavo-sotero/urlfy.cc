@@ -99,8 +99,9 @@ async function reserveQuotaUnit(
       keyId,
       error: error instanceof Error ? error.message : String(error)
     });
-    // Fail-open: allow the request but log the failure
-    return { remaining: 0 };
+    // Fail-closed: treat DB write failure as quota exhausted to prevent abuse
+    // during infrastructure degradation.
+    return null;
   }
 }
 

@@ -1,5 +1,5 @@
--- P1-P5 (secondary): Add GIN trigram indexes on user name/email for admin search
--- The pg_trgm extension is already enabled by 0002_add_trgm_indexes.sql
+-- Add GIN trigram indexes on user name/email for admin search.
+-- The pg_trgm extension is already enabled by 0000_panoramic_deathstrike.sql.
 -- These indexes accelerate admin ILIKE '%term%' queries on the user table.
 
 CREATE INDEX IF NOT EXISTS "idx_user_name_trgm"
