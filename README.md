@@ -106,7 +106,6 @@ bun run dev
 | `bun run type-check` | Type-check all workspaces |
 | `bun run test` | All test suites |
 | `bun run test:unit` / `test:integration` / `test:e2e` | Scoped test runs |
-| `bun run test:load` | Redirect load validation (k6) |
 | `bun run docker:up` | Start PostgreSQL + Redis locally |
 | `bun run db:migrate` | Apply database migrations |
 
@@ -118,7 +117,7 @@ bun run dev
 
 1. Check Redis (`link:{code}`, TTL 1h) — serve immediately on hit
 2. On miss: acquire distributed lock (SETNX, TTL 5s), query PostgreSQL, populate cache
-3. Validate: `isActive`, `!isBanned`, `!expired`, `clicks < maxClicks`, `X-Redirect-Depth < 3`
+3. Validate: `isActive`, `!isBanned`, `!expired`, `clicks < maxClicks`, destination URL is not a self-shortener loop
 4. Fire-and-forget analytics via Redis Streams
 5. Return 301/302 with `X-Request-Id`
 
@@ -149,7 +148,7 @@ No double-charging within a single request path.
 
 - **IP derivation:** canonical helpers in `@urlfy/telemetry` (`getClientIp`, `getClientIpFromHeaders`); direct proxy-header parsing in app code is forbidden and CI-enforced.
 - **URL validation:** format, protocol (`http`/`https` only), domain blacklist, shortener block.
-- **Redirect loop guard:** `X-Redirect-Depth` header; max depth 3 → HTTP 421.
+- **Redirect loop guard:** destination URL is checked server-side for self-shortener patterns → HTTP 421.
 - **IP anonymization:** SHA-256 hash stored; raw IP never persisted.
 - **Runtime secret guards:** `BETTER_AUTH_SECRET` and other critical env vars reject placeholder values at boot.
 

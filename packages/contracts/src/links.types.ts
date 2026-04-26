@@ -80,7 +80,71 @@ export interface LinkResponse {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// DB TYPES (inferred from Drizzle)
+// DB TYPES
+// Defined inline so @urlfy/contracts carries no runtime dependency on
+// @urlfy/data. Shapes mirror the links schema exactly; TypeScript
+// structural typing ensures full compatibility with Drizzle-inferred
+// types across the monorepo.
 // ═══════════════════════════════════════════════════════════════════
-export type Link = typeof links.$inferSelect;
-export type NewLink = typeof links.$inferInsert;
+
+/** Full persisted link record (mirrors `typeof links.$inferSelect`). */
+export interface Link {
+  id: string;
+  userId: string | null;
+  originalUrl: string;
+  shortCode: string;
+  redirectType: number;
+  clicksCount: number;
+  maxClicks: number | null;
+  passwordHash: string | null;
+  isActive: boolean;
+  isBanned: boolean;
+  bannedAt: Date | null;
+  bannedReason: string | null;
+  expiresAt: Date | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  metaImage: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  lastClickedAt: Date | null;
+  qrGeneratedAt: Date | null;
+  createdByIpHash: string | null;
+  tags: string[] | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+}
+
+/** Link insert payload (mirrors `typeof links.$inferInsert`). */
+export interface NewLink {
+  id?: string;
+  userId?: string | null;
+  originalUrl: string;
+  shortCode: string;
+  redirectType?: number | null;
+  clicksCount?: number;
+  maxClicks?: number | null;
+  passwordHash?: string | null;
+  isActive?: boolean;
+  isBanned?: boolean;
+  bannedAt?: Date | null;
+  bannedReason?: string | null;
+  expiresAt?: Date | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  metaImage?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  lastClickedAt?: Date | null;
+  qrGeneratedAt?: Date | null;
+  createdByIpHash?: string | null;
+  tags?: string[] | null;
+  notes?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+  deletedAt?: Date | null;
+}

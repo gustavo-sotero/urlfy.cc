@@ -23,7 +23,6 @@ import { Elysia, type TSchema, t } from 'elysia';
 
 /**
  * All possible error codes used in the API.
- * Aligned with docs/api/endpoints.md
  */
 export const ErrorCodes = t.Union(
   [

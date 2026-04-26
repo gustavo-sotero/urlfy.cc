@@ -62,7 +62,6 @@
     "test:integration": "turbo run test:integration",
     "test:security": "turbo run test:security",
     "test:perf": "turbo run test:perf",
-    "test:load": "bun run scripts/run-k6.ts load/k6/redirect-hot-path.js",
     "test:redirect": "bun test apps/web/src/server/services/__tests__/redirect.service.test.ts",
     "test:e2e": "bunx playwright test",
     "check:secrets": "bun run scripts/check-test-secrets.ts",

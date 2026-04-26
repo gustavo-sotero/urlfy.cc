@@ -18,7 +18,7 @@ export function SecurityAuthorCtaSection({ t }: SecurityAuthorCtaSectionProps) {
                 {t('security.title')}
               </h2>
               <a
-                href="https://github.com/gustavo-sotero/urlfy.cc/blob/main/docs/architecture/security.md"
+                href="https://github.com/gustavo-sotero/urlfy.cc/blob/main/README.md#security"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-sm text-primary hover:underline"

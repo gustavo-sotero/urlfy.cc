@@ -25,7 +25,7 @@ export function ArchitectureSection({ t }: ArchitectureSectionProps) {
                 {t('architecture.subtitle')}
               </p>
               <a
-                href="https://github.com/gustavo-sotero/urlfy.cc/blob/main/docs/architecture/overview.md"
+                href="https://github.com/gustavo-sotero/urlfy.cc/blob/main/README.md#key-design-decisions"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
@@ -89,7 +89,7 @@ export function ArchitectureSection({ t }: ArchitectureSectionProps) {
                 {t('infrastructure.subtitle')}
               </p>
               <a
-                href="https://github.com/gustavo-sotero/urlfy.cc/blob/main/docs/architecture/overview.md"
+                href="https://github.com/gustavo-sotero/urlfy.cc/blob/main/README.md#topology"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-sm text-primary hover:underline"

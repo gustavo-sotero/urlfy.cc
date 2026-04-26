@@ -224,7 +224,6 @@
       "version": "0.0.0",
       "dependencies": {
         "@urlfy/auth-shared": "workspace:*",
-        "@urlfy/data": "workspace:*",
       },
       "devDependencies": {
         "@urlfy/config-ts": "workspace:*",
@@ -235,6 +234,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@logtape/drizzle-orm": "catalog:",
+        "@urlfy/contracts": "workspace:*",
         "@urlfy/telemetry": "workspace:*",
         "drizzle-orm": "catalog:",
         "nanoid": "^5.1.6",
@@ -282,9 +282,7 @@
         "@opentelemetry/api": "catalog:",
         "@urlfy/cache": "workspace:*",
         "@urlfy/contracts": "workspace:*",
-        "@urlfy/data": "workspace:*",
         "@urlfy/telemetry": "workspace:*",
-        "drizzle-orm": "catalog:",
       },
       "devDependencies": {
         "@urlfy/config-ts": "workspace:*",

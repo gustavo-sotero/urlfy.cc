@@ -80,7 +80,7 @@ services:
 # ═════════════════════════════════════════════════════════════════════
 # NOTE: When scaling beyond 2 application processes, add PgBouncer
 # for connection pooling. Current max_connections=20 per process
-# may exhaust PostgreSQL limits. See docs/architecture/overview.md
+# may exhaust PostgreSQL limits. See README.md for connection pooling guidance.
 # ═════════════════════════════════════════════════════════════════════
 volumes:
   postgres_data:

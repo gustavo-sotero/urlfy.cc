@@ -16,7 +16,11 @@ import {
   stampedeLocksAcquired,
   stampedeLocksWaited
 } from '@urlfy/telemetry';
-import { CACHE_TTL, cacheService } from './cache-service';
+import {
+  CACHE_TTL,
+  cacheService,
+  shouldTriggerEarlyRefresh
+} from './cache-service';
 import type { LinkFetchResult, RedirectFetcherDependencies } from './types';
 
 const logger = createLogger('redirect-fetcher');
@@ -139,40 +143,26 @@ export async function getLink(
           const cachedAt = (parsed as CachedLink & { _cachedAt?: number })
             ._cachedAt;
 
-          if (typeof cachedAt === 'number' && cachedAt > 0) {
-            const elapsed = (Date.now() - cachedAt) / 1000;
-            const remainingTtl = Math.max(0, originalTtl - elapsed);
-
-            if (
-              remainingTtl < originalTtl * 0.1 &&
-              (dependencies.random?.() ?? Math.random()) < 0.1
-            ) {
-              logger.debug('Probabilistic early expiration triggered', {
-                code,
-                remainingTtl: Math.round(remainingTtl),
-                threshold: originalTtl * 0.1
-              });
-              // Fall through to stampede path for refresh
-            } else {
-              logger.debug('Link cache hit', { code });
-              span.setAttribute('cache.type', 'link');
-              span.setAttribute('cache.hit', true);
-              recordCacheHit(1, { type: 'link' });
-              // Only overlay pending clicks when MAX_CLICKS enforcement is
-              // active. Links without a click limit don't need the extra
-              // Redis round-trip on the hot path.
-              const link =
-                parsed.maxClicks != null
-                  ? await applyPendingClicks(parsed)
-                  : parsed;
-              return { link, cacheHit: true };
-            }
+          if (
+            shouldTriggerEarlyRefresh(
+              cachedAt,
+              originalTtl,
+              dependencies.random
+            )
+          ) {
+            logger.debug('Probabilistic early expiration triggered', {
+              code,
+              threshold: originalTtl * 0.1
+            });
+            // Fall through to stampede path for refresh
           } else {
-            // No _cachedAt timestamp — serve normally
             logger.debug('Link cache hit', { code });
             span.setAttribute('cache.type', 'link');
             span.setAttribute('cache.hit', true);
             recordCacheHit(1, { type: 'link' });
+            // Only overlay pending clicks when MAX_CLICKS enforcement is
+            // active. Links without a click limit don't need the extra
+            // Redis round-trip on the hot path.
             const link =
               parsed.maxClicks != null
                 ? await applyPendingClicks(parsed)

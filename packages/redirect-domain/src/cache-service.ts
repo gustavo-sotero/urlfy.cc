@@ -37,6 +37,33 @@ export const CACHE_PREFIX = {
 } as const;
 
 /**
+ * Returns true when a cached entry is near expiry and should be proactively
+ * refreshed (probabilistic early expiration / XFetch).
+ *
+ * Triggers when ALL conditions hold:
+ *   - `_cachedAt` timestamp is present in the cached value
+ *   - remaining TTL is below 10% of `originalTtl`
+ *   - random roll falls below 10%
+ *
+ * Centralised here so `getLink()` and the redirect fetcher share a single
+ * tested implementation with no parameter drift.
+ *
+ * @param cachedAt   - Unix ms timestamp embedded in the cached value (`_cachedAt`)
+ * @param originalTtl - Original TTL in seconds
+ * @param random     - Random number supplier (injectable for tests; default: Math.random)
+ */
+export function shouldTriggerEarlyRefresh(
+  cachedAt: number | undefined,
+  originalTtl: number,
+  random: () => number = Math.random
+): boolean {
+  if (typeof cachedAt !== 'number' || cachedAt <= 0) return false;
+  const elapsed = (Date.now() - cachedAt) / 1000;
+  const remainingTtl = Math.max(0, originalTtl - elapsed);
+  return remainingTtl < originalTtl * 0.1 && random() < 0.1;
+}
+
+/**
  * Utility function to scan Redis keys using cursor-based iteration
  * Avoids blocking KEYS command at scale
  * @param pattern - Pattern to match (e.g., 'qr:abc123:*')
@@ -110,23 +137,23 @@ export class CacheService {
 
         // Compute remaining TTL from the embedded write timestamp
         // This avoids an extra Redis RTT call to TTL
-        let remainingTtl: number;
-        const cachedAt = parsed._cachedAt;
+        let cachedAt = parsed._cachedAt;
 
-        if (typeof cachedAt === 'number' && cachedAt > 0) {
-          const elapsed = (Date.now() - cachedAt) / 1000;
-          remainingTtl = Math.max(0, originalTtl - elapsed);
-        } else {
+        if (typeof cachedAt !== 'number' || cachedAt <= 0) {
           // Backward compatibility for entries cached before _cachedAt existed.
           // During transition, read actual TTL from Redis to preserve correctness.
           const ttl = await redis.ttl(key);
-          remainingTtl = ttl > 0 ? ttl : originalTtl;
+          const remaining = ttl > 0 ? ttl : originalTtl;
+          // Synthesise a cachedAt that produces the observed remaining TTL
+          cachedAt = Date.now() - (originalTtl - remaining) * 1000;
         }
 
-        if (remainingTtl < originalTtl * 0.1 && Math.random() < 0.1) {
+        if (shouldTriggerEarlyRefresh(cachedAt, originalTtl)) {
           logger.debug('Probabilistic early expiration triggered', {
             code,
-            remainingTtl: Math.round(remainingTtl),
+            remainingTtl: Math.round(
+              Math.max(0, originalTtl - (Date.now() - cachedAt) / 1000)
+            ),
             threshold: originalTtl * 0.1
           });
           // Return null to force refresh in background
