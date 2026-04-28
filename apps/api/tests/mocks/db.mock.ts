@@ -191,5 +191,5 @@ export const CACHE_PREFIX = {
   LINK: 'link:',
   NOT_FOUND: 'link:404:',
   BANNED: 'link:banned:',
-  LOCK: 'lock:link:'
+  LOCK: 'lock:'
 };

@@ -78,6 +78,8 @@ jobs:
           AUTH_SECRET: ci-audit-auth-secret-minimum-32-characters-long
           INTERNAL_API_SECRET: ci-audit-internal-secret-minimum-32-chars
           INTERNAL_ANALYTICS_SECRET: ci-audit-analytics-secret-minimum-32-chars
+          DATABASE_URL: postgresql://urlfy_ci:urlfy_ci_pass@localhost:5432/urlfy_ci
+          ADMIN_GITHUB_ACCOUNT_ID: ci-audit-admin-github-account-id-00000000
           NODE_ENV: production
 
   # ─── Unit & Integration Tests ───────────────────────────────────

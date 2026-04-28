@@ -130,7 +130,7 @@ bun run dev
 | `link:banned:{code}` | 24h | Banned links |
 | `qr:{code}:{size}:{fmt}` | 24h | QR codes |
 | `rl:{key}` | sliding | Rate limiting |
-| `lock:link:{code}` | 5s | Stampede lock |
+| `lock:{code}` | 5s | Stampede lock |
 
 Invalidation is synchronous on link update/ban/delete; stampede protection uses SETNX with 50ms backoff for waiters.
 

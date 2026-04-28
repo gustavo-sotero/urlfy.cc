@@ -148,7 +148,7 @@ mock.module('@urlfy/cache', () => ({
     QR_CODE: (code: string, size: number, format: string) =>
       `qr:${code}:${size}:${format}`,
     QR_KEYS_SET: (code: string) => `qr:keys:${code}`,
-    LOCK: (code: string) => `lock:link:${code}`
+    LOCK: (code: string) => `lock:${code}`
   },
   CACHE_TTL: {
     LINK: 3600,

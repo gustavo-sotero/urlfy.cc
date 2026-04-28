@@ -7,49 +7,105 @@
  */
 
 const KNOWN_TEST_SECRETS = [
+  'build-time-placeholder',
+  'change-this',
+  'changeme',
+  'placeholder',
   'test-secret-key-for-unit-tests',
   'test-better-auth-secret',
   'test-auth-secret-for-testing',
   'test-jwt-secret',
   'test-secret',
-  'test-password'
+  'test-password',
+  'your-'
 ];
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-const secretsToCheck: Array<{
+interface SecretCheck {
   name: string;
   value: string | undefined;
   required: boolean;
-}> = [
-  { name: 'JWT_SECRET', value: process.env.JWT_SECRET, required: true },
+  minLength: number;
+}
+
+interface ConfigCheck {
+  name: string;
+  value: string | undefined;
+  required: boolean;
+  validate?: (value: string) => string | null;
+}
+
+const secretsToCheck: SecretCheck[] = [
   {
     name: 'BETTER_AUTH_SECRET',
     value: process.env.BETTER_AUTH_SECRET,
-    required: true
+    required: true,
+    minLength: 32
   },
-  { name: 'AUTH_SECRET', value: process.env.AUTH_SECRET, required: true },
+  {
+    name: 'AUTH_SECRET',
+    value: process.env.AUTH_SECRET,
+    required: false,
+    minLength: 32
+  },
+  {
+    name: 'JWT_SECRET',
+    value: process.env.JWT_SECRET,
+    required: isProduction,
+    minLength: 32
+  },
   {
     name: 'INTERNAL_API_SECRET',
     value: process.env.INTERNAL_API_SECRET,
-    required: true
+    required: true,
+    minLength: isProduction ? 32 : 16
   },
   {
     name: 'INTERNAL_ANALYTICS_SECRET',
     value: process.env.INTERNAL_ANALYTICS_SECRET,
-    required: isProduction
+    required: isProduction,
+    minLength: isProduction ? 32 : 16
+  },
+  {
+    name: 'IDEMPOTENCY_GUEST_SECRET',
+    value: process.env.IDEMPOTENCY_GUEST_SECRET,
+    required: false,
+    minLength: 32
   }
 ];
 
-let hasTestSecrets = false;
+const configToCheck: ConfigCheck[] = [
+  {
+    name: 'DATABASE_URL',
+    value: process.env.DATABASE_URL,
+    required: true,
+    validate: (value) => {
+      try {
+        new URL(value);
+        return null;
+      } catch {
+        return 'must be a valid database URL';
+      }
+    }
+  },
+  {
+    name: 'ADMIN_GITHUB_ACCOUNT_ID',
+    value: process.env.ADMIN_GITHUB_ACCOUNT_ID,
+    required: true,
+    validate: (value) => (value.trim() ? null : 'must not be empty')
+  }
+];
 
-console.log('🔍 Checking for test secrets in environment...\n');
+let hasUnsafeConfig = false;
 
-for (const { name, value, required } of secretsToCheck) {
+console.log('🔍 Checking runtime secrets and mandatory config...\n');
+
+for (const { name, value, required, minLength } of secretsToCheck) {
   if (!value) {
     if (required) {
-      console.error(`❌ ${name}: Not set (mandatory in production)`);
-      hasTestSecrets = true;
+      console.error(`❌ ${name}: Not set (mandatory)`);
+      hasUnsafeConfig = true;
     } else {
       console.log(`⚠️  ${name}: Not set (optional)`);
     }
@@ -65,34 +121,74 @@ for (const { name, value, required } of secretsToCheck) {
     console.error(
       `❌ ${name}: Contains test secret pattern "${matchedTestSecret}"`
     );
-    console.error(`   Current value: ${value.substring(0, 20)}...`);
-    hasTestSecrets = true;
+    hasUnsafeConfig = true;
   } else {
     // Check minimum length
-    if (value.length < 32) {
+    if (value.length < minLength) {
       console.error(
-        `❌ ${name}: Too short (${value.length} chars, minimum 32 required)`
+        `❌ ${name}: Too short (${value.length} chars, minimum ${minLength} required)`
       );
-      hasTestSecrets = true;
+      hasUnsafeConfig = true;
     } else {
       console.log(`✅ ${name}: OK (${value.length} chars)`);
     }
   }
 }
 
+for (const { name, value, required, validate } of configToCheck) {
+  if (!value) {
+    if (required) {
+      console.error(`❌ ${name}: Not set (mandatory)`);
+      hasUnsafeConfig = true;
+    } else {
+      console.log(`⚠️  ${name}: Not set (optional)`);
+    }
+    continue;
+  }
+
+  const validationError = validate?.(value) ?? null;
+  if (validationError) {
+    console.error(`❌ ${name}: ${validationError}`);
+    hasUnsafeConfig = true;
+  } else {
+    console.log(`✅ ${name}: OK`);
+  }
+}
+
+if (
+  process.env.INTERNAL_ANALYTICS_SECRET &&
+  process.env.BETTER_AUTH_SECRET &&
+  process.env.INTERNAL_ANALYTICS_SECRET === process.env.BETTER_AUTH_SECRET
+) {
+  console.error(
+    '❌ INTERNAL_ANALYTICS_SECRET: Must differ from BETTER_AUTH_SECRET'
+  );
+  hasUnsafeConfig = true;
+}
+
+if (
+  process.env.INTERNAL_API_SECRET &&
+  process.env.BETTER_AUTH_SECRET &&
+  process.env.INTERNAL_API_SECRET === process.env.BETTER_AUTH_SECRET
+) {
+  console.error('❌ INTERNAL_API_SECRET: Must differ from BETTER_AUTH_SECRET');
+  hasUnsafeConfig = true;
+}
+
 console.log('');
 
-if (hasTestSecrets) {
-  console.error('❌ FAILED: Test secrets detected in environment!');
+if (hasUnsafeConfig) {
+  console.error('❌ FAILED: Unsafe runtime secret/config detected!');
   console.error('');
   console.error('Action required:');
   console.error('1. Generate secure secrets: openssl rand -base64 32');
   console.error('2. Update environment variables in deployment configuration');
-  console.error('3. Never use test secrets in production');
+  console.error(
+    '3. Never use test, placeholder, or shared secrets in production'
+  );
   console.error('');
   process.exit(1);
 }
 
-console.log('✅ No test secrets detected in environment');
-console.log('✅ All secrets meet minimum security requirements');
+console.log('✅ Runtime secrets and mandatory config look safe');
 process.exit(0);
