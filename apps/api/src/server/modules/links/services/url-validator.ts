@@ -61,21 +61,20 @@ const BLOCKED_SHORTENERS = new Set([
 /** Known self-shortener production hostnames (always blocked as redirect targets). */
 const SELF_SHORTENER_HOSTS = new Set(['urlfy.cc', 'www.urlfy.cc']);
 
-/**
- * Returns the set of hostnames that belong to the urlfy shortener service,
- * including any additional host from NEXT_PUBLIC_APP_URL.
- */
-function getSelfShortenerHosts(): Set<string> {
-  const hosts = new Set(SELF_SHORTENER_HOSTS);
+function isSelfShortenerOrigin(parsed: URL): boolean {
+  const hostname = parsed.hostname.toLowerCase();
+  if (SELF_SHORTENER_HOSTS.has(hostname)) return true;
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   if (appUrl) {
     try {
-      hosts.add(new URL(appUrl).hostname.toLowerCase());
+      return parsed.origin === new URL(appUrl).origin;
     } catch {
       // ignore malformed env var
     }
   }
-  return hosts;
+
+  return false;
 }
 
 /**
@@ -89,8 +88,7 @@ function getSelfShortenerHosts(): Set<string> {
 export function isSelfShortenerTarget(url: string): boolean {
   try {
     const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase();
-    if (!getSelfShortenerHosts().has(hostname)) return false;
+    if (!isSelfShortenerOrigin(parsed)) return false;
     const path = parsed.pathname;
     // Explicit redirect route
     if (/^\/r\/[a-zA-Z0-9_-]{3,20}\/?$/.test(path)) return true;

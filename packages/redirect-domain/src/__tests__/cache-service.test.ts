@@ -133,6 +133,11 @@ const mockRedis = {
 mock.module('@urlfy/cache', () => ({
   acquireLock: async () => true,
   getRedisClient: () => mockRedis,
+  getPendingClicks: async () => 0,
+  getPendingClicksMap: async () => new Map<string, number>(),
+  getPendingClicksTotal: async () => 0,
+  incrementPendingClicks: async () => 0,
+  drainPendingClicks: async () => new Map<string, number>(),
   releaseLock: async () => {},
   redis: mockRedis,
   CACHE_KEYS: {
@@ -142,6 +147,7 @@ mock.module('@urlfy/cache', () => ({
     LINK_BANNED: (code: string) => `link:banned:${code}`,
     QR_CODE: (code: string, size: number, format: string) =>
       `qr:${code}:${size}:${format}`,
+    QR_KEYS_SET: (code: string) => `qr:keys:${code}`,
     LOCK: (code: string) => `lock:link:${code}`
   },
   CACHE_TTL: {

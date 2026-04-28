@@ -7,7 +7,6 @@
  * hop (Edge → fetch → Elysia internal API → redirect) and replaces
  * it with a single pass (Edge rewrite → Node.js route → redirect).
  *
- * @see P1-P1 in plan-codebaseAnalysis20260214.prompt.md
  * ═════════════════════════════════════════════════════════════════════
  */
 

@@ -137,6 +137,15 @@ describe('Redirect Integration Tests', () => {
       isActive: false,
       isBanned: false,
       clicksCount: 0
+    },
+    {
+      id: 'test-integration-loop',
+      shortCode: 'int-test-loop',
+      originalUrl: 'https://urlfy.cc/r/int-test-1',
+      redirectType: 302,
+      isActive: true,
+      isBanned: false,
+      clicksCount: 0
     }
   ];
 
@@ -220,10 +229,10 @@ describe('Redirect Integration Tests', () => {
       expect(result.error).toBe('INACTIVE');
     });
 
-    it('should respect redirect depth limit', async () => {
-      const code = 'int-test-1';
+    it('should block self-shortener loop destinations', async () => {
+      const code = 'int-test-loop';
 
-      const result = await _redirectService.resolve(code, 3);
+      const result = await _redirectService.resolve(code, 0);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('REDIRECT_LOOP');

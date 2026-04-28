@@ -32,6 +32,10 @@ const redirectMock = mock(
 );
 
 mock.module('next/navigation', () => ({
+  redirect: () => {},
+  permanentRedirect: () => {},
+  notFound: () => {},
+  useSearchParams: () => new URLSearchParams(),
   usePathname: () => '/dashboard/links',
   useRouter: () => ({ push: pushMock }),
   useParams: () => ({ id: 'link-1' })
@@ -45,14 +49,25 @@ mock.module('@tanstack/react-query', () => ({
 }));
 
 mock.module('@/lib/session-provider', () => ({
-  SESSION_QUERY_KEY: ['session']
+  SESSION_QUERY_KEY: ['session'],
+  SessionProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuthState: () => ({ isAuthenticated: true, isPending: false }),
+  useSessionContext: () => ({
+    data: null,
+    isPending: false,
+    error: null,
+    refetch: async () => {},
+    isAuthenticated: true
+  })
 }));
 
 mock.module('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: mock((namespace: string) => {
     const messages: Record<string, Record<string, string>> = {
       Common: {
         dashboard: 'Dashboard',
+        language: 'Language',
         settings: 'Settings',
         logout: 'Logout',
         openMenu: 'Open menu',
@@ -84,13 +99,10 @@ mock.module('@/i18n/routing', () => ({
       {children}
     </a>
   ),
+  routing: { locales: ['en', 'pt-br'] },
   redirect: redirectMock,
-  useRouter: () => ({ push: () => {} }),
+  useRouter: () => ({ push: () => {}, replace: () => {} }),
   usePathname: () => '/dashboard/links'
-}));
-
-mock.module('@/components/shared/language-switcher', () => ({
-  LanguageSwitcher: () => <div>Language</div>
 }));
 
 mock.module('@/components/ui/dropdown-menu', () => ({
@@ -101,10 +113,16 @@ mock.module('@/components/ui/dropdown-menu', () => ({
   DropdownMenuContent: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
+  DropdownMenuGroup: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   DropdownMenuLabel: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
   DropdownMenuSeparator: () => <hr />,
+  DropdownMenuShortcut: ({ children }: { children: ReactNode }) => (
+    <span>{children}</span>
+  ),
   DropdownMenuItem: ({
     children,
     onClick,
@@ -120,11 +138,53 @@ mock.module('@/components/ui/dropdown-menu', () => ({
       <button type="button" onClick={onClick}>
         {children}
       </button>
-    )
+    ),
+  DropdownMenuCheckboxItem: ({ children }: { children: ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+  DropdownMenuRadioGroup: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuRadioItem: ({ children }: { children: ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+  DropdownMenuPortal: ({ children }: { children: ReactNode }) => (
+    <>{children}</>
+  ),
+  DropdownMenuSub: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSubContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSubTrigger: ({ children }: { children: ReactNode }) => (
+    <button type="button">{children}</button>
+  )
 }));
 
 mock.module('@/lib/auth.client', () => ({
-  signOut: signOutMock
+  signIn: async () => ({}),
+  signUp: async () => ({}),
+  signOut: signOutMock,
+  useSession: () => ({ data: null, isPending: false }),
+  getSession: async () => ({ data: null, error: null }),
+  resetPassword: async () => ({}),
+  requestPasswordReset: async () => ({}),
+  changePassword: async () => ({}),
+  verifyEmail: async () => ({}),
+  twoFactor: {},
+  authClient: {
+    signOut: signOutMock,
+    useSession: () => ({ data: null, isPending: false }),
+    getSession: async () => ({ data: null, error: null }),
+    sendVerificationEmail: async () => undefined
+  },
+  default: {
+    signOut: signOutMock,
+    useSession: () => ({ data: null, isPending: false }),
+    getSession: async () => ({ data: null, error: null }),
+    sendVerificationEmail: async () => undefined
+  }
 }));
 
 describe('Dashboard Header', () => {

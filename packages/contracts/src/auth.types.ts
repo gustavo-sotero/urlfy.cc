@@ -6,14 +6,13 @@
  */
 
 // ═══════════════════════════════════════════════════════════════════
-// STANDALONE DB-MIRROR TYPES
-// Defined inline so @urlfy/contracts carries no runtime dependency on
-// @urlfy/data.  Shapes mirror the auth schema exactly; TypeScript
-// structural typing ensures full compatibility with Drizzle-inferred
-// types across the monorepo.
+// DOMAIN RECORD TYPES
+// Defined inline so the contracts package owns its public record shapes
+// without depending on the data package. TypeScript structural typing keeps
+// these compatible with persistence-layer records where app internals need it.
 // ═══════════════════════════════════════════════════════════════════
 
-/** Full persisted user record (mirrors `typeof user.$inferSelect`). */
+/** Full user record shape used by application internals. */
 export interface DbUser {
   id: string;
   name: string;
@@ -35,7 +34,7 @@ export interface DbUser {
   locale: string | null;
 }
 
-/** Full persisted session record (mirrors `typeof session.$inferSelect`). */
+/** Full session record shape used by application internals. */
 export interface DbSession {
   id: string;
   expiresAt: Date;

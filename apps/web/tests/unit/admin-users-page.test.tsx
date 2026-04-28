@@ -72,6 +72,16 @@ mock.module('@/components/ui/dropdown-menu', () => ({
   DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
   ),
+  DropdownMenuGroup: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSeparator: () => <hr />,
+  DropdownMenuShortcut: ({ children }: { children: React.ReactNode }) => (
+    <span>{children}</span>
+  ),
   DropdownMenuItem: ({
     children,
     onClick,
@@ -84,6 +94,27 @@ mock.module('@/components/ui/dropdown-menu', () => ({
     <button type="button" onClick={onClick} className={className}>
       {children}
     </button>
+  ),
+  DropdownMenuCheckboxItem: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+  DropdownMenuRadioGroup: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuRadioItem: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+  DropdownMenuPortal: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  DropdownMenuSub: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSubContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSubTrigger: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
   )
 }));
 

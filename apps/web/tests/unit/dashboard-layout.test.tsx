@@ -5,6 +5,7 @@ const headersMock = mock(
   async () => new Headers({ cookie: 'urlfy.session_token=abc123' })
 );
 const getLocaleMock = mock(async () => 'pt-br');
+const sendVerificationEmailMock = mock(async () => undefined);
 const redirectMock = mock((_args: { href: string; locale: string }) => {
   throw new Error('REDIRECT');
 });
@@ -38,6 +39,48 @@ mock.module('next/headers', () => ({
   cookies: async () => ({ get: () => undefined })
 }));
 
+mock.module('next/navigation', () => ({
+  redirect: () => {},
+  permanentRedirect: () => {},
+  notFound: () => {},
+  useParams: () => ({}),
+  usePathname: () => '/pt-br/dashboard',
+  useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {} }),
+  useSearchParams: () => new URLSearchParams()
+}));
+
+mock.module('next-intl', () => ({
+  useLocale: () => 'pt-br',
+  useTranslations: (namespace: string) => {
+    if (namespace !== 'Dashboard.verification') {
+      return (key: string) => key;
+    }
+
+    const messages: Record<string, string> = {
+      title: 'Verify your email address',
+      description: 'Verify your email to keep account notifications reliable.',
+      justSentTitle: 'Verification email sent',
+      justSentDescription: 'We sent a verification email to {email}.',
+      justSentHelp: 'Check your inbox and spam folder.',
+      sending: 'Sending...',
+      sent: 'Verification email sent',
+      resend: 'Resend verification email',
+      checkInbox: 'Check your inbox and spam folder.',
+      errorEmail: 'We could not determine which email address to verify.',
+      errorResend: 'We could not resend the verification email.'
+    };
+
+    return (key: string, values?: Record<string, string | number>) => {
+      const template = messages[key] ?? key;
+      return Object.entries(values ?? {}).reduce(
+        (message, [token, value]) =>
+          message.replace(`{${token}}`, String(value)),
+        template
+      );
+    };
+  }
+}));
+
 mock.module('next-intl/server', () => ({
   getLocale: getLocaleMock
 }));
@@ -61,10 +104,27 @@ mock.module('@/i18n/routing', () => ({
   usePathname: () => '/dashboard'
 }));
 
-mock.module('@/components/dashboard/verification-warning', () => ({
-  VerificationWarning: ({ email }: { email: string }) => (
-    <div data-testid="verification-warning" data-email={email} />
-  )
+mock.module('@/lib/auth.client', () => ({
+  signIn: async () => ({}),
+  signUp: async () => ({}),
+  signOut: async () => undefined,
+  useSession: () => ({ data: null, isPending: false }),
+  getSession: async () => ({ data: null, error: null }),
+  resetPassword: async () => ({}),
+  requestPasswordReset: async () => ({}),
+  changePassword: async () => ({}),
+  verifyEmail: async () => ({}),
+  twoFactor: {},
+  authClient: {
+    useSession: () => ({ data: null }),
+    getSession: async () => ({ data: null, error: null }),
+    sendVerificationEmail: sendVerificationEmailMock
+  },
+  default: {
+    useSession: () => ({ data: null }),
+    getSession: async () => ({ data: null, error: null }),
+    sendVerificationEmail: sendVerificationEmailMock
+  }
 }));
 
 mock.module('@/components/layout/header', () => ({
@@ -83,6 +143,7 @@ describe('DashboardLayout', () => {
     process.env.API_INTERNAL_URL = originalApiInternalUrl;
     headersMock.mockClear();
     getLocaleMock.mockClear();
+    sendVerificationEmailMock.mockClear();
     redirectMock.mockClear();
     fetchMock.mockClear();
   });
@@ -167,7 +228,7 @@ describe('DashboardLayout', () => {
 
     const markup = renderToStaticMarkup(element);
 
-    expect(markup).toContain('data-testid="verification-warning"');
-    expect(markup).toContain('data-email="test@example.com"');
+    expect(markup).toContain('Verify your email address');
+    expect(markup).toContain('Resend verification email');
   });
 });

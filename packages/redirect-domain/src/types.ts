@@ -6,11 +6,13 @@ export interface RedirectRequestMeta {
   referrer?: string | null;
   locale?: string | null;
   requestId?: string | null;
+  /** Legacy request depth metadata retained for tracing only. */
   depth?: number;
 }
 
 export interface RedirectResolveInput {
   linkCode: string;
+  /** Legacy no-op depth value retained for caller compatibility. */
   currentDepth: number;
   bypassPassword?: boolean;
   requestMeta?: RedirectRequestMeta;

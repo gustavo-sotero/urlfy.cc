@@ -158,6 +158,15 @@ describe('Redirect Engine - Comprehensive Integration Tests', () => {
       isBanned: false,
       clicksCount: 5,
       maxClicks: 5
+    },
+    {
+      id: 'comprehensive-test-loop',
+      shortCode: 'comp-test-loop',
+      originalUrl: 'https://urlfy.cc/r/comp-test-001',
+      redirectType: 302,
+      isActive: true,
+      isBanned: false,
+      clicksCount: 0
     }
   ];
 
@@ -279,8 +288,8 @@ describe('Redirect Engine - Comprehensive Integration Tests', () => {
       expect(result.error).toBe('MAX_CLICKS');
     });
 
-    it('should return REDIRECT_LOOP at depth >= 3', async () => {
-      const result = await _redirectService.resolve('comp-test-001', 3);
+    it('should return REDIRECT_LOOP for self-shortener loop destinations', async () => {
+      const result = await _redirectService.resolve('comp-test-loop', 0);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('REDIRECT_LOOP');

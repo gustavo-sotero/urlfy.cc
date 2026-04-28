@@ -80,14 +80,13 @@ export interface LinkResponse {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// DB TYPES
-// Defined inline so @urlfy/contracts carries no runtime dependency on
-// @urlfy/data. Shapes mirror the links schema exactly; TypeScript
-// structural typing ensures full compatibility with Drizzle-inferred
-// types across the monorepo.
+// DOMAIN RECORD TYPES
+// Defined inline so the contracts package owns its public record shapes
+// without depending on the data package. TypeScript structural typing keeps
+// these compatible with persistence-layer records where app internals need it.
 // ═══════════════════════════════════════════════════════════════════
 
-/** Full persisted link record (mirrors `typeof links.$inferSelect`). */
+/** Full link record shape used by application internals. */
 export interface Link {
   id: string;
   userId: string | null;
@@ -118,7 +117,7 @@ export interface Link {
   deletedAt: Date | null;
 }
 
-/** Link insert payload (mirrors `typeof links.$inferInsert`). */
+/** Link creation record shape used by application internals. */
 export interface NewLink {
   id?: string;
   userId?: string | null;

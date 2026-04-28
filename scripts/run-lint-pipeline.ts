@@ -1,7 +1,7 @@
 export {};
 
 const lintSteps = [
-  ['bun', 'x', 'turbo', 'run', 'lint', '--concurrency=6', '--log-order=stream'],
+  ['bun', 'x', 'turbo', 'run', 'lint', '--concurrency=1', '--log-order=stream'],
   ['bun', 'run', 'validate:catalog'],
   ['bun', 'run', 'scripts/validate-module-boundaries.ts'],
   ['bun', 'run', 'scripts/validate-proxy-headers.ts']

@@ -91,6 +91,7 @@ mock.module('../cache-service', () => ({
     BANNED: 'link:ban:'
   },
   CACHE_TTL: { LINK: 3600, NOT_FOUND: 300, BANNED: 3600 },
+  shouldTriggerEarlyRefresh: () => earlyRefreshTriggered,
   cacheService: {
     getLinkState: async (_code: string) => {
       if (cacheState.shouldThrow)
@@ -107,6 +108,7 @@ mock.module('../cache-service', () => ({
 
 const lockState = { acquired: true };
 let pendingClicksValue = 0;
+let earlyRefreshTriggered = false;
 const redisMock = {
   get: async () => null,
   set: async () => 'OK'
@@ -139,48 +141,16 @@ mock.module('@urlfy/cache/circuit-breaker', () => ({
   }
 }));
 
-// ─── Mutable DB rows ───────────────────────────────────────────────────────────
+// ─── Mutable repository result ────────────────────────────────────────────────
 
-let dbRows: object[] = [];
-
-mock.module('@urlfy/data', () => ({
-  db: {
-    select: (_projection?: unknown) => ({
-      from: (_table: unknown) => ({
-        where: (_condition: unknown) => ({
-          limit: async (_n: unknown) => dbRows
-        })
-      })
-    })
-  }
-}));
-
-mock.module('@urlfy/data/schema', () => ({
-  links: {
-    id: 'id',
-    shortCode: 'shortCode',
-    originalUrl: 'originalUrl',
-    redirectType: 'redirectType',
-    isActive: 'isActive',
-    isBanned: 'isBanned',
-    expiresAt: 'expiresAt',
-    maxClicks: 'maxClicks',
-    clicksCount: 'clicksCount',
-    passwordHash: 'passwordHash',
-    utmSource: 'utmSource',
-    utmMedium: 'utmMedium',
-    utmCampaign: 'utmCampaign'
-  }
-}));
-
-mock.module('drizzle-orm', () => ({
-  eq: () => ({})
-}));
+let repositoryLink: CachedLink | null = null;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-const makeDbRow = (): object => ({
-  id: 'db-link-id',
+const makeRepositoryLink = (
+  overrides: Partial<CachedLink> = {}
+): CachedLink => ({
+  id: 'repo-link-id',
   originalUrl: 'https://example.com/page',
   redirectType: 302,
   isActive: true,
@@ -191,7 +161,8 @@ const makeDbRow = (): object => ({
   passwordHash: null,
   utmSource: null,
   utmMedium: null,
-  utmCampaign: null
+  utmCampaign: null,
+  ...overrides
 });
 
 const makeCachedLink = (overrides: Partial<CachedLink> = {}): CachedLink => ({
@@ -211,6 +182,40 @@ const makeCachedLink = (overrides: Partial<CachedLink> = {}): CachedLink => ({
   ...overrides
 });
 
+function makeTestDeps(
+  overrides: Partial<RedirectFetcherDependencies> = {}
+): RedirectFetcherDependencies {
+  return {
+    cache: {
+      getLinkState: async () => {
+        if (cacheState.shouldThrow) {
+          throw new Error('Redis connection refused: ECONNREFUSED');
+        }
+        return cacheState.linkState;
+      },
+      getLink: async () => cacheState.linkAfterWait,
+      setLink: async () => {},
+      setNotFound: async () => {},
+      getCacheStats: async () => ({ memory: '0', keys: 0, hitRate: null })
+    },
+    links: {
+      findByCode: async () => repositoryLink,
+      isCodeAvailable: async () => repositoryLink === null
+    },
+    lock: {
+      acquire: async () => lockState.acquired,
+      release: async () => {}
+    },
+    circuitBreaker: {
+      execute: async <T>(fn: () => Promise<T>) => fn(),
+      getStatus: () => 'CLOSED'
+    },
+    random: () => 0,
+    sleep: async () => {},
+    ...overrides
+  };
+}
+
 // Import module under test AFTER all mocks are in place
 const { getLink } = await import('../fetcher');
 
@@ -223,7 +228,8 @@ describe('getLink', () => {
     cacheState.linkAfterWait = null;
     lockState.acquired = true;
     pendingClicksValue = 0;
-    dbRows = [];
+    earlyRefreshTriggered = false;
+    repositoryLink = null;
   });
 
   // ── L1: Negative cache ──────────────────────────────────────────────────────
@@ -232,7 +238,7 @@ describe('getLink', () => {
     it('returns null with cacheHit=true when not-found sentinel is set', async () => {
       cacheState.linkState = { link: null, isNotFound: true, isBanned: false };
 
-      const result = await getLink('abc1234');
+      const result = await getLink('abc1234', makeTestDeps());
 
       expect(result.link).toBeNull();
       expect(result.cacheHit).toBe(true);
@@ -245,7 +251,7 @@ describe('getLink', () => {
     it('returns synthetic banned CachedLink with cacheHit=true', async () => {
       cacheState.linkState = { link: null, isNotFound: false, isBanned: true };
 
-      const result = await getLink('abc1234');
+      const result = await getLink('abc1234', makeTestDeps());
 
       expect(result.link).not.toBeNull();
       expect(result.link?.isBanned).toBe(true);
@@ -264,13 +270,13 @@ describe('getLink', () => {
         isBanned: false
       };
 
-      const result = await getLink('abc1234');
+      const result = await getLink('abc1234', makeTestDeps());
 
       expect(result.link).toEqual(cached);
       expect(result.cacheHit).toBe(true);
     });
 
-    it('overlays pending clicks on cached links before validation reads them', async () => {
+    it('does not overlay pending clicks on unlimited cached links', async () => {
       pendingClicksValue = 3;
       cacheState.linkState = {
         link: makeCachedLink({ clicksCount: 5 }),
@@ -278,7 +284,21 @@ describe('getLink', () => {
         isBanned: false
       };
 
-      const result = await getLink('abc1234');
+      const result = await getLink('abc1234', makeTestDeps());
+
+      expect(result.link?.clicksCount).toBe(5);
+      expect(result.cacheHit).toBe(true);
+    });
+
+    it('overlays pending clicks on cached links when maxClicks enforcement is active', async () => {
+      pendingClicksValue = 3;
+      cacheState.linkState = {
+        link: makeCachedLink({ clicksCount: 5, maxClicks: 10 }),
+        isNotFound: false,
+        isBanned: false
+      };
+
+      const result = await getLink('abc1234', makeTestDeps());
 
       expect(result.link?.clicksCount).toBe(8);
       expect(result.cacheHit).toBe(true);
@@ -292,20 +312,20 @@ describe('getLink', () => {
         isBanned: false
       };
 
-      const result = await getLink('abc1234');
+      const result = await getLink('abc1234', makeTestDeps());
 
       expect(result.link).toEqual(cached);
       expect(result.cacheHit).toBe(true);
     });
   });
 
-  // ── L4: Cache miss → DB fetch ───────────────────────────────────────────────
+  // ── L4: Cache miss → repository fetch ───────────────────────────────────────
 
-  describe('L4 — Cache miss → DB fetch', () => {
-    it('fetches link from DB on cache miss and returns it with cacheHit=false', async () => {
-      dbRows = [makeDbRow()];
+  describe('L4 — Cache miss → repository fetch', () => {
+    it('fetches link from repository on cache miss and returns it with cacheHit=false', async () => {
+      repositoryLink = makeRepositoryLink();
 
-      const result = await getLink('abc1234');
+      const result = await getLink('abc1234', makeTestDeps());
 
       expect(result.link).not.toBeNull();
       expect(result.link?.originalUrl).toBe('https://example.com/page');
@@ -313,20 +333,20 @@ describe('getLink', () => {
       expect(result.cacheHit).toBe(false);
     });
 
-    it('overlays pending clicks on DB-fetched links too', async () => {
+    it('overlays pending clicks on repository-fetched links too', async () => {
       pendingClicksValue = 2;
-      dbRows = [makeDbRow()];
+      repositoryLink = makeRepositoryLink();
 
-      const result = await getLink('abc1234');
+      const result = await getLink('abc1234', makeTestDeps());
 
       expect(result.link?.clicksCount).toBe(44);
       expect(result.cacheHit).toBe(false);
     });
 
-    it('returns null with cacheHit=false when code does not exist in DB', async () => {
-      dbRows = [];
+    it('returns null with cacheHit=false when code does not exist in the repository', async () => {
+      repositoryLink = null;
 
-      const result = await getLink('unknown-code');
+      const result = await getLink('unknown-code', makeTestDeps());
 
       expect(result.link).toBeNull();
       expect(result.cacheHit).toBe(false);
@@ -342,7 +362,7 @@ describe('getLink', () => {
         originalUrl: 'https://example.com/from-cache-after-wait'
       });
 
-      const result = await getLink('abc1234');
+      const result = await getLink('abc1234', makeTestDeps());
 
       expect(result.link?.originalUrl).toBe(
         'https://example.com/from-cache-after-wait'
@@ -350,12 +370,12 @@ describe('getLink', () => {
       expect(result.cacheHit).toBe(false); // outer function started as cache miss
     });
 
-    it('falls back to DB when cache is still empty after waiting for lock', async () => {
+    it('falls back to repository when cache is still empty after waiting for lock', async () => {
       lockState.acquired = false;
       cacheState.linkAfterWait = null;
-      dbRows = [makeDbRow()];
+      repositoryLink = makeRepositoryLink();
 
-      const result = await getLink('abc1234');
+      const result = await getLink('abc1234', makeTestDeps());
 
       expect(result.link?.originalUrl).toBe('https://example.com/page');
       expect(result.cacheHit).toBe(false);
@@ -365,22 +385,22 @@ describe('getLink', () => {
   // ── Graceful degradation: Redis unavailable (Plan 7.3 #5) ──────────────────
 
   describe('Graceful degradation — Redis unavailable (Plan 7.3 #5)', () => {
-    it('falls back to DB when Redis throws a connection error, returns link', async () => {
+    it('falls back to repository when Redis throws a connection error, returns link', async () => {
       cacheState.shouldThrow = true;
-      dbRows = [makeDbRow()];
+      repositoryLink = makeRepositoryLink();
 
-      const result = await getLink('abc1234');
+      const result = await getLink('abc1234', makeTestDeps());
 
       expect(result.link).not.toBeNull();
       expect(result.link?.originalUrl).toBe('https://example.com/page');
       expect(result.cacheHit).toBe(false); // bypass = no cache
     });
 
-    it('returns null when Redis throws and link is not in DB', async () => {
+    it('returns null when Redis throws and link is not in the repository', async () => {
       cacheState.shouldThrow = true;
-      dbRows = [];
+      repositoryLink = null;
 
-      const result = await getLink('not-found-code');
+      const result = await getLink('not-found-code', makeTestDeps());
 
       expect(result.link).toBeNull();
       expect(result.cacheHit).toBe(false);
@@ -388,22 +408,19 @@ describe('getLink', () => {
 
     it('still returns correct link data (all fields mapped) after Redis fallback', async () => {
       cacheState.shouldThrow = true;
-      dbRows = [
-        {
-          ...makeDbRow(),
-          id: 'fallback-id',
-          originalUrl: 'https://fallback.example.com',
-          redirectType: 301,
-          isActive: false,
-          maxClicks: 100,
-          clicksCount: 50,
-          utmSource: 'newsletter',
-          utmMedium: 'email',
-          utmCampaign: 'spring2026'
-        }
-      ];
+      repositoryLink = makeRepositoryLink({
+        id: 'fallback-id',
+        originalUrl: 'https://fallback.example.com',
+        redirectType: 301,
+        isActive: false,
+        maxClicks: 100,
+        clicksCount: 50,
+        utmSource: 'newsletter',
+        utmMedium: 'email',
+        utmCampaign: 'spring2026'
+      });
 
-      const result = await getLink('code-xyz');
+      const result = await getLink('code-xyz', makeTestDeps());
 
       expect(result.link?.id).toBe('fallback-id');
       expect(result.link?.originalUrl).toBe('https://fallback.example.com');
@@ -420,39 +437,6 @@ describe('getLink', () => {
   // ── Lock contract regression ──────────────────────────────────────────────
 
   describe('Lock contract regression', () => {
-    function makeTestDeps(
-      overrides: Partial<RedirectFetcherDependencies> = {}
-    ): RedirectFetcherDependencies {
-      return {
-        cache: {
-          getLinkState: async () => ({
-            isNotFound: false,
-            isBanned: false,
-            link: null
-          }),
-          getLink: async () => null,
-          setLink: async () => {},
-          setNotFound: async () => {},
-          getCacheStats: async () => ({ memory: '0', keys: 0, hitRate: null })
-        },
-        links: {
-          findByCode: async () => null,
-          isCodeAvailable: async () => true
-        },
-        lock: {
-          acquire: async () => true,
-          release: async () => {}
-        },
-        circuitBreaker: {
-          execute: async <T>(fn: () => Promise<T>) => fn(),
-          getStatus: () => 'CLOSED'
-        },
-        random: () => 0,
-        sleep: async () => {},
-        ...overrides
-      };
-    }
-
     it('acquires lock with key pattern lock:{code} — no double prefix', async () => {
       const capturedKeys: string[] = [];
 

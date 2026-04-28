@@ -7,8 +7,8 @@
 import type { Scope } from '@urlfy/auth-shared';
 
 /**
- * Full persisted API key record (mirrors `typeof apikey.$inferSelect`).
- * Defined inline so @urlfy/contracts carries no runtime dependency on @urlfy/data.
+ * Full API key record shape used by application internals.
+ * Defined inline so the contracts package owns its public record shapes.
  */
 export interface DbApiKey {
   id: string;

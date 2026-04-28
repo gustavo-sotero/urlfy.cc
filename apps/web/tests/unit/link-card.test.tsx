@@ -65,6 +65,16 @@ mock.module('@/components/ui/dropdown-menu', () => ({
   DropdownMenuContent: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
+  DropdownMenuGroup: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuLabel: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSeparator: () => <hr />,
+  DropdownMenuShortcut: ({ children }: { children: ReactNode }) => (
+    <span>{children}</span>
+  ),
   DropdownMenuItem: ({
     children,
     onClick,
@@ -82,7 +92,28 @@ mock.module('@/components/ui/dropdown-menu', () => ({
       <button type="button" className={className} onClick={onClick}>
         {children}
       </button>
-    )
+    ),
+  DropdownMenuCheckboxItem: ({ children }: { children: ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+  DropdownMenuRadioGroup: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuRadioItem: ({ children }: { children: ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+  DropdownMenuPortal: ({ children }: { children: ReactNode }) => (
+    <>{children}</>
+  ),
+  DropdownMenuSub: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSubContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSubTrigger: ({ children }: { children: ReactNode }) => (
+    <button type="button">{children}</button>
+  )
 }));
 
 describe('LinkCard', () => {

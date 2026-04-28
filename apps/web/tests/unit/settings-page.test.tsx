@@ -19,12 +19,34 @@ mock.module('next-intl', () => ({
 }));
 
 mock.module('@/lib/auth.client', () => ({
+  signIn: async () => ({}),
+  signUp: async () => ({}),
+  signOut: async () => undefined,
+  useSession: () => ({ data: null, isPending: false }),
+  getSession: async () => ({ data: null, error: null }),
+  resetPassword: async () => ({}),
+  requestPasswordReset: async () => ({}),
+  changePassword: async () => ({}),
+  verifyEmail: async () => ({}),
+  twoFactor: {},
   authClient: {
-    updateUser: updateUserMock
+    updateUser: updateUserMock,
+    useSession: () => ({ data: null, isPending: false }),
+    getSession: async () => ({ data: null, error: null }),
+    sendVerificationEmail: async () => undefined
+  },
+  default: {
+    updateUser: updateUserMock,
+    useSession: () => ({ data: null, isPending: false }),
+    getSession: async () => ({ data: null, error: null }),
+    sendVerificationEmail: async () => undefined
   }
 }));
 
 mock.module('@/lib/session-provider', () => ({
+  SESSION_QUERY_KEY: ['session'],
+  SessionProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuthState: () => ({ isAuthenticated: true, isPending: false }),
   useSessionContext: useSessionContextMock
 }));
 

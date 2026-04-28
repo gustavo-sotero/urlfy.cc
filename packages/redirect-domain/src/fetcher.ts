@@ -63,14 +63,14 @@ export const defaultRedirectFetcherDependencies: RedirectFetcherDependencies = {
     findByCode: (_code: string) => {
       throw new Error(
         '[redirect-domain] No links repository configured. ' +
-          'Wire createRedirectLinkRepository() from @urlfy/data/redirect-repository ' +
+          'Wire a concrete RedirectLinkRepository from the data package ' +
           'before calling redirectService.'
       );
     },
     isCodeAvailable: (_code: string) => {
       throw new Error(
         '[redirect-domain] No links repository configured. ' +
-          'Wire createRedirectLinkRepository() from @urlfy/data/redirect-repository ' +
+          'Wire a concrete RedirectLinkRepository from the data package ' +
           'before calling redirectService.'
       );
     }

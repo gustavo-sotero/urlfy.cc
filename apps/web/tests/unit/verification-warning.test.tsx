@@ -63,6 +63,12 @@ function interpolate(
 }
 
 mock.module('next/navigation', () => ({
+  redirect: () => {},
+  permanentRedirect: () => {},
+  notFound: () => {},
+  useParams: () => ({}),
+  usePathname: () => '/en/dashboard',
+  useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {} }),
   useSearchParams: useSearchParamsMock
 }));
 
@@ -82,8 +88,24 @@ mock.module('next-intl', () => ({
 }));
 
 mock.module('@/lib/auth.client', () => ({
+  signIn: async () => ({}),
+  signUp: async () => ({}),
+  signOut: async () => undefined,
+  useSession: useSessionMock,
+  getSession: async () => ({ data: null, error: null }),
+  resetPassword: async () => ({}),
+  requestPasswordReset: async () => ({}),
+  changePassword: async () => ({}),
+  verifyEmail: async () => ({}),
+  twoFactor: {},
   authClient: {
     useSession: useSessionMock,
+    getSession: async () => ({ data: null, error: null }),
+    sendVerificationEmail: sendVerificationEmailMock
+  },
+  default: {
+    useSession: useSessionMock,
+    getSession: async () => ({ data: null, error: null }),
     sendVerificationEmail: sendVerificationEmailMock
   }
 }));

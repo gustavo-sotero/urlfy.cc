@@ -16,6 +16,22 @@ const tracer = trace.getTracer('redirect-service');
 /** Canonical self-shortener hostnames for redirect-loop detection. */
 const SELF_SHORTENER_HOSTS = new Set(['urlfy.cc', 'www.urlfy.cc']);
 
+function isSelfShortenerOrigin(parsed: URL): boolean {
+  const hostname = parsed.hostname.toLowerCase();
+  if (SELF_SHORTENER_HOSTS.has(hostname)) return true;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (appUrl) {
+    try {
+      return parsed.origin === new URL(appUrl).origin;
+    } catch {
+      // ignore malformed env var
+    }
+  }
+
+  return false;
+}
+
 /**
  * Returns true when the resolved URL would re-enter the shortener's own
  * redirect handler, forming a self-referential loop.
@@ -26,17 +42,7 @@ const SELF_SHORTENER_HOSTS = new Set(['urlfy.cc', 'www.urlfy.cc']);
 function isSelfShortenerLoop(url: string): boolean {
   try {
     const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase();
-    const selfHosts = new Set(SELF_SHORTENER_HOSTS);
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-    if (appUrl) {
-      try {
-        selfHosts.add(new URL(appUrl).hostname.toLowerCase());
-      } catch {
-        // ignore malformed env var
-      }
-    }
-    if (!selfHosts.has(hostname)) return false;
+    if (!isSelfShortenerOrigin(parsed)) return false;
     const path = parsed.pathname;
     if (/^\/r\/[a-zA-Z0-9_-]{3,20}\/?$/.test(path)) return true;
     if (/^\/[a-zA-Z0-9_-]{3,20}\/?$/.test(path)) return true;
@@ -88,7 +94,7 @@ export class RedirectService {
    * Resolve a short code to destination URL with optional password bypass
    *
    * @param code - Short link code
-   * @param currentDepth - Current redirect depth (prevents loops)
+   * @param currentDepth - Legacy depth value retained for compatibility; loop prevention checks the resolved destination URL.
    * @param bypassPassword - If true, skips password validation (used with valid cookie)
    * @returns Result with destination URL or error
    */

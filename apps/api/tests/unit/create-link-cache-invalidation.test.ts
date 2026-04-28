@@ -69,9 +69,7 @@ const dbMock = {
   })),
   select: mock(() => ({
     from: mock(() => ({
-      where: mock(() => ({
-        limit: mock(async () => [])
-      }))
+      where: mock(async () => [])
     }))
   })),
   execute: mock(async () => []),
@@ -90,6 +88,10 @@ mock.module('@urlfy/data', () => ({
 }));
 
 mock.module('@urlfy/data/schema', () => ({
+  bannedUrls: {
+    urlPattern: 'url_pattern',
+    matchType: 'match_type'
+  },
   links: {
     id: 'id',
     shortCode: 'short_code',
@@ -124,22 +126,6 @@ mock.module('@/server/modules/links/services/shortcode.service', () => ({
   validateCustomAlias: mock(async () => true)
 }));
 
-// Mock URL validator
-mock.module('@/server/modules/links/services/url-validator', () => ({
-  validateUrlSafe: mock(async () => ({ valid: true }))
-}));
-
-// Mock sanitize
-mock.module('@/server/lib/sanitize', () => ({
-  sanitizeMetaTags: mock((input: Record<string, unknown>) => ({
-    metaTitle: input.title ?? null,
-    metaDescription: input.description ?? null,
-    metaImage: input.image ?? null
-  })),
-  sanitizeNotes: mock((v: unknown) => v ?? null),
-  sanitizeTags: mock((v: unknown) => v ?? null)
-}));
-
 import { createLink } from '@/server/modules/links/services/create-link';
 
 describe('createLink cache invalidation', () => {
@@ -154,9 +140,7 @@ describe('createLink cache invalidation', () => {
     }));
     dbMock.select.mockImplementation(() => ({
       from: mock(() => ({
-        where: mock(() => ({
-          limit: mock(async () => [])
-        }))
+        where: mock(async () => [])
       }))
     }));
   });

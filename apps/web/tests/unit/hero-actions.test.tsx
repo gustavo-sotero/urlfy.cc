@@ -48,7 +48,16 @@ mock.module('@/i18n/routing', () => ({
 
 // Mock session provider
 mock.module('@/lib/session-provider', () => ({
-  useAuthState: mockUseAuthState
+  SESSION_QUERY_KEY: ['session'],
+  SessionProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuthState: mockUseAuthState,
+  useSessionContext: () => ({
+    data: null,
+    isPending: false,
+    error: null,
+    refetch: async () => {},
+    isAuthenticated: false
+  })
 }));
 
 describe('HeroActions', () => {

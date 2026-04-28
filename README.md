@@ -224,7 +224,7 @@ Key indexes: `short_code` (unique), `user_id + deleted_at` (partial, listings), 
 | `FORBIDDEN` | 403 | Insufficient permission |
 | `LINK_NOT_FOUND` | 404 | Unknown short code |
 | `LINK_EXPIRED` | 410 | Link past expiry |
-| `REDIRECT_LOOP` | 421 | Max redirect depth exceeded |
+| `REDIRECT_LOOP` | 421 | Self-shortener redirect loop detected |
 | `URL_MALICIOUS` | 422 | Blocked URL |
 | `RATE_LIMITED` | 429 | Too many requests |
 | `LINK_BANNED` | 451 | Admin-banned link |

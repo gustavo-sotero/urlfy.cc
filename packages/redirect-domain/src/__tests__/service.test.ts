@@ -10,7 +10,7 @@
 
 // ── Module mocks (must appear before any import that triggers them) ────────────
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // NoOp OpenTelemetry tracer — avoids SDK initialisation in unit tests
 mock.module('@opentelemetry/api', () => ({
@@ -71,16 +71,11 @@ mock.module('@urlfy/telemetry', () => ({
 // ── Mutable fetcher result — tests override this per-case ─────────────────────
 
 import type { CachedLink } from '@urlfy/contracts/redirect';
+import type { RedirectServiceDependencies } from '../types';
 
 type FetcherResult = { link: CachedLink | null; cacheHit: boolean };
 
 let mockFetcherResult: FetcherResult = { link: null, cacheHit: false };
-
-mock.module('../fetcher', () => ({
-  getLink: async (_code: string): Promise<FetcherResult> => mockFetcherResult,
-  isCodeAvailable: async () => true,
-  getCircuitBreakerStatus: () => 'CLOSED'
-}));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -108,35 +103,87 @@ const PAST = new Date(Date.now() - 60_000).toISOString();
 
 // Dynamic import AFTER mock.module calls so Bun uses the mocked versions
 const { RedirectService } = await import('../service');
+const { buildFinalUrl } = await import('../url-builder');
+const { validateLink } = await import('../validator');
+
+function makeServiceDependencies(
+  overrides: Partial<RedirectServiceDependencies> = {}
+): RedirectServiceDependencies {
+  return {
+    fetchLink: async () => mockFetcherResult,
+    isCodeAvailable: async () => true,
+    getCircuitBreakerStatus: () => 'CLOSED',
+    getCacheStats: async () => ({ memory: '0', keys: 0, hitRate: null }),
+    buildFinalUrl,
+    validateLink,
+    ...overrides
+  };
+}
 
 describe('RedirectService.resolve', () => {
   let service: InstanceType<typeof RedirectService>;
+  let originalNextPublicAppUrl: string | undefined;
 
   beforeEach(() => {
-    service = new RedirectService();
+    originalNextPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    service = new RedirectService(makeServiceDependencies());
     // Default: link not found
     mockFetcherResult = { link: null, cacheHit: false };
   });
 
-  // ── Depth guard ───────────────────────────────────────────────────────────────
-
-  it('returns REDIRECT_LOOP when depth is exactly 3', async () => {
-    const result = await service.resolve('abc1234', 3, false);
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('REDIRECT_LOOP');
+  afterEach(() => {
+    if (originalNextPublicAppUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = originalNextPublicAppUrl;
+    }
   });
 
-  it('returns REDIRECT_LOOP when depth exceeds 3', async () => {
-    const result = await service.resolve('abc1234', 5, false);
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('REDIRECT_LOOP');
-  });
+  // ── Destination loop guard ───────────────────────────────────────────────────
 
-  it('does not return REDIRECT_LOOP when depth is 2', async () => {
+  it('does not treat legacy depth as a redirect-loop signal', async () => {
     mockFetcherResult = { link: makeLink(), cacheHit: true };
-    const result = await service.resolve('abc1234', 2, false);
-    // Should not be a loop error (may succeed or fail for other reasons)
-    expect(result.error).not.toBe('REDIRECT_LOOP');
+    const result = await service.resolve('abc1234', 5, false);
+    expect(result.success).toBe(true);
+    expect(result.error).toBeUndefined();
+  });
+
+  it('returns REDIRECT_LOOP for the explicit self redirect route', async () => {
+    mockFetcherResult = {
+      link: makeLink({ originalUrl: 'https://urlfy.cc/r/loop123' }),
+      cacheHit: true
+    };
+
+    const result = await service.resolve('abc1234', 0, false);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('REDIRECT_LOOP');
+  });
+
+  it('returns REDIRECT_LOOP for a shortcode path on the configured app host', async () => {
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com';
+    mockFetcherResult = {
+      link: makeLink({ originalUrl: 'https://app.example.com/abc1234' }),
+      cacheHit: true
+    };
+
+    const result = await service.resolve('abc1234', 0, false);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('REDIRECT_LOOP');
+  });
+
+  it('allows normal multi-segment first-party pages', async () => {
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com';
+    mockFetcherResult = {
+      link: makeLink({ originalUrl: 'https://app.example.com/en/about' }),
+      cacheHit: true
+    };
+
+    const result = await service.resolve('abc1234', 0, false);
+
+    expect(result.success).toBe(true);
+    expect(result.error).toBeUndefined();
   });
 
   // ── Not found ─────────────────────────────────────────────────────────────────

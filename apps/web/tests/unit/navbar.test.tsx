@@ -37,6 +37,7 @@ beforeAll(async () => {
 
 // Mock next-intl
 mock.module('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: mock((namespace: string) => {
     const messages: Record<string, Record<string, string>> = {
       Navigation: {
@@ -79,32 +80,55 @@ mock.module('@/i18n/routing', () => ({
     );
   },
   redirect: () => undefined,
-  useRouter: () => ({ push: () => {} }),
+  useRouter: () => ({ push: () => {}, replace: () => {} }),
   usePathname: () => '/'
 }));
 
 // Mock auth client
 mock.module('@/lib/auth.client', () => ({
+  signIn: async () => ({}),
+  signUp: async () => ({}),
+  signOut: async () => undefined,
   useSession: mock(() => ({
     data: null,
     isPending: false
-  }))
+  })),
+  getSession: async () => ({ data: null, error: null }),
+  resetPassword: async () => ({}),
+  requestPasswordReset: async () => ({}),
+  changePassword: async () => ({}),
+  verifyEmail: async () => ({}),
+  twoFactor: {},
+  authClient: {
+    useSession: mock(() => ({ data: null, isPending: false })),
+    getSession: async () => ({ data: null, error: null }),
+    sendVerificationEmail: async () => undefined
+  },
+  default: {
+    useSession: mock(() => ({ data: null, isPending: false })),
+    getSession: async () => ({ data: null, error: null }),
+    sendVerificationEmail: async () => undefined
+  }
 }));
 
 // Mock session provider
 mock.module('@/lib/session-provider', () => ({
+  SESSION_QUERY_KEY: ['session'],
+  SessionProvider: ({ children }: { children: React.ReactNode }) => children,
   useAuthState: mock(() => ({
     data: null,
     isPending: false,
     isAuthenticated: false,
     refetch: async () => {},
     error: null
-  }))
-}));
-
-// Mock LanguageSwitcher
-mock.module('@/components/shared/language-switcher', () => ({
-  LanguageSwitcher: () => <div>Language</div>
+  })),
+  useSessionContext: () => ({
+    data: null,
+    isPending: false,
+    error: null,
+    refetch: async () => {},
+    isAuthenticated: false
+  })
 }));
 
 describe('Navbar', () => {
@@ -188,8 +212,12 @@ describe('Navbar', () => {
       fireEvent.click(menuButton);
     });
 
-    expect(screen.getByText('Idioma')).toBeDefined();
-    expect(screen.getAllByText('Language').length).toBeGreaterThan(0);
+    const dialog = screen.getByRole('dialog');
+
+    expect(within(dialog).getByText('Idioma')).toBeDefined();
+    expect(
+      within(dialog).getByRole('button', { name: 'Idioma: English' })
+    ).toBeDefined();
   });
 
   it('mobile drawer auth buttons have w-full width class', async () => {

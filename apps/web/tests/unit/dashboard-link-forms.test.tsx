@@ -140,6 +140,10 @@ mock.module('next-intl', () => ({
 }));
 
 mock.module('next/navigation', () => ({
+  redirect: () => {},
+  permanentRedirect: () => {},
+  notFound: () => {},
+  useSearchParams: () => new URLSearchParams(),
   usePathname: () => '/dashboard/links/link-1/edit',
   useRouter: () => ({ push: () => {} }),
   useParams: () => paramsValue

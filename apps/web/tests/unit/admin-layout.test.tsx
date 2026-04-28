@@ -50,11 +50,18 @@ function createJsonFetchStub(): typeof fetch {
 }
 
 mock.module('next/headers', () => ({
-  headers: headersMock
+  headers: headersMock,
+  cookies: async () => ({ get: () => undefined })
 }));
 
 mock.module('next/navigation', () => ({
-  redirect: redirectMock
+  redirect: redirectMock,
+  permanentRedirect: () => {},
+  notFound: () => {},
+  useParams: () => ({}),
+  usePathname: () => '/admin',
+  useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {} }),
+  useSearchParams: () => new URLSearchParams()
 }));
 
 mock.module('@/components/admin/layout/admin-header', () => ({
@@ -70,6 +77,10 @@ mock.module('@/components/admin/layout/admin-sidebar', () => ({
 }));
 
 mock.module('@/server/lib/ip', () => ({
+  getClientIp: () => '127.0.0.1',
+  isPrivateIp: () => false,
+  isValidIp: () => true,
+  maskIpForLog: (ip: string) => ip,
   getClientIpFromHeaders: () => '127.0.0.1'
 }));
 
