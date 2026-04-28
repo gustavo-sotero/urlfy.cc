@@ -10,6 +10,14 @@ type DependencyHealthResult = {
   error?: string;
 };
 
+type BannedDomainsSnapshotMockResult = {
+  loaded: boolean;
+  hasReliableSnapshot: boolean;
+  domainCount: number;
+  lastLoadedAt: string | null;
+  cacheAgeMs: number | null;
+};
+
 const checkDatabaseHealthMock = mock(
   async (): Promise<DependencyHealthResult> => ({
     status: 'ok' as const,
@@ -20,6 +28,16 @@ const checkRedisHealthMock = mock(
   async (): Promise<DependencyHealthResult> => ({
     status: 'ok' as const,
     latencyMs: 1
+  })
+);
+const reloadBannedDomainsMock = mock(async (): Promise<void> => {});
+const getBannedDomainsSnapshotStatusMock = mock(
+  (): BannedDomainsSnapshotMockResult => ({
+    loaded: true,
+    hasReliableSnapshot: true,
+    domainCount: 2,
+    lastLoadedAt: '2026-04-28T00:00:00.000Z',
+    cacheAgeMs: 0
   })
 );
 
@@ -37,6 +55,10 @@ describe('healthController readiness', () => {
     mock.module('@/server/lib/openapi-merger', () => ({
       getOpenAPIDegradedState: () => false
     }));
+    mock.module('@/server/modules/links/services/url-validator', () => ({
+      reloadBannedDomains: reloadBannedDomainsMock,
+      getBannedDomainsSnapshotStatus: getBannedDomainsSnapshotStatusMock
+    }));
 
     checkDatabaseHealthMock.mockReset();
     checkDatabaseHealthMock.mockImplementation(async () => ({
@@ -47,6 +69,16 @@ describe('healthController readiness', () => {
     checkRedisHealthMock.mockImplementation(async () => ({
       status: 'ok',
       latencyMs: 1
+    }));
+    reloadBannedDomainsMock.mockReset();
+    reloadBannedDomainsMock.mockImplementation(async () => {});
+    getBannedDomainsSnapshotStatusMock.mockReset();
+    getBannedDomainsSnapshotStatusMock.mockImplementation(() => ({
+      loaded: true,
+      hasReliableSnapshot: true,
+      domainCount: 2,
+      lastLoadedAt: '2026-04-28T00:00:00.000Z',
+      cacheAgeMs: 0
     }));
   });
 
@@ -133,5 +165,61 @@ describe('healthController readiness', () => {
     expect(body.degraded).toBe(false);
     expect(body.services.database).toBe('error');
     expect(body.services.redis).toBe('ok');
+  });
+
+  test('reloads the banned-domain snapshot via the admin health route', async () => {
+    const { healthController } = await import('../health.controller');
+    const app = new Elysia({ prefix: '/api' }).use(healthController);
+
+    const response = await app.handle(
+      new Request('http://localhost/api/health/banned-domains/reload', {
+        method: 'POST'
+      })
+    );
+    const body = (await response.json()) as {
+      status: string;
+      snapshot: {
+        hasReliableSnapshot: boolean;
+        domainCount: number;
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe('reloaded');
+    expect(body.snapshot.hasReliableSnapshot).toBe(true);
+    expect(body.snapshot.domainCount).toBe(2);
+    expect(reloadBannedDomainsMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('returns 503 when reload does not produce a reliable snapshot', async () => {
+    getBannedDomainsSnapshotStatusMock.mockImplementation(() => ({
+      loaded: false,
+      hasReliableSnapshot: false,
+      domainCount: 0,
+      lastLoadedAt: null,
+      cacheAgeMs: null
+    }));
+
+    const { healthController } = await import('../health.controller');
+    const app = new Elysia({ prefix: '/api' }).use(healthController);
+
+    const response = await app.handle(
+      new Request('http://localhost/api/health/banned-domains/reload', {
+        method: 'POST'
+      })
+    );
+    const body = (await response.json()) as {
+      status: string;
+      snapshot: {
+        hasReliableSnapshot: boolean;
+        lastLoadedAt: string | null;
+        cacheAgeMs: number | null;
+      };
+    };
+
+    expect(response.status).toBe(503);
+    expect(body.status).toBe('unavailable');
+    expect(body.snapshot.hasReliableSnapshot).toBe(false);
+    expect(reloadBannedDomainsMock).toHaveBeenCalledTimes(1);
   });
 });

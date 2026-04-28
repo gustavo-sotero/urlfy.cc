@@ -333,9 +333,19 @@ describe('getLink', () => {
       expect(result.cacheHit).toBe(false);
     });
 
-    it('overlays pending clicks on repository-fetched links too', async () => {
+    it('does not overlay pending clicks on unlimited repository-fetched links', async () => {
       pendingClicksValue = 2;
       repositoryLink = makeRepositoryLink();
+
+      const result = await getLink('abc1234', makeTestDeps());
+
+      expect(result.link?.clicksCount).toBe(42);
+      expect(result.cacheHit).toBe(false);
+    });
+
+    it('overlays pending clicks on repository-fetched links when maxClicks enforcement is active', async () => {
+      pendingClicksValue = 2;
+      repositoryLink = makeRepositoryLink({ maxClicks: 100 });
 
       const result = await getLink('abc1234', makeTestDeps());
 

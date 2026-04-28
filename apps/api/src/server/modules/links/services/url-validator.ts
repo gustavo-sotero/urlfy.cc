@@ -126,6 +126,14 @@ export type ValidationError =
   | 'URL_INTERNAL_BLOCKED'
   | 'URL_RESOLUTION_FAILED';
 
+export interface BannedDomainsSnapshotStatus {
+  loaded: boolean;
+  hasReliableSnapshot: boolean;
+  domainCount: number;
+  lastLoadedAt: string | null;
+  cacheAgeMs: number | null;
+}
+
 /**
  * Loads banned domains from the database into memory cache.
  * Called automatically by validateUrl when cache is stale.
@@ -196,6 +204,22 @@ async function loadBannedDomainsFromDb(): Promise<void> {
 export async function reloadBannedDomains(): Promise<void> {
   bannedDomainsLastLoad = 0; // Force reload
   await loadBannedDomainsFromDb();
+}
+
+export function getBannedDomainsSnapshotStatus(): BannedDomainsSnapshotStatus {
+  const lastLoadedAt =
+    bannedDomainsLastLoad > 0
+      ? new Date(bannedDomainsLastLoad).toISOString()
+      : null;
+
+  return {
+    loaded: bannedDomainsLoaded,
+    hasReliableSnapshot: hasReliableBannedDomainsSnapshot,
+    domainCount: BLOCKED_DOMAINS.size,
+    lastLoadedAt,
+    cacheAgeMs:
+      bannedDomainsLastLoad > 0 ? Date.now() - bannedDomainsLastLoad : null
+  };
 }
 
 /**

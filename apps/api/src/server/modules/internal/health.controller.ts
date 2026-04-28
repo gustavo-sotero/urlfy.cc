@@ -14,11 +14,14 @@ import { getOpenAPIDegradedState } from '@/server/lib/openapi-merger';
 import { checkRedisHealth } from '@/server/lib/redis';
 import { ResponseModels } from '@/server/lib/response.schema';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
+import {
+  getBannedDomainsSnapshotStatus,
+  reloadBannedDomains
+} from '../links/services/url-validator';
 
 // ═══════════════════════════════════════════════════════════════════
 // HEALTH CHECK SIMPLES (público)
 // ═══════════════════════════════════════════════════════════════════
-
 const healthSimple = new Elysia()
   .use(ResponseModels)
   .get(
@@ -252,6 +255,72 @@ const healthDetailed = new Elysia()
             ]
           }
         ),
+        401: t.Ref('response.error.401'),
+        403: t.Ref('response.error.403')
+      }
+    }
+  )
+  .post(
+    '/health/banned-domains/reload',
+    async ({ set }) => {
+      await reloadBannedDomains();
+
+      const snapshot = getBannedDomainsSnapshotStatus();
+      if (!snapshot.hasReliableSnapshot) {
+        set.status = 503;
+
+        return {
+          status: 'unavailable' as const,
+          snapshot: {
+            ...snapshot,
+            hasReliableSnapshot: false as const
+          }
+        };
+      }
+
+      return {
+        status: 'reloaded' as const,
+        snapshot: {
+          ...snapshot,
+          hasReliableSnapshot: true as const
+        }
+      };
+    },
+    {
+      detail: {
+        summary: 'Reload banned-domain snapshot (Admin)',
+        description:
+          'Forces an immediate refresh of the in-memory banned-domain snapshot used by URL validation. Requires authenticated admin access.',
+        tags: ['Health', 'Admin'],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      },
+      response: {
+        200: t.Object({
+          status: t.Literal('reloaded'),
+          snapshot: t.Object({
+            loaded: t.Boolean({ examples: [true] }),
+            hasReliableSnapshot: t.Literal(true),
+            domainCount: t.Number({ examples: [3] }),
+            lastLoadedAt: t.Union([
+              t.String({ format: 'date-time' }),
+              t.Null()
+            ]),
+            cacheAgeMs: t.Union([t.Number({ examples: [0] }), t.Null()])
+          })
+        }),
+        503: t.Object({
+          status: t.Literal('unavailable'),
+          snapshot: t.Object({
+            loaded: t.Boolean({ examples: [false] }),
+            hasReliableSnapshot: t.Literal(false),
+            domainCount: t.Number({ examples: [0] }),
+            lastLoadedAt: t.Union([
+              t.String({ format: 'date-time' }),
+              t.Null()
+            ]),
+            cacheAgeMs: t.Union([t.Number({ examples: [0] }), t.Null()])
+          })
+        }),
         401: t.Ref('response.error.401'),
         403: t.Ref('response.error.403')
       }

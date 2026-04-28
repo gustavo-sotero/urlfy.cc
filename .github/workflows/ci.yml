@@ -210,6 +210,9 @@ jobs:
           fi
           echo "✅ Migration files are up to date"
 
+      - name: Validate migration safety rules
+        run: bun run db:validate
+
       - name: Test migrations apply cleanly
         run: |
           echo "⏳ Applying all migrations to a fresh database..."

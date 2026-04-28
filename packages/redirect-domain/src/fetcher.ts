@@ -57,6 +57,16 @@ async function applyPendingClicks(
   };
 }
 
+async function applyPendingClicksForEnforcement(
+  link: CachedLink | null
+): Promise<CachedLink | null> {
+  if (!link || link.maxClicks == null) {
+    return link;
+  }
+
+  return applyPendingClicks(link);
+}
+
 export const defaultRedirectFetcherDependencies: RedirectFetcherDependencies = {
   cache: cacheService,
   links: {
@@ -160,13 +170,7 @@ export async function getLink(
             span.setAttribute('cache.type', 'link');
             span.setAttribute('cache.hit', true);
             recordCacheHit(1, { type: 'link' });
-            // Only overlay pending clicks when MAX_CLICKS enforcement is
-            // active. Links without a click limit don't need the extra
-            // Redis round-trip on the hot path.
-            const link =
-              parsed.maxClicks != null
-                ? await applyPendingClicks(parsed)
-                : parsed;
+            const link = await applyPendingClicksForEnforcement(parsed);
             return { link, cacheHit: true };
           }
         }
@@ -249,7 +253,7 @@ async function fetchWithStampedeProtection(
   // Try to get from cache again (probably already populated)
   const cached = await dependencies.cache.getLink(code);
   if (cached) {
-    return applyPendingClicks(cached);
+    return applyPendingClicksForEnforcement(cached);
   }
 
   // If still not in cache, fallback to direct fetch
@@ -267,7 +271,7 @@ async function fetchFromDatabase(
   dependencies: RedirectFetcherDependencies = defaultRedirectFetcherDependencies
 ): Promise<CachedLink | null> {
   return dependencies.circuitBreaker.execute(async () =>
-    applyPendingClicks(await dependencies.links.findByCode(code))
+    applyPendingClicksForEnforcement(await dependencies.links.findByCode(code))
   );
 }
 

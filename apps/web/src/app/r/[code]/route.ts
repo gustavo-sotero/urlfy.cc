@@ -162,8 +162,28 @@ function handleError(
 }
 
 /**
+ * Reserve one pending click before returning the redirect response.
+ * This keeps MAX_CLICKS enforcement aligned with very recent redirects
+ * while still allowing the analytics enqueue itself to stay asynchronous.
+ */
+async function reservePendingClick(
+  linkId: string,
+  code: string
+): Promise<void> {
+  const nextPendingCount = await incrementPendingClicks(linkId);
+
+  if (nextPendingCount === null) {
+    logger.warn('Failed to reserve pending click before redirect response', {
+      shortCode: code,
+      linkId
+    });
+  }
+}
+
+/**
  * Dispatch click analytics event to Redis stream (non-blocking).
- * Increments pending clicks and reverts on stream-enqueue failure.
+ * The pending-click delta is reserved before this function is called and
+ * reverted here only if the stream enqueue fails.
  */
 function dispatchAnalytics(
   request: NextRequest,
@@ -175,10 +195,6 @@ function dispatchAnalytics(
   fireAndForget(
     'analytics-emit',
     async () => {
-      // Increment pending clicks inside the fire-and-forget so it does not
-      // block the redirect response. The drain on failure keeps the counter
-      // consistent if the stream enqueue fails.
-      await incrementPendingClicks(linkId);
       try {
         await RedisStream.add(STREAM_NAMES.analyticsClicks, {
           linkId,
@@ -281,10 +297,11 @@ export async function GET(
       return handleError(result.error || 'UNKNOWN_ERROR', code, requestId);
     }
 
-    // ── 5. Dispatch analytics (fire-and-forget) ──────────────────
-    // Pending-click increment and stream enqueue happen inside dispatchAnalytics
-    // so the redirect response is not blocked by Redis writes.
+    // ── 5. Reserve click + dispatch analytics ────────────────────
+    // Reserve the pending delta before returning so MAX_CLICKS checks see
+    // recent redirects, then enqueue the heavier analytics work asynchronously.
     if (result.linkId) {
+      await reservePendingClick(result.linkId, code);
       dispatchAnalytics(request, code, result.linkId);
     }
 

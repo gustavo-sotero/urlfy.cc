@@ -74,6 +74,10 @@ let analyticsAddCalled = false;
 let analyticsAddShouldFail = false;
 let pendingClicksIncremented = false;
 let pendingClicksDrained = false;
+let incrementPendingClicksMock = async (): Promise<number> => {
+  pendingClicksIncremented = true;
+  return 1;
+};
 mock.module('@urlfy/cache', () => ({
   RedisStream: {
     add: async (): Promise<void> => {
@@ -86,10 +90,8 @@ mock.module('@urlfy/cache', () => ({
   drainPendingClicks: async (): Promise<void> => {
     pendingClicksDrained = true;
   },
-  incrementPendingClicks: async (): Promise<number> => {
-    pendingClicksIncremented = true;
-    return 1;
-  },
+  incrementPendingClicks: async (): Promise<number> =>
+    incrementPendingClicksMock(),
   STREAM_NAMES: { analyticsClicks: 'analytics:clicks' }
 }));
 
@@ -188,6 +190,10 @@ describe('GET /r/[code] — redirect hot path', () => {
     linkRateLimitResult = { allowed: true };
     pendingClicksIncremented = false;
     pendingClicksDrained = false;
+    incrementPendingClicksMock = async (): Promise<number> => {
+      pendingClicksIncremented = true;
+      return 1;
+    };
     process.env.NEXT_PUBLIC_APP_URL = 'https://urlfy.cc';
     process.env.JWT_SECRET = 'test-secret-minimum-32-characters-long!!';
   });
@@ -317,6 +323,38 @@ describe('GET /r/[code] — redirect hot path', () => {
   });
 
   // ── 7. Analytics fire-and-forget ─────────────────────────────────────────────
+
+  it('waits for pending click reservation before returning the redirect', async () => {
+    let resolvePendingIncrement: ((value: number) => void) | undefined;
+
+    incrementPendingClicksMock = () =>
+      new Promise<number>((resolve) => {
+        pendingClicksIncremented = true;
+        resolvePendingIncrement = resolve;
+      });
+
+    mockResolveResult = {
+      success: true,
+      url: 'https://example.com',
+      redirectType: 302,
+      linkId: 'link-analytics',
+      cacheHit: false
+    };
+
+    let settled = false;
+    const responsePromise = callGET('abc1234').then((response) => {
+      settled = true;
+      return response;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(pendingClicksIncremented).toBe(true);
+    expect(settled).toBe(false);
+
+    resolvePendingIncrement?.(1);
+    const res = await responsePromise;
+    expect(res.status).toBe(302);
+  });
 
   it('dispatches analytics without blocking the redirect response', async () => {
     mockResolveResult = {
