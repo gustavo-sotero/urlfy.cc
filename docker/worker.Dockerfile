@@ -16,7 +16,6 @@ COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
 COPY apps/worker/package.json ./apps/worker/
 COPY packages/auth-shared/package.json ./packages/auth-shared/
-COPY packages/config-biome/package.json ./packages/config-biome/
 COPY packages/config-ts/package.json ./packages/config-ts/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/cache/package.json ./packages/cache/

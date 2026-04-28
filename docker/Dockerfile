@@ -79,7 +79,7 @@ RUN apt-get update && \
 COPY --from=builder --chown=urlfy:urlfy /app/.next/standalone ./
 COPY --from=builder --chown=urlfy:urlfy /app/.next/static ./.next/static
 COPY --from=builder --chown=urlfy:urlfy /app/.next/BUILD_NEXT_PUBLIC_APP_URL ./.next/BUILD_NEXT_PUBLIC_APP_URL
-COPY --from=builder --chown=urlfy:urlfy /app/packages/data/migrations ./drizzle
+COPY --from=builder --chown=urlfy:urlfy /app/packages/data/migrations ./migrations
 
 # Copia migration script, db health check e entrypoint
 COPY --chown=urlfy:urlfy docker/migrate.ts ./migrate.ts

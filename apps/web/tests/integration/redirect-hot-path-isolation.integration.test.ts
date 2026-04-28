@@ -16,18 +16,34 @@ import {
   test
 } from 'bun:test';
 
-const resolveMock = mock(async () => ({
-  success: true,
-  url: 'https://example.com/destination',
-  redirectType: 302,
-  cacheHit: true
-}));
+type ResolveResult =
+  | {
+      success: true;
+      url: string;
+      redirectType: number;
+      cacheHit: boolean;
+    }
+  | {
+      success: false;
+      error: string;
+      linkId: string;
+    };
+
+const resolveMock = mock(
+  async (): Promise<ResolveResult> => ({
+    success: true,
+    url: 'https://example.com/destination',
+    redirectType: 302,
+    cacheHit: true
+  })
+);
 
 const cookiesGetMock = mock(() => undefined);
 const trackRequestMock = mock(async () => {});
 const checkIPLimitMock = mock(async () => ({ allowed: true as const }));
 const checkLinkLimitMock = mock(async () => ({ allowed: true as const }));
 const streamAddMock = mock(async () => '1-0');
+const originalTrustProxy = process.env.TRUST_PROXY;
 
 mock.module('@urlfy/cache', () => ({
   RedisStream: {
@@ -38,7 +54,7 @@ mock.module('@urlfy/cache', () => ({
   }
 }));
 
-mock.module('@urlfy/redirect-domain', () => ({
+mock.module('@/server/services/redirect-service', () => ({
   redirectService: {
     resolve: resolveMock
   }
@@ -58,10 +74,6 @@ mock.module('next/headers', () => ({
   cookies: mock(async () => ({
     get: cookiesGetMock
   }))
-}));
-
-mock.module('@/server/lib/ip', () => ({
-  getClientIp: mock(() => '203.0.113.10')
 }));
 
 mock.module('@/server/lib/rate-limiter', () => ({
@@ -91,10 +103,17 @@ describe('Redirect hot path isolation', () => {
   let fetchSpy: ReturnType<typeof mock>;
 
   afterAll(() => {
+    if (originalTrustProxy === undefined) {
+      delete process.env.TRUST_PROXY;
+    } else {
+      process.env.TRUST_PROXY = originalTrustProxy;
+    }
+
     mock.restore();
   });
 
   beforeEach(() => {
+    process.env.TRUST_PROXY = 'true';
     resolveMock.mockImplementation(async () => ({
       success: true,
       url: 'https://example.com/destination',
@@ -130,7 +149,8 @@ describe('Redirect hot path isolation', () => {
     const response = await GET(
       {
         headers: new Headers({
-          'x-request-id': 'req-local-1'
+          'x-request-id': 'req-local-1',
+          'x-forwarded-for': '203.0.113.10'
         }),
         nextUrl: new URL('http://localhost/r/test-code')
       } as never,
@@ -148,8 +168,7 @@ describe('Redirect hot path isolation', () => {
         ip: '203.0.113.10',
         userAgent: null,
         referrer: null,
-        requestId: 'req-local-1',
-        depth: 0
+        requestId: 'req-local-1'
       }
     });
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -161,12 +180,18 @@ describe('Redirect hot path isolation', () => {
     expect(response.headers.get('x-request-id')).toBe('req-local-1');
   });
 
-  test('rejects redirect loops before domain resolution or any fetch call', async () => {
+  test('returns redirect loop when the redirect domain detects a self-shortener loop', async () => {
+    resolveMock.mockImplementation(async () => ({
+      success: false,
+      error: 'REDIRECT_LOOP',
+      linkId: 'link-loop-1'
+    }));
+
     const response = await GET(
       {
         headers: new Headers({
           'x-request-id': 'req-loop-1',
-          'x-redirect-depth': '3'
+          'x-forwarded-for': '203.0.113.10'
         }),
         nextUrl: new URL('http://localhost/r/test-code')
       } as never,
@@ -176,7 +201,7 @@ describe('Redirect hot path isolation', () => {
     );
 
     expect(response.status).toBe(421);
-    expect(resolveMock).not.toHaveBeenCalled();
+    expect(resolveMock).toHaveBeenCalledTimes(1);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(response.headers.get('x-error-code')).toBe('REDIRECT_LOOP');
   });

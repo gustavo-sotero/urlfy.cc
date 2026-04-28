@@ -25,7 +25,7 @@ import { drizzle } from 'drizzle-orm/bun-sql';
 import { migrate } from 'drizzle-orm/bun-sql/migrator';
 
 const DRY_RUN = process.env.MIGRATION_DRY_RUN === 'true';
-const MIGRATIONS_FOLDER = './drizzle';
+const MIGRATIONS_FOLDER = './migrations';
 
 /**
  * Reads the local migration journal to get the list of all migration tags.

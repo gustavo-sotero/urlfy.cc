@@ -77,6 +77,7 @@ jobs:
           BETTER_AUTH_SECRET: ci-audit-better-auth-secret-minimum-32-chars
           AUTH_SECRET: ci-audit-auth-secret-minimum-32-characters-long
           INTERNAL_API_SECRET: ci-audit-internal-secret-minimum-32-chars
+          INTERNAL_ANALYTICS_SECRET: ci-audit-analytics-secret-minimum-32-chars
           NODE_ENV: production
 
   # ─── Unit & Integration Tests ───────────────────────────────────
@@ -119,6 +120,7 @@ jobs:
       BETTER_AUTH_SECRET: ci-test-secret-minimum-32-characters-long
       JWT_SECRET: ci-test-jwt-secret-minimum-32-characters
       INTERNAL_API_SECRET: ci-test-internal-secret
+      INTERNAL_ANALYTICS_SECRET: ci-test-analytics-secret-minimum-32-chars
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       ADMIN_GITHUB_ACCOUNT_ID: ci-test-admin-github-account-id-00000000
       # SKIP_ENV_VALIDATION is intentionally NOT set at job level so that
@@ -156,9 +158,6 @@ jobs:
         run: bunx turbo run test:perf
         env:
           SKIP_ENV_VALIDATION: "1"
-
-      - name: Verify k6 redirect harness exists
-        run: test -f load/k6/redirect-hot-path.js
 
   # ─── Migration Validation ───────────────────────────────────────
   migrations:

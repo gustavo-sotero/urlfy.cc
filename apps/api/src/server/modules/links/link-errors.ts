@@ -12,6 +12,7 @@ export type LinkDomainErrorCode =
   | 'INVALID_PROTOCOL'
   | 'SHORTENER_BLOCKED'
   | 'SELF_SHORTENER_BLOCKED'
+  | 'BANNED_DOMAINS_UNAVAILABLE'
   | 'DOMAIN_BANNED'
   | 'URL_TOO_LONG'
   | 'URL_INTERNAL_BLOCKED'
@@ -32,6 +33,7 @@ const LINK_ERROR_TO_APP: Record<LinkDomainErrorCode, ErrorCodeType> = {
   INVALID_PROTOCOL: ErrorCode.INVALID_URL,
   SHORTENER_BLOCKED: ErrorCode.SHORTENER_NOT_ALLOWED,
   SELF_SHORTENER_BLOCKED: ErrorCode.SHORTENER_NOT_ALLOWED,
+  BANNED_DOMAINS_UNAVAILABLE: ErrorCode.SERVICE_UNAVAILABLE,
   DOMAIN_BANNED: ErrorCode.URL_BLOCKED,
   URL_TOO_LONG: ErrorCode.URL_TOO_LONG,
   URL_INTERNAL_BLOCKED: ErrorCode.INVALID_URL,
@@ -54,6 +56,8 @@ const LINK_ERROR_MESSAGES: Record<LinkDomainErrorCode, string> = {
   SHORTENER_BLOCKED: 'Shortening other URL shorteners is not allowed',
   SELF_SHORTENER_BLOCKED:
     'Shortening links that point back to this service is not allowed',
+  BANNED_DOMAINS_UNAVAILABLE:
+    'URL validation is temporarily unavailable while the banned-domain snapshot is loading',
   DOMAIN_BANNED: 'This domain has been blocked',
   URL_TOO_LONG: 'URL too long (maximum: 2048 characters)',
   URL_INTERNAL_BLOCKED: 'URLs to internal or private networks are not allowed',

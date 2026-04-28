@@ -13,7 +13,7 @@
  *    - If YES: Use next-intl middleware
  * 4. If NO (e.g., /abc1234): Treat as potential Short URL
  *
- * @see .github/prompts/plan-i18nImplementation.prompt.md
+ * @see README.md#topology
  * ═════════════════════════════════════════════════════════════════════
  */
 

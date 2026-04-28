@@ -211,10 +211,6 @@
         "@urlfy/config-ts": "workspace:*",
       },
     },
-    "packages/config-biome": {
-      "name": "@urlfy/config-biome",
-      "version": "0.0.0",
-    },
     "packages/config-ts": {
       "name": "@urlfy/config-ts",
       "version": "0.0.0",
@@ -1257,8 +1253,6 @@
     "@urlfy/auth-shared": ["@urlfy/auth-shared@workspace:packages/auth-shared"],
 
     "@urlfy/cache": ["@urlfy/cache@workspace:packages/cache"],
-
-    "@urlfy/config-biome": ["@urlfy/config-biome@workspace:packages/config-biome"],
 
     "@urlfy/config-ts": ["@urlfy/config-ts@workspace:packages/config-ts"],
 

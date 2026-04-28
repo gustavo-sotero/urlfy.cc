@@ -15,6 +15,8 @@ const KNOWN_TEST_SECRETS = [
   'test-password'
 ];
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 const secretsToCheck: Array<{
   name: string;
   value: string | undefined;
@@ -32,16 +34,11 @@ const secretsToCheck: Array<{
     value: process.env.INTERNAL_API_SECRET,
     required: true
   },
-  // INTERNAL_ANALYTICS_SECRET is optional but must not be weak if provided
-  ...(process.env.INTERNAL_ANALYTICS_SECRET
-    ? [
-        {
-          name: 'INTERNAL_ANALYTICS_SECRET',
-          value: process.env.INTERNAL_ANALYTICS_SECRET,
-          required: false
-        }
-      ]
-    : [])
+  {
+    name: 'INTERNAL_ANALYTICS_SECRET',
+    value: process.env.INTERNAL_ANALYTICS_SECRET,
+    required: isProduction
+  }
 ];
 
 let hasTestSecrets = false;

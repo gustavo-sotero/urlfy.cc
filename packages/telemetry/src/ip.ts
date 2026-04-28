@@ -8,6 +8,65 @@ import { createHash } from 'node:crypto';
 
 let trustProxyWarningLogged = false;
 
+interface TrustProxyConfigInput {
+  nodeEnv?: string;
+  publicAppUrl?: string;
+  trustProxy?: string | boolean;
+}
+
+function isLocalHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return (
+    normalized === 'localhost' ||
+    normalized === '127.0.0.1' ||
+    normalized === '0.0.0.0' ||
+    normalized === '::1' ||
+    normalized.endsWith('.local')
+  );
+}
+
+/**
+ * Fail fast when a production deployment is configured with a public origin
+ * that implies a reverse proxy or TLS terminator, but TRUST_PROXY is disabled.
+ */
+export function assertTrustProxyConfig({
+  nodeEnv,
+  publicAppUrl,
+  trustProxy
+}: TrustProxyConfigInput): void {
+  if (nodeEnv !== 'production') {
+    return;
+  }
+
+  if (trustProxy === true || trustProxy === 'true') {
+    return;
+  }
+
+  if (!publicAppUrl) {
+    return;
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(publicAppUrl);
+  } catch {
+    return;
+  }
+
+  const publicOriginNeedsProxyTrust =
+    parsedUrl.protocol === 'https:' || !isLocalHostname(parsedUrl.hostname);
+
+  if (!publicOriginNeedsProxyTrust) {
+    return;
+  }
+
+  throw new Error(
+    'TRUST_PROXY must be true in production when NEXT_PUBLIC_APP_URL points ' +
+      'to a public or HTTPS origin. This deployment expects forwarded host, ' +
+      'scheme, and client IP headers from the reverse proxy.'
+  );
+}
+
 /**
  * Extracts client IP from request headers in a secure, consistent manner
  *

@@ -4,7 +4,7 @@
  * ═════════════════════════════════════════════════════════════════════
  * Module: Core Library
  * Pattern: TypeBox schemas for OpenAPI response documentation
- * Spec: plan-openApiResponses.prompt.md
+ * Spec: README.md#api-response-format
  *
  * This module provides:
  * - SuccessResponse<T>: Wrapper for successful API responses

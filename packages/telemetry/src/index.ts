@@ -9,6 +9,7 @@ export { fireAndForget } from './fire-and-forget';
 export { configureLogging, initTelemetry, shutdownTelemetry } from './init';
 // IP extraction utilities (shared across API and web runtimes)
 export {
+  assertTrustProxyConfig,
   getClientIp,
   getClientIpFromHeaders,
   isPrivateIp,

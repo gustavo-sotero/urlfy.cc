@@ -386,7 +386,7 @@ async function validateCrossAppBoundaries(): Promise<Violation[]> {
     try {
       pkgFiles = await getTypeScriptFiles(srcDir);
     } catch {
-      continue; // No src/ directory in this package (e.g. config-ts, config-biome)
+      continue; // No src/ directory in this package (e.g. config-ts)
     }
 
     for (const filePath of pkgFiles) {

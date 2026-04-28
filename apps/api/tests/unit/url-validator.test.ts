@@ -1,7 +1,9 @@
 import { describe, expect, it, mock } from 'bun:test';
 import {
+  blockDomain,
   isBlockedHostname,
   isPrivateIP,
+  unblockDomain,
   validateUrlSafe
 } from '@/server/modules/links/services/url-validator';
 
@@ -25,6 +27,11 @@ mock.module('node:dns/promises', () => ({
 }));
 
 describe('URL Validator Service', () => {
+  // Prime the validator with a reliable in-memory snapshot so these unit tests
+  // exercise SSRF and hostname logic without depending on the database loader.
+  blockDomain('test-prime.local');
+  unblockDomain('test-prime.local');
+
   describe('isPrivateIP', () => {
     it('should identify private IPv4 ranges', () => {
       expect(isPrivateIP('127.0.0.1')).toBe(true);

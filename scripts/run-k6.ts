@@ -16,7 +16,7 @@ async function run(): Promise<void> {
 
   if (!scriptPath) {
     throw new Error(
-      'Missing k6 script path. Example: bun run scripts/run-k6.ts load/k6/redirect-hot-path.js'
+      'Missing k6 script path. Example: bun run scripts/run-k6.ts path/to/script.js'
     );
   }
 

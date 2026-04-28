@@ -12,7 +12,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { getClientIp, getClientIpFromHeaders } from '../ip';
+import {
+  assertTrustProxyConfig,
+  getClientIp,
+  getClientIpFromHeaders
+} from '../ip';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -185,5 +189,37 @@ describe('getClientIp with TRUST_PROXY enabled', () => {
       'x-forwarded-for': '203.0.113.5, 198.51.100.1, 10.0.0.5'
     });
     expect(getClientIp(req)).toBe('203.0.113.5');
+  });
+});
+
+describe('assertTrustProxyConfig', () => {
+  test('throws in production for public https origin when TRUST_PROXY is disabled', () => {
+    expect(() =>
+      assertTrustProxyConfig({
+        nodeEnv: 'production',
+        publicAppUrl: 'https://urlfy.cc',
+        trustProxy: 'false'
+      })
+    ).toThrow('TRUST_PROXY must be true');
+  });
+
+  test('allows local development origin with TRUST_PROXY disabled', () => {
+    expect(() =>
+      assertTrustProxyConfig({
+        nodeEnv: 'production',
+        publicAppUrl: 'http://localhost:3000',
+        trustProxy: 'false'
+      })
+    ).not.toThrow();
+  });
+
+  test('allows public origin when TRUST_PROXY is enabled', () => {
+    expect(() =>
+      assertTrustProxyConfig({
+        nodeEnv: 'production',
+        publicAppUrl: 'https://urlfy.cc',
+        trustProxy: 'true'
+      })
+    ).not.toThrow();
   });
 });

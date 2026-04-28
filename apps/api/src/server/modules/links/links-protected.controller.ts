@@ -52,6 +52,23 @@ import {
 import { LinkService } from './links.service';
 import { validateUrlSafe } from './services/url-validator';
 
+function getUrlValidationEnvelope(validationError: string) {
+  if (validationError === 'BANNED_DOMAINS_UNAVAILABLE') {
+    return {
+      status: 503,
+      code: 'SERVICE_UNAVAILABLE' as const,
+      message:
+        'URL validation is temporarily unavailable while the banned-domain snapshot is loading'
+    };
+  }
+
+  return {
+    status: 422,
+    code: 'INVALID_URL' as const,
+    message: `Invalid URL: ${validationError}`
+  };
+}
+
 function setGuestIdCookie(
   set: { headers: Record<string, string | number> },
   guestId: string
@@ -100,12 +117,13 @@ export const createLinkController = new Elysia()
       const preValidation = await validateUrlSafe(body.url);
       if (!preValidation.valid) {
         const requestId = getOrCreateRequestId(request);
-        set.status = 422;
+        const validationError = getUrlValidationEnvelope(preValidation.error);
+        set.status = validationError.status;
         set.headers['x-request-id'] = requestId;
         set.headers['content-type'] = 'application/json; charset=utf-8';
         return buildErrorEnvelope(
-          'INVALID_URL',
-          `Invalid URL: ${preValidation.error}`,
+          validationError.code,
+          validationError.message,
           requestId,
           { validationError: preValidation.error }
         );

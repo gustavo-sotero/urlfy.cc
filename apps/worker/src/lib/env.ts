@@ -3,6 +3,7 @@
  * This ensures all required environment variables are set at startup
  */
 
+import { assertTrustProxyConfig } from '@urlfy/telemetry';
 import { z } from 'zod';
 
 const envSchema = z.object({
@@ -182,6 +183,12 @@ export function validateEnv(): Env {
           'INTERNAL_ANALYTICS_SECRET is required in production (should differ from BETTER_AUTH_SECRET)'
         );
       }
+
+      assertTrustProxyConfig({
+        nodeEnv: env.NODE_ENV,
+        publicAppUrl: env.NEXT_PUBLIC_APP_URL,
+        trustProxy: env.TRUST_PROXY
+      });
     }
 
     return env;

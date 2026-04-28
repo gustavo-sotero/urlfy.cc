@@ -108,6 +108,7 @@ const BLOCKED_DOMAINS = new Set<string>();
 // Cache state
 let bannedDomainsLoaded = false;
 let bannedDomainsLastLoad = 0;
+let hasReliableBannedDomainsSnapshot = false;
 const CACHE_TTL_MS = 60_000; // Reload every minute
 
 const DNS_LOOKUP_TIMEOUT_MS = 10000; // Increased timeout for test environments with slow DNS
@@ -121,6 +122,7 @@ export type ValidationError =
   | 'INVALID_PROTOCOL'
   | 'SHORTENER_BLOCKED'
   | 'SELF_SHORTENER_BLOCKED'
+  | 'BANNED_DOMAINS_UNAVAILABLE'
   | 'DOMAIN_BANNED'
   | 'URL_TOO_LONG'
   | 'URL_INTERNAL_BLOCKED'
@@ -164,6 +166,7 @@ async function loadBannedDomainsFromDb(): Promise<void> {
 
     bannedDomainsLoaded = true;
     bannedDomainsLastLoad = now;
+    hasReliableBannedDomainsSnapshot = true;
   } catch (error) {
     logger.error('Failed to load banned domains from database', {
       error: error instanceof Error ? error.message : String(error),
@@ -180,8 +183,7 @@ async function loadBannedDomainsFromDb(): Promise<void> {
       logger.warn(
         'Banned-domain reload failed; retaining last-known-good snapshot',
         {
-          snapshotAge:
-            Math.round((now - bannedDomainsLastLoad) / 1000).toString() + 's'
+          snapshotAge: `${Math.round((now - bannedDomainsLastLoad) / 1000).toString()}s`
         }
       );
       // Update timestamp to avoid hammering the DB on every request
@@ -274,6 +276,14 @@ export function validateUrl(url: string): ValidationResult {
  */
 export async function validateUrlAsync(url: string): Promise<ValidationResult> {
   await loadBannedDomainsFromDb();
+
+  if (!hasReliableBannedDomainsSnapshot) {
+    logger.error(
+      'Banned-domain validation unavailable: no reliable snapshot loaded'
+    );
+    return { valid: false, error: 'BANNED_DOMAINS_UNAVAILABLE' };
+  }
+
   return validateUrl(url);
 }
 
@@ -398,6 +408,7 @@ export async function blockDomainPersistent(
 
   // Add to memory cache
   BLOCKED_DOMAINS.add(normalized);
+  hasReliableBannedDomainsSnapshot = true;
 }
 
 /**
@@ -407,6 +418,7 @@ export async function blockDomainPersistent(
 export function blockDomain(domain: string): void {
   const normalized = domain.replace(/^www\./, '').toLowerCase();
   BLOCKED_DOMAINS.add(normalized);
+  hasReliableBannedDomainsSnapshot = true;
 }
 
 /**
@@ -416,6 +428,7 @@ export function blockDomain(domain: string): void {
 export function unblockDomain(domain: string): void {
   const normalized = domain.replace(/^www\./, '').toLowerCase();
   BLOCKED_DOMAINS.delete(normalized);
+  hasReliableBannedDomainsSnapshot = true;
 }
 
 /**
