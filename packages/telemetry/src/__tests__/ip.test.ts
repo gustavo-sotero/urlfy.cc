@@ -32,6 +32,26 @@ function makeRequest(headers: Record<string, string>): Request {
   return new Request('https://example.com/', { headers });
 }
 
+function captureStderrWrites(): {
+  messages: string[];
+  restore: () => void;
+} {
+  const messages: string[] = [];
+  const originalWrite = process.stderr.write.bind(process.stderr);
+
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    messages.push(String(chunk));
+    return true;
+  }) as typeof process.stderr.write;
+
+  return {
+    messages,
+    restore: () => {
+      process.stderr.write = originalWrite as typeof process.stderr.write;
+    }
+  };
+}
+
 // ── Environment restore ───────────────────────────────────────────────────────
 
 let originalTrustProxy: string | undefined;
@@ -85,6 +105,22 @@ describe('getClientIpFromHeaders with TRUST_PROXY disabled', () => {
   test('returns 127.0.0.1 when no headers are present', () => {
     const h = makeHeaders({});
     expect(getClientIpFromHeaders(h)).toBe('127.0.0.1');
+  });
+
+  test('warns when forwarded headers are ignored because TRUST_PROXY is disabled', async () => {
+    const stderr = captureStderrWrites();
+
+    try {
+      const module = await import(`../ip?warning=${Date.now()}`);
+      const headers = makeHeaders({ 'x-forwarded-for': '203.0.113.10' });
+
+      expect(module.getClientIpFromHeaders(headers)).toBe('127.0.0.1');
+      expect(stderr.messages.join('')).toContain(
+        'Proxy headers detected but TRUST_PROXY is not enabled'
+      );
+    } finally {
+      stderr.restore();
+    }
   });
 });
 

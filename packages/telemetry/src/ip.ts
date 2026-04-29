@@ -25,6 +25,28 @@ function isLocalHostname(hostname: string): boolean {
   );
 }
 
+function warnWhenProxyHeadersAreIgnored(headers: Headers): void {
+  if (trustProxyWarningLogged) {
+    return;
+  }
+
+  if (
+    !headers.get('x-forwarded-for') &&
+    !headers.get('cf-connecting-ip') &&
+    !headers.get('x-real-ip')
+  ) {
+    return;
+  }
+
+  // Use process.stderr to avoid a circular dependency on ./logger at module init time.
+  process.stderr.write(
+    '[urlfy/telemetry] Proxy headers detected but TRUST_PROXY is not enabled. ' +
+      'Set TRUST_PROXY=true if behind a reverse proxy. ' +
+      '(This warning is printed once per process.)\n'
+  );
+  trustProxyWarningLogged = true;
+}
+
 /**
  * Fail fast when a production deployment is configured with a public origin
  * that implies a reverse proxy or TLS terminator, but TRUST_PROXY is disabled.
@@ -106,20 +128,8 @@ export function getClientIp(request: Request): string {
     }
   }
 
-  if (
-    !trustProxy &&
-    (forwardedFor ||
-      request.headers.get('cf-connecting-ip') ||
-      request.headers.get('x-real-ip')) &&
-    !trustProxyWarningLogged
-  ) {
-    // Use process.stderr to avoid a circular dependency on ./logger at module init time.
-    process.stderr.write(
-      '[urlfy/telemetry] Proxy headers detected but TRUST_PROXY is not enabled. ' +
-        'Set TRUST_PROXY=true if behind a reverse proxy. ' +
-        '(This warning is printed once per process.)\n'
-    );
-    trustProxyWarningLogged = true;
+  if (!trustProxy) {
+    warnWhenProxyHeadersAreIgnored(request.headers);
   }
 
   const requestIp = (request as Request & { ip?: string }).ip;
@@ -158,6 +168,10 @@ export function getClientIpFromHeaders(headers: Headers): string {
       const clientIP = forwardedFor.split(',')[0]?.trim();
       if (clientIP) return clientIP;
     }
+  }
+
+  if (!trustProxy) {
+    warnWhenProxyHeadersAreIgnored(headers);
   }
 
   if (process.env.NODE_ENV === 'development') {

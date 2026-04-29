@@ -526,7 +526,7 @@
             "success": false,
             "error": {
               "code": "REDIRECT_LOOP",
-              "message": "Redirect depth exceeded (max: 3)"
+              "message": "Self-shortener redirect loop detected"
             }
           }
         ],
@@ -554,7 +554,7 @@
               },
               "message": {
                 "examples": [
-                  "Redirect depth exceeded (max: 3)"
+                  "Self-shortener redirect loop detected"
                 ],
                 "type": "string"
               }

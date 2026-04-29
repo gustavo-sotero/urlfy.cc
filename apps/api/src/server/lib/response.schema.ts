@@ -499,7 +499,9 @@ export const CommonErrors = {
       success: t.Literal(false, { default: false }),
       error: t.Object({
         code: t.Literal('REDIRECT_LOOP'),
-        message: t.String({ examples: ['Redirect depth exceeded (max: 3)'] })
+        message: t.String({
+          examples: ['Self-shortener redirect loop detected']
+        })
       }),
       requestId: t.Optional(t.String())
     },
@@ -510,7 +512,7 @@ export const CommonErrors = {
           success: false,
           error: {
             code: 'REDIRECT_LOOP',
-            message: 'Redirect depth exceeded (max: 3)'
+            message: 'Self-shortener redirect loop detected'
           }
         }
       ]
