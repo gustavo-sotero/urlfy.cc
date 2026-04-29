@@ -7,6 +7,7 @@ import {
 } from '@urlfy/cache';
 import type { CachedLink } from '@urlfy/contracts/redirect';
 import { createLogger } from '@urlfy/telemetry';
+import type { RedirectCacheReadOptions } from './types';
 
 const logger = createLogger('cache-service');
 
@@ -107,6 +108,41 @@ export class CacheService {
     return getRedisClient();
   }
 
+  private async parseCachedLink(
+    code: string,
+    key: string,
+    cached: string,
+    options: RedirectCacheReadOptions = {}
+  ): Promise<CachedLink | null> {
+    const parsed = JSON.parse(cached) as CachedLink;
+
+    if (options.enableProbabilisticRefresh === false) {
+      return parsed;
+    }
+
+    const originalTtl = CACHE_TTL.LINK;
+    let cachedAt = parsed._cachedAt;
+
+    if (typeof cachedAt !== 'number' || cachedAt <= 0) {
+      const ttl = await this.getRedis().ttl(key);
+      const remaining = ttl > 0 ? ttl : originalTtl;
+      cachedAt = Date.now() - (originalTtl - remaining) * 1000;
+    }
+
+    if (shouldTriggerEarlyRefresh(cachedAt, originalTtl, options.random)) {
+      logger.debug('Probabilistic early expiration triggered', {
+        code,
+        remainingTtl: Math.round(
+          Math.max(0, originalTtl - (Date.now() - cachedAt) / 1000)
+        ),
+        threshold: originalTtl * 0.1
+      });
+      return null;
+    }
+
+    return parsed;
+  }
+
   /**
    * Fetch a link from cache with Probabilistic Early Expiration
    * 10% chance to refresh when TTL < 10% of original
@@ -117,7 +153,7 @@ export class CacheService {
    */
   async getLink(
     code: string,
-    enableProbabilisticRefresh = true
+    enableProbabilisticRefresh: boolean | RedirectCacheReadOptions = true
   ): Promise<CachedLink | null> {
     try {
       const redis = this.getRedis();
@@ -129,43 +165,18 @@ export class CacheService {
         return null;
       }
 
-      // Probabilistic Early Expiration
-      // When TTL < 10% of original, 10% chance to force refresh
-      if (enableProbabilisticRefresh) {
-        const parsed = JSON.parse(cached) as CachedLink;
-        const originalTtl = CACHE_TTL.LINK; // 3600 seconds
+      const options =
+        typeof enableProbabilisticRefresh === 'boolean'
+          ? { enableProbabilisticRefresh }
+          : enableProbabilisticRefresh;
+      const link = await this.parseCachedLink(code, key, cached, options);
 
-        // Compute remaining TTL from the embedded write timestamp
-        // This avoids an extra Redis RTT call to TTL
-        let cachedAt = parsed._cachedAt;
-
-        if (typeof cachedAt !== 'number' || cachedAt <= 0) {
-          // Backward compatibility for entries cached before _cachedAt existed.
-          // During transition, read actual TTL from Redis to preserve correctness.
-          const ttl = await redis.ttl(key);
-          const remaining = ttl > 0 ? ttl : originalTtl;
-          // Synthesise a cachedAt that produces the observed remaining TTL
-          cachedAt = Date.now() - (originalTtl - remaining) * 1000;
-        }
-
-        if (shouldTriggerEarlyRefresh(cachedAt, originalTtl)) {
-          logger.debug('Probabilistic early expiration triggered', {
-            code,
-            remainingTtl: Math.round(
-              Math.max(0, originalTtl - (Date.now() - cachedAt) / 1000)
-            ),
-            threshold: originalTtl * 0.1
-          });
-          // Return null to force refresh in background
-          return null;
-        }
-
-        logger.debug('Cache hit', { code, key });
-        return parsed;
+      if (!link) {
+        return null;
       }
 
       logger.debug('Cache hit', { code, key });
-      return JSON.parse(cached) as CachedLink;
+      return link;
     } catch (error) {
       logger.error('Error getting link from cache', {
         code,
@@ -268,7 +279,10 @@ export class CacheService {
    * Batch-fetch link state in parallel (1 RTT instead of 3 serial).
    * Returns 404 / banned / cached-link status for the redirect hot path.
    */
-  async getLinkState(code: string): Promise<{
+  async getLinkState(
+    code: string,
+    options: RedirectCacheReadOptions = {}
+  ): Promise<{
     isNotFound: boolean;
     isBanned: boolean;
     link: CachedLink | null;
@@ -286,7 +300,7 @@ export class CacheService {
 
     let link: CachedLink | null = null;
     if (linkData) {
-      link = JSON.parse(linkData) as CachedLink;
+      link = await this.parseCachedLink(code, linkKey, linkData, options);
     }
 
     return {

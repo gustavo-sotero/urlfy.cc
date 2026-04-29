@@ -257,6 +257,67 @@ describe('CacheService', () => {
     });
   });
 
+  describe('getLinkState', () => {
+    it('applies probabilistic early refresh through the cache adapter', async () => {
+      const mockLink: CachedLink = {
+        id: 'test-id-early-refresh',
+        originalUrl: 'https://example.com',
+        redirectType: 302,
+        isActive: true,
+        isBanned: false,
+        expiresAt: null,
+        maxClicks: null,
+        clicksCount: 0,
+        passwordHash: null,
+        utmSource: null,
+        utmMedium: null,
+        utmCampaign: null,
+        _cachedAt: Date.now() - CACHE_TTL.LINK * 0.95 * 1000
+      };
+
+      store.set(`${CACHE_PREFIX.LINK}abc123`, JSON.stringify(mockLink));
+
+      const { success, result } = await withTimeout(
+        cacheService.getLinkState('abc123', { random: () => 0 })
+      );
+      if (!success || !result) return;
+
+      expect(result.link).toBeNull();
+      expect(result.isNotFound).toBe(false);
+      expect(result.isBanned).toBe(false);
+    });
+
+    it('returns the cached link when early refresh is disabled', async () => {
+      const mockLink: CachedLink = {
+        id: 'test-id-no-refresh',
+        originalUrl: 'https://example.com',
+        redirectType: 302,
+        isActive: true,
+        isBanned: false,
+        expiresAt: null,
+        maxClicks: null,
+        clicksCount: 0,
+        passwordHash: null,
+        utmSource: null,
+        utmMedium: null,
+        utmCampaign: null,
+        _cachedAt: Date.now() - CACHE_TTL.LINK * 0.95 * 1000
+      };
+
+      store.set(`${CACHE_PREFIX.LINK}abc123`, JSON.stringify(mockLink));
+
+      const { success, result } = await withTimeout(
+        cacheService.getLinkState('abc123', {
+          enableProbabilisticRefresh: false,
+          random: () => 0
+        })
+      );
+      if (!success || !result) return;
+
+      expect(result.link).toEqual(mockLink);
+    });
+  });
+
   describe('setLink', () => {
     it('caches a link with the canonical TTL', async () => {
       const mockLink: CachedLink = {

@@ -25,15 +25,26 @@ export interface RedirectCacheStats {
 }
 
 export interface RedirectCacheAdapter {
-  getLinkState(code: string): Promise<{
+  getLinkState(
+    code: string,
+    options?: RedirectCacheReadOptions
+  ): Promise<{
     isNotFound: boolean;
     isBanned: boolean;
     link: CachedLink | null;
   }>;
-  getLink(code: string): Promise<CachedLink | null>;
+  getLink(
+    code: string,
+    options?: RedirectCacheReadOptions
+  ): Promise<CachedLink | null>;
   setLink(code: string, link: CachedLink): Promise<void>;
   setNotFound(code: string): Promise<void>;
   getCacheStats(): Promise<RedirectCacheStats>;
+}
+
+export interface RedirectCacheReadOptions {
+  enableProbabilisticRefresh?: boolean;
+  random?: () => number;
 }
 
 export interface RedirectLinkRepository {

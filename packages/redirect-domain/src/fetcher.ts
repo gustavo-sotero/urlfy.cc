@@ -16,11 +16,7 @@ import {
   stampedeLocksAcquired,
   stampedeLocksWaited
 } from '@urlfy/telemetry';
-import {
-  CACHE_TTL,
-  cacheService,
-  shouldTriggerEarlyRefresh
-} from './cache-service';
+import { cacheService } from './cache-service';
 import type { LinkFetchResult, RedirectFetcherDependencies } from './types';
 
 const logger = createLogger('redirect-fetcher');
@@ -110,7 +106,9 @@ export async function getLink(
         const cacheHit = false;
 
         // Parallel cache lookup: 404 + banned + link in 1 RTT
-        const state = await dependencies.cache.getLinkState(code);
+        const state = await dependencies.cache.getLinkState(code, {
+          random: dependencies.random
+        });
 
         // L1: Negative cache check (404)
         if (state.isNotFound) {
@@ -146,33 +144,15 @@ export async function getLink(
           };
         }
 
-        // L3: Normal link cache (with probabilistic early expiration)
+        // L3: Normal link cache. Early-refresh decisions are owned by the cache adapter.
         if (state.link) {
           const parsed = state.link;
-          const originalTtl = CACHE_TTL.LINK;
-          const cachedAt = (parsed as CachedLink & { _cachedAt?: number })
-            ._cachedAt;
-
-          if (
-            shouldTriggerEarlyRefresh(
-              cachedAt,
-              originalTtl,
-              dependencies.random
-            )
-          ) {
-            logger.debug('Probabilistic early expiration triggered', {
-              code,
-              threshold: originalTtl * 0.1
-            });
-            // Fall through to stampede path for refresh
-          } else {
-            logger.debug('Link cache hit', { code });
-            span.setAttribute('cache.type', 'link');
-            span.setAttribute('cache.hit', true);
-            recordCacheHit(1, { type: 'link' });
-            const link = await applyPendingClicksForEnforcement(parsed);
-            return { link, cacheHit: true };
-          }
+          logger.debug('Link cache hit', { code });
+          span.setAttribute('cache.type', 'link');
+          span.setAttribute('cache.hit', true);
+          recordCacheHit(1, { type: 'link' });
+          const link = await applyPendingClicksForEnforcement(parsed);
+          return { link, cacheHit: true };
         }
 
         // L4: Cache miss - fetch from DB with stampede protection
