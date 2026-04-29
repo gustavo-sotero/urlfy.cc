@@ -3,7 +3,7 @@
  * API KEY GUARD - Fail-closed behavior on DB write failure
  * ═════════════════════════════════════════════════════════════════════
  * Verifies that a database write failure during quota reservation
- * results in a 402 QUOTA_EXCEEDED response, not a pass-through.
+ * results in a 429 QUOTA_EXCEEDED response, not a pass-through.
  *
  * Covering plan step: Phase 1, item 3 — "fail-closed quota reservation"
  * Finding: CODEBASE_ANALYSIS_2026-04-25.md §Security – API-key quota
@@ -165,7 +165,7 @@ async function buildGuardApp() {
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('api-key guard fail-closed quota reservation', () => {
-  test('returns 402 QUOTA_EXCEEDED when DB write for quota reservation throws', async () => {
+  test('returns 429 QUOTA_EXCEEDED when DB write for quota reservation throws', async () => {
     const app = await buildGuardApp();
 
     const response = await app.handle(

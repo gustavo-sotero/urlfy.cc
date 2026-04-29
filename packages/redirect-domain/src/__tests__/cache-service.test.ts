@@ -16,6 +16,7 @@ mock.module('@urlfy/telemetry', () => ({
     warn: () => {},
     error: () => {}
   }),
+  maskIpForLog: (ip: string) => `ip:${ip}`,
   initTelemetry: () => {},
   configureLogging: async () => {},
   shutdownTelemetry: () => Promise.resolve(),

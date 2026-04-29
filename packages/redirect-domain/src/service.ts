@@ -230,7 +230,8 @@ export class RedirectService {
             url: finalUrl,
             redirectType: link.redirectType,
             linkId: link.id,
-            cacheHit
+            cacheHit,
+            requiresClickReservation: link.maxClicks != null
           };
         } catch (error) {
           const latency = performance.now() - startTime;

@@ -49,6 +49,8 @@ mock.module('@urlfy/cache', () => ({
   RedisStream: {
     add: streamAddMock
   },
+  drainPendingClicks: async (): Promise<void> => {},
+  incrementPendingClicks: async (): Promise<number> => 1,
   STREAM_NAMES: {
     analyticsClicks: 'analytics:clicks'
   }
@@ -65,6 +67,7 @@ mock.module('@urlfy/telemetry', () => ({
     info: () => {},
     error: () => {}
   }),
+  maskIpForLog: (ip: string) => `ip:${ip}`,
   fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
     fn().catch(() => {});
   }

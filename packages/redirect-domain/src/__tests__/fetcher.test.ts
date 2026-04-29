@@ -46,6 +46,7 @@ mock.module('@urlfy/telemetry', () => ({
     warn: () => {},
     error: () => {}
   }),
+  maskIpForLog: (ip: string) => `ip:${ip}`,
   // Counters
   cacheHits: noOpCounter,
   cacheMisses: noOpCounter,

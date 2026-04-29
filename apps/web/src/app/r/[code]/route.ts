@@ -162,14 +162,13 @@ function handleError(
 }
 
 /**
- * Reserve one pending click before returning the redirect response.
- * This keeps MAX_CLICKS enforcement aligned with very recent redirects
- * while still allowing the analytics enqueue itself to stay asynchronous.
+ * Reserve one pending click before returning when MAX_CLICKS enforcement
+ * needs recent redirects to be visible to the next resolver call.
  */
 async function reservePendingClick(
   linkId: string,
   code: string
-): Promise<void> {
+): Promise<boolean> {
   const nextPendingCount = await incrementPendingClicks(linkId);
 
   if (nextPendingCount === null) {
@@ -177,7 +176,10 @@ async function reservePendingClick(
       shortCode: code,
       linkId
     });
+    return false;
   }
+
+  return true;
 }
 
 /**
@@ -188,7 +190,8 @@ async function reservePendingClick(
 function dispatchAnalytics(
   request: NextRequest,
   code: string,
-  linkId: string
+  linkId: string,
+  pendingClickReserved: boolean
 ): void {
   const searchParams = request.nextUrl.searchParams;
 
@@ -210,7 +213,9 @@ function dispatchAnalytics(
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        await drainPendingClicks(linkId);
+        if (pendingClickReserved) {
+          await drainPendingClicks(linkId);
+        }
         throw error;
       }
     },
@@ -297,12 +302,22 @@ export async function GET(
       return handleError(result.error || 'UNKNOWN_ERROR', code, requestId);
     }
 
-    // ── 5. Reserve click + dispatch analytics ────────────────────
-    // Reserve the pending delta before returning so MAX_CLICKS checks see
-    // recent redirects, then enqueue the heavier analytics work asynchronously.
+    // ── 5. Reserve click when needed + dispatch analytics ────────
+    // Only max-click-limited links need a synchronous pending delta for
+    // correctness. Other links keep the hot path lean and let the worker update
+    // counters from the analytics stream.
     if (result.linkId) {
-      await reservePendingClick(result.linkId, code);
-      dispatchAnalytics(request, code, result.linkId);
+      let pendingClickReserved = false;
+
+      if (result.requiresClickReservation) {
+        pendingClickReserved = await reservePendingClick(result.linkId, code);
+
+        if (!pendingClickReserved) {
+          return handleError('INTERNAL_ERROR', code, requestId);
+        }
+      }
+
+      dispatchAnalytics(request, code, result.linkId, pendingClickReserved);
     }
 
     // ── 6. Return redirect ───────────────────────────────────────

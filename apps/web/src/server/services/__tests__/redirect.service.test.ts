@@ -30,6 +30,7 @@ mock.module('@urlfy/telemetry', () => ({
     warn: () => {},
     error: () => {}
   }),
+  maskIpForLog: (ip: string) => `ip:${ip}`,
   fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
     fn().catch(() => {});
   }
@@ -51,6 +52,7 @@ type RedirectResult =
       redirectType: 301 | 302;
       linkId: string;
       cacheHit: boolean;
+      requiresClickReservation?: boolean;
     }
   | { success: false; error: string; linkId?: string };
 
@@ -74,7 +76,7 @@ let analyticsAddCalled = false;
 let analyticsAddShouldFail = false;
 let pendingClicksIncremented = false;
 let pendingClicksDrained = false;
-let incrementPendingClicksMock = async (): Promise<number> => {
+let incrementPendingClicksMock = async (): Promise<number | null> => {
   pendingClicksIncremented = true;
   return 1;
 };
@@ -90,7 +92,7 @@ mock.module('@urlfy/cache', () => ({
   drainPendingClicks: async (): Promise<void> => {
     pendingClicksDrained = true;
   },
-  incrementPendingClicks: async (): Promise<number> =>
+  incrementPendingClicks: async (): Promise<number | null> =>
     incrementPendingClicksMock(),
   STREAM_NAMES: { analyticsClicks: 'analytics:clicks' }
 }));
@@ -190,7 +192,7 @@ describe('GET /r/[code] — redirect hot path', () => {
     linkRateLimitResult = { allowed: true };
     pendingClicksIncremented = false;
     pendingClicksDrained = false;
-    incrementPendingClicksMock = async (): Promise<number> => {
+    incrementPendingClicksMock = async (): Promise<number | null> => {
       pendingClicksIncremented = true;
       return 1;
     };
@@ -324,7 +326,7 @@ describe('GET /r/[code] — redirect hot path', () => {
 
   // ── 7. Analytics fire-and-forget ─────────────────────────────────────────────
 
-  it('waits for pending click reservation before returning the redirect', async () => {
+  it('waits for pending click reservation when max-click enforcement requires it', async () => {
     let resolvePendingIncrement: ((value: number) => void) | undefined;
 
     incrementPendingClicksMock = () =>
@@ -338,7 +340,8 @@ describe('GET /r/[code] — redirect hot path', () => {
       url: 'https://example.com',
       redirectType: 302,
       linkId: 'link-analytics',
-      cacheHit: false
+      cacheHit: false,
+      requiresClickReservation: true
     };
 
     let settled = false;
@@ -362,13 +365,14 @@ describe('GET /r/[code] — redirect hot path', () => {
       url: 'https://example.com',
       redirectType: 302,
       linkId: 'link-analytics',
-      cacheHit: false
+      cacheHit: false,
+      requiresClickReservation: false
     };
     const res = await callGET('abc1234');
 
     // Response is available immediately — no await on analytics
     expect(res.status).toBe(302);
-    expect(pendingClicksIncremented).toBe(true);
+    expect(pendingClicksIncremented).toBe(false);
 
     // Give the fire-and-forget microtask a chance to run
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -382,7 +386,8 @@ describe('GET /r/[code] — redirect hot path', () => {
       url: 'https://example.com',
       redirectType: 302,
       linkId: 'link-analytics',
-      cacheHit: false
+      cacheHit: false,
+      requiresClickReservation: true
     };
 
     const res = await callGET('abc1234');
@@ -392,6 +397,49 @@ describe('GET /r/[code] — redirect hot path', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(pendingClicksDrained).toBe(true);
+  });
+
+  it('does not drain a pending delta when analytics fails without a reservation', async () => {
+    analyticsAddShouldFail = true;
+    mockResolveResult = {
+      success: true,
+      url: 'https://example.com',
+      redirectType: 302,
+      linkId: 'link-analytics',
+      cacheHit: false,
+      requiresClickReservation: false
+    };
+
+    const res = await callGET('abc1234');
+
+    expect(res.status).toBe(302);
+    expect(pendingClicksIncremented).toBe(false);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(pendingClicksDrained).toBe(false);
+  });
+
+  it('fails closed when required pending click reservation cannot be written', async () => {
+    incrementPendingClicksMock = async (): Promise<number | null> => {
+      pendingClicksIncremented = true;
+      return null;
+    };
+
+    mockResolveResult = {
+      success: true,
+      url: 'https://example.com',
+      redirectType: 302,
+      linkId: 'link-analytics',
+      cacheHit: false,
+      requiresClickReservation: true
+    };
+
+    const res = await callGET('abc1234');
+
+    expect(res.status).toBe(500);
+    expect(pendingClicksIncremented).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(analyticsAddCalled).toBe(false);
   });
 
   it('does not dispatch analytics when the resolve fails', async () => {

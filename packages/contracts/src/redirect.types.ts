@@ -31,6 +31,7 @@ export interface RedirectResult {
   error?: RedirectError;
   linkId?: string;
   cacheHit?: boolean; // Indicates if result came from cache (true) or DB (false)
+  requiresClickReservation?: boolean; // True when MAX_CLICKS enforcement needs a synchronous pending-click reservation
 }
 
 /**
