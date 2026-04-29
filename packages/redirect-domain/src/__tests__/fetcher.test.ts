@@ -83,32 +83,10 @@ const cacheState: CacheState = {
   linkAfterWait: null
 };
 
-mock.module('../cache-service', () => ({
-  CACHE_PREFIX: {
-    LOCK: 'lock:',
-    LINK: 'link:',
-    NOT_FOUND: 'link:404:',
-    BANNED: 'link:ban:'
-  },
-  CACHE_TTL: { LINK: 3600, NOT_FOUND: 300, BANNED: 3600 },
-  shouldTriggerEarlyRefresh: () => earlyRefreshTriggered,
-  cacheService: {
-    getLinkState: async (_code: string) => {
-      if (cacheState.shouldThrow)
-        throw new Error('Redis connection refused: ECONNREFUSED');
-      return cacheState.linkState;
-    },
-    getLink: async (_code: string) => cacheState.linkAfterWait,
-    setLink: async () => {},
-    setNotFound: async () => {}
-  }
-}));
-
 // ─── Mutable lock state ────────────────────────────────────────────────────────
 
 const lockState = { acquired: true };
 let pendingClicksValue = 0;
-let earlyRefreshTriggered = false;
 const redisMock = {
   get: async () => null,
   set: async () => 'OK'
@@ -116,9 +94,23 @@ const redisMock = {
 
 mock.module('@urlfy/cache', () => ({
   CACHE_KEYS: {
+    LINK: (code: string) => `link:${code}`,
+    LINK_META: (code: string) => `link:meta:${code}`,
+    LINK_404: (code: string) => `link:404:${code}`,
+    LINK_BANNED: (code: string) => `link:banned:${code}`,
+    QR_CODE: (code: string, size: number, format: string) =>
+      `qr:${code}:${size}:${format}`,
+    QR_KEYS_SET: (code: string) => `qr:keys:${code}`,
+    GEO: (ipPrefix: string) => `geo:${ipPrefix}`,
     LOCK: (code: string) => `lock:${code}`
   },
   CACHE_TTL: {
+    LINK: 3600,
+    LINK_META: 300,
+    LINK_404: 300,
+    LINK_BANNED: 86400,
+    QR_CODE: 86400,
+    GEO: 86400,
     LOCK: 5 // seconds — LOCK_TTL_MS = 5 * 1000 = 5000ms
   },
   acquireLock: async () => lockState.acquired,
@@ -228,7 +220,6 @@ describe('getLink', () => {
     cacheState.linkAfterWait = null;
     lockState.acquired = true;
     pendingClicksValue = 0;
-    earlyRefreshTriggered = false;
     repositoryLink = null;
   });
 
