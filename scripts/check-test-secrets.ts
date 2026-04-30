@@ -6,6 +6,8 @@
  * Prevents accidental deployment with weak test secrets
  */
 
+import { assertTrustProxyConfig } from '../packages/telemetry/src/ip';
+
 const KNOWN_TEST_SECRETS = [
   'build-time-placeholder',
   'change-this',
@@ -94,6 +96,28 @@ const configToCheck: ConfigCheck[] = [
     value: process.env.ADMIN_GITHUB_ACCOUNT_ID,
     required: true,
     validate: (value) => (value.trim() ? null : 'must not be empty')
+  },
+  {
+    name: 'NEXT_PUBLIC_APP_URL',
+    value: process.env.NEXT_PUBLIC_APP_URL,
+    required: false,
+    validate: (value) => {
+      try {
+        new URL(value);
+        return null;
+      } catch {
+        return 'must be a valid absolute URL';
+      }
+    }
+  },
+  {
+    name: 'TRUST_PROXY',
+    value: process.env.TRUST_PROXY,
+    required: false,
+    validate: (value) =>
+      value === 'true' || value === 'false'
+        ? null
+        : 'must be either "true" or "false"'
   }
 ];
 
@@ -153,6 +177,23 @@ for (const { name, value, required, validate } of configToCheck) {
   } else {
     console.log(`✅ ${name}: OK`);
   }
+}
+
+try {
+  assertTrustProxyConfig({
+    nodeEnv: process.env.NODE_ENV,
+    publicAppUrl: process.env.NEXT_PUBLIC_APP_URL,
+    trustProxy: process.env.TRUST_PROXY
+  });
+
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    console.log('✅ TRUST_PROXY / NEXT_PUBLIC_APP_URL: OK');
+  }
+} catch (error) {
+  console.error(
+    `❌ TRUST_PROXY / NEXT_PUBLIC_APP_URL: ${error instanceof Error ? error.message : String(error)}`
+  );
+  hasUnsafeConfig = true;
 }
 
 if (

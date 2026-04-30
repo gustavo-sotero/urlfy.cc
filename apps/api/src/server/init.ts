@@ -4,6 +4,7 @@
 
 import { closeDatabase, initDatabase } from '@urlfy/data';
 import { validateEnv } from '@/lib/env';
+import { assertApiTrustProxyConfig } from '@/server/bootstrap-config';
 import { assertCorsConfigSafe } from '@/server/config/cors';
 import { closeRedis } from '@/server/lib/redis';
 import {
@@ -24,6 +25,18 @@ if (process.env.NEXT_PHASE !== 'phase-production-build') {
     logger.info('Environment variables validated');
   } catch (_error) {
     logger.error('Environment validation failed');
+    process.exit(1);
+  }
+
+  // Fail fast when a public deployment expects forwarded headers but
+  // TRUST_PROXY is disabled.
+  try {
+    assertApiTrustProxyConfig();
+    logger.info('Trust proxy configuration validated');
+  } catch (error) {
+    logger.error('Trust proxy misconfiguration detected', {
+      error: error instanceof Error ? error.message : String(error)
+    });
     process.exit(1);
   }
 

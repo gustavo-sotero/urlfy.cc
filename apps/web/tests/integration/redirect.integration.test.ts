@@ -33,7 +33,7 @@ let links: typeof import('@urlfy/data/schema').links | null = null;
 let cacheService: typeof import('@urlfy/redirect-domain').cacheService | null =
   null;
 let redirectService:
-  | typeof import('@urlfy/redirect-domain').redirectService
+  | typeof import('../../src/server/services/redirect-service').redirectService
   | null = null;
 
 // Check infrastructure availability before running tests
@@ -67,7 +67,9 @@ try {
   const cacheModule = await import('@urlfy/redirect-domain');
   cacheService = cacheModule.cacheService;
 
-  const redirectModule = await import('@urlfy/redirect-domain');
+  const redirectModule = await import(
+    '../../src/server/services/redirect-service'
+  );
   redirectService = redirectModule.redirectService;
 
   infrastructureAvailable = true;
