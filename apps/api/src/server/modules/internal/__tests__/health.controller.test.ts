@@ -3,19 +3,15 @@ process.env.DATABASE_URL =
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
+import type {
+  BannedDomainsReloadResult,
+  BannedDomainsSnapshotStatus
+} from '@/server/modules/links/services/url-validator';
 
 type DependencyHealthResult = {
   status: 'ok' | 'error';
   latencyMs?: number;
   error?: string;
-};
-
-type BannedDomainsSnapshotMockResult = {
-  loaded: boolean;
-  hasReliableSnapshot: boolean;
-  domainCount: number;
-  lastLoadedAt: string | null;
-  cacheAgeMs: number | null;
 };
 
 const checkDatabaseHealthMock = mock(
@@ -30,20 +26,22 @@ const checkRedisHealthMock = mock(
     latencyMs: 1
   })
 );
-const reloadBannedDomainsMock = mock(async () => ({
-  reloaded: true,
-  retainedSnapshot: false,
-  error: null,
-  snapshot: {
-    loaded: true,
-    hasReliableSnapshot: true,
-    domainCount: 2,
-    lastLoadedAt: '2026-04-28T00:00:00.000Z',
-    cacheAgeMs: 0
-  }
-}));
+const reloadBannedDomainsMock = mock(
+  async (): Promise<BannedDomainsReloadResult> => ({
+    reloaded: true,
+    retainedSnapshot: false,
+    error: null,
+    snapshot: {
+      loaded: true,
+      hasReliableSnapshot: true,
+      domainCount: 2,
+      lastLoadedAt: '2026-04-28T00:00:00.000Z',
+      cacheAgeMs: 0
+    }
+  })
+);
 const getBannedDomainsSnapshotStatusMock = mock(
-  (): BannedDomainsSnapshotMockResult => ({
+  (): BannedDomainsSnapshotStatus => ({
     loaded: true,
     hasReliableSnapshot: true,
     domainCount: 2,
