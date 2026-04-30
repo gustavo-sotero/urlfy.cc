@@ -412,6 +412,51 @@ describe('CacheService', () => {
     });
   });
 
+  describe('invalidateQR', () => {
+    it('deletes tracked QR keys and their tracking set', async () => {
+      store.set('qr:keys:abc123', new Set(['qr:abc123:200:png']));
+      store.set('qr:abc123:200:png', 'data');
+
+      const { success, result } = await withTimeout(
+        cacheService.invalidateQR('abc123')
+      );
+      if (!success) return;
+
+      expect(result).toBe(1);
+      expect(store.has('qr:abc123:200:png')).toBe(false);
+      expect(store.has('qr:keys:abc123')).toBe(false);
+    });
+
+    it('cleans up an empty QR tracking set', async () => {
+      store.set('qr:keys:empty', new Set());
+
+      const { success, result } = await withTimeout(
+        cacheService.invalidateQR('empty')
+      );
+      if (!success) return;
+
+      expect(result).toBe(0);
+      expect(store.has('qr:keys:empty')).toBe(false);
+    });
+  });
+
+  describe('invalidateLinkAndQR', () => {
+    it('invalidates link and QR cache before marking a link as banned', async () => {
+      store.set(`${CACHE_PREFIX.LINK}abc123`, 'data');
+      store.set('qr:keys:abc123', new Set(['qr:abc123:200:png']));
+      store.set('qr:abc123:200:png', 'data');
+
+      const { success } = await withTimeout(
+        cacheService.invalidateLinkAndQR('abc123', 'ban')
+      );
+      if (!success) return;
+
+      expect(store.has(`${CACHE_PREFIX.LINK}abc123`)).toBe(false);
+      expect(store.has('qr:abc123:200:png')).toBe(false);
+      expect(store.get(`${CACHE_PREFIX.LINK_BANNED}abc123`)).toBe('1');
+    });
+  });
+
   describe('getCacheStats', () => {
     it('returns cache statistics', async () => {
       store.set('key1', 'val');

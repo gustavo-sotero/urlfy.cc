@@ -87,7 +87,7 @@ export interface LinkResponse {
 // ═══════════════════════════════════════════════════════════════════
 
 /** Full link record shape used by application internals. */
-export interface Link {
+export interface LinkRecord {
   id: string;
   userId: string | null;
   originalUrl: string;
@@ -118,7 +118,7 @@ export interface Link {
 }
 
 /** Link creation record shape used by application internals. */
-export interface NewLink {
+export interface LinkInsertRecord {
   id?: string;
   userId?: string | null;
   originalUrl: string;

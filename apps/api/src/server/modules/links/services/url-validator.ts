@@ -134,16 +134,34 @@ export interface BannedDomainsSnapshotStatus {
   cacheAgeMs: number | null;
 }
 
+export interface BannedDomainsReloadResult {
+  reloaded: boolean;
+  retainedSnapshot: boolean;
+  snapshot: BannedDomainsSnapshotStatus;
+  error: string | null;
+}
+
 /**
  * Loads banned domains from the database into memory cache.
  * Called automatically by validateUrl when cache is stale.
  */
-async function loadBannedDomainsFromDb(): Promise<void> {
+async function loadBannedDomainsFromDb(
+  forceReload = false
+): Promise<BannedDomainsReloadResult> {
   const now = Date.now();
 
   // Skip if recently loaded
-  if (bannedDomainsLoaded && now - bannedDomainsLastLoad < CACHE_TTL_MS) {
-    return;
+  if (
+    !forceReload &&
+    bannedDomainsLoaded &&
+    now - bannedDomainsLastLoad < CACHE_TTL_MS
+  ) {
+    return {
+      reloaded: false,
+      retainedSnapshot: true,
+      snapshot: getBannedDomainsSnapshotStatus(),
+      error: null
+    };
   }
 
   const isFirstLoad = !bannedDomainsLoaded;
@@ -173,9 +191,18 @@ async function loadBannedDomainsFromDb(): Promise<void> {
     bannedDomainsLoaded = true;
     bannedDomainsLastLoad = now;
     hasReliableBannedDomainsSnapshot = true;
+
+    return {
+      reloaded: true,
+      retainedSnapshot: false,
+      snapshot: getBannedDomainsSnapshotStatus(),
+      error: null
+    };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
     logger.error('Failed to load banned domains from database', {
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage,
       snapshotDomains: BLOCKED_DOMAINS.size,
       isFirstLoad
     });
@@ -195,15 +222,21 @@ async function loadBannedDomainsFromDb(): Promise<void> {
       // Update timestamp to avoid hammering the DB on every request
       bannedDomainsLastLoad = now;
     }
+
+    return {
+      reloaded: false,
+      retainedSnapshot: hasReliableBannedDomainsSnapshot,
+      snapshot: getBannedDomainsSnapshotStatus(),
+      error: errorMessage
+    };
   }
 }
 
 /**
  * Force reload of banned domains cache
  */
-export async function reloadBannedDomains(): Promise<void> {
-  bannedDomainsLastLoad = 0; // Force reload
-  await loadBannedDomainsFromDb();
+export async function reloadBannedDomains(): Promise<BannedDomainsReloadResult> {
+  return loadBannedDomainsFromDb(true);
 }
 
 export function getBannedDomainsSnapshotStatus(): BannedDomainsSnapshotStatus {
@@ -430,6 +463,8 @@ export async function blockDomainPersistent(
 
   // Add to memory cache
   BLOCKED_DOMAINS.add(normalized);
+  bannedDomainsLoaded = true;
+  bannedDomainsLastLoad = Date.now();
   hasReliableBannedDomainsSnapshot = true;
 }
 
@@ -440,6 +475,8 @@ export async function blockDomainPersistent(
 export function blockDomain(domain: string): void {
   const normalized = domain.replace(/^www\./, '').toLowerCase();
   BLOCKED_DOMAINS.add(normalized);
+  bannedDomainsLoaded = true;
+  bannedDomainsLastLoad = Date.now();
   hasReliableBannedDomainsSnapshot = true;
 }
 

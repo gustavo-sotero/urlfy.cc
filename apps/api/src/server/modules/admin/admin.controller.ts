@@ -268,6 +268,43 @@ export const adminController = new Elysia({ prefix: '/admin' })
   // This applies to all subsequent routes (ban/unban)
   .use(adminRateLimits.linkBan)
 
+  .post(
+    '/banned-domains',
+    async ({ body, user, request }) => {
+      const adminUserId = requireUserId(user);
+      const ipAddress = getClientIp(request);
+
+      const result = await AdminService.banDomain(
+        body.domain,
+        body.reason,
+        adminUserId,
+        ipAddress
+      );
+
+      return {
+        success: true as const,
+        data: result
+      };
+    },
+    {
+      detail: {
+        tags: ['Admin'],
+        summary: 'Ban destination domain',
+        description:
+          'Adds a domain to the manual URL blacklist used during link creation'
+      },
+      body: 'admin.domain.ban.body',
+      response: {
+        200: SuccessResponse(t.Ref('admin.domain.ban.response')),
+        400: ErrorRef(400),
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        429: ErrorRef(429),
+        500: ErrorRef(500)
+      }
+    }
+  )
+
   .patch(
     '/links/:linkId/ban',
     async ({ params, body, user, request }) => {

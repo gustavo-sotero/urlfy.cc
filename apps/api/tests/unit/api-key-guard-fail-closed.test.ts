@@ -69,6 +69,7 @@ const dbMock = {
 
 mock.module('@urlfy/data', () => ({
   db: dbMock,
+  checkDatabaseHealth: async () => ({ status: 'ok', latencyMs: 1 }),
   getDatabase: () => dbMock,
   initDatabase: async () => {}
 }));

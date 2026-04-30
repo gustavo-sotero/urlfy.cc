@@ -75,6 +75,33 @@ export const AdminBanLinkBody = t.Object(
 );
 export type AdminBanLinkBodyType = Static<typeof AdminBanLinkBody>;
 
+export const AdminBanDomainBody = t.Object(
+  {
+    domain: t.String({
+      minLength: 1,
+      maxLength: 253,
+      description: 'Domain or URL whose hostname should be blocked',
+      examples: ['malicious.example']
+    }),
+    reason: t.String({
+      minLength: 1,
+      maxLength: 255,
+      description: 'Reason for banning this domain',
+      examples: ['Phishing campaign']
+    })
+  },
+  {
+    examples: [{ domain: 'malicious.example', reason: 'Phishing campaign' }]
+  }
+);
+export type AdminBanDomainBodyType = Static<typeof AdminBanDomainBody>;
+
+export const AdminBanDomainResponse = t.Object({
+  domain: t.String({ examples: ['malicious.example'] }),
+  created: t.Boolean({ examples: [true] })
+});
+export type AdminBanDomainResponseType = Static<typeof AdminBanDomainResponse>;
+
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN STATS (with examples for OpenAPI)
 // ═══════════════════════════════════════════════════════════════════
@@ -383,6 +410,8 @@ export const AdminModel = new Elysia({ name: 'admin.model' }).model({
   'admin.audit.user.param': AuditLogUserParam,
   'admin.audit.limit.query': AuditLogLimitQuery,
   'admin.audit.stats.summary': AuditStatsSummaryResponse,
+  'admin.domain.ban.body': AdminBanDomainBody,
+  'admin.domain.ban.response': AdminBanDomainResponse,
   'admin.link.ban.body': AdminBanLinkBody,
   'admin.link.response': AdminLinkResponse,
   'admin.stats.response': AdminStatsResponse,

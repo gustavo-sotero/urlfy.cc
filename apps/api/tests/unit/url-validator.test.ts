@@ -3,7 +3,9 @@ import {
   blockDomain,
   isBlockedHostname,
   isPrivateIP,
+  isSelfShortenerTarget,
   unblockDomain,
+  validateUrl,
   validateUrlSafe
 } from '@/server/modules/links/services/url-validator';
 
@@ -119,6 +121,47 @@ describe('URL Validator Service', () => {
             )
           ).toBe(true);
         }
+      });
+    });
+  });
+
+  describe('self-shortener targets', () => {
+    it('blocks production redirect surfaces', () => {
+      expect(validateUrl('https://urlfy.cc/r/abc123')).toEqual({
+        valid: false,
+        error: 'SELF_SHORTENER_BLOCKED'
+      });
+      expect(validateUrl('https://www.urlfy.cc/abc123')).toEqual({
+        valid: false,
+        error: 'SELF_SHORTENER_BLOCKED'
+      });
+    });
+
+    it('blocks the configured public origin redirect surfaces', () => {
+      const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+      process.env.NEXT_PUBLIC_APP_URL = 'https://links.example.com';
+
+      try {
+        expect(
+          isSelfShortenerTarget('https://links.example.com/r/custom')
+        ).toBe(true);
+        expect(validateUrl('https://links.example.com/custom')).toEqual({
+          valid: false,
+          error: 'SELF_SHORTENER_BLOCKED'
+        });
+      } finally {
+        if (previousAppUrl === undefined) {
+          delete process.env.NEXT_PUBLIC_APP_URL;
+        } else {
+          process.env.NEXT_PUBLIC_APP_URL = previousAppUrl;
+        }
+      }
+    });
+
+    it('allows normal first-party multi-segment pages', () => {
+      expect(isSelfShortenerTarget('https://urlfy.cc/en/about')).toBe(false);
+      expect(validateUrl('https://urlfy.cc/en/about')).toEqual({
+        valid: true
       });
     });
   });

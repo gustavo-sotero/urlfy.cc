@@ -105,6 +105,7 @@ bun run dev
 | `bun run type-check` | Type-check all workspaces |
 | `bun run test` | All test suites |
 | `bun run test:unit` / `test:integration` / `test:e2e` | Scoped test runs |
+| `bun run scripts/run-k6.ts k6/redirect-hot-path.js` | Redirect hot-path load check (requires k6) |
 | `bun run docker:up` | Start PostgreSQL + Redis locally |
 | `bun run db:migrate` | Apply database migrations |
 

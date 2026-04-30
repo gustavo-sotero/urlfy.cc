@@ -7,7 +7,7 @@
  */
 
 import { db } from '@urlfy/data';
-import { links } from '@urlfy/data/schema';
+import { bannedUrls, links } from '@urlfy/data/schema';
 import { auditLog } from '@urlfy/data/schema/audit';
 import { and, count, desc, eq, ilike, isNull, or } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
@@ -16,8 +16,30 @@ import { sanitizeSearchQuery } from '@/server/lib/sanitize';
 import { createLogger } from '@/server/lib/telemetry';
 import { cacheService } from '@/server/services/cache.service';
 import { applyPendingClicksToEntities } from '@/server/services/realtime-clicks.service';
+import { blockDomain } from '../links/services/url-validator';
 
 const logger = createLogger('admin-links-service');
+
+function normalizeDomainForBan(domainOrUrl: string): string {
+  const trimmed = domainOrUrl.trim().toLowerCase();
+
+  try {
+    const parsed = new URL(
+      trimmed.includes('://') ? trimmed : `https://${trimmed}`
+    );
+    const hostname = parsed.hostname.replace(/^www\./, '');
+
+    if (!hostname || hostname.length > 253 || !hostname.includes('.')) {
+      throw new Error('Invalid domain');
+    }
+
+    return hostname;
+  } catch {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Invalid domain', {
+      domain: domainOrUrl
+    });
+  }
+}
 
 export const AdminLinksService = {
   /**
@@ -138,6 +160,83 @@ export const AdminLinksService = {
       logger.info('Link unbanned successfully', { linkId, adminId });
     } catch (error) {
       logger.error('Failed to unban link', { error, linkId, adminId });
+      throw error;
+    }
+  },
+
+  /**
+   * Ban a destination domain for future link creation.
+   * Creates an audit log and updates the validator's in-memory snapshot after
+   * the database transaction succeeds.
+   */
+  async banDomain(
+    domainOrUrl: string,
+    reason: string,
+    adminId: string,
+    ipAddress?: string
+  ): Promise<{ domain: string; created: boolean }> {
+    const domain = normalizeDomainForBan(domainOrUrl);
+
+    try {
+      const created = await db.transaction(async (tx) => {
+        const existing = await tx
+          .select({ id: bannedUrls.id })
+          .from(bannedUrls)
+          .where(
+            and(
+              eq(bannedUrls.urlPattern, domain),
+              eq(bannedUrls.matchType, 'domain')
+            )
+          )
+          .limit(1);
+
+        const existingBan = existing[0];
+        let banId = existingBan?.id ?? null;
+
+        if (!banId) {
+          const inserted = await tx
+            .insert(bannedUrls)
+            .values({
+              urlPattern: domain,
+              matchType: 'domain',
+              reason,
+              source: 'manual',
+              createdBy: adminId
+            })
+            .returning({ id: bannedUrls.id });
+
+          banId = inserted[0]?.id ?? null;
+        }
+
+        const auditId = nanoid();
+        await tx.insert(auditLog).values({
+          id: auditId,
+          userId: adminId,
+          action: existingBan ? 'BAN_DOMAIN_EXISTING' : 'BAN_DOMAIN',
+          entityType: 'banned_domain',
+          entityId: banId,
+          metadata: {
+            domain,
+            reason
+          },
+          ipAddress: ipAddress || null,
+          userAgent: null
+        });
+
+        return !existingBan;
+      });
+
+      blockDomain(domain);
+      logger.info('Domain banned successfully', { domain, reason, adminId });
+
+      return { domain, created };
+    } catch (error) {
+      logger.error('Failed to ban domain', {
+        error,
+        domain,
+        reason,
+        adminId
+      });
       throw error;
     }
   },

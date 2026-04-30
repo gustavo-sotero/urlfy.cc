@@ -10,7 +10,7 @@ import type { Scope } from '@urlfy/auth-shared';
  * Full API key record shape used by application internals.
  * Defined inline so the contracts package owns its public record shapes.
  */
-export interface DbApiKey {
+export interface ApiKeyRecord {
   id: string;
   name: string | null;
   prefix: string;
@@ -96,7 +96,7 @@ export interface ApiKeyContext {
  * Result of API key validation.
  */
 export type ApiKeyValidationResult =
-  | { valid: true; key: DbApiKey; scopes: Scope[] }
+  | { valid: true; key: ApiKeyRecord; scopes: Scope[] }
   | { valid: false; error: ApiKeyError };
 
 export type ApiKeyError =

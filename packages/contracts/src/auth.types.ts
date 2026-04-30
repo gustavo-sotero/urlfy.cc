@@ -13,7 +13,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 /** Full user record shape used by application internals. */
-export interface DbUser {
+export interface AuthUserRecord {
   id: string;
   name: string;
   email: string;
@@ -35,7 +35,7 @@ export interface DbUser {
 }
 
 /** Full session record shape used by application internals. */
-export interface DbSession {
+export interface AuthSessionRecord {
   id: string;
   expiresAt: Date;
   token: string;
@@ -78,7 +78,7 @@ export interface PublicUser {
 /**
  * User with sensitive data (for internal use only)
  */
-export type InternalUser = DbUser;
+export type InternalUser = AuthUserRecord;
 
 /**
  * Derived authorization state attached to normalized session/user payloads.
@@ -122,7 +122,7 @@ export interface UpdateUserPayload {
 /**
  * Session data
  */
-export type Session = DbSession;
+export type Session = AuthSessionRecord;
 
 /**
  * Public session data

@@ -14,10 +14,7 @@ import { getOpenAPIDegradedState } from '@/server/lib/openapi-merger';
 import { checkRedisHealth } from '@/server/lib/redis';
 import { ResponseModels } from '@/server/lib/response.schema';
 import { requireAdmin } from '@/server/middleware/auth.middleware';
-import {
-  getBannedDomainsSnapshotStatus,
-  reloadBannedDomains
-} from '../links/services/url-validator';
+import { reloadBannedDomains } from '../links/services/url-validator';
 
 // ═══════════════════════════════════════════════════════════════════
 // HEALTH CHECK SIMPLES (público)
@@ -263,17 +260,20 @@ const healthDetailed = new Elysia()
   .post(
     '/health/banned-domains/reload',
     async ({ set }) => {
-      await reloadBannedDomains();
+      const result = await reloadBannedDomains();
+      const snapshot = result.snapshot;
 
-      const snapshot = getBannedDomainsSnapshotStatus();
-      if (!snapshot.hasReliableSnapshot) {
+      if (!result.reloaded) {
         set.status = 503;
 
         return {
-          status: 'unavailable' as const,
+          status: result.retainedSnapshot
+            ? ('retained_snapshot' as const)
+            : ('unavailable' as const),
+          error: result.error,
           snapshot: {
             ...snapshot,
-            hasReliableSnapshot: false as const
+            hasReliableSnapshot: snapshot.hasReliableSnapshot
           }
         };
       }
@@ -309,10 +309,14 @@ const healthDetailed = new Elysia()
           })
         }),
         503: t.Object({
-          status: t.Literal('unavailable'),
+          status: t.Union([
+            t.Literal('unavailable'),
+            t.Literal('retained_snapshot')
+          ]),
+          error: t.Union([t.String(), t.Null()]),
           snapshot: t.Object({
             loaded: t.Boolean({ examples: [false] }),
-            hasReliableSnapshot: t.Literal(false),
+            hasReliableSnapshot: t.Boolean({ examples: [false] }),
             domainCount: t.Number({ examples: [0] }),
             lastLoadedAt: t.Union([
               t.String({ format: 'date-time' }),

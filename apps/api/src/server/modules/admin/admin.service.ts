@@ -27,6 +27,7 @@ export const AdminService = {
   // Links
   banLink: AdminLinksService.banLink.bind(AdminLinksService),
   unbanLink: AdminLinksService.unbanLink.bind(AdminLinksService),
+  banDomain: AdminLinksService.banDomain.bind(AdminLinksService),
   searchLinks: AdminLinksService.searchLinks.bind(AdminLinksService),
   listLinks: AdminLinksService.listLinks.bind(AdminLinksService)
 };

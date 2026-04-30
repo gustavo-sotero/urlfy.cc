@@ -21,7 +21,8 @@ const dbMock = {
 };
 
 mock.module('@urlfy/data', () => ({
-  db: dbMock
+  db: dbMock,
+  checkDatabaseHealth: async () => ({ status: 'ok', latencyMs: 1 })
 }));
 
 mock.module('@urlfy/data/schema', () => ({
@@ -57,7 +58,12 @@ describe('url-validator banned-domain last-known-good snapshot', () => {
     expect(initialResult).toEqual({ valid: false, error: 'DOMAIN_BANNED' });
     expect(whereMock).toHaveBeenCalledTimes(1);
 
-    await reloadBannedDomains();
+    const reloadResult = await reloadBannedDomains();
+    expect(reloadResult).toMatchObject({
+      reloaded: false,
+      retainedSnapshot: true,
+      error: 'database offline'
+    });
     expect(whereMock).toHaveBeenCalledTimes(2);
 
     const retainedResult = await validateUrlAsync(

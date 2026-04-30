@@ -324,22 +324,12 @@ export class CacheService {
         redis.del(CACHE_KEYS.LINK_BANNED(code))
       ];
 
-      // Remove related QR codes using the tracking Set (O(M) vs O(N) SCAN)
-      const qrSetKey = CACHE_KEYS.QR_KEYS_SET(code);
-      const qrKeys = (await redis.send('SMEMBERS', [qrSetKey])) as string[];
-
-      if (qrKeys.length > 0) {
-        commands.push(redis.del(...qrKeys, qrSetKey));
-      } else {
-        // Clean up the set key just in case
-        commands.push(redis.del(qrSetKey));
-      }
-
       await Promise.all(commands);
+      const qrKeysRemoved = await this.invalidateQR(code);
 
       logger.info('Link cache invalidated', {
         code,
-        qrKeysRemoved: qrKeys.length
+        qrKeysRemoved
       });
     } catch (error) {
       logger.error('Error invalidating link cache', {
@@ -348,6 +338,23 @@ export class CacheService {
       });
       throw error;
     }
+  }
+
+  /**
+   * Invalidate QR code cache for a link using the canonical tracking Set.
+   */
+  async invalidateQR(code: string): Promise<number> {
+    const redis = this.getRedis();
+    const qrSetKey = CACHE_KEYS.QR_KEYS_SET(code);
+    const qrKeys = (await redis.send('SMEMBERS', [qrSetKey])) as string[];
+
+    if (qrKeys.length > 0) {
+      await redis.del(...qrKeys, qrSetKey);
+      return qrKeys.length;
+    }
+
+    await redis.del(qrSetKey);
+    return 0;
   }
 
   /**

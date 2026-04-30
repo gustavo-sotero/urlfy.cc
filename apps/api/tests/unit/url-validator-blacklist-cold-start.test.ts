@@ -13,7 +13,8 @@ const dbMock = {
 };
 
 mock.module('@urlfy/data', () => ({
-  db: dbMock
+  db: dbMock,
+  checkDatabaseHealth: async () => ({ status: 'ok', latencyMs: 1 })
 }));
 
 mock.module('@urlfy/data/schema', () => ({

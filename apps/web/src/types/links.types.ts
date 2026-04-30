@@ -5,10 +5,9 @@
  */
 export type {
   CreateLinkInput,
-  Link,
+  LinkRecord as Link,
   LinkResponse,
   ListLinksQuery,
-  NewLink,
   PaginatedResponse,
   UpdateLinkInput
 } from '@urlfy/contracts';

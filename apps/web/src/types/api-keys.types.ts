@@ -7,7 +7,7 @@ export type {
   ApiKeyCreated,
   ApiKeyError,
   ApiKeyPublic,
+  ApiKeyRecord,
   ApiKeyValidationResult,
-  CreateApiKeyInput,
-  DbApiKey
+  CreateApiKeyInput
 } from '@urlfy/contracts';

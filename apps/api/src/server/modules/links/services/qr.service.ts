@@ -1,6 +1,7 @@
 // src/server/modules/links/services/qr.service.ts
 
 import { CACHE_KEYS, CACHE_TTL as CANONICAL_CACHE_TTL } from '@urlfy/cache';
+import { cacheService } from '@urlfy/redirect-domain/cache-service';
 import QRCode from 'qrcode';
 import { redis } from '@/server/lib/redis';
 import { createLogger } from '@/server/lib/telemetry';
@@ -97,18 +98,7 @@ export async function generateQRCode(
  */
 export async function invalidateQRCache(code: string): Promise<void> {
   try {
-    const setKey = CACHE_KEYS.QR_KEYS_SET(code);
-
-    // Use the tracking Set for O(M) invalidation instead of O(N) SCAN
-    const qrKeys = (await redis.send('SMEMBERS', [setKey])) as string[];
-
-    if (qrKeys.length > 0) {
-      // Delete all QR cache keys and the tracking Set itself
-      await redis.del(...qrKeys, setKey);
-    } else {
-      // No tracked keys — clean up the set key just in case
-      await redis.del(setKey);
-    }
+    await cacheService.invalidateQR(code);
   } catch (error) {
     logger.warn('Failed to invalidate QR cache', {
       code,

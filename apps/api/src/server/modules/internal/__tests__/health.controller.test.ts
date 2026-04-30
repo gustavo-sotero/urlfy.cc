@@ -30,7 +30,18 @@ const checkRedisHealthMock = mock(
     latencyMs: 1
   })
 );
-const reloadBannedDomainsMock = mock(async (): Promise<void> => {});
+const reloadBannedDomainsMock = mock(async () => ({
+  reloaded: true,
+  retainedSnapshot: false,
+  error: null,
+  snapshot: {
+    loaded: true,
+    hasReliableSnapshot: true,
+    domainCount: 2,
+    lastLoadedAt: '2026-04-28T00:00:00.000Z',
+    cacheAgeMs: 0
+  }
+}));
 const getBannedDomainsSnapshotStatusMock = mock(
   (): BannedDomainsSnapshotMockResult => ({
     loaded: true,
@@ -71,7 +82,18 @@ describe('healthController readiness', () => {
       latencyMs: 1
     }));
     reloadBannedDomainsMock.mockReset();
-    reloadBannedDomainsMock.mockImplementation(async () => {});
+    reloadBannedDomainsMock.mockImplementation(async () => ({
+      reloaded: true,
+      retainedSnapshot: false,
+      error: null,
+      snapshot: {
+        loaded: true,
+        hasReliableSnapshot: true,
+        domainCount: 2,
+        lastLoadedAt: '2026-04-28T00:00:00.000Z',
+        cacheAgeMs: 0
+      }
+    }));
     getBannedDomainsSnapshotStatusMock.mockReset();
     getBannedDomainsSnapshotStatusMock.mockImplementation(() => ({
       loaded: true,
@@ -192,6 +214,18 @@ describe('healthController readiness', () => {
   });
 
   test('returns 503 when reload does not produce a reliable snapshot', async () => {
+    reloadBannedDomainsMock.mockImplementation(async () => ({
+      reloaded: false,
+      retainedSnapshot: false,
+      error: 'database offline',
+      snapshot: {
+        loaded: false,
+        hasReliableSnapshot: false,
+        domainCount: 0,
+        lastLoadedAt: null,
+        cacheAgeMs: null
+      }
+    }));
     getBannedDomainsSnapshotStatusMock.mockImplementation(() => ({
       loaded: false,
       hasReliableSnapshot: false,
@@ -220,6 +254,43 @@ describe('healthController readiness', () => {
     expect(response.status).toBe(503);
     expect(body.status).toBe('unavailable');
     expect(body.snapshot.hasReliableSnapshot).toBe(false);
+    expect(reloadBannedDomainsMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('returns 503 when reload fails but retains a reliable snapshot', async () => {
+    reloadBannedDomainsMock.mockImplementation(async () => ({
+      reloaded: false,
+      retainedSnapshot: true,
+      error: 'database offline',
+      snapshot: {
+        loaded: true,
+        hasReliableSnapshot: true,
+        domainCount: 2,
+        lastLoadedAt: '2026-04-28T00:00:00.000Z',
+        cacheAgeMs: 10
+      }
+    }));
+
+    const { healthController } = await import('../health.controller');
+    const app = new Elysia({ prefix: '/api' }).use(healthController);
+
+    const response = await app.handle(
+      new Request('http://localhost/api/health/banned-domains/reload', {
+        method: 'POST'
+      })
+    );
+    const body = (await response.json()) as {
+      status: string;
+      error: string | null;
+      snapshot: {
+        hasReliableSnapshot: boolean;
+      };
+    };
+
+    expect(response.status).toBe(503);
+    expect(body.status).toBe('retained_snapshot');
+    expect(body.error).toBe('database offline');
+    expect(body.snapshot.hasReliableSnapshot).toBe(true);
     expect(reloadBannedDomainsMock).toHaveBeenCalledTimes(1);
   });
 });

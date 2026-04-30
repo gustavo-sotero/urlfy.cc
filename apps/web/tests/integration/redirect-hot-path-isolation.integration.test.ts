@@ -42,6 +42,7 @@ const cookiesGetMock = mock(() => undefined);
 const trackRequestMock = mock(async () => {});
 const checkIPLimitMock = mock(async () => ({ allowed: true as const }));
 const checkLinkLimitMock = mock(async () => ({ allowed: true as const }));
+const getClientIpMock = mock(() => '203.0.113.10');
 const streamAddMock = mock(async () => '1-0');
 const originalTrustProxy = process.env.TRUST_PROXY;
 
@@ -71,6 +72,10 @@ mock.module('@urlfy/telemetry', () => ({
   fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
     fn().catch(() => {});
   }
+}));
+
+mock.module('@/server/lib/ip', () => ({
+  getClientIp: getClientIpMock
 }));
 
 mock.module('next/headers', () => ({
@@ -132,6 +137,7 @@ describe('Redirect hot path isolation', () => {
     }));
     streamAddMock.mockImplementation(async () => '1-0');
     trackRequestMock.mockImplementation(async () => {});
+    getClientIpMock.mockImplementation(() => '203.0.113.10');
 
     fetchSpy = mock(async () => new Response(null, { status: 500 }));
     global.fetch = fetchSpy as unknown as typeof fetch;
@@ -145,6 +151,7 @@ describe('Redirect hot path isolation', () => {
     checkLinkLimitMock.mockClear();
     streamAddMock.mockClear();
     trackRequestMock.mockClear();
+    getClientIpMock.mockClear();
     fetchSpy.mockClear();
   });
 
@@ -155,6 +162,7 @@ describe('Redirect hot path isolation', () => {
           'x-request-id': 'req-local-1',
           'x-forwarded-for': '203.0.113.10'
         }),
+        ip: '203.0.113.10',
         nextUrl: new URL('http://localhost/r/test-code')
       } as never,
       {
@@ -196,6 +204,7 @@ describe('Redirect hot path isolation', () => {
           'x-request-id': 'req-loop-1',
           'x-forwarded-for': '203.0.113.10'
         }),
+        ip: '203.0.113.10',
         nextUrl: new URL('http://localhost/r/test-code')
       } as never,
       {
