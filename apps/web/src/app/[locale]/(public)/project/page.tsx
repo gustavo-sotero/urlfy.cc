@@ -3,7 +3,7 @@
  * PROJECT PAGE - Public Project Notes (Internationalized)
  * ═════════════════════════════════════════════════════════════════════
  * Public-facing project route for the current product surface, architectural
- * decisions, trade-offs, and links into the README and deeper docs.
+ * decisions, trade-offs, and links into the public notes and live API docs.
  * ═════════════════════════════════════════════════════════════════════
  */
 

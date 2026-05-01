@@ -10,7 +10,10 @@ export function SecurityAuthorCtaSection({ t }: SecurityAuthorCtaSectionProps) {
   return (
     <>
       {/* Security & Compliance */}
-      <section className="border-t bg-muted/30 py-20">
+      <section
+        id="security"
+        className="scroll-mt-24 border-t bg-muted/30 py-20"
+      >
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-5xl space-y-8">
             <div className="space-y-4 text-center">
@@ -74,7 +77,7 @@ export function SecurityAuthorCtaSection({ t }: SecurityAuthorCtaSectionProps) {
       </section>
 
       {/* Author Section */}
-      <section className="border-t py-20">
+      <section id="author" className="scroll-mt-24 border-t py-20">
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-3xl space-y-8 text-center">
             <div className="space-y-4">
@@ -121,7 +124,7 @@ export function SecurityAuthorCtaSection({ t }: SecurityAuthorCtaSectionProps) {
       </section>
 
       {/* Call to Action */}
-      <section className="border-t bg-muted/30 py-20">
+      <section id="docs" className="scroll-mt-24 border-t bg-muted/30 py-20">
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-2xl space-y-6 text-center">
             <h2 className="text-3xl font-bold">{t('cta.title')}</h2>

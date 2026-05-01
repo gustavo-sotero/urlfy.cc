@@ -19,7 +19,7 @@ interface TradeoffsSectionProps {
 
 export function TradeoffsSection({ t }: TradeoffsSectionProps) {
   return (
-    <section className="border-t bg-muted/30 py-20">
+    <section id="tradeoffs" className="scroll-mt-24 border-t bg-muted/30 py-20">
       <div className="container mx-auto px-4">
         <div className="mx-auto max-w-5xl space-y-12">
           <div className="space-y-4 text-center">

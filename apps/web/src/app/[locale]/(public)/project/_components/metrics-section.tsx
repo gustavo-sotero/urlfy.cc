@@ -14,7 +14,7 @@ interface MetricsSectionProps {
 
 export function MetricsSection({ t }: MetricsSectionProps) {
   return (
-    <section className="border-t py-20">
+    <section id="metrics" className="scroll-mt-24 border-t py-20">
       <div className="container mx-auto px-4">
         <div className="mx-auto max-w-5xl space-y-12">
           <div className="space-y-4 text-center">

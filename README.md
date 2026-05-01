@@ -243,4 +243,4 @@ Full interactive reference: `/api/docs` (Swagger) and `/api/auth/reference` (Bet
 
 - Runtime and configuration files are the source of truth for what exists today.
 - The PRD (`.github/instructions/prd.instructions.md`) describes roadmap and future requirements, not guaranteed current implementation.
-- This repository is private and not licensed for public use.
+- This repository is available under the MIT License. See `LICENSE`.

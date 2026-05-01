@@ -14,7 +14,10 @@ interface ArchitectureSectionProps {
 export function ArchitectureSection({ t }: ArchitectureSectionProps) {
   return (
     <>
-      <section className="border-t bg-muted/30 py-20">
+      <section
+        id="architecture"
+        className="scroll-mt-24 border-t bg-muted/30 py-20"
+      >
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-5xl space-y-12">
             <div className="space-y-4 text-center">
@@ -78,7 +81,7 @@ export function ArchitectureSection({ t }: ArchitectureSectionProps) {
         </div>
       </section>
 
-      <section className="border-t py-20">
+      <section id="infrastructure" className="scroll-mt-24 border-t py-20">
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-5xl space-y-12">
             <div className="space-y-4 text-center">
