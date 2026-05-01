@@ -9,6 +9,7 @@
  */
 
 import { Elysia, type Static, t } from 'elysia';
+import { ALIAS_REGEX } from './services/shortcode.service';
 
 // ═══════════════════════════════════════════════════════════════════
 // LINK CREATE
@@ -24,7 +25,9 @@ export const LinkCreateBody = t.Object({
     t.String({
       minLength: 3,
       maxLength: 20,
-      description: 'Custom short code (3-20 chars)'
+      pattern: ALIAS_REGEX.source,
+      description:
+        'Custom short code (3-20 chars, alphanumeric + hyphens, must start/end with alphanumeric)'
     })
   ),
   expiresAt: t.Optional(
@@ -80,7 +83,9 @@ export type LinkCreateBodyType = Static<typeof LinkCreateBody>;
 // ═══════════════════════════════════════════════════════════════════
 
 export const LinkUpdateBody = t.Object({
-  customAlias: t.Optional(t.String({ minLength: 3, maxLength: 20 })),
+  customAlias: t.Optional(
+    t.String({ minLength: 3, maxLength: 20, pattern: ALIAS_REGEX.source })
+  ),
   isActive: t.Optional(t.Boolean({ description: 'Toggle link active status' })),
   expiresAt: t.Optional(t.Nullable(t.String({ format: 'date-time' }))),
   maxClicks: t.Optional(t.Nullable(t.Integer({ minimum: 1 }))),

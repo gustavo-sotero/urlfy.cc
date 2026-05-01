@@ -4,22 +4,21 @@
  * ═══════════════════════════════════════════════════════════════════
  * In the monorepo, shared types live in packages/contracts.
  * This file re-exports them for local @/ path convenience.
+ *
+ * NOTE: Link and analytics response shapes come from their dedicated
+ * type files instead of this barrel:
+ *   - @/types/links.types.ts
+ *   - @/types/analytics.types.ts
  * ═══════════════════════════════════════════════════════════════════
  */
 
 export type {
-  AnalyticsBreakdownSchema,
-  AnalyticsSummarySchema,
   ApiErrorResponse,
   ApiResponse,
   ApiSuccessResponse,
   CreateLinkInputSchema,
-  LinkPreviewSchema,
-  LinkResponseSchema,
-  LinkStatsSchema,
   ListLinksQuerySchema,
   PaginatedResponse,
   PaginationMeta,
-  TimeSeriesSchema,
   UpdateLinkInputSchema
 } from '@urlfy/contracts/shared';

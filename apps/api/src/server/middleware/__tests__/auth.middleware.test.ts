@@ -96,12 +96,9 @@ if (runAuthIntegration) {
 describe('Auth Middleware', () => {
   // Skip entire test suite if infrastructure is not available
   if (!runAuthIntegration || !infrastructureAvailable) {
-    it('should skip tests when infrastructure is unavailable', () => {
-      console.log(
-        '⚠️  Auth Middleware tests skipped - infrastructure unavailable:',
-        setupError?.message
-      );
-      expect(true).toBe(true); // Dummy assertion to pass
+    it.skip('infrastructure unavailable — skipping all auth middleware integration tests', () => {
+      // Skipped automatically when PostgreSQL/Redis are not reachable.
+      // Run: docker compose -f docker/docker-compose.yml up -d then retry.
     });
     return;
   }

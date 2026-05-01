@@ -41,29 +41,12 @@ export const ApiError = t.Object({
 });
 export type ApiErrorType = Static<typeof ApiError>;
 
-export const SuccessResponse = <T extends ReturnType<typeof t.Object>>(
-  dataSchema: T
-) =>
-  t.Object({
-    success: t.Literal(true),
-    data: dataSchema
-  });
-
 export const ErrorResponse = t.Object({
   success: t.Literal(false),
   error: ApiError,
   requestId: t.Optional(t.String({ description: 'Request correlation ID' }))
 });
 export type ErrorResponseType = Static<typeof ErrorResponse>;
-
-export const PaginatedResponse = <T extends ReturnType<typeof t.Object>>(
-  itemSchema: T
-) =>
-  t.Object({
-    success: t.Literal(true),
-    data: t.Array(itemSchema),
-    meta: PaginationMeta
-  });
 
 // ═══════════════════════════════════════════════════════════════════
 // COMMON PARAMS

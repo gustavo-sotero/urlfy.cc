@@ -1,6 +1,9 @@
 // src/server/services/__tests__/qr.service.test.ts
 import { describe, expect, it } from 'bun:test';
-import { validateQRFormat, validateQRSize } from '../qr.utils';
+import {
+  validateQRFormat,
+  validateQRSize
+} from '@/server/modules/links/services/qr.utils';
 
 describe('QR Service', () => {
   describe('validateQRSize', () => {

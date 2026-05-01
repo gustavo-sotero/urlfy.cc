@@ -9,8 +9,8 @@
     "build": "bun build src/index.ts --outdir dist --target bun",
     "lint": "bunx biome check . --write",
     "type-check": "bunx tsc --noEmit",
-    "test": "bun test src/",
-    "test:unit": "bun test src/"
+    "test": "bun test src/ tests/",
+    "test:unit": "bun test src/ tests/unit/"
   },
   "dependencies": {
     "@opentelemetry/api": "catalog:",

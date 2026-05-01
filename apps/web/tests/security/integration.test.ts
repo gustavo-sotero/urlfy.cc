@@ -394,10 +394,9 @@ describe('GDPR/LGPD Compliance Tests', () => {
 // ANTI-ABUSE INTEGRATION TESTS
 // ═══════════════════════════════════════════════════════════════════
 describe('Anti-Abuse Integration Tests', () => {
-  it('should block IPs after excessive failed attempts', async () => {
-    // This would require simulating many failed login attempts
-    // In practice, this is tested in the anti-abuse service unit tests
-    expect(true).toBe(true);
+  it.skip('IP blocking after excessive failed attempts requires dedicated load test', () => {
+    // This requires simulating many failed login attempts at the HTTP level.
+    // Covered by anti-abuse service unit tests and rate-limiting integration tests above.
   });
 });
 

@@ -65,11 +65,10 @@ try {
 describe('Edge Proxy', () => {
   // Skip entire test suite if infrastructure is not available
   if (!infrastructureAvailable || !db || !links || !eq || !proxyFn) {
-    it('should skip tests when infrastructure is unavailable', () => {
-      console.warn(
-        `Edge Proxy tests skipped - infrastructure unavailable: ${setupError?.message ?? 'unknown'}`
-      );
-      expect(true).toBe(true); // Dummy assertion to pass
+    it.skip('infrastructure unavailable — skipping all proxy integration tests', () => {
+      // This test is intentionally skipped when PostgreSQL is not reachable.
+      // Run docker compose up -d then re-run to execute the full suite.
+      // Setup error: ${setupError?.message ?? 'unknown'}
     });
     return;
   }

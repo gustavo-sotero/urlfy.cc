@@ -109,6 +109,8 @@ bun run dev
 | `bun run docker:up` | Start PostgreSQL + Redis locally |
 | `bun run db:migrate` | Apply database migrations |
 
+> **Local dev policy**: Always use `bun run dev` (runs from `src/`) during development — never invoke `apps/api/dist/` directly in a dev environment. The `dist/` tree is built exclusively for Docker production images and may be stale. If you see `dist/` imports during debugging, delete `apps/api/dist/` and rebuild with `bun run build:api`.
+
 ## Key Design Decisions
 
 ### Redirect Hot Path

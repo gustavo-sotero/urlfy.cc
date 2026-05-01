@@ -595,15 +595,12 @@ describe('SSRF Prevention (Extended)', () => {
 // SECURITY HEADERS VALIDATION
 // ═══════════════════════════════════════════════════════════════════
 describe('Security Headers', () => {
-  it('should verify CSP header is set', () => {
-    // This would be tested at the HTTP level
-    // In a real test, we'd make an HTTP request and check headers
-    expect(true).toBe(true);
+  it.skip('CSP header verification requires HTTP-level integration test', () => {
+    // Covered by apps/web/tests/security/integration.test.ts#Security Headers Integration Tests
   });
 
-  it('should verify HSTS header is set', () => {
-    // This would be tested at the HTTP level
-    expect(true).toBe(true);
+  it.skip('HSTS header verification requires HTTP-level integration test', () => {
+    // Covered by apps/web/tests/security/integration.test.ts#Security Headers Integration Tests
   });
 });
 
@@ -611,15 +608,12 @@ describe('Security Headers', () => {
 // CORS POLICY VALIDATION
 // ═══════════════════════════════════════════════════════════════════
 describe('CORS Protection', () => {
-  it('should enforce CORS restrictions', async () => {
-    // Test that requests from disallowed origins are rejected
-    // This requires integration testing with actual HTTP requests
-    expect(true).toBe(true);
+  it.skip('CORS origin enforcement requires HTTP-level integration test', () => {
+    // Covered by apps/web/tests/security/integration.test.ts#CORS Integration Tests
   });
 
-  it('should allow preflight requests', async () => {
-    // OPTIONS requests should be handled correctly
-    expect(true).toBe(true);
+  it.skip('OPTIONS preflight handling requires HTTP-level integration test', () => {
+    // Covered by apps/web/tests/security/integration.test.ts#CORS Integration Tests
   });
 });
 

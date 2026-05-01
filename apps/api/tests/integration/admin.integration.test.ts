@@ -39,11 +39,9 @@ const databaseAvailable = await isDatabaseAvailable();
 
 describe('Admin Module Integration Tests', () => {
   if (!databaseAvailable) {
-    test('should skip tests when database is unavailable', () => {
-      console.warn(
-        '⚠️  Skipping admin integration tests: database not available'
-      );
-      expect(true).toBe(true);
+    test.skip('infrastructure unavailable — skipping all admin integration tests', () => {
+      // Skipped automatically when PostgreSQL is not reachable.
+      // Run: docker compose -f docker/docker-compose.yml up -d then retry.
     });
     return;
   }

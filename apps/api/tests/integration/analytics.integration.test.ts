@@ -24,11 +24,9 @@ const databaseAvailable = await isDatabaseAvailable();
 
 describe('Analytics Integration', () => {
   if (!databaseAvailable) {
-    it('should skip tests when database is unavailable', () => {
-      console.warn(
-        '⚠️  Skipping analytics integration tests: database not available'
-      );
-      expect(true).toBe(true);
+    it.skip('infrastructure unavailable — skipping all analytics integration tests', () => {
+      // Skipped automatically when PostgreSQL is not reachable.
+      // Run: docker compose -f docker/docker-compose.yml up -d then retry.
     });
     return;
   }

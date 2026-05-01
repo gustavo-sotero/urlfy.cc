@@ -42,7 +42,7 @@ export const LinkLifecycleService = {
 
     const [restored] = await db
       .update(links)
-      .set({ deletedAt: null })
+      .set({ deletedAt: null, isActive: true })
       .where(eq(links.id, id))
       .returning();
 

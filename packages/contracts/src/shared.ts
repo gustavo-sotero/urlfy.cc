@@ -3,12 +3,20 @@
  * SHARED TYPES - Barrel export for shared types
  * ═══════════════════════════════════════════════════════════════════
  * Standalone type definitions for cross-workspace usage.
- * These mirror the TypeBox schemas in apps/api but have no runtime dep.
+ * Input schemas mirror the TypeBox schemas in apps/api but have no
+ * runtime dependency.
+ *
+ * IMPORTANT: Response shapes for links and analytics are defined in
+ * their respective canonical files:
+ *   - links.types.ts  → LinkResponse, LinkRecord, etc.
+ *   - analytics.types.ts → AnalyticsSummary, AnalyticsBreakdown, etc.
+ *
+ * Only envelope, pagination and input types live here.
  * ═══════════════════════════════════════════════════════════════════
  */
 
 // ═══════════════════════════════════════════════════════════════════
-// LINKS - Standalone type definitions (mirror of links.schema.ts)
+// LINKS - Input schemas (mirror of links.schema.ts write-side)
 // ═══════════════════════════════════════════════════════════════════
 
 export interface CreateLinkInputSchema {
@@ -55,79 +63,6 @@ export interface ListLinksQuerySchema {
   sortBy?: 'createdAt' | 'clicksCount' | 'lastClickedAt';
   sortOrder?: 'asc' | 'desc';
   fields?: string;
-}
-
-export interface LinkResponseSchema {
-  id: string;
-  shortCode: string;
-  shortUrl: string;
-  originalUrl: string;
-  customAlias?: string | null;
-  isActive: boolean;
-  isBanned: boolean;
-  expiresAt?: string | null;
-  maxClicks?: number | null;
-  clicksCount: number;
-  redirectType: 301 | 302;
-  metaTitle?: string | null;
-  metaDescription?: string | null;
-  metaImage?: string | null;
-  utmSource?: string | null;
-  utmMedium?: string | null;
-  utmCampaign?: string | null;
-  tags?: string[] | null;
-  notes?: string | null;
-  hasPassword: boolean;
-  createdAt: string;
-  updatedAt: string;
-  lastClickedAt?: string | null;
-}
-
-export interface LinkPreviewSchema {
-  shortCode: string;
-  shortUrl: string;
-  originalUrl: string;
-  metaTitle?: string | null;
-  metaDescription?: string | null;
-  metaImage?: string | null;
-  hasPassword: boolean;
-}
-
-export interface LinkStatsSchema {
-  id: string;
-  shortCode: string;
-  clicksCount: number;
-  summary?: AnalyticsSummarySchema | null;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// ANALYTICS - Standalone type definitions (mirror of analytics.schema.ts)
-// ═══════════════════════════════════════════════════════════════════
-
-export interface AnalyticsSummarySchema {
-  totalClicks: number;
-  uniqueVisitors: number;
-  topCountry: string | null;
-  topBrowser: string | null;
-  topDevice: string | null;
-  clicksToday: number;
-  clicksThisWeek: number;
-  clicksThisMonth: number;
-}
-
-export interface AnalyticsBreakdownSchema {
-  countries?: Array<{ name: string; count: number; percentage: number }>;
-  cities?: Array<{ name: string; country: string; count: number }>;
-  browsers?: Array<{ name: string; count: number; percentage: number }>;
-  devices?: Array<{ name: string; count: number; percentage: number }>;
-  operatingSystems?: Array<{ name: string; count: number; percentage: number }>;
-  referrers?: Array<{ name: string; count: number; percentage: number }>;
-}
-
-export interface TimeSeriesSchema {
-  date: string;
-  clicks: number;
-  uniqueVisitors: number;
 }
 
 // ═══════════════════════════════════════════════════════════════════

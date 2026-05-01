@@ -87,15 +87,8 @@ function applyCspHeaders(
  */
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const nonce = generateNonce();
-  const isProduction = process.env.NODE_ENV === 'production';
-  const csp = buildCspDirectives({ nonce, isProduction });
-  const requestHeaders = new Headers(req.headers);
 
-  requestHeaders.set('x-csp-nonce', nonce);
-  const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
-
-  // 1. Skip internal and static requests
+  // 1. Skip internal and static requests (cheapest check — no nonce needed)
   if (
     pathname.startsWith('/_next') ||
     pathname.includes('.') || // Static files with extensions
@@ -103,6 +96,14 @@ export async function proxy(req: NextRequest) {
   ) {
     return NextResponse.next();
   }
+
+  const nonce = generateNonce();
+  const isProduction = process.env.NODE_ENV === 'production';
+  const csp = buildCspDirectives({ nonce, isProduction });
+  const requestHeaders = new Headers(req.headers);
+
+  requestHeaders.set('x-csp-nonce', nonce);
+  const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
 
   // 2. Bypass i18n for system routes (Admin and Auth)
   if (isSystemRoute(pathname)) {

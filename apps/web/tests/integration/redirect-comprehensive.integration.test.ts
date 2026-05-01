@@ -90,11 +90,9 @@ describe('Redirect Engine - Comprehensive Integration Tests', () => {
     !cacheService ||
     !redirectService
   ) {
-    it('should skip tests when infrastructure is unavailable', () => {
-      testLogger.warn(
-        `Redirect Comprehensive tests skipped - infrastructure unavailable: ${setupError?.message ?? 'unknown'}`
-      );
-      expect(true).toBe(true); // Dummy assertion to pass
+    it.skip('infrastructure unavailable — skipping all redirect-comprehensive integration tests', () => {
+      // Skipped automatically when PostgreSQL/Redis are not reachable.
+      // Run: docker compose -f docker/docker-compose.yml up -d then retry.
     });
     return;
   }

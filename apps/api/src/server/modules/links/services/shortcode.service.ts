@@ -7,7 +7,19 @@ import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { generateShortCode } from '@/server/lib/nanoid';
 
 const MAX_RETRIES = 5;
-const ALIAS_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$/;
+
+/**
+ * Canonical alias validation rule (single source of truth).
+ *
+ * Rules:
+ *  - 3–20 characters total
+ *  - Start and end with alphanumeric (a-z, A-Z, 0-9)
+ *  - Middle characters may include hyphens (no underscores, no dots)
+ *
+ * This regex is intentionally exported so that every validation layer
+ * (schema, service, tests) uses exactly the same rule.
+ */
+export const ALIAS_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$/;
 
 /**
  * Generates a unique short code

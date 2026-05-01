@@ -1,13 +1,14 @@
 import type {
-  AnalyticsBreakdownSchema,
-  AnalyticsSummarySchema,
+  AnalyticsBreakdown,
+  AnalyticsSummary,
+  TimeSeries
+} from './analytics.types';
+import type { LinkResponse } from './links.types';
+import type {
   ApiResponse,
   CreateLinkInputSchema,
-  LinkPreviewSchema,
-  LinkResponseSchema,
   ListLinksQuerySchema,
   PaginationMeta,
-  TimeSeriesSchema,
   UpdateLinkInputSchema
 } from './shared';
 
@@ -46,8 +47,12 @@ export interface VerifyPasswordResponse {
   redirectUrl: string;
 }
 
-export interface LinkPreviewResponse
-  extends Omit<LinkPreviewSchema, 'hasPassword' | 'shortUrl'> {
+export interface LinkPreviewResponse {
+  shortCode: string;
+  originalUrl?: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  metaImage: string | null;
   createdAt: string;
   isPasswordProtected: boolean;
 }
@@ -225,16 +230,14 @@ export type QrCodeQuery = {
 };
 
 interface LinkItemRoutes {
-  get(): Promise<ApiClientResponse<LinkResponseSchema>>;
-  patch(
-    body: UpdateLinkInputSchema
-  ): Promise<ApiClientResponse<LinkResponseSchema>>;
+  get(): Promise<ApiClientResponse<LinkResponse>>;
+  patch(body: UpdateLinkInputSchema): Promise<ApiClientResponse<LinkResponse>>;
   delete(): Promise<ApiClientResponse<unknown>>;
   restore: {
-    post(): Promise<ApiClientResponse<LinkResponseSchema>>;
+    post(): Promise<ApiClientResponse<LinkResponse>>;
   };
   duplicate: {
-    post(): Promise<ApiClientResponse<LinkResponseSchema>>;
+    post(): Promise<ApiClientResponse<LinkResponse>>;
   };
   stats: {
     get(): Promise<ApiClientResponse<LinkStatsResponse>>;
@@ -257,12 +260,10 @@ interface LinkByCodeRoutes {
 
 interface LinksRoutes {
   (params: { id: string }): LinkItemRoutes;
-  post(
-    body: CreateLinkInputSchema
-  ): Promise<ApiClientResponse<LinkResponseSchema>>;
+  post(body: CreateLinkInputSchema): Promise<ApiClientResponse<LinkResponse>>;
   get(options?: {
     query?: LinkListQuery;
-  }): Promise<ApiClientResponse<LinkResponseSchema[]>>;
+  }): Promise<ApiClientResponse<LinkResponse[]>>;
   validate: {
     post(body: {
       url: string;
@@ -306,17 +307,17 @@ interface AnalyticsCollectionRoutes {
   daily: {
     get(options?: {
       query?: AnalyticsQuery;
-    }): Promise<ApiClientResponse<TimeSeriesSchema[]>>;
+    }): Promise<ApiClientResponse<TimeSeries[]>>;
   };
   breakdown: {
     get(options?: {
       query?: AnalyticsQuery;
-    }): Promise<ApiClientResponse<AnalyticsBreakdownSchema>>;
+    }): Promise<ApiClientResponse<AnalyticsBreakdown>>;
   };
   summary: {
     get(options?: {
       query?: AnalyticsQuery;
-    }): Promise<ApiClientResponse<AnalyticsSummarySchema>>;
+    }): Promise<ApiClientResponse<AnalyticsSummary>>;
   };
 }
 

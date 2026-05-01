@@ -145,3 +145,40 @@ describe('Email runtime shim parity', () => {
     });
   }
 });
+
+// ── Alias Regex Parity ───────────────────────────────────────────────────────
+
+describe('Alias regex parity', () => {
+  it('links.schema.ts pattern matches ALIAS_REGEX from shortcode.service', async () => {
+    const schemaSrc = await readFromApiRoot(
+      'src/server/modules/links/links.schema.ts'
+    );
+    const serviceSrc = await readFromApiRoot(
+      'src/server/modules/links/services/shortcode.service.ts'
+    );
+
+    // Extract ALIAS_REGEX source from the canonical service
+    const regexMatch = serviceSrc.match(
+      /export const ALIAS_REGEX\s*=\s*\/([^/]+)\/(\w*);/
+    );
+    expect(
+      regexMatch,
+      'ALIAS_REGEX must be exported from shortcode.service.ts'
+    ).toBeTruthy();
+
+    const regexSource = regexMatch![1];
+
+    // Verify links.schema.ts imports and uses ALIAS_REGEX.source as the pattern
+    expect(
+      schemaSrc.includes('import { ALIAS_REGEX }'),
+      'links.schema.ts must import ALIAS_REGEX from shortcode.service'
+    ).toBe(true);
+    expect(
+      schemaSrc.includes('ALIAS_REGEX.source'),
+      'links.schema.ts must use ALIAS_REGEX.source as the pattern property'
+    ).toBe(true);
+
+    // Verify the regex is non-trivial (guard against empty/undefined regression)
+    expect(regexSource.length).toBeGreaterThan(5);
+  });
+});

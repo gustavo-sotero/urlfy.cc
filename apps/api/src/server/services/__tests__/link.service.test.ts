@@ -76,7 +76,7 @@ mock.module('@/server/lib/redis', () => ({
   }
 }));
 
-mock.module('@/server/services/qr.service', () => ({
+mock.module('@/server/modules/links/services/qr.service', () => ({
   invalidateQRCache: mock(() => Promise.resolve())
 }));
 

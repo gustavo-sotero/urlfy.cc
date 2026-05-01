@@ -114,11 +114,9 @@ describe('Public API v1 (handler-level)', () => {
     !ApiKeysService ||
     !createElysiaTestClient
   ) {
-    test('should skip tests when infrastructure is unavailable', () => {
-      testLogger.warn(
-        `Public API v1 tests skipped - infrastructure unavailable: ${setupError?.message ?? 'unknown'}`
-      );
-      expect(true).toBe(true); // Dummy assertion to pass
+    test.skip('infrastructure unavailable — skipping all public-api-v1 integration tests', () => {
+      // Skipped automatically when PostgreSQL/Redis are not reachable.
+      // Run: docker compose -f docker/docker-compose.yml up -d then retry.
     });
     return;
   }

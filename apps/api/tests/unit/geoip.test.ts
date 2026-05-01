@@ -204,31 +204,26 @@ describe('GeoIP Implementation Compliance', () => {
       expect(process.env.MAXMIND_LICENSE_KEY).toBeUndefined();
     });
 
-    it('should meet objective: automatic download on startup', () => {
-      // ✅ Entrypoint runs geoip-refresh.sh once
-      expect(true).toBe(true);
+    it.skip('automatic download on startup is verified by docker entrypoint smoke test', () => {
+      // ✅ Entrypoint runs geoip-refresh.sh once — runtime concern, not unit testable
     });
 
-    it('should meet objective: skip if file is fresh', () => {
-      // ✅ Checks file age before downloading
-      expect(true).toBe(true);
+    it.skip('skip-if-fresh logic is verified by geoip-refresh.sh integration', () => {
+      // ✅ Checks file age before downloading — shell script concern, not unit testable
     });
 
-    it('should meet objective: monthly scheduled refresh', () => {
-      // ✅ Cron job: 0 0 1 * *
-      expect(true).toBe(true);
+    it.skip('monthly scheduled refresh is verified by cron config (0 0 1 * *)', () => {
+      // ✅ Cron job lives in docker/geoip/Dockerfile — config concern, not unit testable
     });
 
-    it('should meet objective: idempotent and reproducible', () => {
-      // ✅ Safe to run multiple times
-      expect(true).toBe(true);
+    it.skip('idempotent execution is verified by geoip-refresh.sh integration', () => {
+      // ✅ Safe to run multiple times — shell script concern, not unit testable
     });
   });
 
   describe('Non-Goals Compliance', () => {
-    it('should NOT modify analytics schema', () => {
-      // ✅ Analytics schema unchanged
-      expect(true).toBe(true);
+    it.skip('analytics schema is unchanged — verified by migration integrity tests', () => {
+      // ✅ Analytics schema unchanged — DB migration concern, not unit testable
     });
 
     it('should NOT add MaxMind credentials back', () => {
@@ -238,15 +233,12 @@ describe('GeoIP Implementation Compliance', () => {
   });
 
   describe('Configuration Summary', () => {
-    it('should have all required environment variables', () => {
-      const requiredVars = [
-        'GEOIP_DB_PATH',
-        'GEOIP_MAX_AGE_DAYS',
-        'GEOIP_MMDB_URL'
-      ];
-
-      // All vars either exist or have defaults in env.ts
-      expect(requiredVars).toHaveLength(3);
+    it('should have all required environment variables defined in env.ts', async () => {
+      const { env } = await import('@/lib/env');
+      // These keys must exist in env with defaults
+      expect(typeof env.GEOIP_DB_PATH).toBe('string');
+      expect(typeof env.GEOIP_MAX_AGE_DAYS).toBe('number');
+      expect(typeof env.GEOIP_MMDB_URL).toBe('string');
     });
   });
 });
