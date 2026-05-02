@@ -146,14 +146,17 @@ export default function AdminAuditPage() {
                             'dd/MM/yyyy HH:mm:ss'
                           )}
                         </TableCell>
-                        <TableCell>{log.userEmail || log.userId}</TableCell>
+                        <TableCell>{log.userId}</TableCell>
                         <TableCell>
                           <Badge variant={getActionBadgeVariant(log.action)}>
                             {log.action}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {log.entityType}: {log.entityId.slice(0, 8)}...
+                          {log.entityType}:{' '}
+                          {log.entityId
+                            ? `${log.entityId.slice(0, 8)}...`
+                            : '-'}
                         </TableCell>
                         <TableCell className="max-w-xs truncate">
                           {log.metadata ? JSON.stringify(log.metadata) : '-'}

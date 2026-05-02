@@ -392,6 +392,27 @@ export type AuditLogEntryResponse = {
   createdAt: string;
 };
 
+export type ContactMessage = {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: 'unread' | 'read' | 'archived';
+  telegramSent: string;
+  createdAt: string | null;
+};
+
+export type ContactMessagesQuery = {
+  status?: 'all' | 'unread' | 'read' | 'archived';
+  page?: number;
+  perPage?: number;
+};
+
+export type UpdateContactMessageRequest = {
+  status: 'unread' | 'read' | 'archived';
+};
+
 export interface PaginatedResponse<T> {
   data: T[];
   meta: PaginationMeta;

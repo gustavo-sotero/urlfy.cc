@@ -8,7 +8,11 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { ALIAS_REGEX } from '@urlfy/contracts/alias-policy';
+import {
+  ALIAS_MAX_LENGTH,
+  ALIAS_MIN_LENGTH,
+  ALIAS_REGEX
+} from '@urlfy/contracts/alias-policy';
 import { Elysia, type Static, t } from 'elysia';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -23,8 +27,8 @@ export const LinkCreateBody = t.Object({
   }),
   customAlias: t.Optional(
     t.String({
-      minLength: 3,
-      maxLength: 20,
+      minLength: ALIAS_MIN_LENGTH,
+      maxLength: ALIAS_MAX_LENGTH,
       pattern: ALIAS_REGEX.source,
       description:
         'Custom short code (3-20 chars, alphanumeric + hyphens, must start/end with alphanumeric)'
@@ -84,7 +88,11 @@ export type LinkCreateBodyType = Static<typeof LinkCreateBody>;
 
 export const LinkUpdateBody = t.Object({
   customAlias: t.Optional(
-    t.String({ minLength: 3, maxLength: 20, pattern: ALIAS_REGEX.source })
+    t.String({
+      minLength: ALIAS_MIN_LENGTH,
+      maxLength: ALIAS_MAX_LENGTH,
+      pattern: ALIAS_REGEX.source
+    })
   ),
   isActive: t.Optional(t.Boolean({ description: 'Toggle link active status' })),
   expiresAt: t.Optional(t.Nullable(t.String({ format: 'date-time' }))),
@@ -153,7 +161,12 @@ export const LinkIdParam = t.Object({
 export type LinkIdParamType = Static<typeof LinkIdParam>;
 
 export const LinkCodeParam = t.Object({
-  code: t.String({ minLength: 1, maxLength: 20, description: 'Short code' })
+  code: t.String({
+    minLength: ALIAS_MIN_LENGTH,
+    maxLength: ALIAS_MAX_LENGTH,
+    pattern: ALIAS_REGEX.source,
+    description: 'Short code'
+  })
 });
 export type LinkCodeParamType = Static<typeof LinkCodeParam>;
 

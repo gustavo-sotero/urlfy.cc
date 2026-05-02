@@ -1307,8 +1307,9 @@
         ],
         "properties": {
           "code": {
-            "minLength": 1,
+            "minLength": 3,
             "maxLength": 20,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
             "description": "Short code",
             "type": "string"
           }
@@ -5962,8 +5963,9 @@
             "type": "string"
           },
           "shortCode": {
-            "minLength": 1,
+            "minLength": 3,
             "maxLength": 20,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
             "type": "string"
           },
           "ip": {
@@ -6052,6 +6054,67 @@
           "session": {}
         },
         "$id": "#/components/schemas/internal.session.response"
+      },
+      "contact.admin.message": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "subject",
+          "message",
+          "status",
+          "telegramSent",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "description": "Contact message ID",
+            "type": "string"
+          },
+          "name": {
+            "description": "Sender name",
+            "type": "string"
+          },
+          "email": {
+            "description": "Sender email address",
+            "type": "string"
+          },
+          "subject": {
+            "description": "Message subject",
+            "type": "string"
+          },
+          "message": {
+            "description": "Message body",
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unread",
+              "read",
+              "archived"
+            ]
+          },
+          "telegramSent": {
+            "description": "Telegram delivery status",
+            "type": "string"
+          },
+          "createdAt": {
+            "nullable": true,
+            "anyOf": [
+              {
+                "format": "date-time",
+                "description": "Creation timestamp",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "$id": "#/components/schemas/contact.admin.message"
       },
       "contact.create": {
         "type": "object",
@@ -7143,8 +7206,9 @@
                     "type": "string"
                   },
                   "shortCode": {
-                    "minLength": 1,
+                    "minLength": 3,
                     "maxLength": 20,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
                     "type": "string"
                   },
                   "ip": {
@@ -7196,8 +7260,9 @@
                     "type": "string"
                   },
                   "shortCode": {
-                    "minLength": 1,
+                    "minLength": 3,
                     "maxLength": 20,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
                     "type": "string"
                   },
                   "ip": {
@@ -7249,8 +7314,9 @@
                     "type": "string"
                   },
                   "shortCode": {
-                    "minLength": 1,
+                    "minLength": 3,
                     "maxLength": 20,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
                     "type": "string"
                   },
                   "ip": {
@@ -9080,8 +9146,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "minLength": 1,
+              "minLength": 3,
               "maxLength": 20,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
               "description": "Short code",
               "type": "string"
             }
@@ -9262,8 +9329,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "minLength": 1,
+              "minLength": 3,
               "maxLength": 20,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
               "description": "Short code",
               "type": "string"
             }
@@ -9416,8 +9484,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "minLength": 1,
+              "minLength": 3,
               "maxLength": 20,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
               "description": "Short code",
               "type": "string"
             }
@@ -15102,6 +15171,151 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of contact messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Paginated list of contact messages",
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "success": {
+                      "default": true,
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "contact.admin.message"
+                      }
+                    },
+                    "meta": {
+                      "description": "Pagination metadata",
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "perPage",
+                        "lastPage",
+                        "hasMore"
+                      ],
+                      "properties": {
+                        "total": {
+                          "description": "Total number of items",
+                          "examples": [
+                            100
+                          ],
+                          "type": "number"
+                        },
+                        "page": {
+                          "description": "Current page number",
+                          "examples": [
+                            1
+                          ],
+                          "type": "number"
+                        },
+                        "perPage": {
+                          "description": "Items per page",
+                          "examples": [
+                            20
+                          ],
+                          "type": "number"
+                        },
+                        "lastPage": {
+                          "description": "Last page number",
+                          "examples": [
+                            5
+                          ],
+                          "type": "number"
+                        },
+                        "hasMore": {
+                          "description": "Whether there are more pages",
+                          "examples": [
+                            true
+                          ],
+                          "type": "boolean"
+                        },
+                        "nextCursor": {
+                          "description": "Opaque cursor to pass as cursor query param for the next page",
+                          "examples": [
+                            "eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "$id": "#/components/schemas/response.pagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required or invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "Authentication required"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.401"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Insufficient permissions or verification required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "You do not have permission to access this resource"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.403"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "An unexpected error occurred"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
+                  "$ref": "response.error.500"
+                }
+              }
+            }
+          }
+        },
         "operationId": "getApiAdminMessages"
       }
     },
@@ -15123,6 +15337,110 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Contact message details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Contact message details",
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "default": true,
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "contact.admin.message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required or invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "Authentication required"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.401"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Insufficient permissions or verification required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "You do not have permission to access this resource"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - Resource does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "LINK_NOT_FOUND",
+                        "message": "Link not found"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.404"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "An unexpected error occurred"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
+                  "$ref": "response.error.500"
+                }
+              }
+            }
+          }
+        },
         "operationId": "getApiAdminMessagesById"
       },
       "patch": {
@@ -15200,6 +15518,138 @@
                   }
                 },
                 "$id": "#/components/schemas/contact.update"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Status updated successfully",
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "default": true,
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "message"
+                      ],
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid input or validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "URL is required"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
+                  "$ref": "response.error.400"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required or invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "Authentication required"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.401"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Insufficient permissions or verification required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "You do not have permission to access this resource"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - Resource does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "LINK_NOT_FOUND",
+                        "message": "Link not found"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.404"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "An unexpected error occurred"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
+                  "$ref": "response.error.500"
+                }
               }
             }
           }

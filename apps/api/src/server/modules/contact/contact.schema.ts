@@ -100,11 +100,30 @@ export const MessageUpdateBody = t.Object({
 });
 export type MessageUpdateBodyType = Static<typeof MessageUpdateBody>;
 
+export const AdminContactMessage = t.Object({
+  id: t.String({ description: 'Contact message ID' }),
+  name: t.String({ description: 'Sender name' }),
+  email: t.String({ description: 'Sender email address' }),
+  subject: t.String({ description: 'Message subject' }),
+  message: t.String({ description: 'Message body' }),
+  status: t.Union([
+    t.Literal('unread'),
+    t.Literal('read'),
+    t.Literal('archived')
+  ]),
+  telegramSent: t.String({ description: 'Telegram delivery status' }),
+  createdAt: t.Nullable(
+    t.String({ format: 'date-time', description: 'Creation timestamp' })
+  )
+});
+export type AdminContactMessageType = Static<typeof AdminContactMessage>;
+
 // ═══════════════════════════════════════════════════════════════════
 // MODEL REGISTRATION
 // ═══════════════════════════════════════════════════════════════════
 
 export const ContactModel = new Elysia({ name: 'contact.model' }).model({
+  'contact.admin.message': AdminContactMessage,
   'contact.create': ContactBody,
   'contact.response': ContactResponse,
   'contact.list': MessageListQuery,

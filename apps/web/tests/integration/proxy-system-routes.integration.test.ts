@@ -21,8 +21,7 @@ const PASSTHROUGH_PATHS = [
 
 describe('Edge proxy system route reservations', () => {
   test('matcher excludes backend and redirect route handlers', () => {
-    const matcher = config.matcher[0];
-    const source = typeof matcher === 'string' ? matcher : matcher.source;
+    const source = config.matcher[0];
 
     for (const excludedPrefix of [
       'api(?:/|$)',
@@ -35,21 +34,22 @@ describe('Edge proxy system route reservations', () => {
   });
 
   test('matcher skips Next.js prefetch requests', () => {
-    const matcher = config.matcher[0];
+    expect(typeof config.matcher[0]).toBe('string');
+  });
 
-    expect(typeof matcher).toBe('object');
+  test('prefetch requests bypass proxy work at runtime', async () => {
+    const response = await proxy(
+      new NextRequest('http://localhost:3000/en/dashboard', {
+        headers: {
+          'next-router-prefetch': '1',
+          purpose: 'prefetch'
+        }
+      })
+    );
 
-    if (typeof matcher !== 'object') return;
-
-    expect(matcher.missing).toContainEqual({
-      type: 'header',
-      key: 'next-router-prefetch'
-    });
-    expect(matcher.missing).toContainEqual({
-      type: 'header',
-      key: 'purpose',
-      value: 'prefetch'
-    });
+    expect(response.headers.get('x-middleware-next')).toBeDefined();
+    expect(response.headers.get('x-middleware-rewrite')).toBeNull();
+    expect(response.headers.get('Content-Security-Policy')).toBeNull();
   });
 
   for (const path of SYSTEM_PATHS) {

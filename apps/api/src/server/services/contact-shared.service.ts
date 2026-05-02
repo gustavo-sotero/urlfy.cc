@@ -7,6 +7,8 @@
  */
 
 export {
+  AdminContactMessage,
+  ContactModel,
   ContactService,
   MessageListQuery,
   MessageUpdateBody

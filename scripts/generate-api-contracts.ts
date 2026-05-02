@@ -71,7 +71,10 @@ const componentExports = [
   ['admin.user.response', 'AdminUserResponse'],
   ['admin.user.update.body', 'UpdateAdminUserRequest'],
   ['admin.audit.query', 'AuditLogsQuery'],
-  ['admin.audit.response', 'AuditLogEntryResponse']
+  ['admin.audit.response', 'AuditLogEntryResponse'],
+  ['contact.admin.message', 'ContactMessage'],
+  ['contact.list', 'ContactMessagesQuery'],
+  ['contact.update', 'UpdateContactMessageRequest']
 ] as const;
 
 const componentNameMap = new Map<string, string>(componentExports);

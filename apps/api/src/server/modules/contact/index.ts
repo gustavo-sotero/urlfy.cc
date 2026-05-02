@@ -6,6 +6,7 @@
 
 export { contactController } from './contact.controller';
 export {
+  AdminContactMessage,
   ContactModel,
   MessageListQuery,
   MessageUpdateBody

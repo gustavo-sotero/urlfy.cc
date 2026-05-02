@@ -6,13 +6,22 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import {
+  ALIAS_MAX_LENGTH,
+  ALIAS_MIN_LENGTH,
+  ALIAS_REGEX
+} from '@urlfy/contracts/alias-policy';
 import { Elysia, t } from 'elysia';
 
 // Request body schema for analytics ingestion
 export const InternalAnalyticsEventBody = t.Object(
   {
     linkId: t.String({ format: 'uuid' }),
-    shortCode: t.String({ minLength: 1, maxLength: 20 }),
+    shortCode: t.String({
+      minLength: ALIAS_MIN_LENGTH,
+      maxLength: ALIAS_MAX_LENGTH,
+      pattern: ALIAS_REGEX.source
+    }),
     ip: t.String(),
     userAgent: t.String(),
     referer: t.Optional(t.String()),

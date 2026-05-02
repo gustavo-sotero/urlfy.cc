@@ -42,9 +42,10 @@
     }
   },
   "scripts": {
-    "dev": "DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development turbo run dev",
-    "dev:web": "DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development turbo run dev --filter=web",
-    "dev:api": "NODE_ENV=development turbo run dev --filter=@urlfy/api",
+    "dev:preflight": "bun run scripts/warn-local-api-dist.ts",
+    "dev": "bun run dev:preflight && DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development turbo run dev",
+    "dev:web": "bun run dev:preflight && DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development turbo run dev --filter=web",
+    "dev:api": "bun run dev:preflight && NODE_ENV=development turbo run dev --filter=@urlfy/api",
     "dev:worker": "NODE_ENV=development turbo run dev --filter=worker",
     "build": "turbo run build",
     "build:web": "turbo run build --filter=web",

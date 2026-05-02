@@ -4,6 +4,15 @@
  * Type-safe wrapper for admin-related endpoints
  */
 
+import type {
+  AdminLinkResponse,
+  AdminStatsResponse,
+  AdminUserResponse,
+  AuditLogEntryResponse,
+  ContactMessage as GeneratedContactMessage,
+  GrowthStatsPoint,
+  UpdateContactMessageRequest
+} from '@urlfy/contracts/generated';
 import type { LinkResponse, PaginatedResponse } from '@/types/links.types';
 import { BASE_URL, client, createClientWithHeaders } from './client';
 import {
@@ -18,17 +27,13 @@ import {
 // SHARED TYPES & HELPERS
 // ═══════════════════════════════════════════════════════════════════
 
-/** Raw link shape returned by admin API endpoints */
-interface AdminLinkRaw {
-  id: string;
-  shortCode: string;
-  originalUrl: string;
-  isActive: boolean;
-  isBanned: boolean;
-  createdAt: string;
-  clicksCount: number;
-  [key: string]: unknown;
-}
+type AdminLinkRaw = AdminLinkResponse & Record<string, unknown>;
+export type AdminStats = AdminStatsResponse;
+export type UserResponse = AdminUserResponse;
+export type AuditLogEntry = AuditLogEntryResponse;
+export type ContactMessage = GeneratedContactMessage;
+export type ContactMessagesResponse = PaginatedResponse<ContactMessage>;
+export type MessageStatus = UpdateContactMessageRequest['status'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object';
@@ -80,7 +85,7 @@ export function createAdminApi(apiClient: EdenClient) {
 
     getGrowthStats: async (
       range: '7d' | '30d' = '7d'
-    ): Promise<Array<{ date: string; clicks: number; newUsers: number }>> => {
+    ): Promise<GrowthStatsPoint[]> => {
       const response = await apiClient.api.admin.stats.growth.get({
         query: { range }
       });
@@ -98,16 +103,7 @@ export function createAdminApi(apiClient: EdenClient) {
         }
       });
 
-      const result = handleEden<{
-        data: Array<AdminLinkRaw>;
-        meta: {
-          total: number;
-          page: number;
-          perPage: number;
-          lastPage: number;
-          hasMore: boolean;
-        };
-      }>(response);
+      const result = handleEden<PaginatedResponse<AdminLinkRaw>>(response);
 
       return {
         data: result.data.map(mapToLinkResponse),
@@ -121,18 +117,6 @@ export const adminApi = createAdminApi(client);
 
 export const createAdminApiSSR = (headers: HeadersInit) =>
   createAdminApi(createClientWithHeaders(headers));
-
-// ═══════════════════════════════════════════════════════════════════
-// ADMIN STATS
-// ═══════════════════════════════════════════════════════════════════
-
-export interface AdminStats {
-  totalLinks: number;
-  totalClicks: number;
-  totalUsers: number;
-  activeLinksToday: number;
-  requestsPerSecond: number;
-}
 
 /**
  * Get global admin statistics.
@@ -162,7 +146,7 @@ export const getAdminStatsSSR = (headers: HeadersInit) =>
 export async function getGrowthStats(
   range: '7d' | '30d' = '7d',
   headers?: HeadersInit
-): Promise<Array<{ date: string; clicks: number; newUsers: number }>> {
+): Promise<GrowthStatsPoint[]> {
   if (headers) {
     return createAdminApiSSR(headers).getGrowthStats(range);
   }
@@ -246,7 +230,7 @@ export async function searchLinks(query: string): Promise<LinkResponse[]> {
   const response = await client.api.admin.links.search.get({
     query: { q: query }
   });
-  const result = handleEden<Array<AdminLinkRaw>>(response);
+  const result = handleEden<AdminLinkRaw[]>(response);
 
   return result.map(mapToLinkResponse);
 }
@@ -292,26 +276,6 @@ export async function banLink(id: string, reason: string): Promise<void> {
 export async function unbanLink(id: string): Promise<void> {
   const response = await client.api.admin.links({ linkId: id }).unban.patch();
   handleEdenVoid(response);
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// USER MANAGEMENT
-// ═══════════════════════════════════════════════════════════════════
-
-export interface UserResponse {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  isAdmin: boolean;
-  banned: boolean;
-  bannedReason: string | null;
-  bannedAt: string | null;
-  twoFactorEnabled: boolean;
-  linksQuota: number;
-  linksCount: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface UsersQuery {
@@ -379,22 +343,6 @@ export async function unbanUser(userId: string): Promise<UserResponse> {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// AUDIT LOGS
-// ═══════════════════════════════════════════════════════════════════
-
-export interface AuditLogEntry {
-  id: string;
-  userId: string;
-  userEmail?: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  metadata?: Record<string, unknown>;
-  ipAddress: string;
-  createdAt: string;
-}
-
 export interface AuditLogsQuery {
   from?: string;
   to?: string;
@@ -413,43 +361,26 @@ export async function getAuditLogs(
   return handleEden<PaginatedResponse<AuditLogEntry>>(response);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// CONTACT MESSAGES
-// ═══════════════════════════════════════════════════════════════════
-
-export interface ContactMessage {
-  id: string;
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  status: string;
-  telegramSent: string;
-  createdAt: string | null;
-}
-
-export interface ContactMessagesResponse {
-  data: ContactMessage[];
-  meta: {
-    total: number;
-    page: number;
-    perPage: number;
-    totalPages: number;
-  };
-}
-
 export async function getAdminMessages(
   status?: string
 ): Promise<ContactMessagesResponse> {
+  const normalizedStatus =
+    status === 'all' ||
+    status === 'unread' ||
+    status === 'read' ||
+    status === 'archived'
+      ? status
+      : undefined;
   const query = toQueryParams({
-    status: status && status !== 'all' ? status : undefined,
-    perPage: '50'
+    status:
+      normalizedStatus && normalizedStatus !== 'all'
+        ? normalizedStatus
+        : undefined,
+    perPage: 50
   });
   const response = await client.api.admin.messages.get({ query });
   return handleEden<ContactMessagesResponse>(response);
 }
-
-export type MessageStatus = 'read' | 'unread' | 'archived';
 
 export async function updateMessageStatus(
   id: string,

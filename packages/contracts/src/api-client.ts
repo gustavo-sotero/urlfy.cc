@@ -15,14 +15,18 @@ import type {
   CreateLinkInputSchema,
   DashboardSummaryResponse,
   DataDeletionRequestResponse,
+  ContactMessage as GeneratedContactMessage,
+  ContactMessagesQuery as GeneratedContactMessagesQuery,
   GrowthStatsPoint,
   LinkPreviewResponse,
   LinkResponse,
   LinkStatsResponse,
   ListLinksQuerySchema,
+  PaginatedResponse,
   PaginationMeta,
   TimeseriesDataPoint,
   UpdateAdminUserRequest,
+  UpdateContactMessageRequest,
   UpdateLinkInputSchema,
   UrlValidationResponse,
   UserDataExportResponse,
@@ -54,26 +58,9 @@ export interface StreamStatsResponse {
   lastGeneratedId?: string;
 }
 
-export interface ContactMessageResponse {
-  id: string;
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  status: string;
-  telegramSent: string;
-  createdAt: string | null;
-}
-
-export interface ContactMessagesResponse {
-  data: ContactMessageResponse[];
-  meta: {
-    total: number;
-    page: number;
-    perPage: number;
-    totalPages: number;
-  };
-}
+export type ContactMessageResponse = GeneratedContactMessage;
+export type ContactMessagesResponse =
+  PaginatedResponse<GeneratedContactMessage>;
 
 export type LinkListQuery = Partial<ListLinksQuerySchema>;
 export type AnalyticsQuery = {
@@ -84,10 +71,7 @@ export type AdminLinksQuery = {
   limit?: string;
   search?: string;
 };
-export type ContactMessagesQuery = {
-  status?: string;
-  perPage?: string;
-};
+export type ContactMessagesQuery = GeneratedContactMessagesQuery;
 export type QrCodeQuery = {
   size?: string;
   format?: 'png' | 'svg';
@@ -234,9 +218,9 @@ interface AdminMessagesRoutes {
   (params: {
     id: string;
   }): {
-    patch(body: {
-      status: 'read' | 'unread' | 'archived';
-    }): Promise<ApiClientResponse<unknown>>;
+    patch(
+      body: UpdateContactMessageRequest
+    ): Promise<ApiClientResponse<unknown>>;
   };
   get(options?: {
     query?: ContactMessagesQuery;

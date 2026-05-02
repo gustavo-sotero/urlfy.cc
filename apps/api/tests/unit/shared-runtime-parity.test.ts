@@ -204,6 +204,31 @@ describe('Alias regex parity', () => {
     expect(src.includes('SHORT_CODE_PATH_REGEX')).toBe(true);
   });
 
+  it('public by-code params use the shared alias bounds and regex', async () => {
+    const src = await readFromApiRoot(
+      'src/server/modules/links/links.schema.ts'
+    );
+
+    const aliasMinLengthUsages =
+      src.match(/minLength: ALIAS_MIN_LENGTH/g) ?? [];
+    const aliasMaxLengthUsages =
+      src.match(/maxLength: ALIAS_MAX_LENGTH/g) ?? [];
+
+    expect(aliasMinLengthUsages.length).toBeGreaterThanOrEqual(3);
+    expect(aliasMaxLengthUsages.length).toBeGreaterThanOrEqual(3);
+    expect(src.includes('pattern: ALIAS_REGEX.source')).toBe(true);
+  });
+
+  it('internal analytics shortCode payload uses the shared alias bounds and regex', async () => {
+    const src = await readFromApiRoot(
+      'src/server/modules/internal/internal.schema.ts'
+    );
+
+    expect(src.includes('ALIAS_MIN_LENGTH')).toBe(true);
+    expect(src.includes('ALIAS_MAX_LENGTH')).toBe(true);
+    expect(src.includes('pattern: ALIAS_REGEX.source')).toBe(true);
+  });
+
   it('redirect-domain self-shortener loop logic uses shared alias regexes', async () => {
     const src = await readFromApiRoot(
       '../../packages/redirect-domain/src/service.ts'
@@ -263,7 +288,10 @@ describe('Generated API contract parity', () => {
     ['admin.stats.response', 'AdminStatsResponse'],
     ['admin.link.response', 'AdminLinkResponse'],
     ['admin.user.response', 'AdminUserResponse'],
-    ['admin.audit.response', 'AuditLogEntryResponse']
+    ['admin.audit.response', 'AuditLogEntryResponse'],
+    ['contact.admin.message', 'ContactMessage'],
+    ['contact.list', 'ContactMessagesQuery'],
+    ['contact.update', 'UpdateContactMessageRequest']
   ] as const;
 
   it('keeps generated public symbols backed by OpenAPI components', async () => {
@@ -305,6 +333,9 @@ describe('Generated API contract parity', () => {
     );
 
     expect(apiClientText.includes('CreateApiKeyRequest')).toBe(true);
+    expect(apiClientText.includes('ContactMessage')).toBe(true);
+    expect(apiClientText.includes('ContactMessagesQuery')).toBe(true);
+    expect(apiClientText.includes('UpdateContactMessageRequest')).toBe(true);
     expect(
       apiClientText.includes("from './generated/api'"),
       'api-client must import generated request types'
@@ -312,5 +343,8 @@ describe('Generated API contract parity', () => {
     expect(apiClientText.includes('export interface CreateApiKeyRequest')).toBe(
       false
     );
+    expect(
+      apiClientText.includes('export interface ContactMessageResponse')
+    ).toBe(false);
   });
 });
