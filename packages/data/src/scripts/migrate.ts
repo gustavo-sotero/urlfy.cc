@@ -44,14 +44,15 @@ async function waitForDatabase(): Promise<void> {
       console.log(`✅ Database reachable (attempt ${attempt})`);
       return;
     } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
       const remaining = Math.ceil((deadline - Date.now()) / 1000);
       if (remaining <= 0) {
         throw new Error(
-          `Database not reachable after ${MIGRATION_TIMEOUT_S}s: ${err instanceof Error ? err.message : String(err)}`
+          `Database not reachable after ${MIGRATION_TIMEOUT_S}s (${formatDatabaseTarget()}): ${reason}`
         );
       }
       console.log(
-        `⏳ Database not ready (attempt ${attempt}, ${remaining}s left): ${err instanceof Error ? err.message : String(err)}`
+        `⏳ Database not ready (attempt ${attempt}, ${remaining}s left): ${reason}`
       );
       // Close any partial connection state before the next attempt
       await closeDatabase();

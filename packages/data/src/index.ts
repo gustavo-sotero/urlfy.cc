@@ -1,5 +1,7 @@
 // Native Bun SQL for PostgreSQL
 
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import { getLogger as getDrizzleLogger } from '@logtape/drizzle-orm';
 import { SQL } from 'bun';
 import { sql } from 'drizzle-orm';
@@ -12,6 +14,20 @@ type DatabaseTargetInfo = {
   database: string | null;
 };
 
+type HostResolutionDiagnostics = {
+  status: 'resolved' | 'failed' | 'skipped';
+  addresses?: string[];
+  error?: string;
+};
+
+const NETWORK_ERROR_FRAGMENTS = [
+  'failedtoopensocket',
+  'enotfound',
+  'eai_again',
+  'connection refused',
+  'connection closed'
+] as const;
+
 // Type for the drizzle instance
 type DrizzleDatabase = ReturnType<typeof drizzle>;
 
@@ -19,6 +35,10 @@ type DrizzleDatabase = ReturnType<typeof drizzle>;
 let dbInstance: DrizzleDatabase | null = null;
 let sqlConnection: SQL | null = null;
 let connectionError: Error | null = null;
+const hostResolutionCache = new Map<
+  string,
+  Promise<HostResolutionDiagnostics>
+>();
 
 // Connection configuration (computed lazily on first getDatabase() call)
 let connectionConfig: {
@@ -52,33 +72,85 @@ function parseDatabaseTarget(databaseUrl: string): DatabaseTargetInfo {
 
 function getConnectionHint(
   host: string | null,
-  message: string
+  message: string,
+  hostResolution?: HostResolutionDiagnostics
 ): string | undefined {
-  const normalizedMessage = message.toLowerCase();
+  if (!isLikelyNetworkError(message)) {
+    return;
+  }
+
+  if (hostResolution?.status === 'failed') {
+    return `DNS lookup failed for DATABASE_URL host "${host ?? 'unknown'}": ${hostResolution.error}. Verify the hostname and ensure PostgreSQL is attached to the same Docker/Dokploy network.`;
+  }
 
   if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
-    if (
-      normalizedMessage.includes('failedtoopensocket') ||
-      normalizedMessage.includes('connection refused') ||
-      normalizedMessage.includes('connection closed')
-    ) {
-      return 'DATABASE_URL points at localhost. Inside Docker this resolves to the current container, not the PostgreSQL service.';
-    }
+    return 'DATABASE_URL points at localhost. Inside Docker this resolves to the current container, not the PostgreSQL service.';
   }
 
   if (host === 'postgresql') {
     return 'This repo\'s bundled Compose files use "postgres" as the default service hostname. If you are on Dokploy, ensure "postgresql" is a real network alias or update DATABASE_URL to the reachable PostgreSQL host.';
   }
 
-  if (
-    normalizedMessage.includes('failedtoopensocket') ||
-    normalizedMessage.includes('enotfound') ||
-    normalizedMessage.includes('eai_again') ||
-    normalizedMessage.includes('connection refused') ||
-    normalizedMessage.includes('connection closed')
-  ) {
-    return `Verify that DATABASE_URL host "${host ?? 'unknown'}" resolves from this runtime and that PostgreSQL is attached to the same Docker/Dokploy network.`;
+  return `Verify that DATABASE_URL host "${host ?? 'unknown'}" resolves from this runtime and that PostgreSQL is attached to the same Docker/Dokploy network.`;
+}
+
+function isLikelyNetworkError(message: string): boolean {
+  const normalizedMessage = message.toLowerCase();
+  return NETWORK_ERROR_FRAGMENTS.some((fragment) =>
+    normalizedMessage.includes(fragment)
+  );
+}
+
+function shouldDiagnoseHostResolution(
+  host: string | null,
+  message: string
+): host is string {
+  if (!host) {
+    return false;
   }
+
+  return isLikelyNetworkError(message);
+}
+
+async function diagnoseHostResolution(
+  host: string
+): Promise<HostResolutionDiagnostics> {
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
+    return { status: 'skipped' };
+  }
+
+  if (isIP(host)) {
+    return { status: 'skipped' };
+  }
+
+  const cached = hostResolutionCache.get(host);
+  if (cached) {
+    return cached;
+  }
+
+  const lookupPromise = (async (): Promise<HostResolutionDiagnostics> => {
+    try {
+      const results = await lookup(host, { all: true });
+      const addresses = [...new Set(results.map((result) => result.address))];
+
+      return {
+        status: 'resolved',
+        addresses
+      };
+    } catch (error) {
+      return {
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  })();
+
+  const diagnostics = await lookupPromise;
+  if (diagnostics.status === 'resolved') {
+    hostResolutionCache.set(host, Promise.resolve(diagnostics));
+  }
+
+  return diagnostics;
 }
 
 function writeBootstrapLog(
@@ -228,13 +300,22 @@ export async function initDatabase(): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     connectionError = err instanceof Error ? err : new Error(message);
     const diagnostics = getDatabaseBootstrapDiagnostics();
+    const hostResolution = shouldDiagnoseHostResolution(
+      diagnostics.host,
+      message
+    )
+      ? await diagnoseHostResolution(diagnostics.host)
+      : undefined;
     writeBootstrapLog('error', 'Database connection attempt failed', {
       host: diagnostics.host,
       port: diagnostics.port,
       database: diagnostics.database,
       connectionTimeout: diagnostics.connectionTimeout,
       error: message,
-      hint: getConnectionHint(diagnostics.host, message)
+      hint: getConnectionHint(diagnostics.host, message, hostResolution),
+      hostResolutionStatus: hostResolution?.status,
+      resolvedAddresses: hostResolution?.addresses,
+      hostResolutionError: hostResolution?.error
     });
     throw connectionError;
   }
@@ -300,6 +381,10 @@ export async function closeDatabase(): Promise<void> {
     sqlConnection = null;
     connectionConfig = null;
     connectionError = null;
+    hostResolutionCache.clear();
     writeBootstrapLog('info', 'Database connection closed');
+    return;
   }
+
+  hostResolutionCache.clear();
 }
