@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 // @ts-expect-error - Dynamic import for test isolation
-import { getWeeklySalt } from '../../src/server/lib/geoip';
+import { getWeeklySalt, lookupGeoIP } from '../../src/server/lib/geoip';
 
 /**
  * GeoIP Auto-Download System Tests
@@ -75,10 +75,10 @@ describe('GeoIP Auto-Download System', () => {
   });
 
   describe('Private IP Detection', () => {
-    // These would be tested via the lookupGeoIP function
-    // but we keep the test structure to document expected behavior
+    // lookupGeoIP short-circuits for private IPs before any Redis or DB access.
+    // These tests verify the short-circuit invariant without requiring infrastructure.
 
-    const privateIPv4Ranges = [
+    const privateIPv4Addresses = [
       '10.0.0.1',
       '172.16.0.1',
       '192.168.1.1',
@@ -86,14 +86,42 @@ describe('GeoIP Auto-Download System', () => {
       '169.254.1.1'
     ];
 
-    const privateIPv6Ranges = ['::1', 'fc00::1', 'fe80::1'];
+    const privateIPv6Addresses = ['::1', 'fc00::1', 'fe80::1'];
 
-    it('should document private IPv4 ranges', () => {
-      expect(privateIPv4Ranges.length).toBe(5);
+    it('should return null location for private IPv4 addresses', async () => {
+      for (const ip of privateIPv4Addresses) {
+        const result = await lookupGeoIP(ip);
+        expect(
+          result.country,
+          `expected null country for private IP ${ip}`
+        ).toBeNull();
+        expect(
+          result.city,
+          `expected null city for private IP ${ip}`
+        ).toBeNull();
+        expect(
+          result.latitude,
+          `expected null latitude for private IP ${ip}`
+        ).toBeNull();
+        expect(
+          result.longitude,
+          `expected null longitude for private IP ${ip}`
+        ).toBeNull();
+      }
     });
 
-    it('should document private IPv6 ranges', () => {
-      expect(privateIPv6Ranges.length).toBe(3);
+    it('should return null location for private IPv6 addresses', async () => {
+      for (const ip of privateIPv6Addresses) {
+        const result = await lookupGeoIP(ip);
+        expect(
+          result.country,
+          `expected null country for private IP ${ip}`
+        ).toBeNull();
+        expect(
+          result.city,
+          `expected null city for private IP ${ip}`
+        ).toBeNull();
+      }
     });
   });
 
@@ -110,89 +138,37 @@ describe('GeoIP Auto-Download System', () => {
       expect(expectedPrefix).toBe('2001:4860:4860');
     });
 
-    it('should document cache TTL of 24 hours', () => {
-      const expectedTTL = 86400; // 24 hours in seconds
-      expect(expectedTTL).toBe(86400);
+    it.skip('cache TTL is defined in @urlfy/cache CACHE_TTL.GEO — verified by cache package unit tests', () => {
+      // The 24-hour TTL is set via CACHE_TTL.GEO in redis.setex; it is a config constant,
+      // not a behavioral invariant testable here without Redis infrastructure.
     });
   });
 
   describe('Data Attribution & Licensing', () => {
-    it('should acknowledge GeoLite2 data source', () => {
-      // Documentation: This product includes GeoLite2 data created by MaxMind
-      // Available from: https://www.maxmind.com
-      const attribution =
-        'This product includes GeoLite2 data created by MaxMind';
-      expect(attribution).toContain('GeoLite2');
-      expect(attribution).toContain('MaxMind');
+    it.skip('GeoLite2 attribution is a legal compliance requirement, not a code invariant', () => {
+      // Verified in docker/geoip/README.md and package comments.
     });
 
-    it('should comply with CC BY-SA 4.0 license', () => {
-      // License: Creative Commons Attribution-ShareAlike 4.0 International
-      // See: docker/geoip/README.md for full attribution
-      const license = 'CC BY-SA 4.0';
-      expect(license).toBe('CC BY-SA 4.0');
-    });
+    it.skip('CC BY-SA 4.0 license compliance is verified by legal review, not unit tests', () => {});
 
-    it('should reference license documentation', () => {
-      const licenseURL =
-        'https://dev.maxmind.com/geoip/geolite2-free-geolocation-data';
-      expect(licenseURL).toContain('maxmind.com');
-    });
+    it.skip('MaxMind license documentation URL is static config, not a testable invariant', () => {});
   });
 
   describe('Auto-Download Mechanism', () => {
-    it('should document monthly refresh schedule', () => {
-      // Cron: 0 0 1 * * (1st day of month at 00:00 UTC)
-      const cronSchedule = '0 0 1 * *';
-      expect(cronSchedule).toBe('0 0 1 * *');
-    });
+    it.skip('monthly refresh schedule is a cron config in docker/geoip/Dockerfile — not unit testable', () => {});
 
-    it('should document file freshness check', () => {
-      // Files older than GEOIP_MAX_AGE_DAYS trigger re-download
-      const maxAge = 25; // default
-      expect(maxAge).toBeGreaterThan(0);
-    });
+    it.skip('file freshness check is shell script logic in geoip-refresh.sh — not unit testable', () => {});
 
-    it('should document atomic file replacement', () => {
-      // Download to .tmp, then mv to final location
-      const tmpSuffix = '.tmp';
-      expect(tmpSuffix).toBe('.tmp');
-    });
+    it.skip('atomic file replacement (.tmp then mv) is shell script logic — not unit testable', () => {});
 
-    it('should document retry mechanism', () => {
-      // curl --retry 3 --retry-delay 3
-      const maxRetries = 3;
-      const retryDelay = 3;
-      expect(maxRetries).toBe(3);
-      expect(retryDelay).toBe(3);
-    });
+    it.skip('retry mechanism is a curl flag in geoip-refresh.sh — not unit testable', () => {});
   });
 
   describe('Container Architecture', () => {
-    it('should document Alpine base image', () => {
-      // FROM alpine:3.19
-      const baseImage = 'alpine:3.19';
-      expect(baseImage).toContain('alpine');
-    });
-
-    it('should document required packages', () => {
-      const packages = ['curl', 'gzip', 'dcron', 'tzdata'];
-      expect(packages).toHaveLength(4);
-    });
-
-    it('should document volume mount', () => {
-      // Volume: geoip_data:/app/geoip
-      const volumeName = 'geoip_data';
-      const mountPoint = '/app/geoip';
-      expect(volumeName).toBe('geoip_data');
-      expect(mountPoint).toBe('/app/geoip');
-    });
-
-    it('should document read-only mount for app container', () => {
-      // App mounts as :ro (read-only)
-      const mountMode = 'ro';
-      expect(mountMode).toBe('ro');
-    });
+    it.skip('Alpine base image selection is Dockerfile config — not unit testable', () => {});
+    it.skip('required Alpine packages are Dockerfile config — not unit testable', () => {});
+    it.skip('Docker volume mount is compose config — not unit testable', () => {});
+    it.skip('read-only mount mode is compose config — not unit testable', () => {});
   });
 });
 

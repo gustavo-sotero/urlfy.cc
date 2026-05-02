@@ -44,8 +44,11 @@ function isSelfShortenerLoop(url: string): boolean {
     const parsed = new URL(url);
     if (!isSelfShortenerOrigin(parsed)) return false;
     const path = parsed.pathname;
-    if (/^\/r\/[a-zA-Z0-9_-]{3,20}\/?$/.test(path)) return true;
-    if (/^\/[a-zA-Z0-9_-]{3,20}\/?$/.test(path)) return true;
+    // Canonical pattern: alphanumeric + hyphens, no underscores (matches ALIAS_REGEX)
+    if (/^\/r\/[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]\/?$/.test(path))
+      return true;
+    if (/^\/[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]\/?$/.test(path))
+      return true;
     return false;
   } catch {
     return false;

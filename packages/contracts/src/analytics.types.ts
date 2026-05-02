@@ -79,6 +79,55 @@ export interface AnalyticsQueryOptions {
   excludeBots?: boolean;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// API RESPONSE SHAPES (canonical — mirrors analytics.schema.ts)
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Analytics summary metrics for a given period.
+ * Mirrors AnalyticsSummary TypeBox schema in apps/api analytics.schema.ts.
+ */
+export interface AnalyticsSummary {
+  totalClicks: number;
+  uniqueVisitors: number;
+  avgClicksPerDay: number;
+  topCountry: string | null;
+  topBrowser: string | null;
+  topReferrer: string | null;
+  /** Percentage growth vs previous period */
+  totalClicksGrowth: number;
+  /** Percentage growth vs previous period */
+  uniqueVisitorsGrowth: number;
+}
+
+/**
+ * Complete analytics breakdown by category.
+ * Mirrors AnalyticsBreakdown TypeBox schema in apps/api analytics.schema.ts.
+ */
+export interface AnalyticsBreakdown {
+  countries: Array<{
+    code: string;
+    name: string;
+    clicks: number;
+    percentage: number;
+  }>;
+  devices: Array<{
+    type: string;
+    clicks: number;
+    percentage: number;
+  }>;
+  browsers: Array<{
+    name: string;
+    clicks: number;
+    percentage: number;
+  }>;
+  referrers: Array<{
+    domain: string;
+    clicks: number;
+    percentage: number;
+  }>;
+}
+
 export interface AnalyticsBreakdown {
   countries: Array<{
     code: string;

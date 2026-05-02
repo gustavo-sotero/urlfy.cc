@@ -181,4 +181,64 @@ describe('Alias regex parity', () => {
     // Verify the regex is non-trivial (guard against empty/undefined regression)
     expect(regexSource.length).toBeGreaterThan(5);
   });
+
+  it('url-validator self-shortener patterns exclude underscores (match canonical alias charset)', async () => {
+    const src = await readFromApiRoot(
+      'src/server/modules/links/services/url-validator.ts'
+    );
+
+    // The canonical ALIAS_REGEX does not allow underscores.
+    // Detection patterns in url-validator must be consistent — no [_] in shortcode regexes.
+    const shortcodePatterns =
+      src.match(/\/\^\\\/(?:r\\\/)?(\[?[^\]]*\]?\{[^}]+\})[^\n]+/g) ?? [];
+
+    for (const pat of shortcodePatterns) {
+      expect(
+        pat,
+        `url-validator shortcode pattern must not allow underscore: ${pat}`
+      ).not.toContain('_');
+    }
+  });
+
+  it('proxy.ts short-code matcher excludes underscores (match canonical alias charset)', async () => {
+    const src = await readFromWebRoot('src/proxy.ts');
+
+    // The canonical ALIAS_REGEX does not allow underscores.
+    // proxy.ts must not match paths like /some_path as short codes.
+    const shortcodeMatchLine = src
+      .split('\n')
+      .find(
+        (line) => line.includes('shortCodeMatch') && line.includes('match(')
+      );
+
+    expect(
+      shortcodeMatchLine,
+      'proxy.ts must have a shortCodeMatch line with a regex'
+    ).toBeTruthy();
+
+    expect(
+      shortcodeMatchLine,
+      'proxy.ts shortCodeMatch regex must not allow underscore'
+    ).not.toContain('_');
+  });
+
+  it('redirect-domain self-shortener loop patterns exclude underscores', async () => {
+    const src = await readFromApiRoot(
+      '../../packages/redirect-domain/src/service.ts'
+    );
+
+    // Same canonical constraint: no underscores in shortcode detection.
+    const patternLines = src
+      .split('\n')
+      .filter(
+        (line) => line.includes('.test(path)') && line.includes('[a-zA-Z0-9')
+      );
+
+    for (const line of patternLines) {
+      expect(
+        line,
+        `redirect-domain shortcode pattern must not allow underscore: ${line}`
+      ).not.toContain('_');
+    }
+  });
 });

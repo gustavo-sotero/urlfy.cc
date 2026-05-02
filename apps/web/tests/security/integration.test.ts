@@ -58,8 +58,12 @@ beforeAll(async () => {
 // CORS INTEGRATION TESTS
 // ═══════════════════════════════════════════════════════════════════
 describe('CORS Integration Tests', () => {
+  if (!serverAvailable) {
+    it.skip('server unavailable — skipping all CORS integration tests', () => {});
+    return;
+  }
+
   it('should reject requests from unauthorized origins', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/health`, {
       method: 'GET',
       headers: {
@@ -73,7 +77,6 @@ describe('CORS Integration Tests', () => {
   });
 
   it('should allow requests from authorized origins', async () => {
-    if (!serverAvailable) return;
     const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
     for (const origin of allowedOrigins) {
@@ -90,7 +93,6 @@ describe('CORS Integration Tests', () => {
   });
 
   it('should handle preflight OPTIONS requests', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/links`, {
       method: 'OPTIONS',
       headers: {
@@ -110,7 +112,6 @@ describe('CORS Integration Tests', () => {
   });
 
   it('should reject preflight for unauthorized methods', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/links`, {
       method: 'OPTIONS',
       headers: {
@@ -131,8 +132,12 @@ describe('CORS Integration Tests', () => {
 // RATE LIMITING INTEGRATION TESTS
 // ═══════════════════════════════════════════════════════════════════
 describe('Rate Limiting Integration Tests', () => {
+  if (!serverAvailable) {
+    it.skip('server unavailable — skipping all rate limiting integration tests', () => {});
+    return;
+  }
+
   it('should enforce rate limits on guest link creation', async () => {
-    if (!serverAvailable) return;
     const requests: Promise<Response>[] = [];
 
     // Make 15 concurrent requests (limit is 10/hour for guests)
@@ -158,7 +163,6 @@ describe('Rate Limiting Integration Tests', () => {
   });
 
   it('should return proper rate limit headers', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/health`);
 
     // Check for rate limit headers
@@ -174,7 +178,6 @@ describe('Rate Limiting Integration Tests', () => {
   });
 
   it('should provide Retry-After header when rate limited', async () => {
-    if (!serverAvailable) return;
     // Make many requests to trigger rate limit
     const requests: Promise<Response>[] = [];
     for (let i = 0; i < 20; i++) {
@@ -196,8 +199,12 @@ describe('Rate Limiting Integration Tests', () => {
 // AUTHENTICATION & AUTHORIZATION TESTS
 // ═══════════════════════════════════════════════════════════════════
 describe('Authentication & Authorization Tests', () => {
+  if (!serverAvailable) {
+    it.skip('server unavailable — skipping all auth integration tests', () => {});
+    return;
+  }
+
   it('should reject requests without authentication to protected endpoints', async () => {
-    if (!serverAvailable) return;
     const protectedEndpoints = ['/api/me', '/api/me/quota', '/api/links/bulk'];
 
     for (const endpoint of protectedEndpoints) {
@@ -207,7 +214,6 @@ describe('Authentication & Authorization Tests', () => {
   });
 
   it('should reject requests with invalid tokens', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/me`, {
       headers: {
         Authorization: 'Bearer invalid_token_xyz123'
@@ -218,7 +224,6 @@ describe('Authentication & Authorization Tests', () => {
   });
 
   it('should reject API keys with invalid format', async () => {
-    if (!serverAvailable) return;
     const invalidApiKeys = [
       'invalid-key',
       'sk_test_',
@@ -247,8 +252,12 @@ describe('Authentication & Authorization Tests', () => {
 // INPUT VALIDATION INTEGRATION TESTS
 // ═══════════════════════════════════════════════════════════════════
 describe('Input Validation Integration Tests', () => {
+  if (!serverAvailable) {
+    it.skip('server unavailable — skipping all input validation integration tests', () => {});
+    return;
+  }
+
   it('should reject malicious URLs', async () => {
-    if (!serverAvailable) return;
     const maliciousUrls = [
       'javascript:alert(1)',
       'data:text/html,<script>alert(1)</script>',
@@ -274,7 +283,6 @@ describe('Input Validation Integration Tests', () => {
   });
 
   it('should reject URLs from other shorteners', async () => {
-    if (!serverAvailable) return;
     const shortenerUrls = [
       'https://bit.ly/abc123',
       'https://tinyurl.com/xyz',
@@ -298,7 +306,6 @@ describe('Input Validation Integration Tests', () => {
   });
 
   it('should sanitize XSS in meta tags', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/links`, {
       method: 'POST',
       headers: {
@@ -328,6 +335,11 @@ describe('Input Validation Integration Tests', () => {
 // SECURITY HEADERS INTEGRATION TESTS
 // ═══════════════════════════════════════════════════════════════════
 describe('Security Headers Integration Tests', () => {
+  if (!serverAvailable) {
+    it.skip('server unavailable — skipping security headers integration tests', () => {});
+    return;
+  }
+
   const criticalHeaders = {
     'Content-Security-Policy': (value: string) => value.includes('default-src'),
     'Strict-Transport-Security': (value: string) => value.includes('max-age'),
@@ -338,7 +350,6 @@ describe('Security Headers Integration Tests', () => {
   };
 
   it('should include all required security headers', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/health`);
 
     for (const [header, validator] of Object.entries(criticalHeaders)) {
@@ -351,7 +362,6 @@ describe('Security Headers Integration Tests', () => {
   });
 
   it('should not expose sensitive server information', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/health`);
 
     const serverHeader = response.headers.get('Server');
@@ -372,14 +382,17 @@ describe('Security Headers Integration Tests', () => {
 // GDPR/LGPD COMPLIANCE TESTS
 // ═══════════════════════════════════════════════════════════════════
 describe('GDPR/LGPD Compliance Tests', () => {
+  if (!serverAvailable) {
+    it.skip('server unavailable — skipping GDPR compliance tests', () => {});
+    return;
+  }
+
   it('should require authentication for data export', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/me/export`);
     expect(response.status).toBe(401);
   });
 
   it('should require authentication for data deletion', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/me/data`, {
       method: 'DELETE'
     });
@@ -404,8 +417,12 @@ describe('Anti-Abuse Integration Tests', () => {
 // CLICKJACKING PROTECTION TESTS
 // ═══════════════════════════════════════════════════════════════════
 describe('Clickjacking Protection', () => {
+  if (!serverAvailable) {
+    it.skip('server unavailable — skipping clickjacking tests', () => {});
+    return;
+  }
+
   it('should prevent framing with X-Frame-Options', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}`);
     const xfo = response.headers.get('X-Frame-Options');
 
@@ -413,7 +430,6 @@ describe('Clickjacking Protection', () => {
   });
 
   it('should prevent framing with CSP frame-ancestors', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}`);
     const csp = response.headers.get('Content-Security-Policy');
 
@@ -426,8 +442,12 @@ describe('Clickjacking Protection', () => {
 // ERROR HANDLING SECURITY TESTS
 // ═══════════════════════════════════════════════════════════════════
 describe('Error Handling Security', () => {
+  if (!serverAvailable) {
+    it.skip('server unavailable — skipping error handling security tests', () => {});
+    return;
+  }
+
   it('should not expose stack traces in production', async () => {
-    if (!serverAvailable) return;
     // Try to trigger an error
     const response = await fetch(`${BASE_URL}/api/links/invalid-id`, {
       method: 'GET'
@@ -445,7 +465,6 @@ describe('Error Handling Security', () => {
   });
 
   it('should return generic error messages', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/nonexistent`, {
       method: 'GET'
     });
@@ -465,8 +484,12 @@ describe('Error Handling Security', () => {
 // REQUEST ID TRACKING
 // ═══════════════════════════════════════════════════════════════════
 describe('Request Tracing', () => {
+  if (!serverAvailable) {
+    it.skip('server unavailable — skipping request tracing tests', () => {});
+    return;
+  }
+
   it('should include request ID in responses', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/health`);
     const requestId = response.headers.get('X-Request-Id');
 
@@ -475,7 +498,6 @@ describe('Request Tracing', () => {
   });
 
   it('should include request ID in error responses', async () => {
-    if (!serverAvailable) return;
     const response = await fetch(`${BASE_URL}/api/nonexistent`);
     const data = await response.json();
 
