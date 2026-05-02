@@ -62,12 +62,36 @@ const dbMock = {
 };
 
 // ─── Queue mock ─────────────────────────────────────────────────────────────
-const scheduleDeletionMock = mock(
-  async (_requestId: string, _userId: string) => {
-    if (failures.scheduleRedis) throw new Error('Redis XADD failed');
-    return 'stream-entry-id';
-  }
-);
+const STREAM_NAMES_MOCK = {
+  analyticsClicks: 'analytics:clicks',
+  analyticsDead: 'analytics:dead',
+  aggregation: 'aggregation',
+  aggregationDead: 'aggregation:dead',
+  cleanup: 'cleanup',
+  cleanupDead: 'cleanup:dead',
+  deletion: 'deletion',
+  deletionDead: 'deletion:dead',
+  notifications: 'notifications'
+} as const;
+
+const CONSUMER_GROUPS_MOCK = {
+  analytics: 'analytics-group',
+  analyticsDead: 'analytics-dead-group',
+  aggregation: 'aggregation-group',
+  cleanup: 'cleanup-group',
+  deletion: 'deletion-group',
+  notifications: 'notifications-group'
+} as const;
+
+const defaultRedisAddImplementation = async (
+  _stream: string,
+  _payload: unknown
+) => {
+  if (failures.scheduleRedis) throw new Error('Redis XADD failed');
+  return 'stream-entry-id';
+};
+
+const redisStreamAddMock = mock(defaultRedisAddImplementation);
 
 // ─── Mock registrations (hoisted by Bun before imports) ─────────────────────
 mock.module('@urlfy/data', () => ({
@@ -81,36 +105,20 @@ mock.module('@urlfy/data/schema/audit', () => ({
   dataDeletionRequest: { status: {}, deadlineAt: {} }
 }));
 
+mock.module('@urlfy/cache', () => ({
+  RedisStream: {
+    add: redisStreamAddMock
+  },
+  STREAM_NAMES: STREAM_NAMES_MOCK,
+  CONSUMER_GROUPS: CONSUMER_GROUPS_MOCK
+}));
+
 mock.module('drizzle-orm', () => ({
   and: mock((...args: unknown[]) => args),
   eq: mock((_col: unknown, _val: unknown) => ({})),
   lt: mock((_col: unknown, _val: unknown) => ({})),
   // Prevent contamination of schema modules that import `relations` from drizzle-orm
   relations: mock(() => ({}))
-}));
-
-mock.module('@/server/lib/queue', () => ({
-  scheduleDeletion: scheduleDeletionMock,
-  scheduleAggregation: mock(async () => 'agg-job-id'),
-  scheduleCleanup: mock(async () => 'cleanup-job-id'),
-  // Complete STREAM_NAMES/CONSUMER_GROUPS prevent bun namespace contamination
-  // when redis-stream.test.ts runs in the same process after this file.
-  STREAM_NAMES: {
-    analyticsClicks: 'analytics:clicks',
-    analyticsDead: 'analytics:dead',
-    aggregation: 'aggregation',
-    cleanup: 'cleanup',
-    deletion: 'deletion',
-    notifications: 'notifications'
-  },
-  CONSUMER_GROUPS: {
-    analytics: 'analytics-group',
-    analyticsDead: 'analytics-dead-group',
-    aggregation: 'aggregation-group',
-    cleanup: 'cleanup-group',
-    deletion: 'deletion-group',
-    notifications: 'notifications-group'
-  }
 }));
 
 // Mock the underlying redis used by MetricsService so the real implementation
@@ -184,7 +192,8 @@ describe('dataDeletionJob — failure modes', () => {
   beforeEach(() => {
     failures.dbSelect = false;
     failures.scheduleRedis = false;
-    scheduleDeletionMock.mockClear();
+    redisStreamAddMock.mockClear();
+    redisStreamAddMock.mockImplementation(defaultRedisAddImplementation);
   });
 
   test('does not throw when DB query fails — logs "[Scheduler] Error in data deletion job"', async () => {
@@ -216,21 +225,27 @@ describe('dataDeletionJob — failure modes', () => {
 
     await callback();
 
-    expect(scheduleDeletionMock).toHaveBeenCalledTimes(PENDING_REQUESTS.length);
-    expect(scheduleDeletionMock).toHaveBeenCalledWith(
-      PENDING_REQUESTS[0].id,
-      PENDING_REQUESTS[0].userId
+    expect(redisStreamAddMock).toHaveBeenCalledTimes(PENDING_REQUESTS.length);
+    expect(redisStreamAddMock).toHaveBeenCalledWith(
+      STREAM_NAMES_MOCK.deletion,
+      {
+        requestId: PENDING_REQUESTS[0].id,
+        userId: PENDING_REQUESTS[0].userId
+      }
     );
-    expect(scheduleDeletionMock).toHaveBeenCalledWith(
-      PENDING_REQUESTS[1].id,
-      PENDING_REQUESTS[1].userId
+    expect(redisStreamAddMock).toHaveBeenCalledWith(
+      STREAM_NAMES_MOCK.deletion,
+      {
+        requestId: PENDING_REQUESTS[1].id,
+        userId: PENDING_REQUESTS[1].userId
+      }
     );
   });
 
   test('processes remaining requests even when one scheduleDeletion call fails', async () => {
     // Fail only the first call, succeed the rest
     let callCount = 0;
-    scheduleDeletionMock.mockImplementation(async () => {
+    redisStreamAddMock.mockImplementation(async () => {
       callCount++;
       if (callCount === 1) throw new Error('Redis XADD failed for req-001');
       return 'ok-job-id';
@@ -244,6 +259,6 @@ describe('dataDeletionJob — failure modes', () => {
     await expect(callback()).resolves.toBeUndefined();
 
     // Both requests were attempted despite the partial failure
-    expect(scheduleDeletionMock).toHaveBeenCalledTimes(PENDING_REQUESTS.length);
+    expect(redisStreamAddMock).toHaveBeenCalledTimes(PENDING_REQUESTS.length);
   });
 });

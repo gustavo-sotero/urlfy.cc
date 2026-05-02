@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
 import { CACHE_TTL } from '@urlfy/cache';
-// @ts-expect-error - Dynamic import for test isolation
 import { getWeeklySalt, lookupGeoIP } from '../../src/server/lib/geoip';
 
 async function readWorkspaceFile(relativePath: string): Promise<string> {
@@ -145,7 +144,7 @@ describe('GeoIP Auto-Download System', () => {
     });
 
     it('should keep GeoIP cache TTL at 24 hours in the shared cache package', () => {
-      expect(CACHE_TTL.GEO).toBe(60 * 60 * 24);
+      expect(CACHE_TTL.GEO).toBe(86400);
     });
   });
 
@@ -220,7 +219,7 @@ describe('GeoIP Auto-Download System', () => {
     it('should use a minimal Alpine image with the required downloader packages', async () => {
       const dockerfile = await readWorkspaceFile('docker/geoip/Dockerfile');
 
-      expect(dockerfile).toContain('FROM alpine:3.19');
+      expect(dockerfile).toContain('FROM alpine:3.23.4');
       expect(dockerfile).toContain('curl');
       expect(dockerfile).toContain('gzip');
       expect(dockerfile).toContain('dcron');
@@ -281,7 +280,7 @@ describe('GeoIP Implementation Compliance', () => {
 
   describe('Configuration Summary', () => {
     it('should have all required environment variables defined in env.ts', async () => {
-      const { validateEnv } = await import('@/lib/env');
+      const { validateEnv } = await import('../../src/lib/env');
       const env = validateEnv();
       // These keys must exist in env with defaults
       expect(typeof env.GEOIP_DB_PATH).toBe('string');

@@ -9,7 +9,7 @@
 #
 # ═══════════════════════════════════════════════════════════════════
 
-FROM alpine:3.19
+FROM alpine:3.23.4
 
 # Install required packages
 RUN apk add --no-cache \
