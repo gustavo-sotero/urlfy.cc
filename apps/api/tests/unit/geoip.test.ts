@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test';
+import { CACHE_TTL } from '@urlfy/cache';
 // @ts-expect-error - Dynamic import for test isolation
 import { getWeeklySalt, lookupGeoIP } from '../../src/server/lib/geoip';
+
+async function readWorkspaceFile(relativePath: string): Promise<string> {
+  const fileUrl = new URL(`../../../../${relativePath}`, import.meta.url);
+  return Bun.file(fileUrl).text();
+}
 
 /**
  * GeoIP Auto-Download System Tests
@@ -138,37 +144,98 @@ describe('GeoIP Auto-Download System', () => {
       expect(expectedPrefix).toBe('2001:4860:4860');
     });
 
-    it.skip('cache TTL is defined in @urlfy/cache CACHE_TTL.GEO — verified by cache package unit tests', () => {
-      // The 24-hour TTL is set via CACHE_TTL.GEO in redis.setex; it is a config constant,
-      // not a behavioral invariant testable here without Redis infrastructure.
+    it('should keep GeoIP cache TTL at 24 hours in the shared cache package', () => {
+      expect(CACHE_TTL.GEO).toBe(60 * 60 * 24);
     });
   });
 
   describe('Data Attribution & Licensing', () => {
-    it.skip('GeoLite2 attribution is a legal compliance requirement, not a code invariant', () => {
-      // Verified in docker/geoip/README.md and package comments.
+    it('should document MaxMind attribution and CC BY-SA license in the GeoIP README', async () => {
+      const readme = await readWorkspaceFile('docker/geoip/README.md');
+
+      expect(readme).toContain(
+        'This product includes GeoLite2 data created by MaxMind'
+      );
+      expect(readme).toContain('CC BY-SA 4.0');
+      expect(readme).toContain('https://www.maxmind.com');
     });
 
-    it.skip('CC BY-SA 4.0 license compliance is verified by legal review, not unit tests', () => {});
+    it('should keep the downloader script aligned with the public mirror and license header', async () => {
+      const refreshScript = await readWorkspaceFile(
+        'docker/geoip/geoip-refresh.sh'
+      );
 
-    it.skip('MaxMind license documentation URL is static config, not a testable invariant', () => {});
+      expect(refreshScript).toContain(
+        'https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz'
+      );
+      expect(refreshScript).toContain('License: CC BY-SA 4.0');
+      expect(refreshScript).toContain('without requiring MaxMind credentials');
+    });
   });
 
   describe('Auto-Download Mechanism', () => {
-    it.skip('monthly refresh schedule is a cron config in docker/geoip/Dockerfile — not unit testable', () => {});
+    it('should run the refresh script once on startup before starting cron', async () => {
+      const entrypoint = await readWorkspaceFile(
+        'docker/geoip/geoip-entrypoint.sh'
+      );
 
-    it.skip('file freshness check is shell script logic in geoip-refresh.sh — not unit testable', () => {});
+      expect(entrypoint).toContain('/usr/local/bin/geoip-refresh.sh');
+      expect(entrypoint).toContain('exec crond -f -l 2');
+    });
 
-    it.skip('atomic file replacement (.tmp then mv) is shell script logic — not unit testable', () => {});
+    it('should skip downloads when the existing MMDB file is still fresh', async () => {
+      const refreshScript = await readWorkspaceFile(
+        'docker/geoip/geoip-refresh.sh'
+      );
 
-    it.skip('retry mechanism is a curl flag in geoip-refresh.sh — not unit testable', () => {});
+      expect(refreshScript).toContain('if [ -f "$DB_PATH" ]; then');
+      expect(refreshScript).toContain(
+        'if [ "$AGE_DAYS" -lt "$MAX_AGE_DAYS" ]; then'
+      );
+      expect(refreshScript).toContain('Skipping download.');
+      expect(refreshScript).toContain('exit 0');
+    });
+
+    it('should schedule monthly refreshes via cron in the GeoIP Docker image', async () => {
+      const dockerfile = await readWorkspaceFile('docker/geoip/Dockerfile');
+
+      expect(dockerfile).toContain('0 0 1 * * /usr/local/bin/geoip-refresh.sh');
+      expect(dockerfile).toContain('ENTRYPOINT ["/entrypoint.sh"]');
+    });
+
+    it('should download with retries and replace the MMDB atomically', async () => {
+      const refreshScript = await readWorkspaceFile(
+        'docker/geoip/geoip-refresh.sh'
+      );
+
+      expect(refreshScript).toContain('--retry 3');
+      expect(refreshScript).toContain('--connect-timeout 30');
+      expect(refreshScript).toContain('--max-time 300');
+      expect(refreshScript).toContain('mv "$TMP_MMDB_PATH" "$DB_PATH"');
+      expect(refreshScript).toContain('rm -f "$TMP_GZ_PATH"');
+    });
   });
 
   describe('Container Architecture', () => {
-    it.skip('Alpine base image selection is Dockerfile config — not unit testable', () => {});
-    it.skip('required Alpine packages are Dockerfile config — not unit testable', () => {});
-    it.skip('Docker volume mount is compose config — not unit testable', () => {});
-    it.skip('read-only mount mode is compose config — not unit testable', () => {});
+    it('should use a minimal Alpine image with the required downloader packages', async () => {
+      const dockerfile = await readWorkspaceFile('docker/geoip/Dockerfile');
+
+      expect(dockerfile).toContain('FROM alpine:3.19');
+      expect(dockerfile).toContain('curl');
+      expect(dockerfile).toContain('gzip');
+      expect(dockerfile).toContain('dcron');
+      expect(dockerfile).toContain('tzdata');
+    });
+
+    it('should mount the GeoIP data volume read-only in app compose services', async () => {
+      const [appsCompose, prodCompose] = await Promise.all([
+        readWorkspaceFile('docker/docker-compose.apps.yml'),
+        readWorkspaceFile('docker/docker-compose.prod.yml')
+      ]);
+
+      expect(appsCompose).toContain('geoip_data:/app/geoip:ro');
+      expect(prodCompose).toContain('geoip_data:/app/geoip:ro');
+    });
   });
 });
 
@@ -180,28 +247,32 @@ describe('GeoIP Implementation Compliance', () => {
       expect(process.env.MAXMIND_LICENSE_KEY).toBeUndefined();
     });
 
-    it.skip('automatic download on startup is verified by docker entrypoint smoke test', () => {
-      // ✅ Entrypoint runs geoip-refresh.sh once — runtime concern, not unit testable
-    });
+    it('should keep downloader defaults aligned between env.ts and docker compose', async () => {
+      const [envSource, composeSource] = await Promise.all([
+        readWorkspaceFile('apps/api/src/lib/env.ts'),
+        readWorkspaceFile('docker/docker-compose.yml')
+      ]);
 
-    it.skip('skip-if-fresh logic is verified by geoip-refresh.sh integration', () => {
-      // ✅ Checks file age before downloading — shell script concern, not unit testable
-    });
-
-    it.skip('monthly scheduled refresh is verified by cron config (0 0 1 * *)', () => {
-      // ✅ Cron job lives in docker/geoip/Dockerfile — config concern, not unit testable
-    });
-
-    it.skip('idempotent execution is verified by geoip-refresh.sh integration', () => {
-      // ✅ Safe to run multiple times — shell script concern, not unit testable
+      expect(envSource).toContain(
+        "GEOIP_DB_PATH: z.string().default('/app/geoip/GeoLite2-City.mmdb')"
+      );
+      expect(envSource).toContain(
+        'GEOIP_MAX_AGE_DAYS: z.coerce.number().int().positive().default(25)'
+      );
+      expect(envSource).toContain(
+        'https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz'
+      );
+      expect(composeSource).toContain(
+        'GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb'
+      );
+      expect(composeSource).toContain('GEOIP_MAX_AGE_DAYS=25');
+      expect(composeSource).toContain(
+        'GEOIP_MMDB_URL=https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz'
+      );
     });
   });
 
   describe('Non-Goals Compliance', () => {
-    it.skip('analytics schema is unchanged — verified by migration integrity tests', () => {
-      // ✅ Analytics schema unchanged — DB migration concern, not unit testable
-    });
-
     it('should NOT add MaxMind credentials back', () => {
       // ✅ No credential env vars in config
       expect(process.env.MAXMIND_ACCOUNT_ID).toBeUndefined();
