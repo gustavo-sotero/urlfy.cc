@@ -70,15 +70,11 @@ export const config = {
      * - api/, r/, internal/, ops/ (backend or redirect route handlers)
      * - _next/ (all Next.js internals — static, image, data, HMR, etc.)
      * - Files with extensions (.svg, .png, .jpg, etc.)
+     *
+     * Note: object-style matcher with `missing` is not supported by Turbopack's
+     * static analyzer. Prefetch skipping is handled inside the proxy function.
      */
-    {
-      source:
-        '/((?!api(?:/|$)|r(?:/|$)|internal(?:/|$)|ops(?:/|$)|_next/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|otf|css|js|json)$).*)',
-      missing: [
-        { type: 'header', key: 'next-router-prefetch' },
-        { type: 'header', key: 'purpose', value: 'prefetch' }
-      ]
-    }
+    '/((?!api(?:/|$)|r(?:/|$)|internal(?:/|$)|ops(?:/|$)|_next/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|otf|css|js|json)$).*)'
   ]
 };
 
@@ -105,7 +101,17 @@ function applyCspHeaders(
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // 1. Skip internal and static requests (cheapest check — no nonce needed)
+  // 1. Skip prefetch requests — these never need CSP/nonce or i18n processing.
+  //    Previously handled by `missing` in the matcher object, but Turbopack's
+  //    static analyzer requires the matcher to be a plain string.
+  const isPrefetch =
+    req.headers.get('next-router-prefetch') !== null ||
+    req.headers.get('purpose') === 'prefetch';
+  if (isPrefetch) {
+    return NextResponse.next();
+  }
+
+  // 2. Skip internal and static requests (cheapest check — no nonce needed)
   if (
     pathname.startsWith('/_next') ||
     pathname.includes('.') || // Static files with extensions
@@ -114,7 +120,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Skip backend/API routes that serve no HTML — nonce and CSP are irrelevant.
+  // 3. Skip backend/API routes that serve no HTML — nonce and CSP are irrelevant.
   //    This avoids the crypto + header allocation cost for every redirect hit.
   if (isPassthroughRoute(pathname)) {
     return NextResponse.next();
@@ -128,7 +134,7 @@ export async function proxy(req: NextRequest) {
   requestHeaders.set('x-csp-nonce', nonce);
   const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
 
-  // 3. Bypass i18n for UI system routes — apply CSP but skip intl middleware
+  // 4. Bypass i18n for UI system routes — apply CSP but skip intl middleware
   if (isUiBypassRoute(pathname)) {
     const response = NextResponse.next({
       request: {
@@ -138,7 +144,7 @@ export async function proxy(req: NextRequest) {
     return applyCspHeaders(response, csp, nonce);
   }
 
-  // 4. Check for locale-prefixed paths or root
+  // 5. Check for locale-prefixed paths or root
   const isLocalePath = hasLocalePrefix(pathname);
 
   // Root path or locale-prefixed path → use i18n middleware
