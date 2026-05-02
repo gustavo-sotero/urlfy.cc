@@ -4,6 +4,21 @@ import { user } from '@urlfy/data/schema/auth';
 import { eq } from 'drizzle-orm';
 import { emailService } from '@/server/services/email.service';
 
+let localeDbAvailable = false;
+let localeDbSetupError: Error | null = null;
+
+try {
+  await db.execute('SELECT 1');
+  localeDbAvailable = true;
+} catch (error) {
+  localeDbSetupError =
+    error instanceof Error ? error : new Error(String(error));
+  console.warn(
+    '⚠️  Database not available, skipping DB-dependent email i18n tests',
+    localeDbSetupError.message
+  );
+}
+
 describe('Email Service i18n Integration', () => {
   describe('Email Service Methods with Locale (no DB required)', () => {
     it('sendWelcomeEmail should use user locale', async () => {
@@ -139,7 +154,12 @@ describe('Email Service i18n Integration', () => {
 
   // Tests that require database connection
   describe('Locale Resolution from Database (requires DB)', () => {
-    let dbAvailable = false;
+    if (!localeDbAvailable) {
+      it.skip('database unavailable — skipping DB-dependent email i18n tests', () => {
+        // Skipped automatically when PostgreSQL is not reachable.
+      });
+      return;
+    }
 
     const testUsers = [
       {
@@ -163,24 +183,13 @@ describe('Email Service i18n Integration', () => {
       const { mock } = await import('bun:test');
       mock.restore();
 
-      // Check if database is available
-      try {
-        await db.execute('SELECT 1');
-        dbAvailable = true;
-
-        // Create test users with different locales
-        for (const testUser of testUsers) {
-          await db.insert(user).values(testUser);
-        }
-      } catch (_error) {
-        console.warn('⚠️  Database not available, skipping DB-dependent tests');
-        dbAvailable = false;
+      // Create test users with different locales
+      for (const testUser of testUsers) {
+        await db.insert(user).values(testUser);
       }
     });
 
     afterAll(async () => {
-      if (!dbAvailable) return;
-
       // Cleanup test users
       for (const testUser of testUsers) {
         try {
@@ -191,18 +200,7 @@ describe('Email Service i18n Integration', () => {
       }
     });
 
-    it('should skip tests when database is unavailable', () => {
-      if (!dbAvailable) {
-        console.warn('⚠️  Database tests skipped - database not available');
-        expect(dbAvailable).toBe(false);
-        return;
-      }
-      expect(dbAvailable).toBe(true);
-    });
-
     it('should fetch and use English locale for English user', async () => {
-      if (!dbAvailable) return;
-
       const enUser = testUsers[0];
 
       // Mock email sending to capture what would be sent
@@ -241,8 +239,6 @@ describe('Email Service i18n Integration', () => {
     });
 
     it('should fetch and use Portuguese locale for Portuguese user', async () => {
-      if (!dbAvailable) return;
-
       const ptUser = testUsers[1];
 
       // Mock email sending
@@ -280,8 +276,6 @@ describe('Email Service i18n Integration', () => {
     });
 
     it.skip('should fallback to default locale for user without locale - REQUIRES DB AND NO MOCKS', async () => {
-      if (!dbAvailable) return;
-
       const noLocaleUser = {
         id: `test-user-no-locale-${Date.now()}`,
         email: `test-no-locale-${Date.now()}@example.com`,
@@ -304,8 +298,6 @@ describe('Email Service i18n Integration', () => {
     });
 
     it.skip('should fallback to default locale for invalid locale value - REQUIRES DB AND NO MOCKS', async () => {
-      if (!dbAvailable) return;
-
       const invalidLocaleUser = {
         id: `test-user-invalid-${Date.now()}`,
         email: `test-invalid-${Date.now()}@example.com`,
@@ -328,8 +320,6 @@ describe('Email Service i18n Integration', () => {
     });
 
     it('should fetch locale by email when userId not available', async () => {
-      if (!dbAvailable) return;
-
       const enUser = testUsers[0];
       const { getLocaleByEmail } = await import('@/server/lib/locale');
 
@@ -338,8 +328,6 @@ describe('Email Service i18n Integration', () => {
     });
 
     it('should respect explicit locale parameter over database', async () => {
-      if (!dbAvailable) return;
-
       const enUser = testUsers[0]; // Has 'en' in DB
 
       const { renderEmail } = await import('@/emails/render');

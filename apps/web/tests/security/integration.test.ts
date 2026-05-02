@@ -18,6 +18,11 @@ import { describe, expect, it } from 'bun:test';
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
 
+function requireHeader(value: string | null): string {
+  expect(value).not.toBeNull();
+  return value ?? '';
+}
+
 async function checkServerAvailable(): Promise<boolean> {
   try {
     const res = await fetch(`${BASE_URL}/api/health`, {
@@ -121,9 +126,9 @@ describe('CORS Integration Tests', () => {
 
     // Should either reject or not include TRACE in allowed methods
     const allowedMethods = response.headers.get('Access-Control-Allow-Methods');
-    if (allowedMethods) {
-      expect(allowedMethods).not.toContain('TRACE');
-    }
+    expect(response.status === 204 && allowedMethods?.includes('TRACE')).toBe(
+      false
+    );
   });
 });
 
@@ -173,24 +178,37 @@ describe('Rate Limiting Integration Tests', () => {
       response.headers.get('RateLimit-Remaining');
 
     // At least one of these should be present
-    expect(limitHeader || remainingHeader).toBeDefined();
+    expect(limitHeader ?? remainingHeader).not.toBeNull();
   });
 
   it('should provide Retry-After header when rate limited', async () => {
     // Make many requests to trigger rate limit
     const requests: Promise<Response>[] = [];
     for (let i = 0; i < 20; i++) {
-      requests.push(fetch(`${BASE_URL}/api/health`));
+      requests.push(
+        fetch(`${BASE_URL}/api/links`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            url: `https://example.com/retry-after-${i}`
+          })
+        })
+      );
     }
 
     const responses = await Promise.all(requests);
     const rateLimited = responses.find((r) => r.status === 429);
 
-    if (rateLimited) {
-      const retryAfter = rateLimited.headers.get('Retry-After');
-      expect(retryAfter).toBeDefined();
-      expect(Number.parseInt(retryAfter || '0', 10)).toBeGreaterThan(0);
+    expect(rateLimited).toBeDefined();
+    if (!rateLimited) {
+      throw new Error('Expected at least one 429 response with Retry-After');
     }
+
+    const retryAfter = rateLimited.headers.get('Retry-After');
+    expect(retryAfter).not.toBeNull();
+    expect(Number.parseInt(retryAfter ?? '0', 10)).toBeGreaterThan(0);
   });
 });
 
@@ -317,16 +335,12 @@ describe('Input Validation Integration Tests', () => {
       })
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      // Meta tags should be sanitized
-      if (data.data?.metaTitle) {
-        expect(data.data.metaTitle).not.toContain('<script');
-      }
-      if (data.data?.metaDescription) {
-        expect(data.data.metaDescription).not.toContain('onerror');
-      }
-    }
+    expect(response.status).toBe(201);
+
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data?.metaTitle).toBeNull();
+    expect(data.data?.metaDescription).toBeNull();
   });
 });
 
@@ -352,11 +366,8 @@ describe('Security Headers Integration Tests', () => {
     const response = await fetch(`${BASE_URL}/api/health`);
 
     for (const [header, validator] of Object.entries(criticalHeaders)) {
-      const value = response.headers.get(header);
-      expect(value).not.toBeNull();
-      if (value) {
-        expect(validator(value)).toBe(true);
-      }
+      const value = requireHeader(response.headers.get(header));
+      expect(validator(value)).toBe(true);
     }
   });
 
@@ -452,15 +463,15 @@ describe('Error Handling Security', () => {
       method: 'GET'
     });
 
-    if (!response.ok) {
-      const data = await response.json();
+    expect(response.ok).toBe(false);
 
-      // Should not contain stack traces
-      const text = JSON.stringify(data);
-      expect(text).not.toContain('at ');
-      expect(text).not.toContain('.ts:');
-      expect(text).not.toContain('Error:');
-    }
+    const data = await response.json();
+
+    // Should not contain stack traces
+    const text = JSON.stringify(data);
+    expect(text).not.toContain('at ');
+    expect(text).not.toContain('.ts:');
+    expect(text).not.toContain('Error:');
   });
 
   it('should return generic error messages', async () => {
@@ -490,9 +501,8 @@ describe('Request Tracing', () => {
 
   it('should include request ID in responses', async () => {
     const response = await fetch(`${BASE_URL}/api/health`);
-    const requestId = response.headers.get('X-Request-Id');
+    const requestId = requireHeader(response.headers.get('X-Request-Id'));
 
-    expect(requestId).toBeDefined();
     expect(requestId).toMatch(/^[a-z0-9-]+$/);
   });
 
@@ -500,6 +510,7 @@ describe('Request Tracing', () => {
     const response = await fetch(`${BASE_URL}/api/nonexistent`);
     const data = await response.json();
 
-    expect(data.requestId).toBeDefined();
+    expect(typeof data.requestId).toBe('string');
+    expect(data.requestId).toMatch(/^[a-z0-9-]+$/);
   });
 });

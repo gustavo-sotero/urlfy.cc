@@ -70,6 +70,7 @@ import { antiAbuseService } from '@/server/services/anti-abuse.service';
 import {
   createElysiaTestClient,
   type ElysiaTestClient,
+  expectForbidden,
   expectOk,
   expectUnauthorized
 } from '../helpers/elysia-test-client';
@@ -205,7 +206,9 @@ describe('Links Endpoints (handler-level)', () => {
       expect(shortUrl).toBeDefined();
 
       if (!shortCode || !shortUrl) {
-        return;
+        throw new Error(
+          'Expected create-link response to include shortCode and shortUrl'
+        );
       }
 
       const parsedShortUrl = new URL(shortUrl);
@@ -267,7 +270,7 @@ describe('Links Endpoints (handler-level)', () => {
   });
 
   describe('POST /api/links/bulk (authenticated)', () => {
-    test('should require authentication', async () => {
+    test('should reject bulk creation without an eligible session', async () => {
       const response = await client.post<{
         success: boolean;
         error?: { code: string };
@@ -275,7 +278,32 @@ describe('Links Endpoints (handler-level)', () => {
         links: [{ url: 'https://example.com' }]
       });
 
-      expectUnauthorized(response);
+      expect([401, 403]).toContain(response.status);
+      expect(response.body.success).toBe(false);
+    });
+
+    test('should require a verified email for bulk creation', async () => {
+      const response = await client.post<{
+        success: boolean;
+        error?: { code: string };
+      }>(
+        '/api/links/bulk',
+        {
+          links: [{ url: 'https://example.com' }]
+        },
+        {
+          headers: {
+            'x-test-user-id': 'bulk-unverified-user',
+            'x-test-email-verified': 'false'
+          }
+        }
+      );
+
+      expectForbidden(response);
+      expect(response.body.success).toBe(false);
+      expect(['EMAIL_VERIFICATION_REQUIRED', 'FORBIDDEN']).toContain(
+        response.body.error?.code ?? ''
+      );
     });
   });
 

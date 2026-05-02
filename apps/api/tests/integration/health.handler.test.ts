@@ -15,18 +15,14 @@ import {
   type ElysiaTestClient,
   expectOk
 } from '../helpers/elysia-test-client';
-import { isDatabaseAvailable } from '../helpers/integration-helper';
-import { testLogger } from '../helpers/test-logger';
 
 describe('Health Endpoints (handler-level)', () => {
   let client: ElysiaTestClient;
-  let serverAvailable = false;
 
   beforeAll(async () => {
     // Lazy import to avoid initialization issues when infrastructure isn't running
     const { api } = await import('@/server');
     client = createElysiaTestClient(api);
-    serverAvailable = await isDatabaseAvailable();
   });
 
   describe('GET /api/health', () => {
@@ -45,11 +41,6 @@ describe('Health Endpoints (handler-level)', () => {
 
   describe('GET /api/health/ready', () => {
     test('should return readiness status with services', async () => {
-      if (!serverAvailable) {
-        testLogger.info('Skipping readiness test - infrastructure unavailable');
-        return;
-      }
-
       const response = await client.get<{
         status: string;
         degraded: boolean;
@@ -59,12 +50,20 @@ describe('Health Endpoints (handler-level)', () => {
         };
       }>('/api/health/ready');
 
-      // Status can be 'ready' or 'not_ready' depending on services
+      expect([200, 503]).toContain(response.status);
       expect(['ready', 'not_ready']).toContain(response.body.status);
       expect(typeof response.body.degraded).toBe('boolean');
       expect(response.body.services).toBeDefined();
       expect(response.body.services.database).toBeDefined();
       expect(response.body.services.redis).toBeDefined();
+
+      if (response.status === 200) {
+        expect(response.body.status).toBe('ready');
+        return;
+      }
+
+      expect(response.status).toBe(503);
+      expect(response.body.status).toBe('not_ready');
     });
   });
 });

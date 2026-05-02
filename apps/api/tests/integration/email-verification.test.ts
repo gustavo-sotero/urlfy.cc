@@ -15,6 +15,22 @@ import { isDatabaseAvailable } from '../helpers/integration-helper';
 // Initialize test client
 const client = createElysiaTestClient(api);
 
+let databaseAvailable = false;
+let setupError: Error | null = null;
+
+try {
+  databaseAvailable = await isDatabaseAvailable();
+  if (!databaseAvailable) {
+    throw new Error('Database not available');
+  }
+} catch (error) {
+  setupError = error instanceof Error ? error : new Error(String(error));
+  console.warn(
+    '⚠️  Database not available. Skipping email verification tests.',
+    setupError.message
+  );
+}
+
 function createTestUrl(path: string): string {
   // Use example.com (reserved for testing by RFC 2606) with unique path
   const nonce = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -24,17 +40,15 @@ function createTestUrl(path: string): string {
 describe('Email Verification Enforcement', () => {
   let testUser: { id: string; email: string };
   let verifiedUser: { id: string; email: string };
-  let databaseAvailable = false;
+
+  if (!databaseAvailable) {
+    test.skip('database unavailable — skipping email verification integration tests', () => {
+      // Skipped automatically when PostgreSQL is not reachable.
+    });
+    return;
+  }
 
   beforeAll(async () => {
-    databaseAvailable = await isDatabaseAvailable();
-    if (!databaseAvailable) {
-      console.warn(
-        '⚠️  Database not available. Skipping email verification tests.'
-      );
-      return;
-    }
-
     // Note: In production, these users would be created via Better-Auth
     // For testing, we need to provide all required fields including 'id'
 
@@ -71,7 +85,6 @@ describe('Email Verification Enforcement', () => {
 
   describe('POST /api/links (unverified user)', () => {
     test('should reject link creation from unverified user', async () => {
-      if (!databaseAvailable) return;
       const response = await client.post<{
         success: boolean;
         error?: { code: string; message: string };
@@ -96,7 +109,6 @@ describe('Email Verification Enforcement', () => {
     });
 
     test('should allow link creation from verified user', async () => {
-      if (!databaseAvailable) return;
       const response = await client.post<{
         success: boolean;
         data?: { id: string; shortCode: string };
@@ -134,7 +146,6 @@ describe('Email Verification Enforcement', () => {
 
   describe('POST /api/links/bulk (unverified user)', () => {
     test('should reject bulk creation from unverified user', async () => {
-      if (!databaseAvailable) return;
       const response = await client.post<{
         success: boolean;
         error?: { code: string; message: string };
@@ -160,7 +171,6 @@ describe('Email Verification Enforcement', () => {
     });
 
     test('should allow bulk creation from verified user', async () => {
-      if (!databaseAvailable) return;
       const response = await client.post<{
         success: boolean;
         data?: { created: number; links: Array<{ id: string }> };
@@ -205,7 +215,6 @@ describe('Email Verification Enforcement', () => {
 
   describe('Guest users (no authentication)', () => {
     test('should allow guest link creation without email verification check', async () => {
-      if (!databaseAvailable) return;
       const response = await client.post<{
         success: boolean;
         data?: { shortCode: string };
