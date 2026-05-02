@@ -4,6 +4,10 @@
  * Type-safe wrapper for user-related endpoints
  */
 
+import type {
+  DataDeletionRequestResponse,
+  UserQuotaResponse
+} from '@urlfy/contracts/generated';
 import { client } from './client';
 import { ApiClientError, extractErrorInfo, handleEden } from './error';
 
@@ -11,12 +15,7 @@ import { ApiClientError, extractErrorInfo, handleEden } from './error';
 // USER QUOTA
 // ═══════════════════════════════════════════════════════════════════
 
-export interface UserQuota {
-  used: number;
-  limit: number;
-  remaining: number;
-  percentUsed: number;
-}
+export type UserQuota = UserQuotaResponse;
 
 export async function getUserQuota(): Promise<UserQuota> {
   const response = await client.api.me.quota.get();
@@ -50,11 +49,7 @@ export async function exportUserData(): Promise<Blob> {
 // DATA DELETION (LGPD/GDPR)
 // ═══════════════════════════════════════════════════════════════════
 
-export interface DataDeletionRequest {
-  requestId: string;
-  deadline: string;
-  message: string;
-}
+export type DataDeletionRequest = DataDeletionRequestResponse;
 
 export async function requestDataDeletion(): Promise<DataDeletionRequest> {
   const response = await client.api.me.data.delete();

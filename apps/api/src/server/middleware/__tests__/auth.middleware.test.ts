@@ -25,8 +25,6 @@ import { eq } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 import { nanoid } from 'nanoid';
 
-const runAuthIntegration = process.env.RUN_AUTH_INTEGRATION === 'true';
-
 // Flag to track if infrastructure is available
 let infrastructureAvailable = false;
 let setupError: Error | null = null;
@@ -53,49 +51,44 @@ let requireAuth:
   | typeof import('@/server/middleware/auth.middleware').requireAuth
   | null = null;
 
-if (runAuthIntegration) {
-  try {
-    const dbModule = await import('@urlfy/data');
-    db = dbModule.db;
+try {
+  const dbModule = await import('@urlfy/data');
+  db = dbModule.db;
 
-    // Test actual database connectivity before marking as available
-    const healthResult = await dbModule.checkDatabaseHealth();
-    if (healthResult.status !== 'ok') {
-      throw new Error(
-        `Database connection failed: ${healthResult.error || 'Unknown error'}`
-      );
-    }
-
-    const schemaModule = await import('@urlfy/data/schema/auth');
-    apiKeyTable = schemaModule.apiKey;
-    sessionTable = schemaModule.session;
-    accountTable = schemaModule.account;
-    userTable = schemaModule.user;
-    const authModule = await import('@/lib/auth');
-    auth = authModule.auth;
-    const middlewareModule = await import(
-      '@/server/middleware/auth.middleware'
-    );
-    const guardModule = await import('@/server/middleware/api-key.guard');
-    requireApiKey = guardModule.requireApiKey;
-    optionalAuth = middlewareModule.optionalAuth;
-    requireAdmin = middlewareModule.requireAdmin;
-    requireAuth = middlewareModule.requireAuth;
-    infrastructureAvailable = true;
-  } catch (error) {
-    setupError = error instanceof Error ? error : new Error(String(error));
-    console.warn(
-      '⚠️  Auth Middleware tests skipped: Infrastructure not available',
-      setupError.message
+  // Test actual database connectivity before marking as available.
+  // When CI or local infra is up, this suite should run automatically.
+  const healthResult = await dbModule.checkDatabaseHealth();
+  if (healthResult.status !== 'ok') {
+    throw new Error(
+      `Database connection failed: ${healthResult.error || 'Unknown error'}`
     );
   }
-} else {
-  setupError = new Error('Auth integration tests disabled');
+
+  const schemaModule = await import('@urlfy/data/schema/auth');
+  apiKeyTable = schemaModule.apiKey;
+  sessionTable = schemaModule.session;
+  accountTable = schemaModule.account;
+  userTable = schemaModule.user;
+  const authModule = await import('@/lib/auth');
+  auth = authModule.auth;
+  const middlewareModule = await import('@/server/middleware/auth.middleware');
+  const guardModule = await import('@/server/middleware/api-key.guard');
+  requireApiKey = guardModule.requireApiKey;
+  optionalAuth = middlewareModule.optionalAuth;
+  requireAdmin = middlewareModule.requireAdmin;
+  requireAuth = middlewareModule.requireAuth;
+  infrastructureAvailable = true;
+} catch (error) {
+  setupError = error instanceof Error ? error : new Error(String(error));
+  console.warn(
+    '⚠️  Auth Middleware tests skipped: Infrastructure not available',
+    setupError.message
+  );
 }
 
 describe('Auth Middleware', () => {
   // Skip entire test suite if infrastructure is not available
-  if (!runAuthIntegration || !infrastructureAvailable) {
+  if (!infrastructureAvailable) {
     it.skip('infrastructure unavailable — skipping all auth middleware integration tests', () => {
       // Skipped automatically when PostgreSQL/Redis are not reachable.
       // Run: docker compose -f docker/docker-compose.yml up -d then retry.
