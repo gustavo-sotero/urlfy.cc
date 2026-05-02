@@ -11,6 +11,7 @@ import type {
   ApiResponse,
   AuditLogEntryResponse,
   AuditLogsQuery,
+  CreateApiKeyRequest,
   CreateLinkInputSchema,
   DashboardSummaryResponse,
   DataDeletionRequestResponse,
@@ -43,17 +44,6 @@ export interface ApiClientResponse<T = unknown> {
 }
 
 export type ApiHeaders = Headers | Record<string, string> | string[][];
-
-export interface CreateApiKeyRequest {
-  name: string;
-  scopes: string[];
-  expiresAt?: string;
-  rateLimit?: {
-    enabled: boolean;
-    max: number;
-    windowMs: number;
-  };
-}
 
 export interface StreamStatsResponse {
   name: string;

@@ -272,4 +272,19 @@ describe('Generated API contract parity', () => {
       await workspaceFile('packages/contracts/src/shared.ts').exists()
     ).toBe(false);
   });
+
+  it('keeps api-client request payloads sourced from generated contracts', async () => {
+    const apiClientText = await readFromWorkspaceRoot(
+      'packages/contracts/src/api-client.ts'
+    );
+
+    expect(apiClientText.includes('CreateApiKeyRequest')).toBe(true);
+    expect(
+      apiClientText.includes("from './generated/api'"),
+      'api-client must import generated request types'
+    ).toBe(true);
+    expect(apiClientText.includes('export interface CreateApiKeyRequest')).toBe(
+      false
+    );
+  });
 });
