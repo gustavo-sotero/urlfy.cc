@@ -23,16 +23,15 @@ function setDefaultEnv(): void {
 async function loadSpec(): Promise<OpenAPIDocument> {
   setDefaultEnv();
 
-  const { api } = await import('../src/server/index');
-  const response = await api.handle(
-    new Request('http://localhost/api/internal/docs/merged.json')
-  );
+  const [{ getElysiaOpenApiSpec }, { getMergedOpenAPISpec }] =
+    await Promise.all([
+      import('../src/server/index'),
+      import('../src/server/lib/openapi-merger')
+    ]);
 
-  if (!response.ok) {
-    throw new Error(`OpenAPI generation failed with HTTP ${response.status}`);
-  }
-
-  const spec = (await response.json()) as OpenAPIDocument;
+  const spec = (await getMergedOpenAPISpec(async () =>
+    getElysiaOpenApiSpec()
+  )) as unknown as OpenAPIDocument;
   if (spec['x-docs-degraded']) {
     throw new Error('OpenAPI generation produced a degraded spec');
   }

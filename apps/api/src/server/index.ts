@@ -7,7 +7,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { openapi } from '@elysiajs/openapi';
+import { openapi, toOpenAPISchema } from '@elysiajs/openapi';
 import { opentelemetry } from '@elysiajs/opentelemetry';
 import { elysiaLogger } from '@logtape/elysia';
 import { Elysia } from 'elysia';
@@ -92,6 +92,86 @@ const openApiServers =
         { url: 'http://localhost:3000/api', description: 'Development server' },
         { url: 'https://urlfy.cc/api', description: 'Production server' }
       ];
+
+const completeOpenApiSecurity: OpenAPIV3.SecurityRequirementObject[] = [
+  { bearerAuth: [] },
+  { cookieAuth: [] },
+  { apiKeyAuth: [] }
+];
+
+type CompleteOpenApiDocumentation = Pick<
+  OpenAPIV3.Document,
+  'info' | 'servers' | 'tags' | 'components' | 'security'
+>;
+
+const completeOpenApiDocumentation: CompleteOpenApiDocumentation = {
+  info: {
+    title: 'urlfy.cc Complete API',
+    version: '1.0.0',
+    description:
+      'Comprehensive API documentation including link management, analytics, authentication (Better-Auth), and admin endpoints',
+    contact: {
+      name: 'API Support',
+      email: 'support@urlfy.cc'
+    }
+  },
+  servers: openApiServers,
+  tags: [
+    { name: 'Health', description: 'Health check endpoints' },
+    { name: 'Auth', description: 'Authentication endpoints' },
+    { name: '2FA', description: 'Two-factor authentication' },
+    { name: 'Sessions', description: 'Session management' },
+    { name: 'API Keys', description: 'API key management' },
+    {
+      name: 'Public API V1 - Links',
+      description: 'Public API V1 link endpoints'
+    },
+    { name: 'Users', description: 'User profile and data' },
+    { name: 'Links', description: 'Link management and shortening' },
+    { name: 'Contact', description: 'Contact form submissions' },
+    { name: 'Admin', description: 'Admin-only endpoints' },
+    { name: 'Stats', description: 'Statistics and analytics' }
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'JWT session token from Better-Auth'
+      },
+      cookieAuth: {
+        type: 'apiKey',
+        in: 'cookie',
+        name: 'urlfy.session',
+        description: 'Session cookie (automatically set by Better-Auth)'
+      },
+      apiKeyAuth: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-api-key',
+        description: 'API key for programmatic access (format: urlfy_sk_...)'
+      }
+    }
+  },
+  security: completeOpenApiSecurity
+};
+
+const completeOpenApiExclude: {
+  paths: Array<string | RegExp>;
+  methods: string[];
+  staticFile: boolean;
+} = {
+  paths: [
+    /^\/auth(?:\/|$)/,
+    /^\/internal\/docs(?:\/|$)/,
+    /^\/internal\/openapi(?:\/|$)/,
+    /^\/docs/,
+    '/*'
+  ],
+  methods: ['options', 'head'],
+  staticFile: true
+} as const;
 
 // ═══════════════════════════════════════════════════════════════════
 // PUBLIC API DOCS (ISOLATED INSTANCE)
@@ -196,63 +276,9 @@ export const api = new Elysia({ prefix: '/api' })
   // OpenAPI Documentation (Complete API)
   .use(
     openapi({
-      documentation: {
-        info: {
-          title: 'urlfy.cc Complete API',
-          version: '1.0.0',
-          description:
-            'Comprehensive API documentation including link management, analytics, authentication (Better-Auth), and admin endpoints',
-          contact: {
-            name: 'API Support',
-            email: 'support@urlfy.cc'
-          }
-        },
-        servers: openApiServers,
-        tags: [
-          { name: 'Health', description: 'Health check endpoints' },
-          { name: 'Auth', description: 'Authentication endpoints' },
-          { name: '2FA', description: 'Two-factor authentication' },
-          { name: 'Sessions', description: 'Session management' },
-          { name: 'API Keys', description: 'API key management' },
-          {
-            name: 'Public API V1 - Links',
-            description: 'Public API V1 link endpoints'
-          },
-          { name: 'Users', description: 'User profile and data' },
-          { name: 'Links', description: 'Link management and shortening' },
-          { name: 'Contact', description: 'Contact form submissions' },
-          { name: 'Admin', description: 'Admin-only endpoints' },
-          { name: 'Stats', description: 'Statistics and analytics' }
-        ],
-        components: {
-          securitySchemes: {
-            bearerAuth: {
-              type: 'http',
-              scheme: 'bearer',
-              bearerFormat: 'JWT',
-              description: 'JWT session token from Better-Auth'
-            },
-            cookieAuth: {
-              type: 'apiKey',
-              in: 'cookie',
-              name: 'urlfy.session',
-              description: 'Session cookie (automatically set by Better-Auth)'
-            },
-            apiKeyAuth: {
-              type: 'apiKey',
-              in: 'header',
-              name: 'x-api-key',
-              description:
-                'API key for programmatic access (format: urlfy_sk_...)'
-            }
-          }
-        },
-        security: [{ bearerAuth: [] }, { cookieAuth: [] }, { apiKeyAuth: [] }]
-      },
+      documentation: completeOpenApiDocumentation,
       path: '/internal/docs',
-      exclude: {
-        paths: ['/auth/*', '/internal/docs/*', '/docs/*']
-      },
+      exclude: completeOpenApiExclude,
       scalar: {
         url: '/api/internal/docs/merged.json',
         defaultHttpClient: {
@@ -509,6 +535,24 @@ export const api = new Elysia({ prefix: '/api' })
       requestId: resolvedRequestId
     };
   });
+
+export function getElysiaOpenApiSpec(): OpenAPIV3.Document {
+  const { paths, components } = toOpenAPISchema(api, completeOpenApiExclude);
+  const generatedComponents = (components ?? {}) as OpenAPIV3.ComponentsObject;
+
+  return {
+    openapi: '3.0.3',
+    ...completeOpenApiDocumentation,
+    paths,
+    components: {
+      ...generatedComponents,
+      securitySchemes: {
+        ...(completeOpenApiDocumentation.components?.securitySchemes ?? {}),
+        ...(generatedComponents.securitySchemes ?? {})
+      }
+    }
+  };
+}
 
 // Export type for Eden inference
 export type App = typeof api;
