@@ -210,7 +210,8 @@ describe('GeoIP Implementation Compliance', () => {
 
   describe('Configuration Summary', () => {
     it('should have all required environment variables defined in env.ts', async () => {
-      const { env } = await import('@/lib/env');
+      const { validateEnv } = await import('@/lib/env');
+      const env = validateEnv();
       // These keys must exist in env with defaults
       expect(typeof env.GEOIP_DB_PATH).toBe('string');
       expect(typeof env.GEOIP_MAX_AGE_DAYS).toBe('number');

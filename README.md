@@ -111,6 +111,8 @@ bun run dev
 
 > **Local dev policy**: Always use `bun run dev` (runs from `src/`) during development — never invoke `apps/api/dist/` directly in a dev environment. The `dist/` tree is built exclusively for Docker production images and may be stale. If you see `dist/` imports during debugging, delete `apps/api/dist/` and rebuild with `bun run build:api`.
 
+> **`openapi-spec.json` policy**: The `openapi-spec.json` file in the repo root is a static snapshot of the merged API spec (Elysia + Better-Auth). It is a generated artefact — do not edit it manually. To regenerate it, start the API locally (`bun run dev:api`) and fetch `http://localhost:3001/api/internal/docs/merged.json`, then write the output to `openapi-spec.json`. The live, always-current spec is served at `/api/docs` (Swagger UI) and `/api/internal/docs/merged.json` (JSON) at runtime.
+
 ## Key Design Decisions
 
 ### Redirect Hot Path
