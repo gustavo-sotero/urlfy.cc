@@ -16,8 +16,8 @@ export const cspMiddleware = new Elysia({ name: 'csp' }).derive(({ set }) => {
 
   const directives = buildCspDirectives({ nonce, isProduction });
 
-  set.headers['Content-Security-Policy'] = directives;
-  set.headers['X-CSP-Nonce'] = nonce; // Custom header for Next.js to read
+  set.headers['content-security-policy'] = directives;
+  set.headers['x-csp-nonce'] = nonce; // Custom header for Next.js to read
 
   return { cspNonce: nonce };
 });

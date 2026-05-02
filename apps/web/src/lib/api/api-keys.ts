@@ -5,21 +5,20 @@
  */
 
 import type {
-  ApiKeyCreatedResponse,
-  ApiKeyPublicResponse,
   ApiKeysListResponse,
   ApiResponse,
   CreateApiKeyRequest
 } from '@urlfy/contracts/generated';
+import type { ApiKeyCreated } from '@/types/api-keys.types';
 import { API_BASE_URL, client } from './client';
 import { ApiClientError, extractErrorInfo, handleEden } from './error';
+
+export type { ApiKeyPublic } from '@/types/api-keys.types';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
 
-export type ApiKeyPublic = ApiKeyPublicResponse;
-export type ApiKeyCreated = ApiKeyCreatedResponse;
 export type CreateApiKeyInput = Omit<CreateApiKeyRequest, 'expiresAt'> & {
   expiresAt?: string | null;
 };

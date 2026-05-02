@@ -15,12 +15,13 @@ export const securityHeadersMiddleware = new Elysia({
 }).onAfterHandle(({ set }) => {
   // Apply all security headers
   Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
-    set.headers[key] = value;
+    set.headers[key.toLowerCase()] = value;
   });
 
   // Remove potentially dangerous headers
   for (const header of HEADERS_TO_REMOVE) {
     delete set.headers[header];
+    delete set.headers[header.toLowerCase()];
   }
 });
 
@@ -33,7 +34,7 @@ export const productionSecurityHeaders = new Elysia({ name: 'prod-security' })
   .onAfterHandle(({ set }) => {
     if (process.env.NODE_ENV === 'production') {
       // Enforce HTTPS in production
-      set.headers['Strict-Transport-Security'] =
+      set.headers['strict-transport-security'] =
         'max-age=63072000; includeSubDomains; preload';
     }
   });

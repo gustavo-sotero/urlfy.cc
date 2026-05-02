@@ -13,12 +13,20 @@ import { describe, expect, it } from 'bun:test';
 import { detectUrlfyServer } from '../helpers/runtime-availability';
 
 const serverStatus = await detectUrlfyServer();
-const BASE_URL = serverStatus.baseUrl;
+const WEB_BASE_URL = serverStatus.baseUrl;
+const API_BASE_URL = process.env.TEST_API_BASE_URL || WEB_BASE_URL;
 const serverAvailable = serverStatus.available;
+
+const testEndpoints = ['/api/health', '/api/links', '/'];
+
+async function fetchEndpoint(path: string): Promise<Response> {
+  const baseUrl = path.startsWith('/api/') ? API_BASE_URL : WEB_BASE_URL;
+  return fetch(`${baseUrl}${path}`);
+}
 
 if (!serverAvailable) {
   console.warn(
-    `⚠️  Server not available at ${BASE_URL} — skipping security header tests. ${serverStatus.reason || ''}`.trim()
+    `⚠️  Server not available at ${WEB_BASE_URL} — skipping security header tests. ${serverStatus.reason || ''}`.trim()
   );
 }
 
@@ -27,12 +35,9 @@ describe('Security Headers Validation', () => {
     it.skip('server unavailable — start with TEST_BASE_URL=http://... pointing to a running urlfy.cc instance', () => {});
     return;
   }
-
-  const testEndpoints = ['/api/health', '/api/links', '/'];
-
   it('should include Content-Security-Policy header', async () => {
     for (const endpoint of testEndpoints) {
-      const res = await fetch(`${BASE_URL}${endpoint}`);
+      const res = await fetchEndpoint(endpoint);
       const csp = res.headers.get('Content-Security-Policy');
 
       expect(csp).toBeDefined();
@@ -43,7 +48,7 @@ describe('Security Headers Validation', () => {
 
   it('should include Strict-Transport-Security header', async () => {
     for (const endpoint of testEndpoints) {
-      const res = await fetch(`${BASE_URL}${endpoint}`);
+      const res = await fetchEndpoint(endpoint);
       const hsts = res.headers.get('Strict-Transport-Security');
 
       expect(hsts).toBeDefined();
@@ -54,21 +59,21 @@ describe('Security Headers Validation', () => {
 
   it('should include X-Content-Type-Options header', async () => {
     for (const endpoint of testEndpoints) {
-      const res = await fetch(`${BASE_URL}${endpoint}`);
+      const res = await fetchEndpoint(endpoint);
       expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
     }
   });
 
   it('should include X-Frame-Options header', async () => {
     for (const endpoint of testEndpoints) {
-      const res = await fetch(`${BASE_URL}${endpoint}`);
+      const res = await fetchEndpoint(endpoint);
       expect(res.headers.get('X-Frame-Options')).toBe('DENY');
     }
   });
 
   it('should include Referrer-Policy header', async () => {
     for (const endpoint of testEndpoints) {
-      const res = await fetch(`${BASE_URL}${endpoint}`);
+      const res = await fetchEndpoint(endpoint);
       const referrer = res.headers.get('Referrer-Policy');
       expect(referrer).toBeDefined();
       expect(referrer).toContain('origin');
@@ -77,7 +82,7 @@ describe('Security Headers Validation', () => {
 
   it('should include Permissions-Policy header', async () => {
     for (const endpoint of testEndpoints) {
-      const res = await fetch(`${BASE_URL}${endpoint}`);
+      const res = await fetchEndpoint(endpoint);
       const permissions = res.headers.get('Permissions-Policy');
       expect(permissions).toBeDefined();
       expect(permissions).toContain('camera');
@@ -87,14 +92,14 @@ describe('Security Headers Validation', () => {
 
   it('should not expose X-Powered-By header', async () => {
     for (const endpoint of testEndpoints) {
-      const res = await fetch(`${BASE_URL}${endpoint}`);
+      const res = await fetchEndpoint(endpoint);
       expect(res.headers.get('X-Powered-By')).toBeNull();
     }
   });
 
   it('should not expose Server header with version info', async () => {
     for (const endpoint of testEndpoints) {
-      const res = await fetch(`${BASE_URL}${endpoint}`);
+      const res = await fetchEndpoint(endpoint);
       const server = res.headers.get('Server');
       if (server) {
         expect(server).not.toContain('Express');
@@ -127,13 +132,13 @@ describe('Authentication & Authorization', () => {
     const protectedRoutes = ['/api/links', '/api/me', '/api/admin/stats'];
 
     for (const route of protectedRoutes) {
-      const res = await fetch(`${BASE_URL}${route}`, { method: 'GET' });
+      const res = await fetch(`${API_BASE_URL}${route}`, { method: 'GET' });
       expect([401, 403]).toContain(res.status);
     }
   });
 
   it('should reject invalid JWT tokens', async () => {
-    const res = await fetch(`${BASE_URL}/api/links`, {
+    const res = await fetch(`${API_BASE_URL}/api/links`, {
       headers: { Authorization: 'Bearer invalid_token_here' }
     });
     expect(res.status).toBe(401);
@@ -141,7 +146,7 @@ describe('Authentication & Authorization', () => {
 
   it('should reject expired tokens', async () => {
     const expiredToken = ['expired', 'payload', 'signature'].join('.');
-    const res = await fetch(`${BASE_URL}/api/links`, {
+    const res = await fetch(`${API_BASE_URL}/api/links`, {
       headers: { Authorization: `Bearer ${expiredToken}` }
     });
     expect([401, 403]).toContain(res.status);
@@ -155,7 +160,7 @@ describe('CSRF Protection', () => {
   }
 
   it('should validate SameSite cookie attribute', async () => {
-    const res = await fetch(`${BASE_URL}/api/health`);
+    const res = await fetch(`${API_BASE_URL}/api/health`);
     const setCookie = res.headers.get('Set-Cookie');
     if (setCookie) {
       expect(setCookie.toLowerCase()).toMatch(/samesite=(strict|lax)/);

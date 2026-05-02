@@ -10,9 +10,9 @@ import { and, desc, eq, isNull } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { parseScopes, serializeScopes } from '@/server/config/scopes';
 import type {
-  ApiKeyCreated,
-  ApiKeyPublic,
-  CreateApiKeyInput
+  ApiKeyCreatedServiceView,
+  ApiKeyServiceView,
+  CreateApiKeyServiceInput
 } from '@/types/api-keys.types';
 
 // ─── Key Generation ───────────────────────────────────────────────
@@ -47,7 +47,7 @@ async function generateApiKey(): Promise<{
 
 function determineKeyStatus(
   key: typeof apiKey.$inferSelect
-): ApiKeyPublic['status'] {
+): ApiKeyServiceView['status'] {
   if (key.revokedAt) return 'revoked';
   if (key.expiresAt && key.expiresAt < new Date()) return 'expired';
 
@@ -59,7 +59,7 @@ function determineKeyStatus(
 
 // ─── Transform DB Record to Public ────────────────────────────────
 
-function toPublic(key: typeof apiKey.$inferSelect): ApiKeyPublic {
+function toPublic(key: typeof apiKey.$inferSelect): ApiKeyServiceView {
   return {
     id: key.id,
     name: key.name,
@@ -84,7 +84,7 @@ export const ApiKeysService = {
   /**
    * List all API keys for a user.
    */
-  async listByUser(userId: string): Promise<ApiKeyPublic[]> {
+  async listByUser(userId: string): Promise<ApiKeyServiceView[]> {
     const keys = await db
       .select()
       .from(apiKey)
@@ -97,7 +97,10 @@ export const ApiKeysService = {
   /**
    * Get a single API key by ID (must belong to user).
    */
-  async getById(keyId: string, userId: string): Promise<ApiKeyPublic | null> {
+  async getById(
+    keyId: string,
+    userId: string
+  ): Promise<ApiKeyServiceView | null> {
     const [key] = await db
       .select()
       .from(apiKey)
@@ -119,8 +122,8 @@ export const ApiKeysService = {
    */
   async create(
     userId: string,
-    input: CreateApiKeyInput
-  ): Promise<ApiKeyCreated> {
+    input: CreateApiKeyServiceInput
+  ): Promise<ApiKeyCreatedServiceView> {
     const { key, prefix, hash } = await generateApiKey();
     const id = nanoid();
 
@@ -190,7 +193,10 @@ export const ApiKeysService = {
   /**
    * Rollover: Create new key and revoke old one atomically.
    */
-  async rollover(keyId: string, userId: string): Promise<ApiKeyCreated | null> {
+  async rollover(
+    keyId: string,
+    userId: string
+  ): Promise<ApiKeyCreatedServiceView | null> {
     const [existing] = await db
       .select()
       .from(apiKey)

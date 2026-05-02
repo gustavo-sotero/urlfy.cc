@@ -161,6 +161,9 @@ jobs:
       - name: Run security tests (all workspaces)
         run: bunx turbo run test:security
 
+      - name: Run live web auth/security suite
+        run: bun run test:security:web-live
+
       - name: Run performance tests (workspace suites)
         run: bunx turbo run test:perf
         env:

@@ -13,8 +13,12 @@ import { elysiaLogger } from '@logtape/elysia';
 import { Elysia } from 'elysia';
 import type { OpenAPIV3 } from 'openapi-types';
 import { auth } from '@/lib/auth';
+import { buildCspDirectives } from '@/lib/csp';
+import { getCorsHeaders } from '@/server/config/cors';
 // Plugins
-import { bearerPlugin, corsPlugin, jwtPlugin } from '@/server/config/plugins';
+import { bearerPlugin, jwtPlugin } from '@/server/config/plugins';
+import { SECURITY_HEADERS } from '@/server/config/security';
+import { generateCspNonce } from '@/server/lib/csp-nonce';
 import { ErrorCode, isAppError } from '@/server/lib/error-handler';
 import { shouldSkipHttpLog } from '@/server/lib/http-log';
 import { getClientIp } from '@/server/lib/ip';
@@ -26,6 +30,7 @@ import {
   recordLoginFailure
 } from '@/server/middleware/anti-abuse';
 import { compressionMiddleware } from '@/server/middleware/compression';
+import { handleCORSPreflight } from '@/server/middleware/cors';
 import { cspMiddleware } from '@/server/middleware/csp.middleware';
 import {
   buildErrorEnvelope,
@@ -173,7 +178,6 @@ export const api = new Elysia({ prefix: '/api' })
 
   // Core plugins (JWT, CORS, Bearer, Compression, CSP, Security Headers)
   .use(jwtPlugin)
-  .use(corsPlugin)
   .use(bearerPlugin)
   .use(compressionMiddleware())
   .use(cspMiddleware)
@@ -271,6 +275,10 @@ export const api = new Elysia({ prefix: '/api' })
     return { requestId };
   })
 
+  .onBeforeHandle(({ request }) => {
+    return handleCORSPreflight(request);
+  })
+
   .onBeforeHandle(async ({ request, set }) => {
     const abuseResult = await antiAbuseMiddleware(request);
     if (abuseResult) return abuseResult;
@@ -302,6 +310,23 @@ export const api = new Elysia({ prefix: '/api' })
   })
 
   .onAfterHandle(({ set, request, requestId, response }) => {
+    const nonce = generateCspNonce();
+    const csp = buildCspDirectives({
+      nonce,
+      isProduction: process.env.NODE_ENV === 'production'
+    });
+    const corsHeaders = getCorsHeaders(request.headers.get('origin'));
+
+    Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
+      set.headers[key.toLowerCase()] = value;
+    });
+
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      set.headers[key.toLowerCase()] = value;
+    });
+
+    set.headers['content-security-policy'] = csp;
+    set.headers['x-csp-nonce'] = nonce;
     set.headers['x-request-id'] = requestId ?? getOrCreateRequestId(request);
 
     // Record login failures so the anti-abuse service can auto-block repeat offenders.
@@ -389,6 +414,24 @@ export const api = new Elysia({ prefix: '/api' })
 
   // Public API v1
   .use(publicApiV1)
+
+  // Consistent JSON fallback for unknown API routes.
+  .all('/*', ({ request, set, requestId }) => {
+    const resolvedRequestId = requestId ?? getOrCreateRequestId(request);
+
+    set.status = 404;
+    set.headers['x-request-id'] = resolvedRequestId;
+    set.headers['content-type'] = 'application/json; charset=utf-8';
+
+    return {
+      success: false,
+      error: {
+        code: 'NOT_FOUND',
+        message: 'Endpoint not found'
+      },
+      requestId: resolvedRequestId
+    };
+  })
 
   // Global error handler
   .onError(({ code, error, set, request, requestId }) => {

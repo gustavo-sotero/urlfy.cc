@@ -5,6 +5,11 @@
  */
 
 import type { Scope } from '@urlfy/auth-shared';
+import type {
+  ApiKeyCreatedResponse,
+  ApiKeyPublicResponse,
+  CreateApiKeyRequest
+} from './generated/api';
 
 /**
  * Full API key record shape used by application internals.
@@ -39,46 +44,19 @@ export interface ApiKeyRecord {
 }
 
 /**
- * API Key as returned to the user (sensitive fields omitted).
+ * Canonical public API key response shape derived from the API OpenAPI contract.
  */
-export interface ApiKeyPublic {
-  id: string;
-  name: string | null;
-  prefix: string | null;
-  scopes: Scope[];
-  createdAt: Date;
-  lastUsedAt: Date | null;
-  expiresAt: Date | null;
-  usageCount: number;
-  rateLimit: {
-    enabled: boolean;
-    max: number;
-    windowMs: number;
-  };
-  status: 'active' | 'expired' | 'revoked' | 'quota_exceeded';
-}
+export type ApiKeyPublic = ApiKeyPublicResponse;
 
 /**
- * Full API Key returned only on creation (includes the raw key).
+ * Canonical API key creation response shape derived from the API OpenAPI contract.
  */
-export interface ApiKeyCreated extends ApiKeyPublic {
-  /** The full API key. Only shown once! */
-  key: string;
-}
+export type ApiKeyCreated = ApiKeyCreatedResponse;
 
 /**
- * Input for creating a new API key.
+ * Canonical public request payload for API key creation.
  */
-export interface CreateApiKeyInput {
-  name: string;
-  scopes: Scope[];
-  expiresAt?: Date | null;
-  rateLimit?: {
-    enabled: boolean;
-    max: number;
-    windowMs: number;
-  };
-}
+export type CreateApiKeyInput = CreateApiKeyRequest;
 
 /**
  * Context injected by the API Key middleware.

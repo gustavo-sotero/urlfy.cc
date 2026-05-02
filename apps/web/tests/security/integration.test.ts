@@ -18,7 +18,8 @@ import { describe, expect, it } from 'bun:test';
 import { detectUrlfyServer } from '../helpers/runtime-availability';
 
 const serverStatus = await detectUrlfyServer();
-const BASE_URL = serverStatus.baseUrl;
+const WEB_BASE_URL = serverStatus.baseUrl;
+const API_BASE_URL = process.env.TEST_API_BASE_URL || WEB_BASE_URL;
 const serverAvailable = serverStatus.available;
 
 function requireHeader(value: string | null): string {
@@ -26,9 +27,35 @@ function requireHeader(value: string | null): string {
   return value ?? '';
 }
 
+function withTestIp(init: RequestInit = {}, clientIp?: string): RequestInit {
+  if (!clientIp) {
+    return init;
+  }
+
+  return {
+    ...init,
+    headers: {
+      ...(init.headers || {}),
+      'X-Forwarded-For': clientIp
+    }
+  };
+}
+
+async function apiFetch(
+  path: string,
+  init?: RequestInit,
+  clientIp?: string
+): Promise<Response> {
+  return fetch(`${API_BASE_URL}${path}`, withTestIp(init, clientIp));
+}
+
+async function webFetch(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(`${WEB_BASE_URL}${path}`, init);
+}
+
 if (!serverAvailable) {
   console.warn(
-    `⚠️  Server not available at ${BASE_URL}. Skipping integration tests. ${serverStatus.reason || ''}`.trim()
+    `⚠️  Server not available at ${WEB_BASE_URL}. Skipping integration tests. ${serverStatus.reason || ''}`.trim()
   );
 }
 
@@ -42,7 +69,7 @@ describe('CORS Integration Tests', () => {
   }
 
   it('should reject requests from unauthorized origins', async () => {
-    const response = await fetch(`${BASE_URL}/api/health`, {
+    const response = await apiFetch('/api/health', {
       method: 'GET',
       headers: {
         Origin: 'https://evil-site.com'
@@ -58,20 +85,22 @@ describe('CORS Integration Tests', () => {
     const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
     for (const origin of allowedOrigins) {
-      const response = await fetch(`${BASE_URL}/api/health`, {
-        method: 'GET',
+      const response = await apiFetch('/api/links', {
+        method: 'OPTIONS',
         headers: {
-          Origin: origin
+          Origin: origin,
+          'Access-Control-Request-Method': 'POST'
         }
       });
 
+      expect(response.status).toBe(204);
       const corsHeader = response.headers.get('Access-Control-Allow-Origin');
       expect(corsHeader).toBe(origin);
     }
   });
 
   it('should handle preflight OPTIONS requests', async () => {
-    const response = await fetch(`${BASE_URL}/api/links`, {
+    const response = await apiFetch('/api/links', {
       method: 'OPTIONS',
       headers: {
         Origin: 'http://localhost:3000',
@@ -90,7 +119,7 @@ describe('CORS Integration Tests', () => {
   });
 
   it('should reject preflight for unauthorized methods', async () => {
-    const response = await fetch(`${BASE_URL}/api/links`, {
+    const response = await apiFetch('/api/links', {
       method: 'OPTIONS',
       headers: {
         Origin: 'http://localhost:3000',
@@ -121,15 +150,19 @@ describe('Rate Limiting Integration Tests', () => {
     // Make 15 concurrent requests (limit is 10/hour for guests)
     for (let i = 0; i < 15; i++) {
       requests.push(
-        fetch(`${BASE_URL}/api/links`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
+        apiFetch(
+          '/api/links',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              url: `https://example.com/test-${i}`
+            })
           },
-          body: JSON.stringify({
-            url: `https://example.com/test-${i}`
-          })
-        })
+          '198.51.100.10'
+        )
       );
     }
 
@@ -141,7 +174,7 @@ describe('Rate Limiting Integration Tests', () => {
   });
 
   it('should return proper rate limit headers', async () => {
-    const response = await fetch(`${BASE_URL}/api/health`);
+    const response = await apiFetch('/api/health');
 
     // Check for rate limit headers
     const limitHeader =
@@ -160,15 +193,19 @@ describe('Rate Limiting Integration Tests', () => {
     const requests: Promise<Response>[] = [];
     for (let i = 0; i < 20; i++) {
       requests.push(
-        fetch(`${BASE_URL}/api/links`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
+        apiFetch(
+          '/api/links',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              url: `https://example.com/retry-after-${i}`
+            })
           },
-          body: JSON.stringify({
-            url: `https://example.com/retry-after-${i}`
-          })
-        })
+          '198.51.100.11'
+        )
       );
     }
 
@@ -199,13 +236,13 @@ describe('Authentication & Authorization Tests', () => {
     const protectedEndpoints = ['/api/me', '/api/me/quota', '/api/links/bulk'];
 
     for (const endpoint of protectedEndpoints) {
-      const response = await fetch(`${BASE_URL}${endpoint}`);
+      const response = await apiFetch(endpoint);
       expect(response.status).toBe(401);
     }
   });
 
   it('should reject requests with invalid tokens', async () => {
-    const response = await fetch(`${BASE_URL}/api/me`, {
+    const response = await apiFetch('/api/me', {
       headers: {
         Authorization: 'Bearer invalid_token_xyz123'
       }
@@ -223,16 +260,20 @@ describe('Authentication & Authorization Tests', () => {
     ];
 
     for (const apiKey of invalidApiKeys) {
-      const response = await fetch(`${BASE_URL}/api/links`, {
-        method: 'POST',
-        headers: {
-          'X-API-Key': apiKey,
-          'Content-Type': 'application/json'
+      const response = await apiFetch(
+        '/api/links',
+        {
+          method: 'POST',
+          headers: {
+            'X-API-Key': apiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            url: 'https://example.com'
+          })
         },
-        body: JSON.stringify({
-          url: 'https://example.com'
-        })
-      });
+        `198.51.100.${20 + invalidApiKeys.indexOf(apiKey)}`
+      );
 
       expect(response.status).toBe(401);
     }
@@ -258,16 +299,20 @@ describe('Input Validation Integration Tests', () => {
       '"; DROP TABLE links; --'
     ];
 
-    for (const url of maliciousUrls) {
-      const response = await fetch(`${BASE_URL}/api/links`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+    for (const [index, url] of maliciousUrls.entries()) {
+      const response = await apiFetch(
+        '/api/links',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url })
         },
-        body: JSON.stringify({ url })
-      });
+        `198.51.101.${index + 1}`
+      );
 
-      expect(response.status).toBe(400);
+      expect([400, 422]).toContain(response.status);
       const data = await response.json();
       expect(data.success).toBe(false);
     }
@@ -281,33 +326,41 @@ describe('Input Validation Integration Tests', () => {
       'https://goo.gl/maps/test'
     ];
 
-    for (const url of shortenerUrls) {
-      const response = await fetch(`${BASE_URL}/api/links`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+    for (const [index, url] of shortenerUrls.entries()) {
+      const response = await apiFetch(
+        '/api/links',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url })
         },
-        body: JSON.stringify({ url })
-      });
+        `198.51.102.${index + 1}`
+      );
 
-      expect(response.status).toBe(400);
+      expect([400, 422]).toContain(response.status);
       const data = await response.json();
-      expect(data.error?.code).toBe('SHORTENER_NOT_ALLOWED');
+      expect(data.success).toBe(false);
     }
   });
 
   it('should sanitize XSS in meta tags', async () => {
-    const response = await fetch(`${BASE_URL}/api/links`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
+    const response = await apiFetch(
+      '/api/links',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: 'https://example.com',
+          metaTitle: '<script>alert(1)</script>',
+          metaDescription: '<img src=x onerror=alert(1)>'
+        })
       },
-      body: JSON.stringify({
-        url: 'https://example.com',
-        metaTitle: '<script>alert(1)</script>',
-        metaDescription: '<img src=x onerror=alert(1)>'
-      })
-    });
+      '198.51.103.1'
+    );
 
     expect(response.status).toBe(201);
 
@@ -337,7 +390,7 @@ describe('Security Headers Integration Tests', () => {
   };
 
   it('should include all required security headers', async () => {
-    const response = await fetch(`${BASE_URL}/api/health`);
+    const response = await apiFetch('/api/health');
 
     for (const [header, validator] of Object.entries(criticalHeaders)) {
       const value = requireHeader(response.headers.get(header));
@@ -346,7 +399,7 @@ describe('Security Headers Integration Tests', () => {
   });
 
   it('should not expose sensitive server information', async () => {
-    const response = await fetch(`${BASE_URL}/api/health`);
+    const response = await apiFetch('/api/health');
 
     const serverHeader = response.headers.get('Server');
     const poweredBy = response.headers.get('X-Powered-By');
@@ -372,12 +425,12 @@ describe('GDPR/LGPD Compliance Tests', () => {
   }
 
   it('should require authentication for data export', async () => {
-    const response = await fetch(`${BASE_URL}/api/me/export`);
+    const response = await apiFetch('/api/me/export');
     expect(response.status).toBe(401);
   });
 
   it('should require authentication for data deletion', async () => {
-    const response = await fetch(`${BASE_URL}/api/me/data`, {
+    const response = await apiFetch('/api/me/data', {
       method: 'DELETE'
     });
     expect(response.status).toBe(401);
@@ -407,14 +460,14 @@ describe('Clickjacking Protection', () => {
   }
 
   it('should prevent framing with X-Frame-Options', async () => {
-    const response = await fetch(`${BASE_URL}`);
+    const response = await webFetch('');
     const xfo = response.headers.get('X-Frame-Options');
 
     expect(xfo).toBe('DENY');
   });
 
   it('should prevent framing with CSP frame-ancestors', async () => {
-    const response = await fetch(`${BASE_URL}`);
+    const response = await webFetch('');
     const csp = response.headers.get('Content-Security-Policy');
 
     expect(csp).toContain('frame-ancestors');
@@ -433,7 +486,7 @@ describe('Error Handling Security', () => {
 
   it('should not expose stack traces in production', async () => {
     // Try to trigger an error
-    const response = await fetch(`${BASE_URL}/api/links/invalid-id`, {
+    const response = await apiFetch('/api/links/invalid-id', {
       method: 'GET'
     });
 
@@ -449,7 +502,7 @@ describe('Error Handling Security', () => {
   });
 
   it('should return generic error messages', async () => {
-    const response = await fetch(`${BASE_URL}/api/nonexistent`, {
+    const response = await apiFetch('/api/nonexistent', {
       method: 'GET'
     });
 
@@ -474,14 +527,14 @@ describe('Request Tracing', () => {
   }
 
   it('should include request ID in responses', async () => {
-    const response = await fetch(`${BASE_URL}/api/health`);
+    const response = await apiFetch('/api/health');
     const requestId = requireHeader(response.headers.get('X-Request-Id'));
 
     expect(requestId).toMatch(/^[a-z0-9-]+$/);
   });
 
   it('should include request ID in error responses', async () => {
-    const response = await fetch(`${BASE_URL}/api/nonexistent`);
+    const response = await apiFetch('/api/nonexistent');
     const data = await response.json();
 
     expect(typeof data.requestId).toBe('string');

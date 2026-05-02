@@ -81,6 +81,23 @@ function normalizeResponse(response: unknown, fallbackStatus = 200): Response {
   });
 }
 
+function mergeSetHeaders(
+  baseHeaders: Headers,
+  pendingHeaders: Record<string, unknown>
+): Headers {
+  for (const [key, value] of Object.entries(pendingHeaders)) {
+    if (value == null) continue;
+    if (Array.isArray(value)) {
+      baseHeaders.set(key, value.join(', '));
+      continue;
+    }
+
+    baseHeaders.set(key, String(value));
+  }
+
+  return baseHeaders;
+}
+
 export function compressionMiddleware(options?: CompressionOptions) {
   const encodings = options?.encodings ?? DEFAULT_ENCODINGS;
   const threshold = options?.threshold ?? DEFAULT_THRESHOLD;
@@ -119,7 +136,10 @@ export function compressionMiddleware(options?: CompressionOptions) {
       if (normalizedResponse.bodyUsed) return normalizedResponse;
 
       const buffer = await normalizedResponse.arrayBuffer();
-      const baseHeaders = new Headers(normalizedResponse.headers);
+      const baseHeaders = mergeSetHeaders(
+        new Headers(normalizedResponse.headers),
+        set.headers as Record<string, unknown>
+      );
       if (buffer.byteLength < threshold) {
         return new Response(new Uint8Array(buffer), {
           status: normalizedResponse.status,

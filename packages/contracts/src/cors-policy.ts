@@ -17,7 +17,7 @@ const ALLOWED_ORIGINS = {
     'http://127.0.0.1:3000',
     'http://localhost:5173' // Vite dev server
   ],
-  test: ['http://localhost:3000', 'http://127.0.0.1']
+  test: ['http://localhost:3000', 'http://127.0.0.1', 'http://127.0.0.1:3000']
 } as const;
 
 /** Allowed HTTP methods for cross-origin requests. */
@@ -171,17 +171,10 @@ export function getElysiaCorsConfig() {
   ensureCorsConfigSafe();
 
   return {
-    origin: (request: Request): boolean => {
-      const origin = request.headers.get('origin');
-      if (!origin) return true;
-
-      // Delegate to the validated allowlist for all environments.
-      // This prevents substring-matching attacks (e.g. localhost.attacker.com)
-      // by comparing exact protocol+host+port tuples.
-      return isOriginAllowed(origin);
-    },
-    methods: ALLOWED_METHODS,
-    allowedHeaders: ALLOWED_HEADERS,
+    origin: getValidatedOrigins(),
+    methods: [...ALLOWED_METHODS],
+    allowedHeaders: [...ALLOWED_HEADERS],
+    exposedHeaders: [...EXPOSED_HEADERS],
     credentials: true,
     maxAge: MAX_AGE
   };
