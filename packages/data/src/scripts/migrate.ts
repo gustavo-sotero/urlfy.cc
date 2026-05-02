@@ -1,5 +1,10 @@
 import { migrate } from 'drizzle-orm/bun-sql/migrator';
-import { closeDatabase, getDatabase, initDatabase } from '../index';
+import {
+  closeDatabase,
+  getDatabase,
+  getDatabaseBootstrapDiagnostics,
+  initDatabase
+} from '../index';
 
 const MIGRATION_TIMEOUT_S = Number.parseInt(
   process.env.MIGRATION_TIMEOUT ?? '120',
@@ -10,6 +15,16 @@ const DB_CHECK_TIMEOUT_S = Number.parseInt(
   10
 );
 const RETRY_INTERVAL_MS = 3000;
+
+function formatDatabaseTarget(): string {
+  const diagnostics = getDatabaseBootstrapDiagnostics();
+  const host = diagnostics.host ?? 'unknown-host';
+  const port = diagnostics.port ?? 5432;
+  const database = diagnostics.database ?? 'unknown-database';
+  const sslMode = diagnostics.urlHasSSL ? 'from-url' : 'disable(default)';
+
+  return `${host}:${port}/${database} (ssl=${sslMode}, connect-timeout=${diagnostics.connectionTimeout}s)`;
+}
 
 /**
  * Waits for the database to become reachable before running migrations.
@@ -49,6 +64,7 @@ async function main() {
   console.log(
     `⏳ Running migrations... (timeout: ${MIGRATION_TIMEOUT_S}s, check-timeout: ${DB_CHECK_TIMEOUT_S}s)`
   );
+  console.log(`ℹ️ Database target: ${formatDatabaseTarget()}`);
 
   try {
     await waitForDatabase();

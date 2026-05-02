@@ -6,6 +6,12 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import * as schema from './schema';
 
+type DatabaseTargetInfo = {
+  host: string | null;
+  port: number | null;
+  database: string | null;
+};
+
 // Type for the drizzle instance
 type DrizzleDatabase = ReturnType<typeof drizzle>;
 
@@ -21,7 +27,59 @@ let connectionConfig: {
   max: number;
   idleTimeout: number;
   connectionTimeout: number;
+  target: DatabaseTargetInfo;
 } | null = null;
+
+function parseDatabaseTarget(databaseUrl: string): DatabaseTargetInfo {
+  try {
+    const parsedUrl = new URL(databaseUrl);
+    const port = parsedUrl.port ? Number.parseInt(parsedUrl.port, 10) : 5432;
+    const database = parsedUrl.pathname.replace(/^\/+/, '') || null;
+
+    return {
+      host: parsedUrl.hostname || null,
+      port: Number.isNaN(port) ? null : port,
+      database
+    };
+  } catch {
+    return {
+      host: null,
+      port: null,
+      database: null
+    };
+  }
+}
+
+function getConnectionHint(
+  host: string | null,
+  message: string
+): string | undefined {
+  const normalizedMessage = message.toLowerCase();
+
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
+    if (
+      normalizedMessage.includes('failedtoopensocket') ||
+      normalizedMessage.includes('connection refused') ||
+      normalizedMessage.includes('connection closed')
+    ) {
+      return 'DATABASE_URL points at localhost. Inside Docker this resolves to the current container, not the PostgreSQL service.';
+    }
+  }
+
+  if (host === 'postgresql') {
+    return 'This repo\'s bundled Compose files use "postgres" as the default service hostname. If you are on Dokploy, ensure "postgresql" is a real network alias or update DATABASE_URL to the reachable PostgreSQL host.';
+  }
+
+  if (
+    normalizedMessage.includes('failedtoopensocket') ||
+    normalizedMessage.includes('enotfound') ||
+    normalizedMessage.includes('eai_again') ||
+    normalizedMessage.includes('connection refused') ||
+    normalizedMessage.includes('connection closed')
+  ) {
+    return `Verify that DATABASE_URL host "${host ?? 'unknown'}" resolves from this runtime and that PostgreSQL is attached to the same Docker/Dokploy network.`;
+  }
+}
 
 function writeBootstrapLog(
   level: 'info' | 'error',
@@ -73,18 +131,33 @@ function getConnectionConfig() {
     10
   );
   const connectionTimeout = Number.parseInt(
-    process.env.DB_POOL_CONNECTION_TIMEOUT || '10',
+    process.env.DB_POOL_CONNECTION_TIMEOUT ??
+      process.env.DB_CHECK_TIMEOUT ??
+      '10',
     10
   );
+  const target = parseDatabaseTarget(databaseUrl);
 
   connectionConfig = {
     connUrl,
     urlHasSSL,
     max,
     idleTimeout,
-    connectionTimeout
+    connectionTimeout,
+    target
   };
   return connectionConfig;
+}
+
+export function getDatabaseBootstrapDiagnostics() {
+  const { connectionTimeout, target, urlHasSSL } = getConnectionConfig();
+  return {
+    host: target.host,
+    port: target.port,
+    database: target.database,
+    connectionTimeout,
+    urlHasSSL
+  };
 }
 
 function createSqlConnection(url: string): SQL {
@@ -144,10 +217,25 @@ export async function initDatabase(): Promise<void> {
     // Force actual connection — Bun SQL is lazy, so this is where the
     // first TCP/TLS handshake happens.
     await sqlConnection.unsafe('SELECT 1');
-    writeBootstrapLog('info', 'Database connection established (Bun SQL)');
+    const diagnostics = getDatabaseBootstrapDiagnostics();
+    writeBootstrapLog('info', 'Database connection established (Bun SQL)', {
+      host: diagnostics.host,
+      port: diagnostics.port,
+      database: diagnostics.database,
+      connectionTimeout: diagnostics.connectionTimeout
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     connectionError = err instanceof Error ? err : new Error(message);
+    const diagnostics = getDatabaseBootstrapDiagnostics();
+    writeBootstrapLog('error', 'Database connection attempt failed', {
+      host: diagnostics.host,
+      port: diagnostics.port,
+      database: diagnostics.database,
+      connectionTimeout: diagnostics.connectionTimeout,
+      error: message,
+      hint: getConnectionHint(diagnostics.host, message)
+    });
     throw connectionError;
   }
 }
