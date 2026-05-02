@@ -166,7 +166,7 @@ describe('Alias regex parity', () => {
       'ALIAS_REGEX must be exported from shortcode.service.ts'
     ).toBeTruthy();
 
-    const regexSource = regexMatch![1];
+    const regexSource = regexMatch?.[1];
 
     // Verify links.schema.ts imports and uses ALIAS_REGEX.source as the pattern
     expect(

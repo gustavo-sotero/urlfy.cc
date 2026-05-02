@@ -31,9 +31,9 @@ describe('Shortcode Service', () => {
 
     it('should enforce maximum length of 20 characters', () => {
       // 20 chars — max allowed
-      expect(ALIAS_REGEX.test('a'.repeat(9) + '-' + 'b'.repeat(10))).toBe(true);
+      expect(ALIAS_REGEX.test(`${'a'.repeat(9)}-${'b'.repeat(10)}`)).toBe(true);
       // 21 chars — exceeds max
-      expect(ALIAS_REGEX.test('a'.repeat(10) + '-' + 'b'.repeat(10))).toBe(
+      expect(ALIAS_REGEX.test(`${'a'.repeat(10)}-${'b'.repeat(10)}`)).toBe(
         false
       );
     });

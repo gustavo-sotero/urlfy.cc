@@ -26,28 +26,35 @@ import { hasLocalePrefix, routing } from './i18n/routing';
 const intlMiddleware = createMiddleware(routing);
 
 /**
- * Routes that bypass i18n and redirect engine
- * These are kept at root level without locale prefix
+ * Backend routes that serve no HTML — skip before nonce/CSP generation.
+ * These are pure JSON API or redirect responses where CSP is irrelevant.
  */
-const SYSTEM_ROUTES = [
-  '/api', // API routes (routed by ingress to apps/api)
-  '/auth', // Authentication routes (Better-Auth)
+const PASSTHROUGH_ROUTES = [
+  '/api', // JSON API (routed by ingress to apps/api)
+  '/r', // Redirect handler hot path — pure 301/302
+  '/internal', // Internal API
+  '/ops' // Operational endpoints
+] as const;
+
+/**
+ * Routes that bypass i18n but still receive CSP (they serve HTML pages).
+ * Checked after nonce generation so headers can be applied to responses.
+ */
+const UI_BYPASS_ROUTES = [
+  '/auth', // Authentication routes (Better-Auth, may serve UI)
   '/admin', // Admin panel
   '/login', // Login page
   '/signup', // Signup page
   '/logout', // Logout
   '/settings', // Settings
-  '/internal', // Internal routes
-  '/ops', // Public operational routes (App Router '_' folders are private)
-  '/r', // Redirect route handler (hot path)
-  '/_next', // Next.js internals
-  '/favicon.ico', // Favicon
+  '/_next', // Next.js internals (safety net — matcher excludes _next/)
+  '/favicon.ico', // Favicon (safety net — matcher excludes .ico)
   '/robots.txt', // Robots
   '/sitemap.xml', // Sitemap
   '/.well-known', // Well-known URIs
-  '/404', // Next.js 404 error page — must not be treated as a shortlink slug
-  '/500' // Next.js 500 error page — must not be treated as a shortlink slug
-];
+  '/404', // Error page — must not be treated as a shortlink slug
+  '/500' // Error page — must not be treated as a shortlink slug
+] as const;
 
 /**
  * Matcher configuration
@@ -57,11 +64,10 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
+     * - _next/ (all Next.js internals — static, image, data, HMR, etc.)
      * - Files with extensions (.svg, .png, .jpg, etc.)
      */
-    '/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|otf|css|js|json)$).*)'
+    '/((?!_next/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|otf|css|js|json)$).*)'
   ]
 };
 
@@ -97,6 +103,12 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // 2. Skip backend/API routes that serve no HTML — nonce and CSP are irrelevant.
+  //    This avoids the crypto + header allocation cost for every redirect hit.
+  if (isPassthroughRoute(pathname)) {
+    return NextResponse.next();
+  }
+
   const nonce = generateNonce();
   const isProduction = process.env.NODE_ENV === 'production';
   const csp = buildCspDirectives({ nonce, isProduction });
@@ -105,8 +117,8 @@ export async function proxy(req: NextRequest) {
   requestHeaders.set('x-csp-nonce', nonce);
   const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
 
-  // 2. Bypass i18n for system routes (Admin and Auth)
-  if (isSystemRoute(pathname)) {
+  // 3. Bypass i18n for UI system routes — apply CSP but skip intl middleware
+  if (isUiBypassRoute(pathname)) {
     const response = NextResponse.next({
       request: {
         headers: requestHeaders
@@ -115,7 +127,7 @@ export async function proxy(req: NextRequest) {
     return applyCspHeaders(response, csp, nonce);
   }
 
-  // 3. Check for locale-prefixed paths or root
+  // 4. Check for locale-prefixed paths or root
   const isLocalePath = hasLocalePrefix(pathname);
 
   // Root path or locale-prefixed path → use i18n middleware
@@ -124,7 +136,7 @@ export async function proxy(req: NextRequest) {
     return applyCspHeaders(response, csp, nonce);
   }
 
-  // 4. Not a locale path and not system route → check if it's a short code
+  // 5. Not a locale path and not system route → check if it's a short code
   // Canonical pattern: alphanumeric + hyphens, no underscores (matches ALIAS_REGEX from shortcode.service)
   // NanoID 7-char codes (pure alphanumeric) and custom aliases both satisfy this pattern.
   const shortCodeMatch = pathname.match(
@@ -164,10 +176,20 @@ export async function proxy(req: NextRequest) {
 }
 
 /**
- * Check if pathname is a system route that bypasses i18n
+ * Check if pathname is a backend route that needs no CSP (pure JSON/redirect response).
+ * Evaluated before nonce generation to avoid unnecessary crypto work.
  */
-function isSystemRoute(pathname: string): boolean {
-  return SYSTEM_ROUTES.some(
+function isPassthroughRoute(pathname: string): boolean {
+  return PASSTHROUGH_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
+
+/**
+ * Check if pathname is a UI system route that bypasses i18n but still needs CSP.
+ */
+function isUiBypassRoute(pathname: string): boolean {
+  return UI_BYPASS_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 }

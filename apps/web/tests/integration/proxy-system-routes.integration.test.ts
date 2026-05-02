@@ -10,6 +10,15 @@ const SYSTEM_PATHS = [
   '/ops/monitor/log'
 ] as const;
 
+// Passthrough routes: pure backend — CSP/nonce must NOT be emitted (no unnecessary work)
+const PASSTHROUGH_PATHS = [
+  '/api/health',
+  '/api/links',
+  '/r/abc123',
+  '/internal/analytics',
+  '/ops/health'
+] as const;
+
 describe('Edge proxy system route reservations', () => {
   for (const path of SYSTEM_PATHS) {
     test(`passes through ${path} without redirect rewrite`, async () => {
@@ -45,4 +54,18 @@ describe('Edge proxy system route reservations', () => {
       );
     }
   });
+});
+
+describe('Edge proxy passthrough routes (no CSP)', () => {
+  for (const path of PASSTHROUGH_PATHS) {
+    test(`${path} is passed through without CSP header`, async () => {
+      const response = await proxy(
+        new NextRequest(`http://localhost:3000${path}`)
+      );
+
+      // Passthrough routes return before nonce/CSP generation
+      expect(response.headers.get('Content-Security-Policy')).toBeNull();
+      expect(response.headers.get('x-middleware-rewrite')).toBeNull();
+    });
+  }
 });

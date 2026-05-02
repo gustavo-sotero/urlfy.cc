@@ -12,7 +12,6 @@
 import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test';
 import { and, eq, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-import { testLogger } from '../helpers/test-logger';
 
 // Infrastructure availability check
 let infrastructureAvailable = false;

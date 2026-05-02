@@ -127,38 +127,3 @@ export interface AnalyticsBreakdown {
     percentage: number;
   }>;
 }
-
-export interface AnalyticsBreakdown {
-  countries: Array<{
-    code: string;
-    name: string;
-    clicks: number;
-    percentage: number;
-  }>;
-  devices: Array<{
-    type: string;
-    clicks: number;
-    percentage: number;
-  }>;
-  browsers: Array<{
-    name: string;
-    clicks: number;
-    percentage: number;
-  }>;
-  referrers: Array<{
-    domain: string;
-    clicks: number;
-    percentage: number;
-  }>;
-}
-
-export interface AnalyticsSummary {
-  totalClicks: number;
-  uniqueVisitors: number;
-  avgClicksPerDay: number;
-  topCountry: string | null;
-  topBrowser: string | null;
-  topReferrer: string | null;
-  totalClicksGrowth: number;
-  uniqueVisitorsGrowth: number;
-}

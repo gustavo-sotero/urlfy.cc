@@ -21,7 +21,6 @@ import {
   it
 } from 'bun:test';
 import { eq } from 'drizzle-orm';
-import { testLogger } from '../helpers/test-logger';
 
 // Infrastructure availability check
 let infrastructureAvailable = false;
