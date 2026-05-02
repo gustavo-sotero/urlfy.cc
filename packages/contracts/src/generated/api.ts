@@ -14,7 +14,11 @@ export interface ApiError {
 
 export interface ApiErrorResponse {
   success: false;
-  error: ApiError;
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
   requestId?: string;
 }
 
@@ -26,20 +30,6 @@ export interface PaginationMeta {
   hasMore: boolean;
   nextCursor?: string;
 }
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  meta: PaginationMeta;
-}
-
-export interface ApiSuccessResponse<T> {
-  success: true;
-  data: T;
-  meta?: PaginationMeta;
-  requestId?: string;
-}
-
-export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 export type CreateLinkInputSchema = {
   url: string;
@@ -401,3 +391,17 @@ export type AuditLogEntryResponse = {
   userAgent: string | null;
   createdAt: string;
 };
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: PaginationMeta;
+}
+
+export interface ApiSuccessResponse<T> {
+  success: true;
+  data: T;
+  meta?: PaginationMeta;
+  requestId?: string;
+}
+
+export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;

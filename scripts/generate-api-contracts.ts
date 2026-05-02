@@ -39,6 +39,9 @@ const outputPath = resolve(
 );
 
 const componentExports = [
+  ['response.api-error', 'ApiError'],
+  ['response.error', 'ApiErrorResponse'],
+  ['response.pagination', 'PaginationMeta'],
   ['links.create', 'CreateLinkInputSchema'],
   ['links.update', 'UpdateLinkInputSchema'],
   ['links.list.query', 'ListLinksQuerySchema'],
@@ -217,28 +220,7 @@ function generatedHeader(): string {
 }
 
 function renderEnvelopeTypes(): string {
-  return `export interface ApiError {
-  code: string;
-  message: string;
-  details?: unknown;
-}
-
-export interface ApiErrorResponse {
-  success: false;
-  error: ApiError;
-  requestId?: string;
-}
-
-export interface PaginationMeta {
-  total: number;
-  page: number;
-  perPage: number;
-  lastPage: number;
-  hasMore: boolean;
-  nextCursor?: string;
-}
-
-export interface PaginatedResponse<T> {
+  return `export interface PaginatedResponse<T> {
   data: T[];
   meta: PaginationMeta;
 }
@@ -265,7 +247,7 @@ function generateContracts(spec: OpenAPIDocument): string {
     return renderInterface(exportName, schema);
   });
 
-  return `${generatedHeader()}\n\n${renderEnvelopeTypes()}\n\n${rendered.join('\n\n')}\n`;
+  return `${generatedHeader()}\n\n${rendered.join('\n\n')}\n\n${renderEnvelopeTypes()}\n`;
 }
 
 async function main(): Promise<void> {

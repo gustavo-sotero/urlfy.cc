@@ -650,7 +650,9 @@ export const CommonErrors = {
 // ═══════════════════════════════════════════════════════════════════
 
 export const ResponseModels = new Elysia({ name: 'response.models' }).model({
+  'response.api-error': ApiError,
   'response.error': ErrorResponse,
+  'response.pagination': PaginationMeta,
   'response.error.400': CommonErrors[400],
   'response.error.401': CommonErrors[401],
   'response.error.402': CommonErrors[402],

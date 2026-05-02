@@ -242,6 +242,9 @@ describe('Common schema parity', () => {
 
 describe('Generated API contract parity', () => {
   const generatedContracts = [
+    ['response.api-error', 'ApiError'],
+    ['response.error', 'ApiErrorResponse'],
+    ['response.pagination', 'PaginationMeta'],
     ['links.response', 'LinkResponse'],
     ['links.preview.response', 'LinkPreviewResponse'],
     ['links.stats.response', 'LinkStatsResponse'],

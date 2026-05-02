@@ -96,6 +96,37 @@
       }
     },
     "schemas": {
+      "response.api-error": {
+        "description": "Error details",
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "description": "Error code for programmatic handling",
+            "examples": [
+              "VALIDATION_ERROR",
+              "NOT_FOUND",
+              "UNAUTHORIZED"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "description": "Human-readable error message",
+            "examples": [
+              "Validation failed",
+              "Resource not found"
+            ],
+            "type": "string"
+          },
+          "details": {
+            "description": "Additional error context (validation errors, etc.)"
+          }
+        },
+        "$id": "#/components/schemas/response.api-error"
+      },
       "response.error": {
         "description": "Standard error response envelope",
         "examples": [
@@ -147,7 +178,8 @@
               "details": {
                 "description": "Additional error context (validation errors, etc.)"
               }
-            }
+            },
+            "$id": "#/components/schemas/response.api-error"
           },
           "requestId": {
             "description": "Request correlation ID for debugging",
@@ -158,6 +190,62 @@
           }
         },
         "$id": "#/components/schemas/response.error"
+      },
+      "response.pagination": {
+        "description": "Pagination metadata",
+        "type": "object",
+        "required": [
+          "total",
+          "page",
+          "perPage",
+          "lastPage",
+          "hasMore"
+        ],
+        "properties": {
+          "total": {
+            "description": "Total number of items",
+            "examples": [
+              100
+            ],
+            "type": "number"
+          },
+          "page": {
+            "description": "Current page number",
+            "examples": [
+              1
+            ],
+            "type": "number"
+          },
+          "perPage": {
+            "description": "Items per page",
+            "examples": [
+              20
+            ],
+            "type": "number"
+          },
+          "lastPage": {
+            "description": "Last page number",
+            "examples": [
+              5
+            ],
+            "type": "number"
+          },
+          "hasMore": {
+            "description": "Whether there are more pages",
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "description": "Opaque cursor to pass as cursor query param for the next page",
+            "examples": [
+              "eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9"
+            ],
+            "type": "string"
+          }
+        },
+        "$id": "#/components/schemas/response.pagination"
       },
       "response.error.400": {
         "description": "Bad Request - Invalid input or validation error",
@@ -10058,7 +10146,8 @@
                           ],
                           "type": "string"
                         }
-                      }
+                      },
+                      "$id": "#/components/schemas/response.pagination"
                     }
                   }
                 }
@@ -13830,7 +13919,8 @@
                           ],
                           "type": "string"
                         }
-                      }
+                      },
+                      "$id": "#/components/schemas/response.pagination"
                     }
                   }
                 }
@@ -14293,7 +14383,8 @@
                           ],
                           "type": "string"
                         }
-                      }
+                      },
+                      "$id": "#/components/schemas/response.pagination"
                     }
                   }
                 }
@@ -15305,7 +15396,8 @@
                           ],
                           "type": "string"
                         }
-                      }
+                      },
+                      "$id": "#/components/schemas/response.pagination"
                     }
                   }
                 }
@@ -16183,7 +16275,8 @@
                           ],
                           "type": "string"
                         }
-                      }
+                      },
+                      "$id": "#/components/schemas/response.pagination"
                     }
                   }
                 }
