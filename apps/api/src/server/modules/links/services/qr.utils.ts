@@ -1,4 +1,4 @@
-// src/server/services/qr.utils.ts
+// src/server/modules/links/services/qr.utils.ts
 // Pure validation utilities for QR codes — no side-effect imports.
 // Separated to avoid Bun parallel test runner module resolution issues.
 

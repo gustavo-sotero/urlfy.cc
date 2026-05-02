@@ -1,11 +1,10 @@
 // src/server/services/__tests__/shortcode.service.test.ts
 import { describe, expect, it } from 'bun:test';
+import { ALIAS_REGEX } from '@urlfy/contracts/alias-policy';
 
 describe('Shortcode Service', () => {
   describe('validateCustomAlias (regex validation only)', () => {
     it('should validate alias format', () => {
-      const ALIAS_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$/;
-
       // Valid formats
       expect(ALIAS_REGEX.test('my-link')).toBe(true);
       expect(ALIAS_REGEX.test('test123')).toBe(true);

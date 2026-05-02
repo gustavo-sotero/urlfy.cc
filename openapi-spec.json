@@ -785,7 +785,8 @@
           "customAlias": {
             "minLength": 3,
             "maxLength": 20,
-            "description": "Custom short code (3-20 chars)",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+            "description": "Custom short code (3-20 chars, alphanumeric + hyphens, must start/end with alphanumeric)",
             "type": "string"
           },
           "expiresAt": {
@@ -874,6 +875,7 @@
           "customAlias": {
             "minLength": 3,
             "maxLength": 20,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
             "type": "string"
           },
           "isActive": {
@@ -1062,7 +1064,8 @@
                 "customAlias": {
                   "minLength": 3,
                   "maxLength": 20,
-                  "description": "Custom short code (3-20 chars)",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                  "description": "Custom short code (3-20 chars, alphanumeric + hyphens, must start/end with alphanumeric)",
                   "type": "string"
                 },
                 "expiresAt": {
@@ -4631,6 +4634,62 @@
         },
         "$id": "#/components/schemas/admin.audit.stats.summary"
       },
+      "admin.domain.ban.body": {
+        "examples": [
+          {
+            "domain": "malicious.example",
+            "reason": "Phishing campaign"
+          }
+        ],
+        "type": "object",
+        "required": [
+          "domain",
+          "reason"
+        ],
+        "properties": {
+          "domain": {
+            "minLength": 1,
+            "maxLength": 253,
+            "description": "Domain or URL whose hostname should be blocked",
+            "examples": [
+              "malicious.example"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "Reason for banning this domain",
+            "examples": [
+              "Phishing campaign"
+            ],
+            "type": "string"
+          }
+        },
+        "$id": "#/components/schemas/admin.domain.ban.body"
+      },
+      "admin.domain.ban.response": {
+        "type": "object",
+        "required": [
+          "domain",
+          "created"
+        ],
+        "properties": {
+          "domain": {
+            "examples": [
+              "malicious.example"
+            ],
+            "type": "string"
+          },
+          "created": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          }
+        },
+        "$id": "#/components/schemas/admin.domain.ban.response"
+      },
       "admin.link.ban.body": {
         "examples": [
           {
@@ -6590,6 +6649,207 @@
           }
         },
         "operationId": "getApiHealthDetailed"
+      }
+    },
+    "/api/health/banned-domains/reload": {
+      "post": {
+        "summary": "Reload banned-domain snapshot (Admin)",
+        "description": "Forces an immediate refresh of the in-memory banned-domain snapshot used by URL validation. Requires authenticated admin access.",
+        "tags": [
+          "Health",
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "snapshot"
+                  ],
+                  "properties": {
+                    "status": {
+                      "const": "reloaded",
+                      "type": "string"
+                    },
+                    "snapshot": {
+                      "type": "object",
+                      "required": [
+                        "loaded",
+                        "hasReliableSnapshot",
+                        "domainCount",
+                        "lastLoadedAt",
+                        "cacheAgeMs"
+                      ],
+                      "properties": {
+                        "loaded": {
+                          "examples": [
+                            true
+                          ],
+                          "type": "boolean"
+                        },
+                        "hasReliableSnapshot": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "domainCount": {
+                          "examples": [
+                            3
+                          ],
+                          "type": "number"
+                        },
+                        "lastLoadedAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cacheAgeMs": {
+                          "anyOf": [
+                            {
+                              "examples": [
+                                0
+                              ],
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required or invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.error.401"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Insufficient permissions or verification required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.error.403"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Response for status 503",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "error",
+                    "snapshot"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "unavailable",
+                        "retained_snapshot"
+                      ]
+                    },
+                    "error": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshot": {
+                      "type": "object",
+                      "required": [
+                        "loaded",
+                        "hasReliableSnapshot",
+                        "domainCount",
+                        "lastLoadedAt",
+                        "cacheAgeMs"
+                      ],
+                      "properties": {
+                        "loaded": {
+                          "examples": [
+                            false
+                          ],
+                          "type": "boolean"
+                        },
+                        "hasReliableSnapshot": {
+                          "examples": [
+                            false
+                          ],
+                          "type": "boolean"
+                        },
+                        "domainCount": {
+                          "examples": [
+                            0
+                          ],
+                          "type": "number"
+                        },
+                        "lastLoadedAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cacheAgeMs": {
+                          "anyOf": [
+                            {
+                              "examples": [
+                                0
+                              ],
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postApiHealthBanned-domainsReload"
       }
     },
     "/api/internal/session": {
@@ -9146,7 +9406,8 @@
                   "customAlias": {
                     "minLength": 3,
                     "maxLength": 20,
-                    "description": "Custom short code (3-20 chars)",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                    "description": "Custom short code (3-20 chars, alphanumeric + hyphens, must start/end with alphanumeric)",
                     "type": "string"
                   },
                   "expiresAt": {
@@ -9246,7 +9507,8 @@
                   "customAlias": {
                     "minLength": 3,
                     "maxLength": 20,
-                    "description": "Custom short code (3-20 chars)",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                    "description": "Custom short code (3-20 chars, alphanumeric + hyphens, must start/end with alphanumeric)",
                     "type": "string"
                   },
                   "expiresAt": {
@@ -9346,7 +9608,8 @@
                   "customAlias": {
                     "minLength": 3,
                     "maxLength": 20,
-                    "description": "Custom short code (3-20 chars)",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                    "description": "Custom short code (3-20 chars, alphanumeric + hyphens, must start/end with alphanumeric)",
                     "type": "string"
                   },
                   "expiresAt": {
@@ -9742,6 +10005,13 @@
                             true
                           ],
                           "type": "boolean"
+                        },
+                        "nextCursor": {
+                          "description": "Opaque cursor to pass as cursor query param for the next page",
+                          "examples": [
+                            "eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9"
+                          ],
+                          "type": "string"
                         }
                       }
                     }
@@ -9830,7 +10100,8 @@
                         "customAlias": {
                           "minLength": 3,
                           "maxLength": 20,
-                          "description": "Custom short code (3-20 chars)",
+                          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                          "description": "Custom short code (3-20 chars, alphanumeric + hyphens, must start/end with alphanumeric)",
                           "type": "string"
                         },
                         "expiresAt": {
@@ -9945,7 +10216,8 @@
                         "customAlias": {
                           "minLength": 3,
                           "maxLength": 20,
-                          "description": "Custom short code (3-20 chars)",
+                          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                          "description": "Custom short code (3-20 chars, alphanumeric + hyphens, must start/end with alphanumeric)",
                           "type": "string"
                         },
                         "expiresAt": {
@@ -10060,7 +10332,8 @@
                         "customAlias": {
                           "minLength": 3,
                           "maxLength": 20,
-                          "description": "Custom short code (3-20 chars)",
+                          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                          "description": "Custom short code (3-20 chars, alphanumeric + hyphens, must start/end with alphanumeric)",
                           "type": "string"
                         },
                         "expiresAt": {
@@ -10411,6 +10684,7 @@
                   "customAlias": {
                     "minLength": 3,
                     "maxLength": 20,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
                     "type": "string"
                   },
                   "isActive": {
@@ -10581,6 +10855,7 @@
                   "customAlias": {
                     "minLength": 3,
                     "maxLength": 20,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
                     "type": "string"
                   },
                   "isActive": {
@@ -10751,6 +11026,7 @@
                   "customAlias": {
                     "minLength": 3,
                     "maxLength": 20,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
                     "type": "string"
                   },
                   "isActive": {
@@ -13453,7 +13729,8 @@
                         "page": 1,
                         "perPage": 20,
                         "lastPage": 5,
-                        "hasMore": true
+                        "hasMore": true,
+                        "nextCursor": "eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9"
                       }
                     }
                   ],
@@ -13520,6 +13797,13 @@
                             true
                           ],
                           "type": "boolean"
+                        },
+                        "nextCursor": {
+                          "description": "Opaque cursor to pass as cursor query param for the next page",
+                          "examples": [
+                            "eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9"
+                          ],
+                          "type": "string"
                         }
                       }
                     }
@@ -13908,7 +14192,8 @@
                         "page": 1,
                         "perPage": 20,
                         "lastPage": 5,
-                        "hasMore": true
+                        "hasMore": true,
+                        "nextCursor": "eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9"
                       }
                     }
                   ],
@@ -13975,6 +14260,13 @@
                             true
                           ],
                           "type": "boolean"
+                        },
+                        "nextCursor": {
+                          "description": "Opaque cursor to pass as cursor query param for the next page",
+                          "examples": [
+                            "eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9"
+                          ],
+                          "type": "string"
                         }
                       }
                     }
@@ -14181,6 +14473,161 @@
           }
         },
         "operationId": "getApiAdminLinksSearch"
+      }
+    },
+    "/api/admin/banned-domains": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Ban destination domain",
+        "description": "Adds a domain to the manual URL blacklist used during link creation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/admin.domain.ban.body"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/admin.domain.ban.body"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/admin.domain.ban.body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Successful response",
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "default": true,
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "admin.domain.ban.response"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid input or validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "URL is required"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
+                  "$ref": "response.error.400"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required or invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "Authentication required"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.401"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Insufficient permissions or verification required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "You do not have permission to access this resource"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.403"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests - Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "Rate limit exceeded",
+                        "retryAfter": 60
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.429"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "An unexpected error occurred"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
+                  "$ref": "response.error.500"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postApiAdminBanned-domains"
       }
     },
     "/api/admin/links/{linkId}/ban": {
@@ -14825,6 +15272,13 @@
                             true
                           ],
                           "type": "boolean"
+                        },
+                        "nextCursor": {
+                          "description": "Opaque cursor to pass as cursor query param for the next page",
+                          "examples": [
+                            "eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9"
+                          ],
+                          "type": "string"
                         }
                       }
                     }
@@ -15623,7 +16077,8 @@
                         "page": 1,
                         "perPage": 20,
                         "lastPage": 5,
-                        "hasMore": true
+                        "hasMore": true,
+                        "nextCursor": "eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9"
                       }
                     }
                   ],
@@ -15695,6 +16150,13 @@
                             true
                           ],
                           "type": "boolean"
+                        },
+                        "nextCursor": {
+                          "description": "Opaque cursor to pass as cursor query param for the next page",
+                          "examples": [
+                            "eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9"
+                          ],
+                          "type": "string"
                         }
                       }
                     }

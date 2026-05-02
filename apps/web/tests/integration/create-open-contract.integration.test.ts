@@ -21,6 +21,7 @@ import {
   mock,
   test
 } from 'bun:test';
+import { ALIAS_PATTERN } from '@urlfy/contracts/alias-policy';
 import { NextRequest } from 'next/server';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -46,7 +47,7 @@ mock.module('@urlfy/cache', () => ({
   STREAM_NAMES: { analyticsClicks: 'analytics:clicks' }
 }));
 
-mock.module('@urlfy/redirect-domain', () => ({
+mock.module('@/server/services/redirect-service', () => ({
   redirectService: { resolve: resolveMock }
 }));
 
@@ -127,7 +128,7 @@ describe('Create-to-open public contract', () => {
 
     test('bare short code matches proxy regex pattern', () => {
       const pathname = `/${SHORT_CODE}`;
-      const match = pathname.match(/^\/([a-zA-Z0-9_-]{3,20})$/);
+      const match = pathname.match(new RegExp(`^/(${ALIAS_PATTERN})$`));
 
       expect(match).not.toBeNull();
       expect(match?.[1]).toBe(SHORT_CODE);
@@ -135,7 +136,7 @@ describe('Create-to-open public contract', () => {
 
     test('/r/{code} does NOT match proxy short-code pattern', () => {
       const pathname = `/r/${SHORT_CODE}`;
-      const match = pathname.match(/^\/([a-zA-Z0-9_-]{3,20})$/);
+      const match = pathname.match(new RegExp(`^/(${ALIAS_PATTERN})$`));
 
       // /r/xxx has a slash so it exceeds the single-segment pattern
       expect(match).toBeNull();

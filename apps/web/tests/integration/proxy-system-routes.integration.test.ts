@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { NextRequest } from 'next/server';
-import { proxy } from '@/proxy';
+import { config, proxy } from '@/proxy';
 
 const SYSTEM_PATHS = [
   '/api/docs',
@@ -20,6 +20,19 @@ const PASSTHROUGH_PATHS = [
 ] as const;
 
 describe('Edge proxy system route reservations', () => {
+  test('matcher excludes backend and redirect route handlers', () => {
+    const matcher = config.matcher[0];
+
+    for (const excludedPrefix of [
+      'api(?:/|$)',
+      'r(?:/|$)',
+      'internal(?:/|$)',
+      'ops(?:/|$)'
+    ]) {
+      expect(matcher).toContain(excludedPrefix);
+    }
+  });
+
   for (const path of SYSTEM_PATHS) {
     test(`passes through ${path} without redirect rewrite`, async () => {
       const response = await proxy(

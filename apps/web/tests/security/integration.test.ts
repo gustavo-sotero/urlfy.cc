@@ -14,20 +14,17 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { beforeAll, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
-let serverAvailable = false;
 
-// Check if server is running before tests
-beforeAll(async () => {
+async function checkServerAvailable(): Promise<boolean> {
   try {
     const res = await fetch(`${BASE_URL}/api/health`, {
       signal: AbortSignal.timeout(2000)
     });
     if (!res.ok) {
-      serverAvailable = false;
-      return;
+      return false;
     }
 
     const requestId = res.headers.get('x-request-id');
@@ -43,16 +40,18 @@ beforeAll(async () => {
       console.warn('⚠️  Server is not urlfy.cc. Skipping integration tests.');
     }
 
-    serverAvailable = isUrlfyServer;
+    return isUrlfyServer;
   } catch {
-    serverAvailable = false;
     console.warn(
       '⚠️  Server not available at',
       BASE_URL,
       '- Skipping integration tests'
     );
+    return false;
   }
-});
+}
+
+const serverAvailable = await checkServerAvailable();
 
 // ═══════════════════════════════════════════════════════════════════
 // CORS INTEGRATION TESTS

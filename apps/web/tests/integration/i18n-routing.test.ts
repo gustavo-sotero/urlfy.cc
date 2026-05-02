@@ -11,6 +11,7 @@
 
 import { describe, expect, it } from 'bun:test';
 import { resolve } from 'node:path';
+import { ALIAS_PATTERN } from '@urlfy/contracts/alias-policy';
 import { hasLocalePrefix, routing } from '../../src/i18n/routing';
 
 function routeFile(relativePath: string) {
@@ -117,16 +118,15 @@ describe('I18n Routing', () => {
 
   describe('Short Code Pattern Matching', () => {
     it('should match valid short code patterns', () => {
-      const shortCodeRegex = /^\/([a-zA-Z0-9_-]{3,20})$/;
+      const shortCodeRegex = new RegExp(`^/(${ALIAS_PATTERN})$`);
 
       const validCodes = [
         '/abc123',
         '/ABC123',
         '/abc',
         '/a-b',
-        '/a_b',
         '/12345',
-        '/test-code_123'
+        '/test-code-123'
       ];
 
       for (const code of validCodes) {
@@ -136,10 +136,11 @@ describe('I18n Routing', () => {
     });
 
     it('should not match invalid patterns', () => {
-      const shortCodeRegex = /^\/([a-zA-Z0-9_-]{3,20})$/;
+      const shortCodeRegex = new RegExp(`^/(${ALIAS_PATTERN})$`);
 
       const invalidCodes = [
         '/ab', // Too short
+        '/a_b', // Underscore is not part of the canonical alias policy
         '/abc/def', // Contains slash
         '/abc.txt', // Contains dot
         '/abc@def', // Contains @

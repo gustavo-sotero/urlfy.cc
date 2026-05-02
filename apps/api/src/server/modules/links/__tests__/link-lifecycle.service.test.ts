@@ -163,7 +163,8 @@ describe('LinkLifecycleService.restoreLink — restore invariant', () => {
 
     const result = await LinkLifecycleService.restoreLink('link-id', 'user-id');
 
-    // The returned link must have no deletedAt so redirect path treats it as live
+    // The returned link must be live so redirect validation can pass immediately.
+    expect(result.isActive).toBe(true);
     expect(result.deletedAt).toBeNull();
   });
 

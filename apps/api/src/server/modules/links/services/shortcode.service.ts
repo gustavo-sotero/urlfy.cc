@@ -1,5 +1,6 @@
 // src/server/modules/links/services/shortcode.service.ts
 
+import { ALIAS_REGEX, isAliasFormat } from '@urlfy/contracts/alias-policy';
 import { db } from '@urlfy/data';
 import { links, reservedSlugs } from '@urlfy/data/schema';
 import { eq } from 'drizzle-orm';
@@ -8,18 +9,7 @@ import { generateShortCode } from '@/server/lib/nanoid';
 
 const MAX_RETRIES = 5;
 
-/**
- * Canonical alias validation rule (single source of truth).
- *
- * Rules:
- *  - 3–20 characters total
- *  - Start and end with alphanumeric (a-z, A-Z, 0-9)
- *  - Middle characters may include hyphens (no underscores, no dots)
- *
- * This regex is intentionally exported so that every validation layer
- * (schema, service, tests) uses exactly the same rule.
- */
-export const ALIAS_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$/;
+export { ALIAS_REGEX };
 
 /**
  * Generates a unique short code
@@ -59,7 +49,7 @@ export async function generateUniqueCode(): Promise<string> {
  * @returns true if valid format, false otherwise
  */
 export function isValidAliasFormat(alias: string): boolean {
-  return ALIAS_REGEX.test(alias);
+  return isAliasFormat(alias);
 }
 
 export async function validateCustomAlias(alias: string): Promise<boolean> {

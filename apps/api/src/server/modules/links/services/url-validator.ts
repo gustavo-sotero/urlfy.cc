@@ -1,6 +1,10 @@
 // src/server/modules/links/services/url-validator.ts
 
 import { lookup } from 'node:dns/promises';
+import {
+  ALIAS_PATH_SEGMENT_REGEX,
+  ALIAS_REDIRECT_PATH_REGEX
+} from '@urlfy/contracts/alias-policy';
 import { db } from '@urlfy/data';
 import { bannedUrls } from '@urlfy/data/schema';
 import { eq } from 'drizzle-orm';
@@ -90,13 +94,8 @@ export function isSelfShortenerTarget(url: string): boolean {
     const parsed = new URL(url);
     if (!isSelfShortenerOrigin(parsed)) return false;
     const path = parsed.pathname;
-    // Explicit redirect route (canonical alias: alphanumeric + hyphens, no underscores)
-    if (/^\/r\/[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]\/?$/.test(path))
-      return true;
-    // Shortcode-like single-segment path intercepted by the proxy
-    if (/^\/[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]\/?$/.test(path))
-      return true;
-    return false;
+    if (ALIAS_REDIRECT_PATH_REGEX.test(path)) return true;
+    return ALIAS_PATH_SEGMENT_REGEX.test(path);
   } catch {
     return false;
   }

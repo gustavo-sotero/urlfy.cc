@@ -149,96 +149,58 @@ describe('Email runtime shim parity', () => {
 // ── Alias Regex Parity ───────────────────────────────────────────────────────
 
 describe('Alias regex parity', () => {
-  it('links.schema.ts pattern matches ALIAS_REGEX from shortcode.service', async () => {
+  it('links.schema.ts pattern uses shared alias policy', async () => {
     const schemaSrc = await readFromApiRoot(
       'src/server/modules/links/links.schema.ts'
     );
-    const serviceSrc = await readFromApiRoot(
-      'src/server/modules/links/services/shortcode.service.ts'
-    );
 
-    // Extract ALIAS_REGEX source from the canonical service
-    const regexMatch = serviceSrc.match(
-      /export const ALIAS_REGEX\s*=\s*\/([^/]+)\/(\w*);/
-    );
     expect(
-      regexMatch,
-      'ALIAS_REGEX must be exported from shortcode.service.ts'
-    ).toBeTruthy();
-
-    const regexSource = regexMatch?.[1];
-
-    // Verify links.schema.ts imports and uses ALIAS_REGEX.source as the pattern
-    expect(
-      schemaSrc.includes('import { ALIAS_REGEX }'),
-      'links.schema.ts must import ALIAS_REGEX from shortcode.service'
+      schemaSrc.includes("from '@urlfy/contracts/alias-policy'"),
+      'links.schema.ts must import ALIAS_REGEX from the shared alias policy'
     ).toBe(true);
     expect(
       schemaSrc.includes('ALIAS_REGEX.source'),
       'links.schema.ts must use ALIAS_REGEX.source as the pattern property'
     ).toBe(true);
-
-    // Verify the regex is non-trivial (guard against empty/undefined regression)
-    expect(regexSource.length).toBeGreaterThan(5);
   });
 
-  it('url-validator self-shortener patterns exclude underscores (match canonical alias charset)', async () => {
+  it('shortcode.service delegates alias format to shared alias policy', async () => {
+    const serviceSrc = await readFromApiRoot(
+      'src/server/modules/links/services/shortcode.service.ts'
+    );
+
+    expect(
+      serviceSrc.includes("from '@urlfy/contracts/alias-policy'"),
+      'shortcode.service.ts must import the shared alias policy'
+    ).toBe(true);
+    expect(serviceSrc.includes('return isAliasFormat(alias);')).toBe(true);
+  });
+
+  it('url-validator self-shortener logic uses shared alias path regexes', async () => {
     const src = await readFromApiRoot(
       'src/server/modules/links/services/url-validator.ts'
     );
 
-    // The canonical ALIAS_REGEX does not allow underscores.
-    // Detection patterns in url-validator must be consistent — no [_] in shortcode regexes.
-    const shortcodePatterns =
-      src.match(/\/\^\\\/(?:r\\\/)?(\[?[^\]]*\]?\{[^}]+\})[^\n]+/g) ?? [];
-
-    for (const pat of shortcodePatterns) {
-      expect(
-        pat,
-        `url-validator shortcode pattern must not allow underscore: ${pat}`
-      ).not.toContain('_');
-    }
+    expect(src.includes('ALIAS_PATH_SEGMENT_REGEX')).toBe(true);
+    expect(src.includes('ALIAS_REDIRECT_PATH_REGEX')).toBe(true);
+    expect(src.includes("from '@urlfy/contracts/alias-policy'")).toBe(true);
   });
 
-  it('proxy.ts short-code matcher excludes underscores (match canonical alias charset)', async () => {
+  it('proxy.ts short-code matcher uses shared alias pattern', async () => {
     const src = await readFromWebRoot('src/proxy.ts');
 
-    // The canonical ALIAS_REGEX does not allow underscores.
-    // proxy.ts must not match paths like /some_path as short codes.
-    const shortcodeMatchLine = src
-      .split('\n')
-      .find(
-        (line) => line.includes('shortCodeMatch') && line.includes('match(')
-      );
-
-    expect(
-      shortcodeMatchLine,
-      'proxy.ts must have a shortCodeMatch line with a regex'
-    ).toBeTruthy();
-
-    expect(
-      shortcodeMatchLine,
-      'proxy.ts shortCodeMatch regex must not allow underscore'
-    ).not.toContain('_');
+    expect(src.includes('ALIAS_PATTERN')).toBe(true);
+    expect(src.includes("from '@urlfy/contracts/alias-policy'")).toBe(true);
+    expect(src.includes('SHORT_CODE_PATH_REGEX')).toBe(true);
   });
 
-  it('redirect-domain self-shortener loop patterns exclude underscores', async () => {
+  it('redirect-domain self-shortener loop logic uses shared alias regexes', async () => {
     const src = await readFromApiRoot(
       '../../packages/redirect-domain/src/service.ts'
     );
 
-    // Same canonical constraint: no underscores in shortcode detection.
-    const patternLines = src
-      .split('\n')
-      .filter(
-        (line) => line.includes('.test(path)') && line.includes('[a-zA-Z0-9')
-      );
-
-    for (const line of patternLines) {
-      expect(
-        line,
-        `redirect-domain shortcode pattern must not allow underscore: ${line}`
-      ).not.toContain('_');
-    }
+    expect(src.includes('ALIAS_PATH_SEGMENT_REGEX')).toBe(true);
+    expect(src.includes('ALIAS_REDIRECT_PATH_REGEX')).toBe(true);
+    expect(src.includes("from '@urlfy/contracts/alias-policy'")).toBe(true);
   });
 });

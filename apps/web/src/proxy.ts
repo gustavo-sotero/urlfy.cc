@@ -17,6 +17,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { ALIAS_PATTERN } from '@urlfy/contracts/alias-policy';
 import { NextRequest, NextResponse } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
 import { buildCspDirectives } from '@/lib/csp';
@@ -24,6 +25,7 @@ import { hasLocalePrefix, routing } from './i18n/routing';
 
 // Initialize next-intl middleware
 const intlMiddleware = createMiddleware(routing);
+const SHORT_CODE_PATH_REGEX = new RegExp(`^/(${ALIAS_PATTERN})$`);
 
 /**
  * Backend routes that serve no HTML — skip before nonce/CSP generation.
@@ -58,16 +60,18 @@ const UI_BYPASS_ROUTES = [
 
 /**
  * Matcher configuration
- * Match all paths except static files
+ * Match page/short-code paths only. Backend routes and static assets are
+ * excluded at matcher level so the proxy is not invoked for trivial bypasses.
  */
 export const config = {
   matcher: [
     /*
      * Match all request paths except:
+     * - api/, r/, internal/, ops/ (backend or redirect route handlers)
      * - _next/ (all Next.js internals — static, image, data, HMR, etc.)
      * - Files with extensions (.svg, .png, .jpg, etc.)
      */
-    '/((?!_next/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|otf|css|js|json)$).*)'
+    '/((?!api(?:/|$)|r(?:/|$)|internal(?:/|$)|ops(?:/|$)|_next/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|otf|css|js|json)$).*)'
   ]
 };
 
@@ -136,14 +140,8 @@ export async function proxy(req: NextRequest) {
     return applyCspHeaders(response, csp, nonce);
   }
 
-  // 5. Not a locale path and not system route → check if it's a short code
-  // Canonical pattern: alphanumeric + hyphens, no underscores (matches ALIAS_REGEX from shortcode.service)
-  // NanoID 7-char codes (pure alphanumeric) and custom aliases both satisfy this pattern.
-  const shortCodeMatch = pathname.match(
-    /^\/([a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9])$/
-  );
-  // NOTE: pattern intentionally excludes underscores — keep in sync with ALIAS_REGEX in
-  // apps/api/src/server/modules/links/services/shortcode.service.ts
+  // 5. Not a locale path and not system route -> check if it's a short code.
+  const shortCodeMatch = pathname.match(SHORT_CODE_PATH_REGEX);
 
   if (!shortCodeMatch) {
     // Not a valid short code pattern - let Next.js handle

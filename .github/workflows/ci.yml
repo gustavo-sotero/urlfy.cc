@@ -50,6 +50,9 @@ jobs:
       - name: Validate no direct proxy-header parsing
         run: bun run scripts/validate-proxy-headers.ts
 
+      - name: Validate generated API contracts
+        run: bun run contracts:check
+
   # ─── Security Audit ─────────────────────────────────────────────
   security:
     name: Security Audit

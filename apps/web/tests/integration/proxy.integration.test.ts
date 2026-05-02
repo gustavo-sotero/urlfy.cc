@@ -225,10 +225,8 @@ describe('Edge Proxy', () => {
       // EXCLUDED_PATHS are lowercase.
       // pathname comes from nextUrl.
       // Usually URLs are case sensitive for paths, but often treated case-insensitively by users.
-      // If the proxy logic is strictly checking lowercase EXCLUDED_PATHS, then /API might NOT match excluded path,
-      // but it also won't match shortCode regex (if regex allows only specific chars or if "API" is considered a short code).
-      // Regex: /^\/([a-zA-Z0-9_-]{1,20})$/ matches "API".
-      // So if "API" is not in EXCLUDED_PATHS (case sensitive check), it will be treated as short code "API".
+      // If the proxy logic is strictly checking lowercase excluded paths, /API is treated as
+      // a short code because the shared alias policy allows uppercase alphanumerics.
       // Previous test expected it to pass through (be next()).
       // Let's verify expectations of previous test vs proxy implementation.
 

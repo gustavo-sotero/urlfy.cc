@@ -229,7 +229,14 @@ export const PaginatedResponse = <T extends TSchema>(
           hasMore: t.Boolean({
             description: 'Whether there are more pages',
             examples: [true]
-          })
+          }),
+          nextCursor: t.Optional(
+            t.String({
+              description:
+                'Opaque cursor to pass as cursor query param for the next page',
+              examples: ['eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9']
+            })
+          )
         },
         { description: 'Pagination metadata' }
       )
@@ -247,7 +254,8 @@ export const PaginatedResponse = <T extends TSchema>(
                   page: 1,
                   perPage: 20,
                   lastPage: 5,
-                  hasMore: true
+                  hasMore: true,
+                  nextCursor: 'eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9'
                 }
               }
             ]

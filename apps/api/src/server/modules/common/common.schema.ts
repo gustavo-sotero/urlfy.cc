@@ -8,6 +8,7 @@
  */
 
 import { type Static, t } from 'elysia';
+import { ErrorResponse } from '@/server/lib/response.schema';
 
 // ═══════════════════════════════════════════════════════════════════
 // PAGINATION
@@ -26,7 +27,10 @@ export const PaginationMeta = t.Object({
   page: t.Number({ description: 'Current page number' }),
   perPage: t.Number({ description: 'Items per page' }),
   lastPage: t.Number({ description: 'Last page number' }),
-  hasMore: t.Boolean({ description: 'Whether there are more pages' })
+  hasMore: t.Boolean({ description: 'Whether there are more pages' }),
+  nextCursor: t.Optional(
+    t.String({ description: 'Opaque cursor for keyset pagination' })
+  )
 });
 export type PaginationMetaType = Static<typeof PaginationMeta>;
 
@@ -41,11 +45,6 @@ export const ApiError = t.Object({
 });
 export type ApiErrorType = Static<typeof ApiError>;
 
-export const ErrorResponse = t.Object({
-  success: t.Literal(false),
-  error: ApiError,
-  requestId: t.Optional(t.String({ description: 'Request correlation ID' }))
-});
 export type ErrorResponseType = Static<typeof ErrorResponse>;
 
 // ═══════════════════════════════════════════════════════════════════

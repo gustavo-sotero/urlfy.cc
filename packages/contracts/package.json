@@ -8,15 +8,19 @@
   "exports": {
     ".": "./src/index.ts",
     "./analytics": "./src/analytics.types.ts",
+    "./alias-policy": "./src/alias-policy.ts",
     "./api-client": "./src/api-client.ts",
     "./api-keys": "./src/api-keys.types.ts",
     "./auth": "./src/auth.types.ts",
     "./links": "./src/links.types.ts",
     "./redirect": "./src/redirect.types.ts",
     "./security": "./src/security.types.ts",
+    "./generated": "./src/generated/api.ts",
     "./shared": "./src/shared.ts"
   },
   "scripts": {
+    "contracts:check": "cd ../.. && bun run scripts/generate-api-contracts.ts --check",
+    "contracts:generate": "cd ../.. && bun run scripts/generate-api-contracts.ts --write",
     "type-check": "bunx tsc --noEmit",
     "lint": "bunx biome check . --write"
   },

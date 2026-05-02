@@ -8,8 +8,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import { ALIAS_REGEX } from '@urlfy/contracts/alias-policy';
 import { Elysia, type Static, t } from 'elysia';
-import { ALIAS_REGEX } from './services/shortcode.service';
 
 // ═══════════════════════════════════════════════════════════════════
 // LINK CREATE

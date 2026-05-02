@@ -1,4 +1,8 @@
 import { trace } from '@opentelemetry/api';
+import {
+  ALIAS_PATH_SEGMENT_REGEX,
+  ALIAS_REDIRECT_PATH_REGEX
+} from '@urlfy/contracts/alias-policy';
 import type { RedirectError, RedirectResult } from '@urlfy/contracts/redirect';
 import { createLogger, recordRedirectMetrics } from '@urlfy/telemetry';
 import { cacheService } from './cache-service';
@@ -44,12 +48,8 @@ function isSelfShortenerLoop(url: string): boolean {
     const parsed = new URL(url);
     if (!isSelfShortenerOrigin(parsed)) return false;
     const path = parsed.pathname;
-    // Canonical pattern: alphanumeric + hyphens, no underscores (matches ALIAS_REGEX)
-    if (/^\/r\/[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]\/?$/.test(path))
-      return true;
-    if (/^\/[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]\/?$/.test(path))
-      return true;
-    return false;
+    if (ALIAS_REDIRECT_PATH_REGEX.test(path)) return true;
+    return ALIAS_PATH_SEGMENT_REGEX.test(path);
   } catch {
     return false;
   }

@@ -277,9 +277,8 @@ describe('API Client - Paginated Response Integration', () => {
     expect(paginationInfo.hasMore).toBe(true);
 
     // 3. Conditionally show pagination controls
-    if (paginationInfo.lastPage > 1) {
-      expect(true).toBe(true); // Pagination should be shown
-    }
+    const shouldShowPagination = paginationInfo.lastPage > 1;
+    expect(shouldShowPagination).toBe(true);
   });
 });
 

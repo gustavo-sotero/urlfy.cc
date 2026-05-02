@@ -1,4 +1,11 @@
-// src/types/analytics.types.ts
+import type { TimeseriesDataPoint } from './generated/api';
+
+export type {
+  AnalyticsBreakdown,
+  AnalyticsSummary,
+  AnalyticsTimeseries,
+  TimeseriesDataPoint
+} from './generated/api';
 
 export interface ClickEvent {
   linkId: string;
@@ -53,15 +60,7 @@ export interface UserAgentData {
   isBot: boolean;
 }
 
-/**
- * TimeSeries data point returned by backend
- * This is the canonical type from analytics.schema.ts
- */
-export interface TimeSeries {
-  date: string;
-  clicks: number;
-  uniqueVisitors: number;
-}
+export type TimeSeries = TimeseriesDataPoint;
 
 /**
  * DailyStats extends TimeSeries with linkId for client-side context
@@ -77,53 +76,4 @@ export interface AnalyticsQueryOptions {
   to?: Date;
   granularity?: 'hour' | 'day' | 'week';
   excludeBots?: boolean;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// API RESPONSE SHAPES (canonical — mirrors analytics.schema.ts)
-// ═══════════════════════════════════════════════════════════════════
-
-/**
- * Analytics summary metrics for a given period.
- * Mirrors AnalyticsSummary TypeBox schema in apps/api analytics.schema.ts.
- */
-export interface AnalyticsSummary {
-  totalClicks: number;
-  uniqueVisitors: number;
-  avgClicksPerDay: number;
-  topCountry: string | null;
-  topBrowser: string | null;
-  topReferrer: string | null;
-  /** Percentage growth vs previous period */
-  totalClicksGrowth: number;
-  /** Percentage growth vs previous period */
-  uniqueVisitorsGrowth: number;
-}
-
-/**
- * Complete analytics breakdown by category.
- * Mirrors AnalyticsBreakdown TypeBox schema in apps/api analytics.schema.ts.
- */
-export interface AnalyticsBreakdown {
-  countries: Array<{
-    code: string;
-    name: string;
-    clicks: number;
-    percentage: number;
-  }>;
-  devices: Array<{
-    type: string;
-    clicks: number;
-    percentage: number;
-  }>;
-  browsers: Array<{
-    name: string;
-    clicks: number;
-    percentage: number;
-  }>;
-  referrers: Array<{
-    domain: string;
-    clicks: number;
-    percentage: number;
-  }>;
 }

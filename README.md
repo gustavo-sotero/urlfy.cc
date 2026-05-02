@@ -7,7 +7,7 @@ Self-hosted URL shortener built as a portfolio project — applied research in B
 - Next.js 16 + React 19 web app: localized public pages, auth flows, dashboard, and redirect hot path
 - ElysiaJS API at `/api/*` with interactive docs at `/api/docs`
 - Bun worker for analytics, cleanup, and async jobs
-- Shared packages for contracts, cache, data, auth, telemetry, and redirect-domain logic
+- Shared packages for generated API contracts, cache, data, auth, telemetry, and redirect-domain logic
 - Docker-based local and production topologies
 
 ## Stack
@@ -49,7 +49,7 @@ apps/
   api/     ElysiaJS REST API — all /api/* endpoints
   worker/  Bun workers — analytics aggregation, cleanup, deferred deletion
 packages/
-  contracts/       Shared envelopes, error codes, rate-limit & CORS policies
+  contracts/       Generated API contracts plus shared policies
   redirect-domain/ Cache-aside resolve logic (no framework coupling)
   data/            Drizzle schema + Bun SQL client
   cache/           Redis client, cache keys, circuit breaker, rate-limiter core
@@ -103,6 +103,8 @@ bun run dev
 | `bun run dev:web` / `dev:api` / `dev:worker` | Start individual service |
 | `bun run lint` | Biome lint pipeline |
 | `bun run type-check` | Type-check all workspaces |
+| `bun run contracts:generate` | Regenerate `openapi-spec.json` and generated public contracts |
+| `bun run contracts:check` | Verify OpenAPI and generated contracts are in sync |
 | `bun run test` | All test suites |
 | `bun run test:unit` / `test:integration` / `test:e2e` | Scoped test runs |
 | `bun run scripts/run-k6.ts k6/redirect-hot-path.js` | Redirect hot-path load check (requires k6) |
@@ -111,7 +113,7 @@ bun run dev
 
 > **Local dev policy**: Always use `bun run dev` (runs from `src/`) during development — never invoke `apps/api/dist/` directly in a dev environment. The `dist/` tree is built exclusively for Docker production images and may be stale. If you see `dist/` imports during debugging, delete `apps/api/dist/` and rebuild with `bun run build:api`.
 
-> **`openapi-spec.json` policy**: The `openapi-spec.json` file in the repo root is a static snapshot of the merged API spec (Elysia + Better-Auth). It is a generated artefact — do not edit it manually. To regenerate it, start the API locally (`bun run dev:api`) and fetch `http://localhost:3001/api/internal/docs/merged.json`, then write the output to `openapi-spec.json`. The live, always-current spec is served at `/api/docs` (Swagger UI) and `/api/internal/docs/merged.json` (JSON) at runtime.
+> **Contract policy**: `openapi-spec.json` is a generated snapshot of the merged API spec (Elysia + Better-Auth), and `packages/contracts/src/generated/api.ts` is derived from it. Do not edit either by hand. Use `bun run contracts:generate` after API schema changes and `bun run contracts:check` before committing. The live spec is still served at `/api/docs` and `/api/internal/docs/merged.json` at runtime.
 
 ## Key Design Decisions
 
