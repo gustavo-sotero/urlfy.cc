@@ -47,14 +47,7 @@ export const statsLinksController = new Elysia()
           'Get aggregated statistics across all user links for the dashboard'
       },
       response: {
-        200: SuccessResponse(
-          t.Object({
-            totalLinks: t.Number(),
-            activeLinks: t.Number(),
-            totalClicks: t.Number(),
-            avgClicksPerLink: t.Number()
-          })
-        ),
+        200: SuccessResponse(t.Ref('links.dashboard.summary')),
         401: ErrorRef(401),
         500: ErrorRef(500)
       }

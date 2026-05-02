@@ -180,6 +180,21 @@ export const VerifyPasswordBody = t.Object({
 });
 export type VerifyPasswordBodyType = Static<typeof VerifyPasswordBody>;
 
+export const VerifyPasswordResponse = t.Object(
+  {
+    redirectUrl: t.String({
+      description: 'Relative redirect URL',
+      examples: ['/abc123']
+    }),
+    shortUrl: t.String({
+      description: 'Full short URL',
+      examples: ['https://urlfy.cc/abc123']
+    })
+  },
+  { description: 'Password verification success response' }
+);
+export type VerifyPasswordResponseType = Static<typeof VerifyPasswordResponse>;
+
 // ═══════════════════════════════════════════════════════════════════
 // URL VALIDATION
 // ═══════════════════════════════════════════════════════════════════
@@ -192,6 +207,33 @@ export const ValidateUrlBody = t.Object({
   })
 });
 export type ValidateUrlBodyType = Static<typeof ValidateUrlBody>;
+
+export const ValidateUrlResponse = t.Union(
+  [
+    t.Object({
+      valid: t.Literal(true),
+      warnings: t.Array(t.String())
+    }),
+    t.Object({
+      valid: t.Literal(false),
+      error: t.Optional(t.String())
+    })
+  ],
+  {
+    description: 'URL validation result',
+    examples: [
+      {
+        valid: true,
+        warnings: []
+      },
+      {
+        valid: false,
+        error: 'INVALID_FORMAT'
+      }
+    ]
+  }
+);
+export type ValidateUrlResponseType = Static<typeof ValidateUrlResponse>;
 
 // ═══════════════════════════════════════════════════════════════════
 // LINK RESPONSES (with examples for OpenAPI)
@@ -337,6 +379,29 @@ export const LinkStatsResponse = t.Object(
 );
 export type LinkStatsResponseType = Static<typeof LinkStatsResponse>;
 
+export const DashboardSummaryResponse = t.Object(
+  {
+    totalLinks: t.Number(),
+    activeLinks: t.Number(),
+    totalClicks: t.Number(),
+    avgClicksPerLink: t.Number()
+  },
+  {
+    description: 'Dashboard summary stats across user links',
+    examples: [
+      {
+        totalLinks: 12,
+        activeLinks: 10,
+        totalClicks: 1234,
+        avgClicksPerLink: 102.8
+      }
+    ]
+  }
+);
+export type DashboardSummaryResponseType = Static<
+  typeof DashboardSummaryResponse
+>;
+
 // ═══════════════════════════════════════════════════════════════════
 // EXAMPLE DATA (for OpenAPI documentation)
 // ═══════════════════════════════════════════════════════════════════
@@ -392,8 +457,11 @@ export const LinksModel = new Elysia({ name: 'links.model' }).model({
   'links.code.param': LinkCodeParam,
   'links.qr.query': QrCodeQuery,
   'links.password.verify': VerifyPasswordBody,
+  'links.password.verify.response': VerifyPasswordResponse,
   'links.url.validate': ValidateUrlBody,
+  'links.url.validate.response': ValidateUrlResponse,
   'links.response': LinkResponse,
   'links.preview.response': LinkPreviewResponse,
-  'links.stats.response': LinkStatsResponse
+  'links.stats.response': LinkStatsResponse,
+  'links.dashboard.summary': DashboardSummaryResponse
 });

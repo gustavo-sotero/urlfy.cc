@@ -15,8 +15,7 @@
     "./links": "./src/links.types.ts",
     "./redirect": "./src/redirect.types.ts",
     "./security": "./src/security.types.ts",
-    "./generated": "./src/generated/api.ts",
-    "./shared": "./src/shared.ts"
+    "./generated": "./src/generated/api.ts"
   },
   "scripts": {
     "contracts:check": "cd ../.. && bun run scripts/generate-api-contracts.ts --check",

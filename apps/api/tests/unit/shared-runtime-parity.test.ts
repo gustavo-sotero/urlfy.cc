@@ -21,6 +21,16 @@ async function readFromWorkerRoot(relPath: string): Promise<string> {
   return Bun.file(url).text();
 }
 
+async function readFromWorkspaceRoot(relPath: string): Promise<string> {
+  const url = new URL(`../../../../${relPath}`, import.meta.url);
+  return Bun.file(url).text();
+}
+
+function workspaceFile(relPath: string): Bun.BunFile {
+  const url = new URL(`../../../../${relPath}`, import.meta.url);
+  return Bun.file(url);
+}
+
 function isReExportShim(source: string, canonicalPackage: string): boolean {
   const stripped = source
     .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -202,5 +212,64 @@ describe('Alias regex parity', () => {
     expect(src.includes('ALIAS_PATH_SEGMENT_REGEX')).toBe(true);
     expect(src.includes('ALIAS_REDIRECT_PATH_REGEX')).toBe(true);
     expect(src.includes("from '@urlfy/contracts/alias-policy'")).toBe(true);
+  });
+});
+
+// ── Generated Contract Parity ────────────────────────────────────────────────
+
+describe('Generated API contract parity', () => {
+  const generatedContracts = [
+    ['links.response', 'LinkResponse'],
+    ['links.preview.response', 'LinkPreviewResponse'],
+    ['links.stats.response', 'LinkStatsResponse'],
+    ['links.dashboard.summary', 'DashboardSummaryResponse'],
+    ['links.url.validate.response', 'UrlValidationResponse'],
+    ['links.password.verify.response', 'VerifyPasswordResponse'],
+    ['analytics.summary', 'AnalyticsSummary'],
+    ['analytics.breakdown', 'AnalyticsBreakdown'],
+    ['analytics.timeseries', 'AnalyticsTimeseries'],
+    ['users.quota', 'UserQuotaResponse'],
+    ['users.export', 'UserDataExportResponse'],
+    ['users.deletion.response', 'DataDeletionRequestResponse'],
+    ['api-keys.response', 'ApiKeyPublicResponse'],
+    ['api-keys.created', 'ApiKeyCreatedResponse'],
+    ['api-keys.list', 'ApiKeysListResponse'],
+    ['admin.stats.response', 'AdminStatsResponse'],
+    ['admin.link.response', 'AdminLinkResponse'],
+    ['admin.user.response', 'AdminUserResponse'],
+    ['admin.audit.response', 'AuditLogEntryResponse']
+  ] as const;
+
+  it('keeps generated public symbols backed by OpenAPI components', async () => {
+    const [openApiText, generatedText] = await Promise.all([
+      readFromWorkspaceRoot('openapi-spec.json'),
+      readFromWorkspaceRoot('packages/contracts/src/generated/api.ts')
+    ]);
+    const spec = JSON.parse(openApiText) as {
+      components?: { schemas?: Record<string, unknown> };
+    };
+    const schemas = spec.components?.schemas ?? {};
+
+    for (const [componentName, typeName] of generatedContracts) {
+      expect(
+        schemas[componentName],
+        `${componentName} must exist`
+      ).toBeDefined();
+      expect(
+        generatedText.includes(` ${typeName} `),
+        `${typeName} must be generated from ${componentName}`
+      ).toBe(true);
+    }
+  });
+
+  it('does not expose the removed shared contracts subpath', async () => {
+    const packageJson = JSON.parse(
+      await readFromWorkspaceRoot('packages/contracts/package.json')
+    ) as { exports?: Record<string, string> };
+
+    expect(packageJson.exports?.['./shared']).toBeUndefined();
+    expect(
+      await workspaceFile('packages/contracts/src/shared.ts').exists()
+    ).toBe(false);
   });
 });

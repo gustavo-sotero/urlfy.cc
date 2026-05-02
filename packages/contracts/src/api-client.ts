@@ -1,16 +1,35 @@
 import type {
+  AdminGrowthQuery,
+  AdminLinkResponse,
+  AdminStatsResponse,
+  AdminUserResponse,
+  AdminUsersQuery,
   AnalyticsBreakdown,
   AnalyticsSummary,
-  TimeSeries
-} from './analytics.types';
-import type { LinkResponse } from './links.types';
-import type {
+  ApiKeyCreatedResponse,
+  ApiKeysListResponse,
   ApiResponse,
+  AuditLogEntryResponse,
+  AuditLogsQuery,
   CreateLinkInputSchema,
+  DashboardSummaryResponse,
+  DataDeletionRequestResponse,
+  GrowthStatsPoint,
+  LinkPreviewResponse,
+  LinkResponse,
+  LinkStatsResponse,
   ListLinksQuerySchema,
   PaginationMeta,
-  UpdateLinkInputSchema
-} from './shared';
+  TimeseriesDataPoint,
+  UpdateAdminUserRequest,
+  UpdateLinkInputSchema,
+  UrlValidationResponse,
+  UserDataExportResponse,
+  UserQuotaResponse,
+  VerifyPasswordResponse
+} from './generated/api';
+
+type TimeSeries = TimeseriesDataPoint;
 
 export interface ApiClientResponse<T = unknown> {
   data: ApiResponse<T>;
@@ -25,72 +44,6 @@ export interface ApiClientResponse<T = unknown> {
 
 export type ApiHeaders = Headers | Record<string, string> | string[][];
 
-export interface UserQuotaResponse {
-  used: number;
-  limit: number;
-  remaining: number;
-  percentUsed: number;
-}
-
-export interface DataDeletionRequestResponse {
-  requestId: string;
-  deadline: string;
-  message: string;
-}
-
-export interface UrlValidationResponse {
-  valid: boolean;
-  warnings?: string[];
-}
-
-export interface VerifyPasswordResponse {
-  redirectUrl: string;
-}
-
-export interface LinkPreviewResponse {
-  shortCode: string;
-  originalUrl?: string | null;
-  metaTitle: string | null;
-  metaDescription: string | null;
-  metaImage: string | null;
-  createdAt: string;
-  isPasswordProtected: boolean;
-}
-
-export interface LinkStatsResponse {
-  clicks: number;
-  uniqueVisitors: number;
-  lastClickedAt: string | null;
-}
-
-export interface DashboardSummaryResponse {
-  totalLinks: number;
-  activeLinks: number;
-  totalClicks: number;
-  avgClicksPerLink: number;
-}
-
-export interface ApiKeyPublicResponse {
-  id: string;
-  name: string | null;
-  prefix: string | null;
-  scopes: string[];
-  createdAt: string;
-  lastUsedAt: string | null;
-  expiresAt: string | null;
-  usageCount: number;
-  rateLimit: {
-    enabled: boolean;
-    max: number;
-    windowMs: number;
-  };
-  status: 'active' | 'expired' | 'revoked' | 'quota_exceeded';
-}
-
-export interface ApiKeyCreatedResponse extends ApiKeyPublicResponse {
-  key: string;
-}
-
 export interface CreateApiKeyRequest {
   name: string;
   scopes: string[];
@@ -102,37 +55,6 @@ export interface CreateApiKeyRequest {
   };
 }
 
-export interface ApiKeysListResponse {
-  keys: ApiKeyPublicResponse[];
-  total: number;
-}
-
-export interface AdminStatsResponse {
-  totalLinks: number;
-  totalClicks: number;
-  totalUsers: number;
-  activeLinksToday: number;
-  requestsPerSecond: number;
-}
-
-export interface GrowthStatsPoint {
-  date: string;
-  clicks: number;
-  newUsers: number;
-}
-
-export interface AdminLinkResponse {
-  id: string;
-  shortCode: string;
-  originalUrl: string;
-  isActive: boolean;
-  isBanned: boolean;
-  createdAt: string;
-  clicksCount: number;
-  redirectType?: number;
-  updatedAt?: string;
-}
-
 export interface StreamStatsResponse {
   name: string;
   length: number;
@@ -140,40 +62,6 @@ export interface StreamStatsResponse {
   consumers?: number;
   pending?: number;
   lastGeneratedId?: string;
-}
-
-export interface AdminUserResponse {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  isAdmin: boolean;
-  banned: boolean;
-  bannedReason: string | null;
-  bannedAt: string | null;
-  twoFactorEnabled: boolean;
-  linksQuota: number;
-  linksCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface UpdateAdminUserRequest {
-  banned?: boolean;
-  bannedReason?: string;
-  linksQuota?: number;
-}
-
-export interface AuditLogEntryResponse {
-  id: string;
-  userId: string;
-  userEmail?: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  metadata?: Record<string, unknown>;
-  ipAddress: string;
-  createdAt: string;
 }
 
 export interface ContactMessageResponse {
@@ -205,20 +93,6 @@ export type AdminLinksQuery = {
   page?: string;
   limit?: string;
   search?: string;
-};
-export type AdminUsersQuery = {
-  page?: string;
-  limit?: string;
-  search?: string;
-  isBanned?: string;
-};
-export type AuditLogsQuery = {
-  from?: string;
-  to?: string;
-  action?: string;
-  userId?: string;
-  page?: string;
-  limit?: string;
 };
 export type ContactMessagesQuery = {
   status?: string;
@@ -280,7 +154,7 @@ interface MeRoutes {
     get(): Promise<ApiClientResponse<UserQuotaResponse>>;
   };
   export: {
-    get(): Promise<ApiClientResponse<unknown>>;
+    get(): Promise<ApiClientResponse<UserDataExportResponse>>;
   };
   data: {
     delete(): Promise<ApiClientResponse<DataDeletionRequestResponse>>;
@@ -384,7 +258,7 @@ interface AdminRoutes {
     get(): Promise<ApiClientResponse<AdminStatsResponse>>;
     growth: {
       get(options?: {
-        query?: { range?: '7d' | '30d' };
+        query?: AdminGrowthQuery;
       }): Promise<ApiClientResponse<GrowthStatsPoint[]>>;
     };
   };

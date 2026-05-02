@@ -41,11 +41,11 @@ export interface ApiSuccessResponse<T> {
 
 export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 
-export interface CreateLinkInputSchema {
+export type CreateLinkInputSchema = {
   url: string;
   customAlias?: string;
   expiresAt?: string;
-  maxClicks?: string | number;
+  maxClicks?: number;
   password?: string;
   redirectType?: 301 | 302;
   metaTitle?: string;
@@ -56,13 +56,13 @@ export interface CreateLinkInputSchema {
   utmCampaign?: string;
   tags?: string[];
   notes?: string;
-}
+};
 
-export interface UpdateLinkInputSchema {
+export type UpdateLinkInputSchema = {
   customAlias?: string;
   isActive?: boolean;
   expiresAt?: string | null;
-  maxClicks?: string | number | null;
+  maxClicks?: number | null;
   password?: string | null;
   redirectType?: 301 | 302;
   metaTitle?: string | null;
@@ -73,9 +73,9 @@ export interface UpdateLinkInputSchema {
   utmCampaign?: string | null;
   tags?: string[] | null;
   notes?: string | null;
-}
+};
 
-export interface ListLinksQuerySchema {
+export type ListLinksQuerySchema = {
   page?: string;
   perPage?: string;
   cursor?: string;
@@ -85,9 +85,9 @@ export interface ListLinksQuerySchema {
   sortBy?: 'createdAt' | 'clicksCount' | 'lastClickedAt';
   sortOrder?: 'asc' | 'desc';
   fields?: string;
-}
+};
 
-export interface LinkResponse {
+export type LinkResponse = {
   id: string;
   shortCode: string;
   shortUrl: string;
@@ -111,9 +111,47 @@ export interface LinkResponse {
   lastClickedAt: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type LinkPreviewResponse = {
+  shortCode: string;
+  originalUrl?: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  metaImage: string | null;
+  createdAt: string;
+  isPasswordProtected: boolean;
+};
+
+export type LinkStatsResponse = {
+  clicks: number;
+  uniqueVisitors: number;
+  lastClickedAt: string | null;
+};
+
+export interface DashboardSummaryResponse {
+  totalLinks: number;
+  activeLinks: number;
+  totalClicks: number;
+  avgClicksPerLink: number;
 }
 
-export interface AnalyticsSummary {
+export type UrlValidationResponse =
+  | {
+      valid: true;
+      warnings: string[];
+    }
+  | {
+      valid: false;
+      error?: string;
+    };
+
+export interface VerifyPasswordResponse {
+  redirectUrl: string;
+  shortUrl: string;
+}
+
+export type AnalyticsSummary = {
   totalClicks: number;
   uniqueVisitors: number;
   avgClicksPerDay: number;
@@ -122,7 +160,7 @@ export interface AnalyticsSummary {
   topReferrer: string | null;
   totalClicksGrowth: number;
   uniqueVisitorsGrowth: number;
-}
+};
 
 export interface AnalyticsBreakdown {
   countries: {
@@ -166,3 +204,200 @@ export interface AnalyticsTimeseries {
     granularity: string;
   };
 }
+
+export interface UserQuotaResponse {
+  used: number;
+  limit: number;
+  remaining: number;
+  percentUsed: number;
+}
+
+export type UserDataExportResponse = {
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  links: {
+    id: string;
+    shortCode: string;
+    originalUrl: string;
+    createdAt: string;
+  }[];
+  analyticsOverview: {
+    totalClicks: number;
+    uniqueVisitors: number;
+    linksCount: number;
+  };
+};
+
+export type DataDeletionRequestResponse = {
+  id: string;
+  status: string;
+  requestedAt: string;
+  deadline: string;
+  completedAt: string | null;
+  message: string;
+};
+
+export type CreateApiKeyRequest = {
+  name: string;
+  scopes: Array<
+    | 'links:read'
+    | 'links:write'
+    | 'analytics:read'
+    | 'qr:generate'
+    | 'bulk:write'
+    | 'account:read'
+  >;
+  expiresAt?: string;
+  rateLimit?: {
+    enabled: boolean;
+    max: number;
+    windowMs: number;
+  };
+};
+
+export type ApiKeyPublicResponse = {
+  id: string;
+  name: string | null;
+  prefix: string | null;
+  scopes: string[];
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  usageCount: number;
+  rateLimit: {
+    enabled: boolean;
+    max: number;
+    windowMs: number;
+  };
+  status: 'active' | 'expired' | 'revoked' | 'quota_exceeded';
+};
+
+export type ApiKeyCreatedResponse = {
+  id: string;
+  name: string | null;
+  prefix: string | null;
+  scopes: string[];
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  usageCount: number;
+  rateLimit: {
+    enabled: boolean;
+    max: number;
+    windowMs: number;
+  };
+  status: 'active' | 'expired' | 'revoked' | 'quota_exceeded';
+} & {
+  key: string;
+};
+
+export type ApiKeysListResponse = {
+  keys: Array<{
+    id: string;
+    name: string | null;
+    prefix: string | null;
+    scopes: string[];
+    createdAt: string;
+    lastUsedAt: string | null;
+    expiresAt: string | null;
+    usageCount: number;
+    rateLimit: {
+      enabled: boolean;
+      max: number;
+      windowMs: number;
+    };
+    status: 'active' | 'expired' | 'revoked' | 'quota_exceeded';
+  }>;
+  total: number;
+};
+
+export interface ApiKeyRevokeRequest {
+  reason?: string;
+}
+
+export interface AdminStatsResponse {
+  totalLinks: number;
+  totalClicks: number;
+  totalUsers: number;
+  activeLinksToday: number;
+  requestsPerSecond: number;
+}
+
+export interface GrowthStatsPoint {
+  date: string;
+  clicks: number;
+  newUsers: number;
+}
+
+export type AdminGrowthQuery = {
+  range?: '7d' | '30d';
+};
+
+export type AdminLinkResponse = {
+  id: string;
+  shortCode: string;
+  originalUrl: string;
+  userId: string | null;
+  clicksCount: number;
+  isActive: boolean;
+  isBanned: boolean;
+  bannedReason: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export interface AdminUsersQuery {
+  page?: string;
+  limit?: string;
+  search?: string;
+  isBanned?: string;
+}
+
+export type AdminUserResponse = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  isAdmin: boolean;
+  banned: boolean;
+  bannedReason: string | null;
+  bannedAt: string | null;
+  twoFactorEnabled: boolean;
+  linksQuota: number;
+  linksCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export interface UpdateAdminUserRequest {
+  banned?: boolean;
+  bannedReason?: string;
+  linksQuota?: number;
+}
+
+export interface AuditLogsQuery {
+  page?: string;
+  limit?: string;
+  action?: string;
+  entityType?: string;
+  sortBy?: string;
+  sortOrder?: string;
+}
+
+export type AuditLogEntryResponse = {
+  id: string;
+  userId: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  metadata: unknown;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+};

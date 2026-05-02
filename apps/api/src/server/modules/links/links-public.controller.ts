@@ -86,33 +86,7 @@ export const publicLinksController = new Elysia()
         security: [] // Public endpoint - no authentication required
       },
       response: {
-        200: t.Object(
-          {
-            success: t.Literal(true),
-            data: t.Union([
-              t.Object({
-                valid: t.Literal(true),
-                warnings: t.Array(t.String())
-              }),
-              t.Object({
-                valid: t.Literal(false),
-                error: t.Optional(t.String())
-              })
-            ])
-          },
-          {
-            description: 'URL validation result',
-            examples: [
-              {
-                success: true,
-                data: {
-                  valid: true,
-                  warnings: []
-                }
-              }
-            ]
-          }
-        ),
+        200: SuccessResponse(t.Ref('links.url.validate.response')),
         400: ErrorRef(400),
         422: ErrorRef(422),
         429: ErrorRef(429)
@@ -204,16 +178,7 @@ export const publicLinksController = new Elysia()
       },
       response: {
         200: SuccessResponse(
-          t.Object({
-            redirectUrl: t.String({
-              description: 'Relative redirect URL',
-              examples: ['/abc123']
-            }),
-            shortUrl: t.String({
-              description: 'Full short URL',
-              examples: ['https://urlfy.cc/abc123']
-            })
-          }),
+          t.Ref('links.password.verify.response'),
           'Password verified successfully'
         ),
         401: ErrorRef(401),

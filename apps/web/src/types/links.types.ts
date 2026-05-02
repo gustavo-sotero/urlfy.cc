@@ -5,9 +5,14 @@
  */
 export type {
   CreateLinkInput,
+  DashboardSummaryResponse,
+  LinkPreviewResponse,
   LinkRecord as Link,
   LinkResponse,
+  LinkStatsResponse,
   ListLinksQuery,
   PaginatedResponse,
-  UpdateLinkInput
+  UpdateLinkInput,
+  UrlValidationResponse,
+  VerifyPasswordResponse
 } from '@urlfy/contracts';

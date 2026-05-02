@@ -14,4 +14,3 @@ export * from './rate-limit-policy';
 export * from './redirect.types';
 export * from './security.types';
 export * from './security-headers';
-export * from './shared';

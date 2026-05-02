@@ -4,7 +4,13 @@
  * Type-safe wrapper for API key-related endpoints
  */
 
-import type { ApiResponse } from '@urlfy/contracts/shared';
+import type {
+  ApiKeyCreatedResponse,
+  ApiKeyPublicResponse,
+  ApiKeysListResponse,
+  ApiResponse,
+  CreateApiKeyRequest
+} from '@urlfy/contracts/generated';
 import { API_BASE_URL, client } from './client';
 import { ApiClientError, extractErrorInfo, handleEden } from './error';
 
@@ -12,49 +18,13 @@ import { ApiClientError, extractErrorInfo, handleEden } from './error';
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
 
-export interface ApiKeyPublic {
-  id: string;
-  name: string | null;
-  prefix: string | null;
-  scopes: string[];
-  createdAt: string;
-  lastUsedAt: string | null;
-  expiresAt: string | null;
-  usageCount: number;
-  rateLimit: {
-    enabled: boolean;
-    max: number;
-    windowMs: number;
-  };
-  status: 'active' | 'expired' | 'revoked' | 'quota_exceeded';
-}
-
-export interface ApiKeyCreated extends ApiKeyPublic {
-  /** The full API key. Only shown once! */
-  key: string;
-}
-
-export interface CreateApiKeyInput {
-  name: string;
-  scopes: string[];
+export type ApiKeyPublic = ApiKeyPublicResponse;
+export type ApiKeyCreated = ApiKeyCreatedResponse;
+export type CreateApiKeyInput = Omit<CreateApiKeyRequest, 'expiresAt'> & {
   expiresAt?: string | null;
-  rateLimit?: {
-    enabled: boolean;
-    max: number;
-    windowMs: number;
-  };
-}
-
-type CreateApiKeyPayload = {
-  name: string;
-  scopes: string[];
-  expiresAt?: string;
-  rateLimit?: {
-    enabled: boolean;
-    max: number;
-    windowMs: number;
-  };
 };
+
+type CreateApiKeyPayload = CreateApiKeyRequest;
 
 // ═══════════════════════════════════════════════════════════════════
 // API KEY OPERATIONS
@@ -63,12 +33,9 @@ type CreateApiKeyPayload = {
 /**
  * Get all API keys for the authenticated user
  */
-export async function getApiKeys(): Promise<{
-  keys: ApiKeyPublic[];
-  total: number;
-}> {
+export async function getApiKeys(): Promise<ApiKeysListResponse> {
   const response = await client.api.keys.get();
-  return handleEden<{ keys: ApiKeyPublic[]; total: number }>(response);
+  return handleEden<ApiKeysListResponse>(response);
 }
 
 /**

@@ -4,7 +4,15 @@ import type {
   UpdateLinkInputSchema
 } from './generated/api';
 
-export type { LinkResponse, PaginatedResponse } from './generated/api';
+export type {
+  DashboardSummaryResponse,
+  LinkPreviewResponse,
+  LinkResponse,
+  LinkStatsResponse,
+  PaginatedResponse,
+  UrlValidationResponse,
+  VerifyPasswordResponse
+} from './generated/api';
 
 // ═══════════════════════════════════════════════════════════════════
 // INPUT TYPES

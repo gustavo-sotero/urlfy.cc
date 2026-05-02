@@ -22,6 +22,7 @@ const PASSTHROUGH_PATHS = [
 describe('Edge proxy system route reservations', () => {
   test('matcher excludes backend and redirect route handlers', () => {
     const matcher = config.matcher[0];
+    const source = typeof matcher === 'string' ? matcher : matcher.source;
 
     for (const excludedPrefix of [
       'api(?:/|$)',
@@ -29,8 +30,26 @@ describe('Edge proxy system route reservations', () => {
       'internal(?:/|$)',
       'ops(?:/|$)'
     ]) {
-      expect(matcher).toContain(excludedPrefix);
+      expect(source).toContain(excludedPrefix);
     }
+  });
+
+  test('matcher skips Next.js prefetch requests', () => {
+    const matcher = config.matcher[0];
+
+    expect(typeof matcher).toBe('object');
+
+    if (typeof matcher !== 'object') return;
+
+    expect(matcher.missing).toContainEqual({
+      type: 'header',
+      key: 'next-router-prefetch'
+    });
+    expect(matcher.missing).toContainEqual({
+      type: 'header',
+      key: 'purpose',
+      value: 'prefetch'
+    });
   });
 
   for (const path of SYSTEM_PATHS) {

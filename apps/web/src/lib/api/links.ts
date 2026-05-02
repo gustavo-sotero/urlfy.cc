@@ -6,7 +6,10 @@
 
 import type {
   CreateLinkInput,
+  DashboardSummaryResponse,
+  LinkPreviewResponse,
   LinkResponse,
+  LinkStatsResponse,
   ListLinksQuery,
   PaginatedResponse,
   UpdateLinkInput
@@ -119,15 +122,7 @@ export async function verifyLinkPassword(
 // LINK PREVIEW
 // ═══════════════════════════════════════════════════════════════════
 
-export interface LinkPreview {
-  shortCode: string;
-  originalUrl: string;
-  metaTitle: string | null;
-  metaDescription: string | null;
-  metaImage: string | null;
-  createdAt: string;
-  isPasswordProtected: boolean;
-}
+export type LinkPreview = LinkPreviewResponse;
 
 export async function getLinkPreview(code: string): Promise<LinkPreview> {
   const response = await client.api.links['by-code']({ code }).preview.get();
@@ -180,11 +175,7 @@ export async function getQRCode(
 // LINK STATS (Quick Summary)
 // ═══════════════════════════════════════════════════════════════════
 
-export interface LinkStats {
-  clicks: number;
-  uniqueVisitors: number;
-  lastClickedAt: string | null;
-}
+export type LinkStats = LinkStatsResponse;
 
 export async function getLinkStats(id: string): Promise<LinkStats> {
   const response = await client.api.links({ id }).stats.get();
@@ -195,12 +186,7 @@ export async function getLinkStats(id: string): Promise<LinkStats> {
 // DASHBOARD SUMMARY STATS
 // ═══════════════════════════════════════════════════════════════════
 
-export interface DashboardSummary {
-  totalLinks: number;
-  activeLinks: number;
-  totalClicks: number;
-  avgClicksPerLink: number;
-}
+export type DashboardSummary = DashboardSummaryResponse;
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   const response = await client.api.links.summary.get();

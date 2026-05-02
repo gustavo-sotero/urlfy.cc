@@ -4,10 +4,13 @@
  */
 export type {
   ApiKeyContext,
-  ApiKeyCreated,
   ApiKeyError,
-  ApiKeyPublic,
   ApiKeyRecord,
-  ApiKeyValidationResult,
-  CreateApiKeyInput
+  ApiKeyValidationResult
 } from '@urlfy/contracts';
+
+export type {
+  ApiKeyCreatedResponse as ApiKeyCreated,
+  ApiKeyPublicResponse as ApiKeyPublic,
+  CreateApiKeyRequest as CreateApiKeyInput
+} from '@urlfy/contracts/generated';

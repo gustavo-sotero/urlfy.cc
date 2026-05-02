@@ -43,10 +43,32 @@ const componentExports = [
   ['links.update', 'UpdateLinkInputSchema'],
   ['links.list.query', 'ListLinksQuerySchema'],
   ['links.response', 'LinkResponse'],
+  ['links.preview.response', 'LinkPreviewResponse'],
+  ['links.stats.response', 'LinkStatsResponse'],
+  ['links.dashboard.summary', 'DashboardSummaryResponse'],
+  ['links.url.validate.response', 'UrlValidationResponse'],
+  ['links.password.verify.response', 'VerifyPasswordResponse'],
   ['analytics.summary', 'AnalyticsSummary'],
   ['analytics.breakdown', 'AnalyticsBreakdown'],
   ['analytics.timeseries.datapoint', 'TimeseriesDataPoint'],
-  ['analytics.timeseries', 'AnalyticsTimeseries']
+  ['analytics.timeseries', 'AnalyticsTimeseries'],
+  ['users.quota', 'UserQuotaResponse'],
+  ['users.export', 'UserDataExportResponse'],
+  ['users.deletion.response', 'DataDeletionRequestResponse'],
+  ['api-keys.create', 'CreateApiKeyRequest'],
+  ['api-keys.response', 'ApiKeyPublicResponse'],
+  ['api-keys.created', 'ApiKeyCreatedResponse'],
+  ['api-keys.list', 'ApiKeysListResponse'],
+  ['api-keys.revoke', 'ApiKeyRevokeRequest'],
+  ['admin.stats.response', 'AdminStatsResponse'],
+  ['admin.growth.response', 'GrowthStatsPoint'],
+  ['admin.growth.query', 'AdminGrowthQuery'],
+  ['admin.link.response', 'AdminLinkResponse'],
+  ['admin.user.list.query', 'AdminUsersQuery'],
+  ['admin.user.response', 'AdminUserResponse'],
+  ['admin.user.update.body', 'UpdateAdminUserRequest'],
+  ['admin.audit.query', 'AuditLogsQuery'],
+  ['admin.audit.response', 'AuditLogEntryResponse']
 ] as const;
 
 const componentNameMap = new Map<string, string>(componentExports);
@@ -80,6 +102,16 @@ function refName(ref: string): string {
   return componentNameMap.get(componentName) ?? 'unknown';
 }
 
+function isNumericStringSchema(schema: JsonSchema): boolean {
+  return (
+    schema.type === 'string' &&
+    (schema.format === 'integer' ||
+      schema.format === 'number' ||
+      schema.format === 'float' ||
+      schema.format === 'double')
+  );
+}
+
 function schemaToType(schema: JsonSchema | undefined): string {
   if (!schema) return 'unknown';
   if (schema.$ref) return refName(schema.$ref);
@@ -109,12 +141,16 @@ function schemaToType(schema: JsonSchema | undefined): string {
   }
 
   if (schema.type === 'null') return 'null';
+  if (isNumericStringSchema(schema)) return 'number';
   if (schema.type === 'string') return 'string';
   if (schema.type === 'integer' || schema.type === 'number') return 'number';
   if (schema.type === 'boolean') return 'boolean';
 
   if (schema.type === 'array') {
     const itemType = schemaToType(schema.items);
+    if (!itemType.startsWith('{') && itemType.includes(' | ')) {
+      return `Array<\n  | ${itemType.split(' | ').join('\n  | ')}\n>`;
+    }
     if (itemType.includes(' | ') || itemType.includes(' & ')) {
       return `Array<${itemType}>`;
     }
@@ -156,6 +192,16 @@ function objectType(schema: JsonSchema): string {
 
 function renderInterface(name: string, schema: JsonSchema): string {
   const type = schemaToType(schema);
+  if (/^\{[\s\S]*\}\s\|\s\{/.test(type)) {
+    const union = type
+      .split(' | ')
+      .map((part) => `  | ${part.replace(/\n/g, '\n    ')}`)
+      .join('\n');
+    return `export type ${name} =\n${union};`;
+  }
+  if (type.includes(' & ') || type.includes(' | ')) {
+    return `export type ${name} = ${type};`;
+  }
   if (!type.startsWith('{')) return `export type ${name} = ${type};`;
   return `export interface ${name} ${type}`;
 }

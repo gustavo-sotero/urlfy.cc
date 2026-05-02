@@ -21,4 +21,4 @@ export type {
   PaginatedResponse,
   PaginationMeta,
   UpdateLinkInputSchema
-} from '@urlfy/contracts/shared';
+} from '@urlfy/contracts/generated';

@@ -1258,6 +1258,31 @@
         },
         "$id": "#/components/schemas/links.password.verify"
       },
+      "links.password.verify.response": {
+        "description": "Password verification success response",
+        "type": "object",
+        "required": [
+          "redirectUrl",
+          "shortUrl"
+        ],
+        "properties": {
+          "redirectUrl": {
+            "description": "Relative redirect URL",
+            "examples": [
+              "/abc123"
+            ],
+            "type": "string"
+          },
+          "shortUrl": {
+            "description": "Full short URL",
+            "examples": [
+              "https://urlfy.cc/abc123"
+            ],
+            "type": "string"
+          }
+        },
+        "$id": "#/components/schemas/links.password.verify.response"
+      },
       "links.url.validate": {
         "type": "object",
         "required": [
@@ -1272,6 +1297,56 @@
           }
         },
         "$id": "#/components/schemas/links.url.validate"
+      },
+      "links.url.validate.response": {
+        "description": "URL validation result",
+        "examples": [
+          {
+            "valid": true,
+            "warnings": []
+          },
+          {
+            "valid": false,
+            "error": "INVALID_FORMAT"
+          }
+        ],
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "valid",
+              "warnings"
+            ],
+            "properties": {
+              "valid": {
+                "const": true,
+                "type": "boolean"
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "valid"
+            ],
+            "properties": {
+              "valid": {
+                "const": false,
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "$id": "#/components/schemas/links.url.validate.response"
       },
       "links.response": {
         "description": "Complete link object with all properties",
@@ -1722,6 +1797,39 @@
           }
         },
         "$id": "#/components/schemas/links.stats.response"
+      },
+      "links.dashboard.summary": {
+        "description": "Dashboard summary stats across user links",
+        "examples": [
+          {
+            "totalLinks": 12,
+            "activeLinks": 10,
+            "totalClicks": 1234,
+            "avgClicksPerLink": 102.8
+          }
+        ],
+        "type": "object",
+        "required": [
+          "totalLinks",
+          "activeLinks",
+          "totalClicks",
+          "avgClicksPerLink"
+        ],
+        "properties": {
+          "totalLinks": {
+            "type": "number"
+          },
+          "activeLinks": {
+            "type": "number"
+          },
+          "totalClicks": {
+            "type": "number"
+          },
+          "avgClicksPerLink": {
+            "type": "number"
+          }
+        },
+        "$id": "#/components/schemas/links.dashboard.summary"
       },
       "auth.api-key.permissions": {
         "type": "object",
@@ -8783,20 +8891,11 @@
         },
         "responses": {
           "200": {
-            "description": "URL validation result",
+            "description": "Successful response",
             "content": {
               "application/json": {
                 "schema": {
-                  "description": "URL validation result",
-                  "examples": [
-                    {
-                      "success": true,
-                      "data": {
-                        "valid": true,
-                        "warnings": []
-                      }
-                    }
-                  ],
+                  "description": "Successful response",
                   "type": "object",
                   "required": [
                     "success",
@@ -8804,46 +8903,12 @@
                   ],
                   "properties": {
                     "success": {
+                      "default": true,
                       "const": true,
                       "type": "boolean"
                     },
                     "data": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "required": [
-                            "valid",
-                            "warnings"
-                          ],
-                          "properties": {
-                            "valid": {
-                              "const": true,
-                              "type": "boolean"
-                            },
-                            "warnings": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          }
-                        },
-                        {
-                          "type": "object",
-                          "required": [
-                            "valid"
-                          ],
-                          "properties": {
-                            "valid": {
-                              "const": false,
-                              "type": "boolean"
-                            },
-                            "error": {
-                              "type": "string"
-                            }
-                          }
-                        }
-                      ]
+                      "$ref": "links.url.validate.response"
                     }
                   }
                 }
@@ -9006,27 +9071,7 @@
                       "type": "boolean"
                     },
                     "data": {
-                      "type": "object",
-                      "required": [
-                        "redirectUrl",
-                        "shortUrl"
-                      ],
-                      "properties": {
-                        "redirectUrl": {
-                          "description": "Relative redirect URL",
-                          "examples": [
-                            "/abc123"
-                          ],
-                          "type": "string"
-                        },
-                        "shortUrl": {
-                          "description": "Full short URL",
-                          "examples": [
-                            "https://urlfy.cc/abc123"
-                          ],
-                          "type": "string"
-                        }
-                      }
+                      "$ref": "links.password.verify.response"
                     }
                   }
                 }
@@ -11824,27 +11869,7 @@
                       "type": "boolean"
                     },
                     "data": {
-                      "type": "object",
-                      "required": [
-                        "totalLinks",
-                        "activeLinks",
-                        "totalClicks",
-                        "avgClicksPerLink"
-                      ],
-                      "properties": {
-                        "totalLinks": {
-                          "type": "number"
-                        },
-                        "activeLinks": {
-                          "type": "number"
-                        },
-                        "totalClicks": {
-                          "type": "number"
-                        },
-                        "avgClicksPerLink": {
-                          "type": "number"
-                        }
-                      }
+                      "$ref": "links.dashboard.summary"
                     }
                   }
                 }
