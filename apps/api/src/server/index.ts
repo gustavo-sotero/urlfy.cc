@@ -76,6 +76,18 @@ const INTERNAL_ERROR_CODES: ReadonlySet<string> = new Set([
   ErrorCode.DATABASE_UNAVAILABLE
 ]);
 
+/**
+ * OpenAPI server list — in production only the canonical URL is exposed so
+ * the Scalar UI does not pre-populate a localhost address for external users.
+ */
+const openApiServers =
+  process.env.NODE_ENV === 'production'
+    ? [{ url: 'https://urlfy.cc/api', description: 'Production server' }]
+    : [
+        { url: 'http://localhost:3000/api', description: 'Development server' },
+        { url: 'https://urlfy.cc/api', description: 'Production server' }
+      ];
+
 // ═══════════════════════════════════════════════════════════════════
 // PUBLIC API DOCS (ISOLATED INSTANCE)
 // ═══════════════════════════════════════════════════════════════════
@@ -97,16 +109,7 @@ const publicDocsApp = new Elysia()
             email: 'support@urlfy.cc'
           }
         },
-        servers: [
-          {
-            url: 'http://localhost:3000/api',
-            description: 'Development server'
-          },
-          {
-            url: 'https://urlfy.cc/api',
-            description: 'Production server'
-          }
-        ],
+        servers: openApiServers,
         tags: [
           {
             name: 'Public API V1 - Links',
@@ -136,16 +139,7 @@ const publicDocsApp = new Elysia()
           targetKey: 'javascript',
           clientKey: 'fetch'
         },
-        servers: [
-          {
-            url: 'http://localhost:3000/api',
-            description: 'Development server'
-          },
-          {
-            url: 'https://urlfy.cc/api',
-            description: 'Production server'
-          }
-        ]
+        servers: openApiServers
       },
       embedSpec: true
     })
@@ -209,16 +203,7 @@ export const api = new Elysia({ prefix: '/api' })
             email: 'support@urlfy.cc'
           }
         },
-        servers: [
-          {
-            url: 'http://localhost:3000/api',
-            description: 'Development server'
-          },
-          {
-            url: 'https://urlfy.cc/api',
-            description: 'Production server'
-          }
-        ],
+        servers: openApiServers,
         tags: [
           { name: 'Health', description: 'Health check endpoints' },
           { name: 'Auth', description: 'Authentication endpoints' },
@@ -270,16 +255,7 @@ export const api = new Elysia({ prefix: '/api' })
           targetKey: 'javascript',
           clientKey: 'fetch'
         },
-        servers: [
-          {
-            url: 'http://localhost:3000/api',
-            description: 'Development server'
-          },
-          {
-            url: 'https://urlfy.cc/api',
-            description: 'Production server'
-          }
-        ]
+        servers: openApiServers
       },
       embedSpec: true
     })
