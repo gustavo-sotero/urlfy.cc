@@ -284,6 +284,7 @@ CREATE INDEX "apikey_prefix_idx" ON "apikey" USING btree ("prefix");--> statemen
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "twoFactor_secret_idx" ON "two_factor" USING btree ("secret");--> statement-breakpoint
 CREATE INDEX "twoFactor_userId_idx" ON "two_factor" USING btree ("user_id");--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS pg_trgm;--> statement-breakpoint
 CREATE INDEX "idx_user_name_trgm" ON "user" USING gin ("name" gin_trgm_ops);--> statement-breakpoint
 CREATE INDEX "idx_user_email_trgm" ON "user" USING gin ("email" gin_trgm_ops);--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
