@@ -58,9 +58,6 @@ const UI_BYPASS_ROUTES = [
   '/500' // Error page — must not be treated as a shortlink slug
 ] as const;
 
-const PROXY_MATCHER_SOURCE =
-  '/((?!api(?:/|$)|r(?:/|$)|internal(?:/|$)|ops(?:/|$)|_next/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|otf|css|js|json)$).*)';
-
 /**
  * Matcher configuration
  * Match page/short-code paths only. Backend routes and static assets are
@@ -75,7 +72,8 @@ export const config = {
      * - Files with extensions (.svg, .png, .jpg, etc.)
      */
     {
-      source: PROXY_MATCHER_SOURCE,
+      source:
+        '/((?!api(?:/|$)|r(?:/|$)|internal(?:/|$)|ops(?:/|$)|_next/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|otf|css|js|json)$).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' }
