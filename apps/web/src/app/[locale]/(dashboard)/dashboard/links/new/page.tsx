@@ -2,6 +2,11 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  ALIAS_MAX_LENGTH,
+  ALIAS_MIN_LENGTH,
+  isAliasFormat
+} from '@urlfy/contracts/alias-policy';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useForm, useWatch } from 'react-hook-form';
@@ -44,9 +49,25 @@ import type { CreateLinkInput } from '@/types/links.types';
 // ═══════════════════════════════════════════════════════════════════
 
 function createSchema(t: (key: string) => string) {
+  const optionalCustomAlias = z
+    .string()
+    .trim()
+    .refine((value) => {
+      if (value === '') {
+        return true;
+      }
+
+      if (value.length < ALIAS_MIN_LENGTH || value.length > ALIAS_MAX_LENGTH) {
+        return false;
+      }
+
+      return isAliasFormat(value);
+    }, t('validation.invalidAlias'))
+    .optional();
+
   return z.object({
     url: z.string().url(t('validation.invalidUrl')),
-    customAlias: z.string().optional(),
+    customAlias: optionalCustomAlias,
     redirectType: z.enum(['301', '302']).optional(),
     expiresAt: z.string().optional(),
     maxClicks: z

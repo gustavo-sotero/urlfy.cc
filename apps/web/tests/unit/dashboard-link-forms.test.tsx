@@ -116,6 +116,7 @@ function translate(
       'hints.currentClicks': 'Current clicks: {count}',
       'errors.loadFailed': 'Failed to load link',
       'validation.invalidUrl': 'Enter a valid URL',
+      'validation.invalidAlias': 'Invalid alias',
       'validation.positiveNumber': 'Use a positive number',
       'validation.maxLength60': 'Max 60 characters',
       'validation.maxLength160': 'Max 160 characters',
@@ -267,6 +268,44 @@ describe('Dashboard link forms', () => {
       url: 'https://example.com/offers',
       redirectType: 302
     });
+  });
+
+  it('rejects invalid aliases on the client before hitting the API', async () => {
+    const { default: NewLinkPage } = await import(
+      '@/app/[locale]/(dashboard)/dashboard/links/new/page'
+    );
+
+    let view: ReturnType<typeof render>;
+
+    await act(async () => {
+      view = render(<NewLinkPage />);
+    });
+
+    await act(async () => {
+      fireEvent.change(
+        document.querySelector('input#url') as HTMLInputElement,
+        {
+          target: { value: 'https://example.com/offers' }
+        }
+      );
+      fireEvent.change(
+        document.querySelector('input#customAlias') as HTMLInputElement,
+        {
+          target: { value: 'bad_alias' }
+        }
+      );
+    });
+
+    await act(async () => {
+      fireEvent.submit(
+        (view as ReturnType<typeof render>).container.querySelector(
+          'form'
+        ) as HTMLFormElement
+      );
+    });
+
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+    expect(await screen.findByText('Invalid alias')).toBeDefined();
   });
 
   it('renders edit data and submits operational changes back to the detail page', async () => {
