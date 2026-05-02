@@ -7,8 +7,17 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import {
+  ALIAS_MAX_LENGTH,
+  ALIAS_MIN_LENGTH,
+  ALIAS_REGEX
+} from '@urlfy/contracts/alias-policy';
 import { type Static, t } from 'elysia';
-import { ErrorResponse } from '@/server/lib/response.schema';
+import {
+  ApiError,
+  ErrorResponse,
+  PaginationMeta
+} from '@/server/lib/response.schema';
 
 // ═══════════════════════════════════════════════════════════════════
 // PAGINATION
@@ -21,28 +30,12 @@ export const PaginationQuery = t.Object({
   )
 });
 export type PaginationQueryType = Static<typeof PaginationQuery>;
-
-export const PaginationMeta = t.Object({
-  total: t.Number({ description: 'Total number of items' }),
-  page: t.Number({ description: 'Current page number' }),
-  perPage: t.Number({ description: 'Items per page' }),
-  lastPage: t.Number({ description: 'Last page number' }),
-  hasMore: t.Boolean({ description: 'Whether there are more pages' }),
-  nextCursor: t.Optional(
-    t.String({ description: 'Opaque cursor for keyset pagination' })
-  )
-});
 export type PaginationMetaType = Static<typeof PaginationMeta>;
 
 // ═══════════════════════════════════════════════════════════════════
 // API RESPONSES
 // ═══════════════════════════════════════════════════════════════════
 
-export const ApiError = t.Object({
-  code: t.String({ description: 'Error code' }),
-  message: t.String({ description: 'Human-readable error message' }),
-  details: t.Optional(t.Unknown({ description: 'Additional error details' }))
-});
 export type ApiErrorType = Static<typeof ApiError>;
 
 export type ErrorResponseType = Static<typeof ErrorResponse>;
@@ -58,8 +51,9 @@ export type IdParamType = Static<typeof IdParam>;
 
 export const CodeParam = t.Object({
   code: t.String({
-    minLength: 1,
-    maxLength: 20,
+    minLength: ALIAS_MIN_LENGTH,
+    maxLength: ALIAS_MAX_LENGTH,
+    pattern: ALIAS_REGEX.source,
     description: 'Link short code'
   })
 });

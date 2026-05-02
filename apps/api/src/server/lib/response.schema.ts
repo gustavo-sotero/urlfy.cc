@@ -59,6 +59,49 @@ export const ErrorCodes = t.Union(
   { description: 'Standard API error codes' }
 );
 
+export const ApiError = t.Object(
+  {
+    code: t.String({
+      description: 'Error code for programmatic handling',
+      examples: ['VALIDATION_ERROR', 'NOT_FOUND', 'UNAUTHORIZED']
+    }),
+    message: t.String({
+      description: 'Human-readable error message',
+      examples: ['Validation failed', 'Resource not found']
+    }),
+    details: t.Optional(
+      t.Unknown({
+        description: 'Additional error context (validation errors, etc.)'
+      })
+    )
+  },
+  { description: 'Error details' }
+);
+
+export const PaginationMeta = t.Object(
+  {
+    total: t.Number({
+      description: 'Total number of items',
+      examples: [100]
+    }),
+    page: t.Number({ description: 'Current page number', examples: [1] }),
+    perPage: t.Number({ description: 'Items per page', examples: [20] }),
+    lastPage: t.Number({ description: 'Last page number', examples: [5] }),
+    hasMore: t.Boolean({
+      description: 'Whether there are more pages',
+      examples: [true]
+    }),
+    nextCursor: t.Optional(
+      t.String({
+        description:
+          'Opaque cursor to pass as cursor query param for the next page',
+        examples: ['eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9']
+      })
+    )
+  },
+  { description: 'Pagination metadata' }
+);
+
 // ═══════════════════════════════════════════════════════════════════
 // RESPONSE WRAPPER TYPES
 // ═══════════════════════════════════════════════════════════════════
@@ -214,32 +257,7 @@ export const PaginatedResponse = <T extends TSchema>(
     {
       success: t.Literal(true, { default: true }),
       data: t.Array(itemSchema),
-      meta: t.Object(
-        {
-          total: t.Number({
-            description: 'Total number of items',
-            examples: [100]
-          }),
-          page: t.Number({ description: 'Current page number', examples: [1] }),
-          perPage: t.Number({ description: 'Items per page', examples: [20] }),
-          lastPage: t.Number({
-            description: 'Last page number',
-            examples: [5]
-          }),
-          hasMore: t.Boolean({
-            description: 'Whether there are more pages',
-            examples: [true]
-          }),
-          nextCursor: t.Optional(
-            t.String({
-              description:
-                'Opaque cursor to pass as cursor query param for the next page',
-              examples: ['eyJpZCI6IjU1MGU4NDAwIiwidmFsIjoiMjAyNi0wMS0wMSJ9']
-            })
-          )
-        },
-        { description: 'Pagination metadata' }
-      )
+      meta: PaginationMeta
     },
     {
       description: options.description ?? 'Paginated response',
@@ -271,24 +289,7 @@ export const PaginatedResponse = <T extends TSchema>(
 export const ErrorResponse = t.Object(
   {
     success: t.Literal(false, { default: false }),
-    error: t.Object(
-      {
-        code: t.String({
-          description: 'Error code for programmatic handling',
-          examples: ['VALIDATION_ERROR', 'NOT_FOUND', 'UNAUTHORIZED']
-        }),
-        message: t.String({
-          description: 'Human-readable error message',
-          examples: ['Validation failed', 'Resource not found']
-        }),
-        details: t.Optional(
-          t.Unknown({
-            description: 'Additional error context (validation errors, etc.)'
-          })
-        )
-      },
-      { description: 'Error details' }
-    ),
+    error: ApiError,
     requestId: t.Optional(
       t.String({
         description: 'Request correlation ID for debugging',

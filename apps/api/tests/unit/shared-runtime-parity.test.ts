@@ -215,6 +215,29 @@ describe('Alias regex parity', () => {
   });
 });
 
+describe('Common schema parity', () => {
+  it('reuses response and alias primitives instead of redefining them', async () => {
+    const src = await readFromApiRoot(
+      'src/server/modules/common/common.schema.ts'
+    );
+    const normalized = src.replace(/\s+/g, ' ').trim();
+
+    expect(
+      normalized.includes("from '@/server/lib/response.schema'"),
+      'common.schema.ts must import shared response schemas'
+    ).toBe(true);
+    expect(normalized.includes('ApiError')).toBe(true);
+    expect(normalized.includes('PaginationMeta')).toBe(true);
+    expect(
+      normalized.includes("from '@urlfy/contracts/alias-policy'"),
+      'common.schema.ts must import shared alias policy'
+    ).toBe(true);
+    expect(src.includes('pattern: ALIAS_REGEX.source')).toBe(true);
+    expect(src.includes('export const PaginationMeta = t.Object(')).toBe(false);
+    expect(src.includes('export const ApiError = t.Object(')).toBe(false);
+  });
+});
+
 // ── Generated Contract Parity ────────────────────────────────────────────────
 
 describe('Generated API contract parity', () => {
