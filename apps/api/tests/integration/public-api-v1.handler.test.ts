@@ -12,6 +12,7 @@
 import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test';
 import { and, eq, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { detectDatabaseAndRedisAvailability } from '../helpers/integration-helper';
 
 // Infrastructure availability check
 let infrastructureAvailable = false;
@@ -33,37 +34,15 @@ type ElysiaTestClient = ReturnType<
   typeof import('../helpers/elysia-test-client').createElysiaTestClient
 >;
 
+const infrastructureStatus = await detectDatabaseAndRedisAvailability();
+
 // Check infrastructure availability before running tests
 // Use direct Bun APIs to avoid any mocks from other test files
 try {
-  // Try to connect directly to PostgreSQL using Bun's SQL API
-  // This bypasses any module mocks
-  const databaseUrl =
-    process.env.DATABASE_URL ??
-    'postgres://postgres:postgres@localhost:5432/urlfy';
-  const { SQL } = await import('bun');
-  const testSqlConnection = new SQL({
-    url: databaseUrl,
-    connectionTimeout: 3
-  });
-
-  // Test connection with a simple query using template literal syntax
-  // Bun SQL uses tagged template literals, not .query() method
-  const result = await testSqlConnection`SELECT 1 as test`;
-  if (!result || result.length === 0) {
-    throw new Error('Database query returned no result');
-  }
-
-  // Close test connection
-  testSqlConnection.close();
-
-  // Try actual Redis connection using Bun's native Redis client
-  const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
-  const testRedis = new Bun.RedisClient(redisUrl);
-  const pong = await testRedis.send('PING', []);
-  testRedis.close();
-  if (pong !== 'PONG') {
-    throw new Error('Redis PING failed');
+  if (!infrastructureStatus.available) {
+    throw new Error(
+      infrastructureStatus.reason || 'Infrastructure unavailable'
+    );
   }
 
   // Now load the actual modules (which may be mocked, but we verified real infra works)

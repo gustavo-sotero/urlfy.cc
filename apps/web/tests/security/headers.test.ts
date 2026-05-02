@@ -10,32 +10,15 @@
  */
 
 import { describe, expect, it } from 'bun:test';
+import { detectUrlfyServer } from '../helpers/runtime-availability';
 
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
+const serverStatus = await detectUrlfyServer();
+const BASE_URL = serverStatus.baseUrl;
+const serverAvailable = serverStatus.available;
 
-// Module-level check — evaluated before describe/it registration so that
-// describe blocks can use it as a condition for compile-time skip guards.
-let serverAvailable = false;
-try {
-  const res = await fetch(`${BASE_URL}/api/health`, {
-    signal: AbortSignal.timeout(2000)
-  });
-  if (res.ok) {
-    const requestId = res.headers.get('x-request-id');
-    const contentType = res.headers.get('content-type') || '';
-    if (requestId && contentType.includes('application/json')) {
-      const body = await res.json().catch(() => null);
-      serverAvailable = body?.status === 'ok';
-    }
-    if (!serverAvailable) {
-      console.warn(
-        '⚠️  Server is not urlfy.cc — skipping security header tests.'
-      );
-    }
-  }
-} catch {
+if (!serverAvailable) {
   console.warn(
-    `⚠️  Server not available at ${BASE_URL} — skipping security header tests`
+    `⚠️  Server not available at ${BASE_URL} — skipping security header tests. ${serverStatus.reason || ''}`.trim()
   );
 }
 

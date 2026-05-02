@@ -21,6 +21,7 @@ import {
   it
 } from 'bun:test';
 import { eq } from 'drizzle-orm';
+import { detectRedirectInfrastructure } from '../helpers/runtime-availability';
 
 // Infrastructure availability check
 let infrastructureAvailable = false;
@@ -35,31 +36,18 @@ let redirectService:
   | typeof import('../../src/server/services/redirect-service').redirectService
   | null = null;
 
+const infrastructureStatus = await detectRedirectInfrastructure();
+
 // Check infrastructure availability before running tests
 try {
+  if (!infrastructureStatus.available) {
+    throw new Error(
+      infrastructureStatus.reason || 'Infrastructure unavailable'
+    );
+  }
+
   const dbModule = await import('@urlfy/data');
   db = dbModule.db;
-
-  // Test actual database connectivity
-  const healthResult = await dbModule.checkDatabaseHealth();
-  if (healthResult.status !== 'ok') {
-    throw new Error(
-      `Database connection failed: ${healthResult.error || 'Unknown error'}`
-    );
-  }
-
-  if (process.env.USE_REAL_REDIS !== 'true') {
-    throw new Error('Redis not enabled for integration tests');
-  }
-
-  const { checkRedisHealth } = await import('@urlfy/cache');
-  const redisHealth = await checkRedisHealth();
-  if (redisHealth.status !== 'ok') {
-    throw new Error(
-      `Redis connection failed: ${redisHealth.error || 'Unknown error'}`
-    );
-  }
-
   const schemaModule = await import('@urlfy/data/schema');
   links = schemaModule.links;
 

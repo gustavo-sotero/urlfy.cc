@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
+import { detectDatabaseAndRedisAvailability } from '../helpers/integration-helper';
 
 let infrastructureAvailable = false;
 let setupError: Error | null = null;
@@ -16,24 +17,17 @@ let LinkLifecycleService:
   | typeof import('@/server/modules/links/link-lifecycle.service').LinkLifecycleService
   | null = null;
 
+const infrastructureStatus = await detectDatabaseAndRedisAvailability();
+
 try {
+  if (!infrastructureStatus.available) {
+    throw new Error(
+      infrastructureStatus.reason || 'Infrastructure unavailable'
+    );
+  }
+
   const dataModule = await import('@urlfy/data');
   db = dataModule.db;
-
-  const databaseHealth = await dataModule.checkDatabaseHealth();
-  if (databaseHealth.status !== 'ok') {
-    throw new Error(
-      `Database connection failed: ${databaseHealth.error || 'Unknown error'}`
-    );
-  }
-
-  const { checkRedisHealth } = await import('@urlfy/cache');
-  const redisHealth = await checkRedisHealth();
-  if (redisHealth.status !== 'ok') {
-    throw new Error(
-      `Redis connection failed: ${redisHealth.error || 'Unknown error'}`
-    );
-  }
 
   const schemaModule = await import('@urlfy/data/schema');
   linksTable = schemaModule.links;

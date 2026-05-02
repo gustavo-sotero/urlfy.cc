@@ -24,6 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 import { nanoid } from 'nanoid';
+import { detectDatabaseAvailability } from '../../../../tests/helpers/integration-helper';
 
 // Flag to track if infrastructure is available
 let infrastructureAvailable = false;
@@ -51,18 +52,15 @@ let requireAuth:
   | typeof import('@/server/middleware/auth.middleware').requireAuth
   | null = null;
 
+const databaseStatus = await detectDatabaseAvailability();
+
 try {
+  if (!databaseStatus.available) {
+    throw new Error(databaseStatus.reason || 'Database unavailable');
+  }
+
   const dbModule = await import('@urlfy/data');
   db = dbModule.db;
-
-  // Test actual database connectivity before marking as available.
-  // When CI or local infra is up, this suite should run automatically.
-  const healthResult = await dbModule.checkDatabaseHealth();
-  if (healthResult.status !== 'ok') {
-    throw new Error(
-      `Database connection failed: ${healthResult.error || 'Unknown error'}`
-    );
-  }
 
   const schemaModule = await import('@urlfy/data/schema/auth');
   apiKeyTable = schemaModule.apiKey;

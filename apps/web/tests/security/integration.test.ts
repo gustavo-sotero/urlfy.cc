@@ -15,48 +15,22 @@
  */
 
 import { describe, expect, it } from 'bun:test';
+import { detectUrlfyServer } from '../helpers/runtime-availability';
 
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
+const serverStatus = await detectUrlfyServer();
+const BASE_URL = serverStatus.baseUrl;
+const serverAvailable = serverStatus.available;
 
 function requireHeader(value: string | null): string {
   expect(value).not.toBeNull();
   return value ?? '';
 }
 
-async function checkServerAvailable(): Promise<boolean> {
-  try {
-    const res = await fetch(`${BASE_URL}/api/health`, {
-      signal: AbortSignal.timeout(2000)
-    });
-    if (!res.ok) {
-      return false;
-    }
-
-    const requestId = res.headers.get('x-request-id');
-    const contentType = res.headers.get('content-type') || '';
-    let isUrlfyServer = false;
-
-    if (requestId && contentType.includes('application/json')) {
-      const body = await res.json().catch(() => null);
-      isUrlfyServer = body?.status === 'ok';
-    }
-
-    if (!isUrlfyServer) {
-      console.warn('⚠️  Server is not urlfy.cc. Skipping integration tests.');
-    }
-
-    return isUrlfyServer;
-  } catch {
-    console.warn(
-      '⚠️  Server not available at',
-      BASE_URL,
-      '- Skipping integration tests'
-    );
-    return false;
-  }
+if (!serverAvailable) {
+  console.warn(
+    `⚠️  Server not available at ${BASE_URL}. Skipping integration tests. ${serverStatus.reason || ''}`.trim()
+  );
 }
-
-const serverAvailable = await checkServerAvailable();
 
 // ═══════════════════════════════════════════════════════════════════
 // CORS INTEGRATION TESTS
