@@ -110,10 +110,13 @@ bun run dev
 | `bun run scripts/run-k6.ts k6/redirect-hot-path.js` | Redirect hot-path load check (requires k6) |
 | `bun run docker:up` | Start PostgreSQL + Redis locally |
 | `bun run db:migrate` | Apply database migrations |
+| `bun run db:validate:aliases` | Audit persisted `links.short_code` values against the canonical alias policy |
 
 > **Local dev policy**: Always use `bun run dev` (runs from `src/`) during development — never invoke `apps/api/dist/` directly in a dev environment. The `dist/` tree is built exclusively for Docker production images and may be stale. If you see `dist/` imports during debugging, delete `apps/api/dist/` and rebuild with `bun run build:api`.
 
 > **Contract policy**: `openapi-spec.json` is a generated snapshot of the merged API spec (Elysia + Better-Auth), and `packages/contracts/src/generated/api.ts` is derived from it. Do not edit either by hand. Use `bun run contracts:generate` after API schema changes and `bun run contracts:check` before committing. The live spec is still served at `/api/docs` and `/api/internal/docs/merged.json` at runtime.
+
+> **Alias policy audit**: `bun run db:validate:aliases` checks persisted `links.short_code` rows against the shared alias regex in `@urlfy/contracts/alias-policy`. Run it before tightening alias rules or after importing historical data so old rows do not silently diverge from routing and validation behavior.
 
 ## Key Design Decisions
 

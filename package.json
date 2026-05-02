@@ -87,6 +87,7 @@
     "db:migrate:prod": "bun run --filter @urlfy/data db:migrate:prod",
     "db:push": "turbo run db:push --filter=@urlfy/data",
     "db:studio": "turbo run db:studio --filter=@urlfy/data",
+    "db:validate:aliases": "bun run scripts/validate-link-alias-policy.ts",
     "db:seed": "bun run packages/data/src/scripts/seed-reserved-slugs.ts",
     "db:seed:test-users": "bun run packages/data/src/scripts/seed-test-users.ts",
     "db:seed:analytics": "bun run packages/data/src/scripts/seed-analytics.ts",
