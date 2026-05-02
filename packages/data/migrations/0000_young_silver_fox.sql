@@ -284,6 +284,8 @@ CREATE INDEX "apikey_prefix_idx" ON "apikey" USING btree ("prefix");--> statemen
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "twoFactor_secret_idx" ON "two_factor" USING btree ("secret");--> statement-breakpoint
 CREATE INDEX "twoFactor_userId_idx" ON "two_factor" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "idx_user_name_trgm" ON "user" USING gin ("name" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "idx_user_email_trgm" ON "user" USING gin ("email" gin_trgm_ops);--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
 CREATE INDEX "idx_banned_urls_pattern" ON "banned_urls" USING btree ("url_pattern");--> statement-breakpoint
 CREATE INDEX "idx_banned_urls_match_type" ON "banned_urls" USING btree ("match_type");--> statement-breakpoint
@@ -297,6 +299,5 @@ CREATE INDEX "idx_links_created_at" ON "links" USING btree ("created_at");--> st
 CREATE INDEX "idx_links_expires" ON "links" USING btree ("expires_at");--> statement-breakpoint
 CREATE INDEX "idx_links_tags" ON "links" USING btree ("tags");--> statement-breakpoint
 CREATE INDEX "idx_links_validation" ON "links" USING btree ("is_active","is_banned","expires_at");--> statement-breakpoint
-CREATE EXTENSION IF NOT EXISTS pg_trgm;--> statement-breakpoint
 CREATE INDEX "idx_links_short_code_trgm" ON "links" USING gin ("short_code" gin_trgm_ops);--> statement-breakpoint
 CREATE INDEX "idx_links_original_url_trgm" ON "links" USING gin ("original_url" gin_trgm_ops);

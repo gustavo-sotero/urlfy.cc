@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1775651131692,
-      "tag": "0000_panoramic_deathstrike",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1776384000000,
-      "tag": "0001_add_ops_reserved_slug",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1776470400000,
-      "tag": "0002_add_user_trgm_indexes",
+      "when": 1777739993751,
+      "tag": "0000_young_silver_fox",
       "breakpoints": true
     }
   ]

@@ -147,12 +147,16 @@ const rateLimiterMockRedis = createInMemoryRedisClient();
 const { sanitizeMetaTags, sanitizeTags, sanitizeText } = await import(
   '../../src/server/lib/sanitize'
 );
-const { validateUrlSafe: validateUrlCanonical } = await import(
-  '../../src/server/modules/links/services/url-validator'
-);
+const {
+  blockDomain,
+  unblockDomain,
+  validateUrlSafe: validateUrlCanonical
+} = await import('../../src/server/modules/links/services/url-validator');
 const { antiAbuseService } = await import(
   '../../src/server/services/anti-abuse.service'
 );
+
+const SNAPSHOT_SENTINEL_DOMAIN = 'security-test-snapshot.local';
 
 type LegacyValidationResult = {
   valid: boolean;
@@ -181,6 +185,9 @@ function mapValidationCode(error?: string): string | undefined {
 }
 
 async function validateUrl(url: string): Promise<LegacyValidationResult> {
+  blockDomain(SNAPSHOT_SENTINEL_DOMAIN);
+  unblockDomain(SNAPSHOT_SENTINEL_DOMAIN);
+
   const result = await validateUrlCanonical(url);
 
   if (result.valid) {
@@ -332,10 +339,11 @@ describe('Rate Limiting', () => {
 
   it('should track rate limit by IP', async () => {
     const testIP = '192.168.1.100';
-    const config = RATE_LIMIT_CONFIGS['POST /api/links'].guest as {
-      points: number;
-      duration: number;
-    };
+    const routeConfig = RATE_LIMIT_CONFIGS['POST /api/links'];
+    if (!('guest' in routeConfig) || !routeConfig.guest) {
+      throw new Error('POST /api/links guest rate limit config is missing');
+    }
+    const config = routeConfig.guest;
 
     // First request should pass
     let result = await rl.checkIPLimit(testIP, config);
@@ -630,8 +638,11 @@ describe('Rate Limiting (Extended)', () => {
 
   it('should track rate limit state', async () => {
     const ipKey = 'test-ip-123';
-    const guestConfig = RATE_LIMIT_CONFIGS['POST /api/links'].guest;
-    const config = guestConfig || { points: 10, duration: 3600 };
+    const routeConfig = RATE_LIMIT_CONFIGS['POST /api/links'];
+    if (!('guest' in routeConfig) || !routeConfig.guest) {
+      throw new Error('POST /api/links guest rate limit config is missing');
+    }
+    const config = routeConfig.guest;
 
     const result = await rl.checkIPLimit(ipKey, config);
     expect(result.allowed).toBe(true);
@@ -640,8 +651,11 @@ describe('Rate Limiting (Extended)', () => {
   });
 
   it('should return proper rate limit headers', async () => {
-    const guestConfig = RATE_LIMIT_CONFIGS['POST /api/links'].guest;
-    const config = guestConfig || { points: 10, duration: 3600 };
+    const routeConfig = RATE_LIMIT_CONFIGS['POST /api/links'];
+    if (!('guest' in routeConfig) || !routeConfig.guest) {
+      throw new Error('POST /api/links guest rate limit config is missing');
+    }
+    const config = routeConfig.guest;
     const result = await rl.checkIPLimit('test-ip', config);
 
     expect(result.remaining).toBeGreaterThanOrEqual(0);
@@ -649,7 +663,11 @@ describe('Rate Limiting (Extended)', () => {
   });
 
   it('should handle link-specific rate limiting', async () => {
-    const config = RATE_LIMIT_CONFIGS.GET_REDIRECT.perLink;
+    const routeConfig = RATE_LIMIT_CONFIGS.GET_REDIRECT;
+    if (!('perLink' in routeConfig)) {
+      throw new Error('GET_REDIRECT perLink rate limit config is missing');
+    }
+    const config = routeConfig.perLink;
     const result = await rl.checkLinkLimit('link-id-123', config);
 
     expect(result.allowed).toBe(true);

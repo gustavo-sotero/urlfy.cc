@@ -17,6 +17,7 @@ interface JsonSchema {
   anyOf?: JsonSchema[];
   const?: unknown;
   enum?: unknown[];
+  format?: string;
   items?: JsonSchema;
   nullable?: boolean;
   oneOf?: JsonSchema[];
