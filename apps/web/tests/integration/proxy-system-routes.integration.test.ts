@@ -33,6 +33,13 @@ describe('Edge proxy system route reservations', () => {
     }
   });
 
+  test('matcher excludes metadata files and .well-known endpoints', () => {
+    const source = config.matcher[0];
+
+    expect(source).toContain('.well-known(?:/|$)');
+    expect(source).toContain('txt|xml|webmanifest');
+  });
+
   test('matcher skips Next.js prefetch requests', () => {
     expect(typeof config.matcher[0]).toBe('string');
   });

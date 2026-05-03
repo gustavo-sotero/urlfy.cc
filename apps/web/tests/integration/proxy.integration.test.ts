@@ -23,8 +23,10 @@ describe('Edge Proxy', () => {
       '/internal/analytics',
       '/ops/health',
       '/favicon.ico',
+      '/manifest.webmanifest',
       '/robots.txt',
       '/sitemap.xml',
+      '/.well-known/apple-app-site-association',
       '/_next/static/chunks/main.js'
     ]) {
       it(`passes through ${path} without rewrite or CSP work`, async () => {

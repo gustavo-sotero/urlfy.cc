@@ -69,12 +69,13 @@ export const config = {
      * Match all request paths except:
      * - api/, r/, internal/, ops/ (backend or redirect route handlers)
      * - _next/ (all Next.js internals — static, image, data, HMR, etc.)
-     * - Files with extensions (.svg, .png, .jpg, etc.)
+     * - Metadata/static files (.svg, .png, .txt, .xml, .webmanifest, etc.)
+     * - .well-known/ (non-HTML metadata endpoints)
      *
      * Note: object-style matcher with `missing` is not supported by Turbopack's
      * static analyzer. Prefetch skipping is handled inside the proxy function.
      */
-    '/((?!api(?:/|$)|r(?:/|$)|internal(?:/|$)|ops(?:/|$)|_next/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|otf|css|js|json)$).*)'
+    '/((?!api(?:/|$)|r(?:/|$)|internal(?:/|$)|ops(?:/|$)|_next/|\\.well-known(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|otf|css|js|json|txt|xml|webmanifest)$).*)'
   ]
 };
 
