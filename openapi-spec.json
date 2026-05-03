@@ -4528,6 +4528,53 @@
         },
         "$id": "#/components/schemas/analytics.breakdown.item"
       },
+      "analytics.health.response": {
+        "description": "Analytics storage health status",
+        "examples": [
+          {
+            "status": "ok",
+            "totalEvents": 5000,
+            "latestEvent": "2026-01-06T12:00:00Z"
+          }
+        ],
+        "type": "object",
+        "required": [
+          "status",
+          "totalEvents",
+          "latestEvent"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error"
+            ]
+          },
+          "totalEvents": {
+            "examples": [
+              5000
+            ],
+            "type": "number"
+          },
+          "latestEvent": {
+            "nullable": true,
+            "anyOf": [
+              {
+                "description": "ISO timestamp of the most recent analytics event",
+                "examples": [
+                  "2026-01-06T12:00:00Z"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "$id": "#/components/schemas/analytics.health.response"
+      },
       "admin.audit.query": {
         "type": "object",
         "properties": {
@@ -4764,23 +4811,35 @@
             "type": "number"
           },
           "actionCounts": {
-            "description": "Count by action type (Record<string, number>)",
+            "description": "Count by action type",
             "examples": [
               {
                 "ban_link": 150,
                 "unban_link": 45,
                 "ban_user": 30
               }
-            ]
+            ],
+            "type": "object",
+            "patternProperties": {
+              "^(.*)$": {
+                "type": "number"
+              }
+            }
           },
           "entityTypeCounts": {
-            "description": "Count by entity type (Record<string, number>)",
+            "description": "Count by entity type",
             "examples": [
               {
                 "link": 500,
                 "user": 200
               }
-            ]
+            ],
+            "type": "object",
+            "patternProperties": {
+              "^(.*)$": {
+                "type": "number"
+              }
+            }
           },
           "topUsers": {
             "description": "Top 10 users by activity",
@@ -4865,6 +4924,72 @@
           }
         },
         "$id": "#/components/schemas/admin.domain.ban.response"
+      },
+      "admin.queue.stream.stats": {
+        "description": "Redis Stream queue statistics for a single stream",
+        "examples": [
+          {
+            "name": "analytics:clicks",
+            "length": 42,
+            "groups": 1,
+            "consumers": 2,
+            "pending": 3,
+            "lastGeneratedId": "1746290000000-0",
+            "degraded": false
+          }
+        ],
+        "type": "object",
+        "required": [
+          "name",
+          "length",
+          "groups"
+        ],
+        "properties": {
+          "name": {
+            "examples": [
+              "analytics:clicks"
+            ],
+            "type": "string"
+          },
+          "length": {
+            "examples": [
+              42
+            ],
+            "type": "number"
+          },
+          "groups": {
+            "examples": [
+              1
+            ],
+            "type": "number"
+          },
+          "consumers": {
+            "examples": [
+              2
+            ],
+            "type": "number"
+          },
+          "pending": {
+            "examples": [
+              3
+            ],
+            "type": "number"
+          },
+          "lastGeneratedId": {
+            "examples": [
+              "1746290000000-0"
+            ],
+            "type": "string"
+          },
+          "degraded": {
+            "description": "True when Redis data was unavailable and fallback values were used",
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          }
+        },
+        "$id": "#/components/schemas/admin.queue.stream.stats"
       },
       "admin.link.ban.body": {
         "examples": [
@@ -13565,34 +13690,51 @@
                       "type": "boolean"
                     },
                     "data": {
+                      "description": "Analytics storage health status",
+                      "examples": [
+                        {
+                          "status": "ok",
+                          "totalEvents": 5000,
+                          "latestEvent": "2026-01-06T12:00:00Z"
+                        }
+                      ],
                       "type": "object",
                       "required": [
                         "status",
-                        "timestamp"
+                        "totalEvents",
+                        "latestEvent"
                       ],
                       "properties": {
                         "status": {
-                          "type": "string"
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "error"
+                          ]
                         },
-                        "timestamp": {
+                        "totalEvents": {
+                          "examples": [
+                            5000
+                          ],
+                          "type": "number"
+                        },
+                        "latestEvent": {
+                          "nullable": true,
                           "anyOf": [
                             {
-                              "type": "Date"
-                            },
-                            {
-                              "format": "date-time",
+                              "description": "ISO timestamp of the most recent analytics event",
+                              "examples": [
+                                "2026-01-06T12:00:00Z"
+                              ],
                               "type": "string"
                             },
                             {
-                              "format": "date",
-                              "type": "string"
-                            },
-                            {
-                              "type": "number"
+                              "type": "null"
                             }
                           ]
                         }
-                      }
+                      },
+                      "$id": "#/components/schemas/analytics.health.response"
                     }
                   }
                 }
@@ -15712,6 +15854,92 @@
             }
           }
         ],
+        "responses": {
+          "204": {
+            "description": "Message deleted successfully",
+            "content": {
+              "type": "void",
+              "description": "Message deleted successfully"
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required or invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "Authentication required"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.401"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Insufficient permissions or verification required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "You do not have permission to access this resource"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.403"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - Resource does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "LINK_NOT_FOUND",
+                        "message": "Link not found"
+                      }
+                    }
+                  ],
+                  "$ref": "response.error.404"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "An unexpected error occurred"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
+                  "$ref": "response.error.500"
+                }
+              }
+            }
+          }
+        },
         "operationId": "deleteApiAdminMessagesById"
       }
     },
@@ -15722,6 +15950,69 @@
         ],
         "summary": "Get queue statistics",
         "description": "Retrieve stats for all Redis Streams (admin only)",
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^(.*)$": {
+                          "$ref": "admin.queue.stream.stats"
+                        }
+                      }
+                    },
+                    "degraded": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required or invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.error.401"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Insufficient permissions or verification required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.error.403"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.error.500"
+                }
+              }
+            }
+          }
+        },
         "operationId": "getApiAdminQueues"
       }
     },
@@ -15742,6 +16033,63 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Statistics for a single Redis Stream",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Statistics for a single Redis Stream",
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "default": true,
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "admin.queue.stream.stats"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required or invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.error.401"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Insufficient permissions or verification required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.error.403"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.error.500"
+                }
+              }
+            }
+          }
+        },
         "operationId": "getApiAdminQueuesByStream"
       }
     },

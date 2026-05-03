@@ -84,23 +84,6 @@ mock.module('@/server/services/cache.service', () => ({
   cacheService: mockCacheService
 }));
 
-// ── LinkService stub (used by softDeleteLink internally) ──────────────────────
-
-mock.module('@/server/modules/links/links.service', () => ({
-  LinkService: {
-    getLinkById: mock(() =>
-      Promise.resolve({
-        id: 'link-id',
-        shortCode: 'abc123',
-        userId: 'user-id',
-        isActive: true,
-        deletedAt: null,
-        originalUrl: 'https://example.com'
-      })
-    )
-  }
-}));
-
 // ── Subject under test ────────────────────────────────────────────────────────
 
 import { LinkLifecycleService } from '../link-lifecycle.service';

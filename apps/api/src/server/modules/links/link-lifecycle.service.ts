@@ -1,18 +1,34 @@
 import { db } from '@urlfy/data';
 import { links } from '@urlfy/data/schema';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { createLinkAppError } from '@/server/modules/links/link-errors';
 import { cacheService } from '@/server/services/cache.service';
 import type { Link } from '@/types/links.types';
-import { LinkService } from './links.service';
-import { generateUniqueCode } from './services/shortcode.service';
+
+async function getOwnedLink(
+  id: string,
+  userId: string,
+  includeDeleted = false
+): Promise<Link> {
+  const whereClause = includeDeleted
+    ? and(eq(links.id, id), eq(links.userId, userId))
+    : and(eq(links.id, id), eq(links.userId, userId), isNull(links.deletedAt));
+
+  const [link] = await db.select().from(links).where(whereClause).limit(1);
+
+  if (!link) {
+    throw createLinkAppError('LINK_NOT_FOUND');
+  }
+
+  return link;
+}
 
 export const LinkLifecycleService = {
   /**
    * Soft delete de um link
    */
   async softDeleteLink(id: string, userId: string): Promise<void> {
-    const link = await LinkService.getLinkById(id, userId);
+    const link = await getOwnedLink(id, userId);
 
     await db
       .update(links)
@@ -26,15 +42,7 @@ export const LinkLifecycleService = {
    * Restaura um link deletado
    */
   async restoreLink(id: string, userId: string): Promise<Link> {
-    const [link] = await db
-      .select()
-      .from(links)
-      .where(and(eq(links.id, id), eq(links.userId, userId)))
-      .limit(1);
-
-    if (!link) {
-      throw createLinkAppError('LINK_NOT_FOUND');
-    }
+    const link = await getOwnedLink(id, userId, true);
 
     if (!link.deletedAt) {
       return link; // Already active
@@ -55,8 +63,9 @@ export const LinkLifecycleService = {
    * Duplica um link existente
    */
   async duplicateLink(id: string, userId: string): Promise<Link> {
-    const original = await LinkService.getLinkById(id, userId);
+    const original = await getOwnedLink(id, userId);
 
+    const { generateUniqueCode } = await import('./services/shortcode.service');
     const newCode = await generateUniqueCode();
 
     const [duplicate] = await db
@@ -87,7 +96,7 @@ export const LinkLifecycleService = {
    * Toggle status ativo/inativo
    */
   async toggleLinkActive(id: string, userId: string): Promise<Link> {
-    const link = await LinkService.getLinkById(id, userId);
+    const link = await getOwnedLink(id, userId);
 
     const [updated] = await db
       .update(links)

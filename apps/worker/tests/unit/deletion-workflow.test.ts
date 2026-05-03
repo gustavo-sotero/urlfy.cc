@@ -23,6 +23,9 @@
 
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { inspect } from 'node:util';
+import * as realDataSchema from '@urlfy/data/schema';
+import * as realAuthSchema from '@urlfy/data/schema/auth';
+import * as realDrizzle from 'drizzle-orm';
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────
 const REQUEST_ID = 'del-req-001';
@@ -130,29 +133,41 @@ mock.module('@urlfy/data', () => ({
 }));
 
 mock.module('@urlfy/data/schema', () => ({
+  ...realDataSchema,
   analyticsEvents: {
+    ...realDataSchema.analyticsEvents,
     linkId: { __col: 'analyticsEvents.linkId' },
     id: { __col: 'analyticsEvents.id' }
   },
   dataDeletionRequest: {
+    ...realDataSchema.dataDeletionRequest,
     id: { __col: 'dataDeletionRequest.id' },
     status: { __col: 'dataDeletionRequest.status' },
     userId: { __col: 'dataDeletionRequest.userId' },
     userIdSnapshot: { __col: 'dataDeletionRequest.userIdSnapshot' },
     deadlineAt: { __col: 'dataDeletionRequest.deadlineAt' }
   },
-  links: { id: { __col: 'links.id' }, userId: { __col: 'links.userId' } }
+  links: {
+    ...realDataSchema.links,
+    id: { __col: 'links.id' },
+    userId: { __col: 'links.userId' }
+  }
 }));
 
 mock.module('@urlfy/data/schema/auth', () => ({
-  account: { userId: { __col: 'account.userId' } },
-  apikey: { userId: { __col: 'apikey.userId' } },
-  session: { userId: { __col: 'session.userId' } },
-  twoFactor: { userId: { __col: 'twoFactor.userId' } },
-  user: { id: { __col: 'user.id' } }
+  ...realAuthSchema,
+  account: { ...realAuthSchema.account, userId: { __col: 'account.userId' } },
+  apikey: { ...realAuthSchema.apikey, userId: { __col: 'apikey.userId' } },
+  session: { ...realAuthSchema.session, userId: { __col: 'session.userId' } },
+  twoFactor: {
+    ...realAuthSchema.twoFactor,
+    userId: { __col: 'twoFactor.userId' }
+  },
+  user: { ...realAuthSchema.user, id: { __col: 'user.id' } }
 }));
 
 mock.module('drizzle-orm', () => ({
+  ...realDrizzle,
   eq: mock((_col: unknown, val: unknown) => ({ _col, val })),
   inArray: mock((_col: unknown, _vals: unknown) => ({ _col, _vals })),
   // Include all operators used across test files to prevent

@@ -159,6 +159,13 @@ export const adminMessagesController = new Elysia({
         summary: 'Delete message',
         description: 'Admin-only: Permanently delete a message',
         tags: ['Admin', 'Contact']
+      },
+      response: {
+        204: t.Void({ description: 'Message deleted successfully' }),
+        401: ErrorRef(401),
+        403: ErrorRef(403),
+        404: ErrorRef(404),
+        500: ErrorRef(500)
       }
     }
   );

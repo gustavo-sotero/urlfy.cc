@@ -303,12 +303,12 @@ export const AuditStatsSummaryResponse = t.Object(
       description: 'Total audit log entries',
       examples: [15000]
     }),
-    actionCounts: t.Unknown({
-      description: 'Count by action type (Record<string, number>)',
+    actionCounts: t.Record(t.String(), t.Number(), {
+      description: 'Count by action type',
       examples: [{ ban_link: 150, unban_link: 45, ban_user: 30 }]
     }),
-    entityTypeCounts: t.Unknown({
-      description: 'Count by entity type (Record<string, number>)',
+    entityTypeCounts: t.Record(t.String(), t.Number(), {
+      description: 'Count by entity type',
       examples: [{ link: 500, user: 200 }]
     }),
     topUsers: t.Array(
@@ -337,6 +337,39 @@ export const AuditStatsSummaryResponse = t.Object(
 export type AuditStatsSummaryResponseType = Static<
   typeof AuditStatsSummaryResponse
 >;
+
+export const AdminQueueStreamStats = t.Object(
+  {
+    name: t.String({ examples: ['analytics:clicks'] }),
+    length: t.Number({ examples: [42] }),
+    groups: t.Number({ examples: [1] }),
+    consumers: t.Optional(t.Number({ examples: [2] })),
+    pending: t.Optional(t.Number({ examples: [3] })),
+    lastGeneratedId: t.Optional(t.String({ examples: ['1746290000000-0'] })),
+    degraded: t.Optional(
+      t.Boolean({
+        description:
+          'True when Redis data was unavailable and fallback values were used',
+        examples: [true]
+      })
+    )
+  },
+  {
+    description: 'Redis Stream queue statistics for a single stream',
+    examples: [
+      {
+        name: 'analytics:clicks',
+        length: 42,
+        groups: 1,
+        consumers: 2,
+        pending: 3,
+        lastGeneratedId: '1746290000000-0',
+        degraded: false
+      }
+    ]
+  }
+);
+export type AdminQueueStreamStatsType = Static<typeof AdminQueueStreamStats>;
 
 // ═══════════════════════════════════════════════════════════════════
 // EXAMPLE CONSTANTS (for OpenAPI docs)
@@ -412,6 +445,7 @@ export const AdminModel = new Elysia({ name: 'admin.model' }).model({
   'admin.audit.stats.summary': AuditStatsSummaryResponse,
   'admin.domain.ban.body': AdminBanDomainBody,
   'admin.domain.ban.response': AdminBanDomainResponse,
+  'admin.queue.stream.stats': AdminQueueStreamStats,
   'admin.link.ban.body': AdminBanLinkBody,
   'admin.link.response': AdminLinkResponse,
   'admin.stats.response': AdminStatsResponse,

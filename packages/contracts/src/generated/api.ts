@@ -78,6 +78,11 @@ export type ListLinksQuerySchema = {
   fields?: string;
 };
 
+export type QrCodeQuery = {
+  size?: string;
+  format?: 'png' | 'svg';
+};
+
 export type LinkResponse = {
   id: string;
   shortCode: string;
@@ -142,6 +147,21 @@ export interface VerifyPasswordResponse {
   shortUrl: string;
 }
 
+export type AnalyticsQuery = {
+  from?: string;
+  to?: string;
+  granularity?: 'hour' | 'day' | 'week';
+};
+
+export interface AnalyticsDaysQuery {
+  days?: string;
+}
+
+export interface AnalyticsDaysWithLimitQuery {
+  days?: string;
+  limit?: string;
+}
+
 export type AnalyticsSummary = {
   totalClicks: number;
   uniqueVisitors: number;
@@ -177,6 +197,31 @@ export interface AnalyticsBreakdown {
   }[];
 }
 
+export interface AnalyticsReferrerBreakdownItem {
+  domain: string;
+  clicks: number;
+  percentage: number;
+}
+
+export interface AnalyticsCountryBreakdownItem {
+  code: string;
+  name: string;
+  clicks: number;
+  percentage: number;
+}
+
+export interface AnalyticsDeviceBreakdownItem {
+  type: string;
+  clicks: number;
+  percentage: number;
+}
+
+export interface AnalyticsBreakdownItem {
+  name: string;
+  clicks: number;
+  percentage: number;
+}
+
 export interface TimeseriesDataPoint {
   date: string;
   clicks: number;
@@ -195,6 +240,25 @@ export interface AnalyticsTimeseries {
     granularity: string;
   };
 }
+
+export type AnalyticsHealthResponse = {
+  status: 'ok' | 'error';
+  totalEvents: number;
+  latestEvent: string | null;
+};
+
+export type UserProfileResponse = {
+  id: string;
+  email: string;
+  name: string | null;
+  emailVerified: boolean;
+  image: string | null;
+  role: string;
+  linksQuota: number;
+  linksCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export interface UserQuotaResponse {
   used: number;
@@ -232,6 +296,35 @@ export type DataDeletionRequestResponse = {
   completedAt: string | null;
   message: string;
 };
+
+export type DataDeletionRequestStatus = {
+  id: string;
+  status: string;
+  requestedAt: string;
+  deadline: string;
+  completedAt: string | null;
+};
+
+export interface UserConsentBody {
+  analytics: boolean;
+  marketing: boolean;
+  timestamp?: string;
+}
+
+export interface UserConsentResponse {
+  analytics: boolean;
+  marketing: boolean;
+  timestamp: string;
+}
+
+export interface UserConsentSaveResponse {
+  message: string;
+  preferences: {
+    analytics: boolean;
+    marketing: boolean;
+    timestamp: string;
+  };
+}
 
 export type CreateApiKeyRequest = {
   name: string;
@@ -329,6 +422,21 @@ export type AdminGrowthQuery = {
   range?: '7d' | '30d';
 };
 
+export interface AdminBanDomainBody {
+  domain: string;
+  reason: string;
+}
+
+export interface AdminBanDomainResponse {
+  domain: string;
+  created: boolean;
+}
+
+export interface AdminBanLinkBody {
+  isBanned: boolean;
+  bannedReason?: string;
+}
+
 export type AdminLinkResponse = {
   id: string;
   shortCode: string;
@@ -392,6 +500,26 @@ export type AuditLogEntryResponse = {
   userAgent: string | null;
   createdAt: string;
 };
+
+export interface AuditStatsSummaryResponse {
+  totalLogs: number;
+  actionCounts: Record<string, number>;
+  entityTypeCounts: Record<string, number>;
+  topUsers: {
+    userId: string;
+    count: number;
+  }[];
+}
+
+export interface AdminQueueStreamStats {
+  name: string;
+  length: number;
+  groups: number;
+  consumers?: number;
+  pending?: number;
+  lastGeneratedId?: string;
+  degraded?: boolean;
+}
 
 export type ContactMessage = {
   id: string;

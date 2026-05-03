@@ -18,6 +18,7 @@ import {
   ANALYTICS_SUMMARY_EXAMPLE,
   AnalyticsDaysQuery,
   AnalyticsDaysWithLimitQuery,
+  AnalyticsHealthResponse,
   AnalyticsLinkIdParam,
   AnalyticsModel
 } from './analytics.schema';
@@ -486,7 +487,11 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
 
       return {
         success: true as const,
-        data: health
+        data: {
+          status: health.status,
+          totalEvents: health.totalEvents,
+          latestEvent: health.latestEvent?.toISOString() ?? null
+        }
       };
     },
     {
@@ -496,13 +501,7 @@ export const analyticsController = new Elysia({ prefix: '/analytics' })
         description: 'Check if analytics service is healthy'
       },
       response: {
-        200: SuccessResponse(
-          t.Object({
-            status: t.String(),
-            timestamp: t.Date()
-          }),
-          'Health status'
-        ),
+        200: SuccessResponse(AnalyticsHealthResponse, 'Health status'),
         500: ErrorRef(500)
       }
     }

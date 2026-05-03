@@ -328,18 +328,37 @@ describe('Generated API contract parity', () => {
   });
 
   it('keeps api-client request payloads sourced from generated contracts', async () => {
-    const apiClientText = await readFromWorkspaceRoot(
-      'packages/contracts/src/api-client.ts'
-    );
+    const [apiClientText, generatedClientText] = await Promise.all([
+      readFromWorkspaceRoot('packages/contracts/src/api-client.ts'),
+      readFromWorkspaceRoot('packages/contracts/src/generated/client.ts')
+    ]);
 
-    expect(apiClientText.includes('CreateApiKeyRequest')).toBe(true);
-    expect(apiClientText.includes('ContactMessage')).toBe(true);
-    expect(apiClientText.includes('ContactMessagesQuery')).toBe(true);
-    expect(apiClientText.includes('UpdateContactMessageRequest')).toBe(true);
     expect(
-      apiClientText.includes("from './generated/api'"),
-      'api-client must import generated request types'
+      apiClientText.includes("from './generated/client'"),
+      'api-client must source its Eden routes from the generated client contract'
     ).toBe(true);
+    expect(
+      generatedClientText.includes("from './api'"),
+      'generated Eden client must import public request and response types from generated/api'
+    ).toBe(true);
+    expect(apiClientText.includes('interface LinksRoutes')).toBe(false);
+    expect(apiClientText.includes('interface AdminRoutes')).toBe(false);
+    expect(generatedClientText.includes('CreateApiKeyRequest')).toBe(true);
+    expect(generatedClientText.includes('LinkResponse')).toBe(true);
+    expect(generatedClientText.includes('VerifyPasswordResponse')).toBe(true);
+    expect(
+      apiClientText.includes(
+        'export type StreamStatsResponse = AdminQueueStreamStats;'
+      )
+    ).toBe(true);
+    expect(
+      apiClientText.includes(
+        'export type ContactMessagesQuery = GeneratedContactMessagesQuery;'
+      )
+    ).toBe(true);
+    expect(apiClientText.includes('page?: string;')).toBe(false);
+    expect(apiClientText.includes('limit?: string;')).toBe(false);
+    expect(apiClientText.includes("format?: 'png' | 'svg';")).toBe(false);
     expect(apiClientText.includes('export interface CreateApiKeyRequest')).toBe(
       false
     );
@@ -348,26 +367,76 @@ describe('Generated API contract parity', () => {
     ).toBe(false);
   });
 
-  it('keeps api-client paginated admin routes aligned with the shared response envelope', async () => {
-    const apiClientText = await readFromWorkspaceRoot(
-      'packages/contracts/src/api-client.ts'
+  it('keeps generated Eden routes checked into source control', async () => {
+    expect(
+      await workspaceFile('packages/contracts/src/generated/client.ts').exists()
+    ).toBe(true);
+  });
+
+  it('keeps generated Eden routes free from unknown fallbacks', async () => {
+    const generatedClientText = await readFromWorkspaceRoot(
+      'packages/contracts/src/generated/client.ts'
     );
 
+    expect(generatedClientText.includes('unknown')).toBe(false);
+  });
+
+  it('keeps paginated Eden routes typed as raw payload arrays and rehydrates meta in web helpers', async () => {
+    const [generatedClientText, linksClientText, adminClientText] =
+      await Promise.all([
+        readFromWorkspaceRoot('packages/contracts/src/generated/client.ts'),
+        readFromWorkspaceRoot('apps/web/src/lib/api/links.ts'),
+        readFromWorkspaceRoot('apps/web/src/lib/api/admin.ts')
+      ]);
+
+    for (const signature of [
+      'ApiClientResponse<LinkResponse[]>',
+      'ApiClientResponse<AdminLinkResponse[]>',
+      'ApiClientResponse<AdminUserResponse[]>',
+      'ApiClientResponse<ContactMessage[]>',
+      'ApiClientResponse<AuditLogEntryResponse[]>'
+    ]) {
+      expect(
+        generatedClientText.includes(signature),
+        `${signature} must stay raw because PaginationMeta lives on the success envelope`
+      ).toBe(true);
+    }
+
+    for (const nestedSignature of [
+      'ApiClientResponse<PaginatedResponse<LinkResponse>>',
+      'ApiClientResponse<PaginatedResponse<AdminLinkResponse>>',
+      'ApiClientResponse<PaginatedResponse<AdminUserResponse>>',
+      'ApiClientResponse<ContactMessagesResponse>',
+      'ApiClientResponse<PaginatedResponse<AuditLogEntryResponse>>'
+    ]) {
+      expect(
+        generatedClientText.includes(nestedSignature),
+        `${nestedSignature} would double-wrap paginated responses`
+      ).toBe(false);
+    }
+
     expect(
-      apiClientText.includes('ApiClientResponse<AdminUserResponse[]>')
+      linksClientText.includes(
+        'handleEden<PaginatedResponse<LinkResponse>>(response)'
+      )
     ).toBe(true);
     expect(
-      apiClientText.includes('ApiClientResponse<AuditLogEntryResponse[]>')
+      adminClientText.includes(
+        'handleEden<PaginatedResponse<AdminLinkRaw>>(response)'
+      )
     ).toBe(true);
     expect(
-      apiClientText.includes('ApiClientResponse<GeneratedContactMessage[]>')
+      adminClientText.includes(
+        'handleEden<PaginatedResponse<UserResponse>>(response)'
+      )
     ).toBe(true);
     expect(
-      apiClientText.includes('ApiClientResponse<ContactMessagesResponse>')
-    ).toBe(false);
-    expect(apiClientText.includes('data: AdminUserResponse[];')).toBe(false);
-    expect(apiClientText.includes('data: AuditLogEntryResponse[];')).toBe(
-      false
-    );
+      adminClientText.includes(
+        'handleEden<PaginatedResponse<AuditLogEntry>>(response)'
+      )
+    ).toBe(true);
+    expect(
+      adminClientText.includes('handleEden<ContactMessagesResponse>(response)')
+    ).toBe(true);
   });
 });

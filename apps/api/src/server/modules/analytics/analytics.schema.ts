@@ -184,6 +184,32 @@ export const AnalyticsTimeseries = t.Object(
 );
 export type AnalyticsTimeseriesType = Static<typeof AnalyticsTimeseries>;
 
+export const AnalyticsHealthResponse = t.Object(
+  {
+    status: t.Union([t.Literal('ok'), t.Literal('error')]),
+    totalEvents: t.Number({ examples: [5000] }),
+    latestEvent: t.Nullable(
+      t.String({
+        description: 'ISO timestamp of the most recent analytics event',
+        examples: ['2026-01-06T12:00:00Z']
+      })
+    )
+  },
+  {
+    description: 'Analytics storage health status',
+    examples: [
+      {
+        status: 'ok',
+        totalEvents: 5000,
+        latestEvent: '2026-01-06T12:00:00Z'
+      }
+    ]
+  }
+);
+export type AnalyticsHealthResponseType = Static<
+  typeof AnalyticsHealthResponse
+>;
+
 export const AnalyticsDetailedResponse = t.Object(
   {
     summary: AnalyticsSummary,
@@ -255,5 +281,6 @@ export const AnalyticsModel = new Elysia({ name: 'analytics.model' }).model({
   'analytics.breakdown.item': BreakdownItem,
   'analytics.breakdown.country': CountryBreakdownItem,
   'analytics.breakdown.device': DeviceBreakdownItem,
-  'analytics.breakdown.browser': BreakdownItem
+  'analytics.breakdown.browser': BreakdownItem,
+  'analytics.health.response': AnalyticsHealthResponse
 });

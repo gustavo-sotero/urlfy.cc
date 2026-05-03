@@ -5,9 +5,11 @@
 
 import { Elysia, t } from 'elysia';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
+import { SuccessResponse } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth/require-admin';
+import { AdminModel } from './admin.schema';
 
 const logger = createLogger('admin:queues');
 
@@ -108,6 +110,7 @@ export function createAdminQueuesController(
   const streamNames = Object.values(deps.streamNames ?? STREAM_NAMES);
 
   return new Elysia({ prefix: '/admin/queues' })
+    .use(AdminModel)
     .use(requireAdmin)
     .use(adminRateLimits.general)
     .get(
@@ -135,6 +138,16 @@ export function createAdminQueuesController(
           tags: ['Admin'],
           summary: 'Get queue statistics',
           description: 'Retrieve stats for all Redis Streams (admin only)'
+        },
+        response: {
+          200: t.Object({
+            success: t.Literal(true),
+            data: t.Record(t.String(), t.Ref('admin.queue.stream.stats')),
+            degraded: t.Optional(t.Boolean())
+          }),
+          401: t.Ref('response.error.401'),
+          403: t.Ref('response.error.403'),
+          500: t.Ref('response.error.500')
         }
       }
     )
@@ -156,6 +169,15 @@ export function createAdminQueuesController(
           tags: ['Admin'],
           summary: 'Get stream statistics',
           description: 'Retrieve stats for a specific Redis Stream (admin only)'
+        },
+        response: {
+          200: SuccessResponse(
+            t.Ref('admin.queue.stream.stats'),
+            'Statistics for a single Redis Stream'
+          ),
+          401: t.Ref('response.error.401'),
+          403: t.Ref('response.error.403'),
+          500: t.Ref('response.error.500')
         }
       }
     );
