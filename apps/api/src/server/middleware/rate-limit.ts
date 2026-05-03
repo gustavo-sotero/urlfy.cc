@@ -15,6 +15,10 @@ import { buildErrorResponse, getOrCreateRequestId } from './error-response';
 
 const logger = createLogger('rate-limit-middleware');
 
+function shouldBypassRateLimit(path: string): boolean {
+  return path.startsWith('/api/health');
+}
+
 /**
  * Extract authentication token/API key or check for session cookie
  */
@@ -131,6 +135,10 @@ export async function rateLimit(
   const method = request.method;
   const url = new URL(request.url);
   const path = url.pathname;
+
+  if (shouldBypassRateLimit(path)) {
+    return { response: null };
+  }
 
   // Get client identifier - prefer explicit clientIp if provided, otherwise extract from headers
   const ip = clientIp || getClientIp(request);

@@ -94,7 +94,7 @@ services:
       # (/health) to verify mandatory traffic dependencies before web depends on
       # this container as healthy. Redis degradation is surfaced by the endpoint
       # without blocking boot.
-      test: ['CMD-SHELL', 'curl -fsS http://localhost:3001/api/health/ready || exit 1']
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:3001/api/health/ready || exit 1']
       interval: 30s
       timeout: 10s
       retries: 3
