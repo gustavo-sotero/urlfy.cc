@@ -109,19 +109,6 @@ describe('Security Headers Validation', () => {
   });
 });
 
-describe('HTTPS and TLS Validation', () => {
-  it.skip('HTTP-to-HTTPS redirect is an infrastructure/nginx concern — verified by E2E tests in production', () => {
-    // The redirect is handled by the nginx layer, not Next.js.
-    // Verified by manual smoke test at securityheaders.com in production.
-  });
-});
-
-describe('Input Validation Edge Cases', () => {
-  it.skip('extremely long inputs are rejected server-side — covered by API integration tests', () => {});
-  it.skip('Unicode and control character handling is covered by API input validation tests', () => {});
-  it.skip('null byte / CRLF injection rejection is covered by API input validation tests', () => {});
-});
-
 describe('Authentication & Authorization', () => {
   if (!serverAvailable) {
     it.skip('server unavailable — skipping authentication tests', () => {});
@@ -166,15 +153,4 @@ describe('CSRF Protection', () => {
       expect(setCookie.toLowerCase()).toMatch(/samesite=(strict|lax)/);
     }
   });
-});
-
-describe('Directory Traversal Protection', () => {
-  it.skip('path traversal rejection is a server-side concern — covered by API security.test.ts', () => {
-    // The API sanitizes URLs at creation time via url-validator.ts.
-    // Server-side tests in apps/api/tests/security/security.test.ts cover injection payloads.
-  });
-});
-
-describe('File Upload Security', () => {
-  it.skip('file upload is not a feature in the current product — no test surface exists yet', () => {});
 });

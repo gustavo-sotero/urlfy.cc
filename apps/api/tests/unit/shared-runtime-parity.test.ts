@@ -263,6 +263,39 @@ describe('Common schema parity', () => {
   });
 });
 
+describe('Security contract parity', () => {
+  it('keeps public security DTOs sourced from generated API contracts', async () => {
+    const src = await readFromWorkspaceRoot(
+      'packages/contracts/src/security.types.ts'
+    );
+
+    expect(
+      src.includes("from './generated/api'"),
+      'security types must import generated API DTOs'
+    ).toBe(true);
+    expect(
+      src.includes('export type AuditLogEntry = AuditLogEntryResponse;')
+    ).toBe(true);
+    expect(
+      src.includes(
+        'export type DataDeletionRequest = DataDeletionRequestResponse;'
+      )
+    ).toBe(true);
+    expect(
+      src.includes('UserDataExportResponse'),
+      'security types must not mirror the user export payload'
+    ).toBe(false);
+    expect(src.includes('export interface AuditLogEntry {')).toBe(false);
+    expect(src.includes('export interface DataDeletionRequest {')).toBe(false);
+    expect(src.includes('export interface UserDataExport {')).toBe(false);
+  });
+
+  it('keeps the web security shim as a thin re-export', async () => {
+    const src = await readFromWebRoot('src/types/security.types.ts');
+    expect(isReExportShim(src, '@urlfy/contracts/security')).toBe(true);
+  });
+});
+
 // ── Generated Contract Parity ────────────────────────────────────────────────
 
 describe('Generated API contract parity', () => {

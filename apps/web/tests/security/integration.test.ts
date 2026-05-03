@@ -441,16 +441,6 @@ describe('GDPR/LGPD Compliance Tests', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// ANTI-ABUSE INTEGRATION TESTS
-// ═══════════════════════════════════════════════════════════════════
-describe('Anti-Abuse Integration Tests', () => {
-  it.skip('IP blocking after excessive failed attempts requires dedicated load test', () => {
-    // This requires simulating many failed login attempts at the HTTP level.
-    // Covered by anti-abuse service unit tests and rate-limiting integration tests above.
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════
 // CLICKJACKING PROTECTION TESTS
 // ═══════════════════════════════════════════════════════════════════
 describe('Clickjacking Protection', () => {

@@ -275,50 +275,6 @@ describe('Email Service i18n Integration', () => {
       emailService.sendWelcomeEmail = originalSend;
     });
 
-    it.skip('should fallback to default locale for user without locale - REQUIRES DB AND NO MOCKS', async () => {
-      const noLocaleUser = {
-        id: `test-user-no-locale-${Date.now()}`,
-        email: `test-no-locale-${Date.now()}@example.com`,
-        name: 'Test User',
-        locale: null,
-        emailVerified: false
-      };
-
-      await db.insert(user).values(noLocaleUser);
-
-      try {
-        const { getUserLocale } = await import('@/server/lib/locale');
-        const locale = await getUserLocale(noLocaleUser.id);
-
-        // Should fallback to 'en'
-        expect(locale).toBe('en');
-      } finally {
-        await db.delete(user).where(eq(user.id, noLocaleUser.id));
-      }
-    });
-
-    it.skip('should fallback to default locale for invalid locale value - REQUIRES DB AND NO MOCKS', async () => {
-      const invalidLocaleUser = {
-        id: `test-user-invalid-${Date.now()}`,
-        email: `test-invalid-${Date.now()}@example.com`,
-        name: 'Test User',
-        locale: 'invalid-locale',
-        emailVerified: false
-      };
-
-      await db.insert(user).values(invalidLocaleUser);
-
-      try {
-        const { getUserLocale } = await import('@/server/lib/locale');
-        const locale = await getUserLocale(invalidLocaleUser.id);
-
-        // Should fallback to 'en'
-        expect(locale).toBe('en');
-      } finally {
-        await db.delete(user).where(eq(user.id, invalidLocaleUser.id));
-      }
-    });
-
     it('should fetch locale by email when userId not available', async () => {
       const enUser = testUsers[0];
       const { getLocaleByEmail } = await import('@/server/lib/locale');
@@ -353,14 +309,6 @@ describe('Email Service i18n Integration', () => {
       // Limpa os mocks para garantir que estamos testando o comportamento real
       const { mock } = await import('bun:test');
       mock.restore();
-    });
-
-    it.skip('should handle database errors gracefully - SKIPPED: mock.module affects this test', async () => {
-      const { getUserLocale } = await import('@/server/lib/locale');
-
-      // Non-existent user should return default locale
-      const locale = await getUserLocale('non-existent-user-id');
-      expect(locale).toBe('en');
     });
 
     it('should handle invalid email lookup', async () => {

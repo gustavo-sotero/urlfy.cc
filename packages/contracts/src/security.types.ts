@@ -8,6 +8,12 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import type {
+  AuditLogEntryResponse,
+  DataDeletionRequestResponse,
+  DataDeletionRequestStatus
+} from './generated/api';
+
 /**
  * Rate Limiting Configuration
  */
@@ -72,19 +78,9 @@ export interface ConsentPreferences {
 export type ConsentStatus = 'granted' | 'denied' | 'unknown';
 
 /**
- * Audit Log Entry
+ * Audit log payload returned by the public API.
  */
-export interface AuditLogEntry {
-  id: string;
-  userId: string;
-  action: AuditAction;
-  entityType: string;
-  entityId: string;
-  metadata?: Record<string, unknown>;
-  ipAddress?: string;
-  userAgent?: string;
-  createdAt: Date;
-}
+export type AuditLogEntry = AuditLogEntryResponse;
 
 /**
  * Audit Actions
@@ -103,24 +99,14 @@ export type AuditAction =
   | 'process_data_deletion';
 
 /**
- * Data Deletion Request
+ * Data deletion request payload returned by the public API.
  */
-export interface DataDeletionRequest {
-  id: string;
-  userId: string;
-  status: DeletionStatus;
-  requestedAt: Date;
-  deadlineAt: Date;
-  completedAt?: Date;
-  failureReason?: string;
-  processedBy?: string;
-  dataExported: 'yes' | 'no';
-}
+export type DataDeletionRequest = DataDeletionRequestResponse;
 
 /**
  * Deletion Status
  */
-export type DeletionStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type DeletionStatus = DataDeletionRequestStatus['status'];
 
 /**
  * Anti-Abuse Event
