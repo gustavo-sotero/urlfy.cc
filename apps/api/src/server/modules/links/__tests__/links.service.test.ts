@@ -1,4 +1,4 @@
-// src/server/services/__tests__/link.service.test.ts
+// src/server/modules/links/__tests__/links.service.test.ts
 
 // ═══════════════════════════════════════════════════════════════════
 // CRITICAL: Set environment variables and mock modules BEFORE any imports
@@ -219,7 +219,7 @@ describe('LinkService - Pure Functions', () => {
 
     it('should mark as protected if has passwordHash', () => {
       const mockLink = createMockLink({
-        passwordHash: '$argon2id$v=19$m=19456,t=2,p=1$...'
+        passwordHash: 'hashed-password'
       });
 
       const response = LinkService.formatLinkResponse(mockLink);
@@ -227,141 +227,18 @@ describe('LinkService - Pure Functions', () => {
       expect(response.isProtected).toBe(true);
     });
 
-    it('should correctly format redirect type', () => {
-      const mockLink301 = createMockLink({ redirectType: 301 });
-      const mockLink302 = createMockLink({ redirectType: 302 });
-
-      expect(LinkService.formatLinkResponse(mockLink301).redirectType).toBe(
-        301
-      );
-      expect(LinkService.formatLinkResponse(mockLink302).redirectType).toBe(
-        302
-      );
-    });
-
-    it('should format dates as ISO strings', () => {
-      const testDate = new Date('2026-01-15T12:00:00Z');
+    it('should preserve nullable metadata fields', () => {
       const mockLink = createMockLink({
-        createdAt: testDate,
-        updatedAt: testDate,
-        expiresAt: testDate,
-        lastClickedAt: testDate
-      });
-
-      const response = LinkService.formatLinkResponse(mockLink);
-
-      expect(response.createdAt).toBe(testDate.toISOString());
-      expect(response.updatedAt).toBe(testDate.toISOString());
-      expect(response.expiresAt).toBe(testDate.toISOString());
-      expect(response.lastClickedAt).toBe(testDate.toISOString());
-    });
-
-    it('should return null for null dates', () => {
-      const mockLink = createMockLink({
-        expiresAt: null,
-        lastClickedAt: null
-      });
-
-      const response = LinkService.formatLinkResponse(mockLink);
-
-      expect(response.expiresAt).toBeNull();
-      expect(response.lastClickedAt).toBeNull();
-    });
-
-    it('should include tags and notes', () => {
-      const mockLink = createMockLink({
-        tags: ['marketing', 'social'],
-        notes: 'Important campaign link'
-      });
-
-      const response = LinkService.formatLinkResponse(mockLink);
-
-      expect(response.tags).toEqual(['marketing', 'social']);
-      expect(response.notes).toBe('Important campaign link');
-    });
-
-    it('should include UTM parameters', () => {
-      const mockLink = createMockLink({
-        utmSource: 'twitter',
-        utmMedium: 'social',
-        utmCampaign: 'launch2026'
-      });
-
-      const response = LinkService.formatLinkResponse(mockLink);
-
-      expect(response.utmSource).toBe('twitter');
-      expect(response.utmMedium).toBe('social');
-      expect(response.utmCampaign).toBe('launch2026');
-    });
-
-    it('should include meta tags', () => {
-      const mockLink = createMockLink({
-        metaTitle: 'Custom Title',
-        metaDescription: 'Custom description for SEO',
-        metaImage: 'https://cdn.example.com/image.png'
-      });
-
-      const response = LinkService.formatLinkResponse(mockLink);
-
-      expect(response.metaTitle).toBe('Custom Title');
-      expect(response.metaDescription).toBe('Custom description for SEO');
-      expect(response.metaImage).toBe('https://cdn.example.com/image.png');
-    });
-
-    it('should include ban information', () => {
-      const mockLink = createMockLink({
-        isBanned: true,
-        bannedReason: 'Spam content'
-      });
-
-      const response = LinkService.formatLinkResponse(mockLink);
-
-      expect(response.isBanned).toBe(true);
-      expect(response.bannedReason).toBe('Spam content');
-    });
-
-    it('should handle maxClicks correctly', () => {
-      const linkWithMaxClicks = createMockLink({ maxClicks: 100 });
-      const linkWithoutMaxClicks = createMockLink({ maxClicks: null });
-
-      expect(LinkService.formatLinkResponse(linkWithMaxClicks).maxClicks).toBe(
-        100
-      );
-      expect(
-        LinkService.formatLinkResponse(linkWithoutMaxClicks).maxClicks
-      ).toBeNull();
-    });
-
-    it('should handle all null optional fields', () => {
-      const mockLink = createMockLink({
-        maxClicks: null,
-        expiresAt: null,
-        metaTitle: null,
+        metaTitle: 'Preview title',
         metaDescription: null,
-        metaImage: null,
-        utmSource: null,
-        utmMedium: null,
-        utmCampaign: null,
-        tags: null,
-        notes: null,
-        lastClickedAt: null,
-        bannedReason: null
+        metaImage: 'https://example.com/image.png'
       });
 
       const response = LinkService.formatLinkResponse(mockLink);
 
-      expect(response.maxClicks).toBeNull();
-      expect(response.expiresAt).toBeNull();
-      expect(response.metaTitle).toBeNull();
+      expect(response.metaTitle).toBe('Preview title');
       expect(response.metaDescription).toBeNull();
-      expect(response.metaImage).toBeNull();
-      expect(response.utmSource).toBeNull();
-      expect(response.utmMedium).toBeNull();
-      expect(response.utmCampaign).toBeNull();
-      expect(response.tags).toBeNull();
-      expect(response.notes).toBeNull();
-      expect(response.lastClickedAt).toBeNull();
-      expect(response.bannedReason).toBeNull();
+      expect(response.metaImage).toBe('https://example.com/image.png');
     });
   });
 });

@@ -1,4 +1,4 @@
-// src/server/services/__tests__/qr.service.test.ts
+// src/server/modules/links/services/__tests__/qr.service.test.ts
 import { describe, expect, it } from 'bun:test';
 import {
   validateQRFormat,
@@ -18,12 +18,12 @@ describe('QR Service', () => {
     });
 
     it('should return closest valid size for invalid input', () => {
-      expect(validateQRSize(150)).toBe(100); // Closer to 100 than 200
-      expect(validateQRSize(250)).toBe(200); // Closer to 200 than 300
-      expect(validateQRSize(400)).toBe(300); // Closer to 300 than 500
-      expect(validateQRSize(650)).toBe(500); // Closer to 500 than 1000
-      expect(validateQRSize(50)).toBe(100); // Closest to 100 (min)
-      expect(validateQRSize(2000)).toBe(1000); // Closest to 1000 (max)
+      expect(validateQRSize(150)).toBe(100);
+      expect(validateQRSize(250)).toBe(200);
+      expect(validateQRSize(400)).toBe(300);
+      expect(validateQRSize(650)).toBe(500);
+      expect(validateQRSize(50)).toBe(100);
+      expect(validateQRSize(2000)).toBe(1000);
     });
   });
 

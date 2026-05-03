@@ -1,4 +1,4 @@
-// src/server/services/__tests__/url-validator.test.ts
+// src/server/modules/links/services/__tests__/url-validator.test.ts
 import { describe, expect, it } from 'bun:test';
 import {
   blockDomain,
@@ -116,7 +116,7 @@ describe('URL Validator', () => {
       it('should allow public IPv4 addresses', () => {
         expect(isPrivateIP('8.8.8.8')).toBe(false);
         expect(isPrivateIP('1.1.1.1')).toBe(false);
-        expect(isPrivateIP('93.184.216.34')).toBe(false); // example.com
+        expect(isPrivateIP('93.184.216.34')).toBe(false);
       });
 
       it('should detect IPv6 loopback', () => {
@@ -190,14 +190,12 @@ describe('URL Validator', () => {
 
       it('should allow valid public domains', async () => {
         const result = await validateUrlSafe('https://www.google.com');
-        // DNS resolution may fail in some test environments (CI, firewall, etc.)
-        // The important thing is that it's not blocked for security reasons
         if (!result.valid) {
-          // If it failed, it should be due to DNS resolution, not SSRF blocking
           expect(result.error).toBe('URL_RESOLUTION_FAILED');
-        } else {
-          expect(result.valid).toBe(true);
+          return;
         }
+
+        expect(result.valid).toBe(true);
       });
     });
   });
