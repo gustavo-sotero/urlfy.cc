@@ -257,5 +257,5 @@ jobs:
 
       - name: Verify Next.js standalone output
         run: |
-          test -f apps/web/.next/standalone/server.js || (echo "❌ apps/web standalone/server.js missing" && exit 1)
+          test -f apps/web/.next/standalone/apps/web/server.js || (echo "❌ apps/web standalone/apps/web/server.js missing" && exit 1)
           echo "✅ Standalone build verified"
