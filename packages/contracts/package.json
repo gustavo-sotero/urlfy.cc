@@ -20,6 +20,8 @@
   "scripts": {
     "contracts:check": "cd ../.. && bun run scripts/generate-api-contracts.ts --check",
     "contracts:generate": "cd ../.. && bun run scripts/generate-api-contracts.ts --write",
+    "test": "bun test tests/unit/",
+    "test:unit": "bun test tests/unit/",
     "type-check": "bunx tsc --noEmit",
     "lint": "bunx biome check . --write"
   },

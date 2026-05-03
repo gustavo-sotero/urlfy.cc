@@ -36,19 +36,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Biome lint (all workspaces)
-        run: bunx biome check .
+      - name: Lint pipeline (all workspaces)
+        run: bun run lint
 
       - name: TypeScript type check (all workspaces)
-        run: bunx turbo run type-check
+        run: bun run type-check
         env:
           SKIP_ENV_VALIDATION: "1"
-
-      - name: Validate API module boundaries
-        run: bun run scripts/validate-module-boundaries.ts
-
-      - name: Validate no direct proxy-header parsing
-        run: bun run scripts/validate-proxy-headers.ts
 
       - name: Validate generated API contracts
         run: bun run contracts:check

@@ -33,13 +33,13 @@ interface OpenAPIDocument {
 }
 
 const mode = process.argv.includes('--check') ? 'check' : 'write';
-const specPath = resolve(import.meta.dir, '../openapi-spec.json');
-const outputPath = resolve(
+export const specPath = resolve(import.meta.dir, '../openapi-spec.json');
+export const outputPath = resolve(
   import.meta.dir,
   '../packages/contracts/src/generated/api.ts'
 );
 
-const componentExports = [
+export const componentExports = [
   ['response.api-error', 'ApiError'],
   ['response.error', 'ApiErrorResponse'],
   ['response.pagination', 'PaginationMeta'],
@@ -239,7 +239,7 @@ export interface ApiSuccessResponse<T> {
 export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;`;
 }
 
-function generateContracts(spec: OpenAPIDocument): string {
+export function generateContracts(spec: OpenAPIDocument): string {
   const schemas = spec.components?.schemas;
   if (!schemas) {
     throw new Error('OpenAPI spec has no components.schemas section');
@@ -254,8 +254,16 @@ function generateContracts(spec: OpenAPIDocument): string {
   return `${generatedHeader()}\n\n${rendered.join('\n\n')}\n\n${renderEnvelopeTypes()}\n`;
 }
 
+export async function readOpenApiSpec(): Promise<OpenAPIDocument> {
+  return JSON.parse(await readFile(specPath, 'utf8')) as OpenAPIDocument;
+}
+
+export async function readGeneratedContracts(): Promise<string> {
+  return readFile(outputPath, 'utf8');
+}
+
 async function main(): Promise<void> {
-  const spec = JSON.parse(await readFile(specPath, 'utf8')) as OpenAPIDocument;
+  const spec = await readOpenApiSpec();
   const nextContent = generateContracts(spec);
 
   if (mode === 'write') {
@@ -277,7 +285,9 @@ async function main(): Promise<void> {
   process.exit(1);
 }
 
-main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.message : error}\n`);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((error) => {
+    process.stderr.write(`${error instanceof Error ? error.message : error}\n`);
+    process.exit(1);
+  });
+}
