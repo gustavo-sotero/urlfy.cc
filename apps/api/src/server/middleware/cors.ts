@@ -16,9 +16,9 @@ const logger = createLogger('cors');
 /**
  * Handle CORS preflight (OPTIONS) requests
  */
-export function handleCORSPreflight(request: Request): Response | null {
+export function handleCORSPreflight(request: Request): Response | undefined {
   if (request.method !== 'OPTIONS') {
-    return null;
+    return undefined;
   }
 
   const origin = request.headers.get('Origin');
@@ -76,7 +76,7 @@ export function addCORSHeaders(response: Response, request: Request): Response {
  */
 export async function corsMiddleware(
   request: Request
-): Promise<Response | null> {
+): Promise<Response | undefined> {
   // Handle preflight
   const preflightResponse = handleCORSPreflight(request);
   if (preflightResponse) {
@@ -84,5 +84,5 @@ export async function corsMiddleware(
   }
 
   // Will be applied to actual responses
-  return null;
+  return undefined;
 }
