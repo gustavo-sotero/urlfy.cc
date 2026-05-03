@@ -23,7 +23,6 @@ import type {
   LinkStatsResponse,
   ListLinksQuerySchema,
   PaginatedResponse,
-  PaginationMeta,
   TimeseriesDataPoint,
   UpdateAdminUserRequest,
   UpdateContactMessageRequest,
@@ -206,12 +205,9 @@ interface AdminUsersRoutes {
       body: UpdateAdminUserRequest
     ): Promise<ApiClientResponse<AdminUserResponse>>;
   };
-  get(options?: { query?: AdminUsersQuery }): Promise<
-    ApiClientResponse<{
-      data: AdminUserResponse[];
-      meta: PaginationMeta;
-    }>
-  >;
+  get(options?: {
+    query?: AdminUsersQuery;
+  }): Promise<ApiClientResponse<AdminUserResponse[]>>;
 }
 
 interface AdminMessagesRoutes {
@@ -224,7 +220,7 @@ interface AdminMessagesRoutes {
   };
   get(options?: {
     query?: ContactMessagesQuery;
-  }): Promise<ApiClientResponse<ContactMessagesResponse>>;
+  }): Promise<ApiClientResponse<GeneratedContactMessage[]>>;
 }
 
 interface AdminRoutes {
@@ -242,12 +238,9 @@ interface AdminRoutes {
   links: AdminLinksRoutes;
   users: AdminUsersRoutes;
   audit: {
-    get(options?: { query?: AuditLogsQuery }): Promise<
-      ApiClientResponse<{
-        data: AuditLogEntryResponse[];
-        meta: PaginationMeta;
-      }>
-    >;
+    get(options?: {
+      query?: AuditLogsQuery;
+    }): Promise<ApiClientResponse<AuditLogEntryResponse[]>>;
   };
   messages: AdminMessagesRoutes;
 }

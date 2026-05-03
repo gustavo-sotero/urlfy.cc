@@ -347,4 +347,27 @@ describe('Generated API contract parity', () => {
       apiClientText.includes('export interface ContactMessageResponse')
     ).toBe(false);
   });
+
+  it('keeps api-client paginated admin routes aligned with the shared response envelope', async () => {
+    const apiClientText = await readFromWorkspaceRoot(
+      'packages/contracts/src/api-client.ts'
+    );
+
+    expect(
+      apiClientText.includes('ApiClientResponse<AdminUserResponse[]>')
+    ).toBe(true);
+    expect(
+      apiClientText.includes('ApiClientResponse<AuditLogEntryResponse[]>')
+    ).toBe(true);
+    expect(
+      apiClientText.includes('ApiClientResponse<GeneratedContactMessage[]>')
+    ).toBe(true);
+    expect(
+      apiClientText.includes('ApiClientResponse<ContactMessagesResponse>')
+    ).toBe(false);
+    expect(apiClientText.includes('data: AdminUserResponse[];')).toBe(false);
+    expect(apiClientText.includes('data: AuditLogEntryResponse[];')).toBe(
+      false
+    );
+  });
 });
