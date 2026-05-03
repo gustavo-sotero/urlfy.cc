@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
-import logoSrc from '@/public/logo.png';
+import logoSrc from '../../public/logo.png';
 
 interface DashboardBrandProps {
   subtitle?: string;

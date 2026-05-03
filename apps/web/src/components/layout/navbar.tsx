@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/sheet';
 import { Link } from '@/i18n/routing';
 import { useAuthState } from '@/lib/session-provider';
-import logoSrc from '@/public/logo.png';
+import logoSrc from '../../public/logo.png';
 
 // ═══════════════════════════════════════════════════════════════════
 // NAV LINK ITEM
