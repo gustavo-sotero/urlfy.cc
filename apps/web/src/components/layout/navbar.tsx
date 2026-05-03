@@ -27,7 +27,6 @@ import {
 } from '@/components/ui/sheet';
 import { Link } from '@/i18n/routing';
 import { useAuthState } from '@/lib/session-provider';
-import logoSrc from '../../public/logo.png';
 
 // ═══════════════════════════════════════════════════════════════════
 // NAV LINK ITEM
@@ -101,9 +100,10 @@ export function Navbar() {
           className="flex items-center transition-opacity hover:opacity-80"
         >
           <Image
-            src={logoSrc}
+            src="/logo.png"
             alt="urlfy.cc"
-            height={100}
+            width={733}
+            height={232}
             className="h-10 w-auto"
           />
         </Link>
