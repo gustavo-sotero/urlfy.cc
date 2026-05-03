@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "urlfy.cc Complete API",
-    "description": "Comprehensive API documentation including link management, analytics, and authentication endpoints",
     "version": "1.0.0",
+    "description": "Comprehensive API documentation including link management, analytics, and authentication endpoints",
     "contact": {
       "name": "API Support",
       "email": "support@urlfy.cc"
@@ -70,31 +70,6 @@
     }
   ],
   "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "description": "Bearer token authentication"
-      },
-      "cookieAuth": {
-        "type": "apiKey",
-        "in": "cookie",
-        "name": "urlfy.session",
-        "description": "Session cookie (automatically set by Better-Auth)"
-      },
-      "apiKeyAuth": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "x-api-key",
-        "description": "API key for programmatic access (format: urlfy_sk_...)"
-      },
-      "apiKeyCookie": {
-        "type": "apiKey",
-        "in": "cookie",
-        "name": "apiKeyCookie",
-        "description": "API Key authentication via cookie"
-      }
-    },
     "schemas": {
       "response.api-error": {
         "description": "Error details",
@@ -6491,6 +6466,31 @@
           "userId"
         ]
       }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Bearer token authentication"
+      },
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "urlfy.session",
+        "description": "Session cookie (automatically set by Better-Auth)"
+      },
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "API key for programmatic access (format: urlfy_sk_...)"
+      },
+      "apiKeyCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "apiKeyCookie",
+        "description": "API Key authentication via cookie"
+      }
     }
   },
   "security": [
@@ -6505,6 +6505,32 @@
     }
   ],
   "paths": {
+    "/api/*": {
+      "get": {
+        "operationId": "allApi*"
+      },
+      "post": {
+        "operationId": "allApi*"
+      },
+      "put": {
+        "operationId": "allApi*"
+      },
+      "delete": {
+        "operationId": "allApi*"
+      },
+      "patch": {
+        "operationId": "allApi*"
+      },
+      "head": {
+        "operationId": "allApi*"
+      },
+      "options": {
+        "operationId": "allApi*"
+      },
+      "trace": {
+        "operationId": "allApi*"
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Simple health check",
