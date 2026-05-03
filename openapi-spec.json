@@ -15970,7 +15970,70 @@
                       "type": "object",
                       "patternProperties": {
                         "^(.*)$": {
-                          "$ref": "admin.queue.stream.stats"
+                          "description": "Redis Stream queue statistics for a single stream",
+                          "examples": [
+                            {
+                              "name": "analytics:clicks",
+                              "length": 42,
+                              "groups": 1,
+                              "consumers": 2,
+                              "pending": 3,
+                              "lastGeneratedId": "1746290000000-0",
+                              "degraded": false
+                            }
+                          ],
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "length",
+                            "groups"
+                          ],
+                          "properties": {
+                            "name": {
+                              "examples": [
+                                "analytics:clicks"
+                              ],
+                              "type": "string"
+                            },
+                            "length": {
+                              "examples": [
+                                42
+                              ],
+                              "type": "number"
+                            },
+                            "groups": {
+                              "examples": [
+                                1
+                              ],
+                              "type": "number"
+                            },
+                            "consumers": {
+                              "examples": [
+                                2
+                              ],
+                              "type": "number"
+                            },
+                            "pending": {
+                              "examples": [
+                                3
+                              ],
+                              "type": "number"
+                            },
+                            "lastGeneratedId": {
+                              "examples": [
+                                "1746290000000-0"
+                              ],
+                              "type": "string"
+                            },
+                            "degraded": {
+                              "description": "True when Redis data was unavailable and fallback values were used",
+                              "examples": [
+                                true
+                              ],
+                              "type": "boolean"
+                            }
+                          },
+                          "$id": "#/components/schemas/admin.queue.stream.stats"
                         }
                       }
                     },
@@ -15987,6 +16050,15 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "Authentication required"
+                      }
+                    }
+                  ],
                   "$ref": "response.error.401"
                 }
               }
@@ -15997,6 +16069,15 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "You do not have permission to access this resource"
+                      }
+                    }
+                  ],
                   "$ref": "response.error.403"
                 }
               }
@@ -16007,6 +16088,16 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "An unexpected error occurred"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
                   "$ref": "response.error.500"
                 }
               }
@@ -16052,7 +16143,70 @@
                       "type": "boolean"
                     },
                     "data": {
-                      "$ref": "admin.queue.stream.stats"
+                      "description": "Redis Stream queue statistics for a single stream",
+                      "examples": [
+                        {
+                          "name": "analytics:clicks",
+                          "length": 42,
+                          "groups": 1,
+                          "consumers": 2,
+                          "pending": 3,
+                          "lastGeneratedId": "1746290000000-0",
+                          "degraded": false
+                        }
+                      ],
+                      "type": "object",
+                      "required": [
+                        "name",
+                        "length",
+                        "groups"
+                      ],
+                      "properties": {
+                        "name": {
+                          "examples": [
+                            "analytics:clicks"
+                          ],
+                          "type": "string"
+                        },
+                        "length": {
+                          "examples": [
+                            42
+                          ],
+                          "type": "number"
+                        },
+                        "groups": {
+                          "examples": [
+                            1
+                          ],
+                          "type": "number"
+                        },
+                        "consumers": {
+                          "examples": [
+                            2
+                          ],
+                          "type": "number"
+                        },
+                        "pending": {
+                          "examples": [
+                            3
+                          ],
+                          "type": "number"
+                        },
+                        "lastGeneratedId": {
+                          "examples": [
+                            "1746290000000-0"
+                          ],
+                          "type": "string"
+                        },
+                        "degraded": {
+                          "description": "True when Redis data was unavailable and fallback values were used",
+                          "examples": [
+                            true
+                          ],
+                          "type": "boolean"
+                        }
+                      },
+                      "$id": "#/components/schemas/admin.queue.stream.stats"
                     }
                   }
                 }
@@ -16064,6 +16218,15 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "Authentication required"
+                      }
+                    }
+                  ],
                   "$ref": "response.error.401"
                 }
               }
@@ -16074,6 +16237,15 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "You do not have permission to access this resource"
+                      }
+                    }
+                  ],
                   "$ref": "response.error.403"
                 }
               }
@@ -16084,6 +16256,16 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "An unexpected error occurred"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
                   "$ref": "response.error.500"
                 }
               }

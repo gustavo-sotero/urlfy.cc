@@ -8,7 +8,7 @@
  */
 
 import type { ApiClientResponse } from '../api-client-shared';
-import type { AdminBanDomainBody, AdminBanDomainResponse, AdminBanLinkBody, AdminLinkResponse, AdminQueueStreamStats, AdminStatsResponse, AdminUserResponse, AnalyticsBreakdown, AnalyticsBreakdownItem, AnalyticsCountryBreakdownItem, AnalyticsDeviceBreakdownItem, AnalyticsSummary, ApiKeyCreatedResponse, ApiKeyPublicResponse, ApiKeyRevokeRequest, ApiKeysListResponse, AuditLogEntryResponse, AuditStatsSummaryResponse, ContactMessage, CreateApiKeyRequest, DashboardSummaryResponse, DataDeletionRequestResponse, DataDeletionRequestStatus, GrowthStatsPoint, LinkPreviewResponse, LinkResponse, LinkStatsResponse, TimeseriesDataPoint, UrlValidationResponse, UserConsentBody, UserConsentResponse, UserConsentSaveResponse, UserDataExportResponse, UserProfileResponse, UserQuotaResponse, VerifyPasswordResponse } from './api';
+import type { AdminBanDomainBody, AdminBanDomainResponse, AdminBanLinkBody, AdminLinkResponse, AdminStatsResponse, AdminUserResponse, AnalyticsBreakdown, AnalyticsBreakdownItem, AnalyticsCountryBreakdownItem, AnalyticsDeviceBreakdownItem, AnalyticsSummary, ApiKeyCreatedResponse, ApiKeyPublicResponse, ApiKeyRevokeRequest, ApiKeysListResponse, AuditLogEntryResponse, AuditStatsSummaryResponse, ContactMessage, CreateApiKeyRequest, DashboardSummaryResponse, DataDeletionRequestResponse, DataDeletionRequestStatus, GrowthStatsPoint, LinkPreviewResponse, LinkResponse, LinkStatsResponse, TimeseriesDataPoint, UrlValidationResponse, UserConsentBody, UserConsentResponse, UserConsentSaveResponse, UserDataExportResponse, UserProfileResponse, UserQuotaResponse, VerifyPasswordResponse } from './api';
 
 export interface ApiRoutes {
   admin: ApiAdminRoutes;
@@ -138,11 +138,27 @@ export interface ApiAdminMessagesWithIdRoutes {
 
 export interface ApiAdminQueuesRoutes {
   (params: { stream: string }): ApiAdminQueuesWithStreamRoutes;
-  get(): Promise<ApiClientResponse<Record<string, AdminQueueStreamStats>>>;
+  get(): Promise<ApiClientResponse<Record<string, {
+          name: string;
+          length: number;
+          groups: number;
+          consumers?: number;
+          pending?: number;
+          lastGeneratedId?: string;
+          degraded?: boolean;
+        }>>>;
 }
 
 export interface ApiAdminQueuesWithStreamRoutes {
-  get(): Promise<ApiClientResponse<AdminQueueStreamStats>>;
+  get(): Promise<ApiClientResponse<{
+          name: string;
+          length: number;
+          groups: number;
+          consumers?: number;
+          pending?: number;
+          lastGeneratedId?: string;
+          degraded?: boolean;
+        }>>;
 }
 
 export interface ApiAdminStatsRoutes {

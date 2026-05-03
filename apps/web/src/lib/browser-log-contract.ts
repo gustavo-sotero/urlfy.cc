@@ -1,6 +1,6 @@
 export interface BrowserLogPayload {
   error: string;
-  url?: string;
+  url: string;
   componentStack?: string;
   requestId?: string;
   userAgent?: string;

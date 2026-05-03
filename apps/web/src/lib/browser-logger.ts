@@ -2,6 +2,10 @@
 
 import type { BrowserLogPayload } from './browser-log-contract';
 
+type BrowserLogExtra = Omit<BrowserLogPayload, 'error' | 'url'> & {
+  url?: string;
+};
+
 /**
  * ═════════════════════════════════════════════════════════════════════
  * BROWSER LOGGER
@@ -53,14 +57,14 @@ function scrubUrl(url: string): string {
  */
 export function reportBrowserError(
   value: unknown,
-  extra: Omit<BrowserLogPayload, 'error'> = {}
+  extra: BrowserLogExtra = {}
 ): void {
   const message = normalizeError(value);
   const url = extra.url
     ? scrubUrl(extra.url)
     : typeof window !== 'undefined'
       ? scrubUrl(window.location.href)
-      : undefined;
+      : '';
 
   const payload: BrowserLogPayload = {
     ...extra,

@@ -104,7 +104,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const body = (await request.json()) as ClientError;
 
-    // Validate required fields — url is optional per BrowserLogPayload contract
+    // Validate required fields before doing any log processing.
     if (!body.error) {
       return NextResponse.json(
         {
@@ -118,15 +118,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // url is optional; fall back to referer header when absent
-    const reportUrl = body.url || request.headers.get('referer') || undefined;
+    if (!body.url) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Missing required field: url'
+          }
+        },
+        { status: 400 }
+      );
+    }
 
     // Sanitize and truncate inputs
     const sanitizedError = sanitizeForLog(truncate(body.error, 500));
     const sanitizedStack = sanitizeForLog(truncate(body.componentStack, 2000));
-    const sanitizedUrl = reportUrl
-      ? sanitizeForLog(stripQueryParams(truncate(reportUrl, 500)))
-      : '';
+    const sanitizedUrl = sanitizeForLog(
+      stripQueryParams(truncate(body.url, 500))
+    );
     const sanitizedContext = sanitizeContext(body.context);
     const requestId = sanitizeForLog(
       truncate(

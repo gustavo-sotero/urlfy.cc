@@ -5,11 +5,15 @@
 
 import { Elysia, t } from 'elysia';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
-import { SuccessResponse } from '@/server/lib/response.schema';
+import {
+  ErrorRef,
+  ResponseModels,
+  SuccessResponse
+} from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
 import { requireAdmin } from '@/server/middleware/auth/require-admin';
-import { AdminModel } from './admin.schema';
+import { AdminModel, AdminQueueStreamStats } from './admin.schema';
 
 const logger = createLogger('admin:queues');
 
@@ -110,6 +114,7 @@ export function createAdminQueuesController(
   const streamNames = Object.values(deps.streamNames ?? STREAM_NAMES);
 
   return new Elysia({ prefix: '/admin/queues' })
+    .use(ResponseModels)
     .use(AdminModel)
     .use(requireAdmin)
     .use(adminRateLimits.general)
@@ -142,12 +147,12 @@ export function createAdminQueuesController(
         response: {
           200: t.Object({
             success: t.Literal(true),
-            data: t.Record(t.String(), t.Ref('admin.queue.stream.stats')),
+            data: t.Record(t.String(), AdminQueueStreamStats),
             degraded: t.Optional(t.Boolean())
           }),
-          401: t.Ref('response.error.401'),
-          403: t.Ref('response.error.403'),
-          500: t.Ref('response.error.500')
+          401: ErrorRef(401),
+          403: ErrorRef(403),
+          500: ErrorRef(500)
         }
       }
     )
@@ -172,12 +177,12 @@ export function createAdminQueuesController(
         },
         response: {
           200: SuccessResponse(
-            t.Ref('admin.queue.stream.stats'),
+            AdminQueueStreamStats,
             'Statistics for a single Redis Stream'
           ),
-          401: t.Ref('response.error.401'),
-          403: t.Ref('response.error.403'),
-          500: t.Ref('response.error.500')
+          401: ErrorRef(401),
+          403: ErrorRef(403),
+          500: ErrorRef(500)
         }
       }
     );
