@@ -27,11 +27,14 @@ export const Dashboard = {
   links: {
     title: 'My Links',
     subtitle: 'Manage all your shortened links',
+    deletedSubtitle: 'Review deleted links and restore anything still needed',
     recentLinks: 'Recent Links',
     viewAll: 'View all',
     newLink: 'New Link',
     deleteConfirm: 'Are you sure you want to delete this link?',
-    createFirst: 'Create first link'
+    createFirst: 'Create first link',
+    showActive: 'Active links',
+    showDeleted: 'Deleted links'
   },
 
   linkCard: {
@@ -42,7 +45,9 @@ export const Dashboard = {
     viewAnalytics: 'View Analytics',
     edit: 'Edit',
     delete: 'Delete',
+    restore: 'Restore',
     qrCode: 'QR Code',
+    deleted: 'Deleted',
     expired: 'Expired',
     inactive: 'Inactive',
     passwordProtected: 'Password Protected',
@@ -116,13 +121,17 @@ export const Dashboard = {
 
   empty: {
     noSearch: 'No links found',
+    noDeletedSearch: 'No deleted links match this search',
     noLinks: "You don't have any links yet. Create your first link!",
+    noDeletedLinks: 'You do not have any deleted links to restore.',
     createAction: 'Create first link'
   },
 
   toasts: {
     deleteSuccess: 'Link deleted successfully',
     deleteError: 'Error deleting link',
+    restoreSuccess: 'Link restored successfully',
+    restoreError: 'Error restoring link',
     loadError: 'Error loading dashboard data',
     loadLinksError: 'Error loading links'
   }

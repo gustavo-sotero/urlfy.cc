@@ -43,14 +43,13 @@ let requireApiKey:
   | typeof import('@/server/middleware/api-key.guard').requireApiKey
   | null = null;
 let optionalAuth:
-  | typeof import('@/server/middleware/auth.middleware').optionalAuth
+  | typeof import('@/server/middleware/auth').optionalAuth
   | null = null;
 let requireAdmin:
-  | typeof import('@/server/middleware/auth.middleware').requireAdmin
+  | typeof import('@/server/middleware/auth').requireAdmin
   | null = null;
-let requireAuth:
-  | typeof import('@/server/middleware/auth.middleware').requireAuth
-  | null = null;
+let requireAuth: typeof import('@/server/middleware/auth').requireAuth | null =
+  null;
 
 const databaseStatus = await detectDatabaseAvailability();
 
@@ -69,7 +68,7 @@ try {
   userTable = schemaModule.user;
   const authModule = await import('@/lib/auth');
   auth = authModule.auth;
-  const middlewareModule = await import('@/server/middleware/auth.middleware');
+  const middlewareModule = await import('@/server/middleware/auth');
   const guardModule = await import('@/server/middleware/api-key.guard');
   requireApiKey = guardModule.requireApiKey;
   optionalAuth = middlewareModule.optionalAuth;

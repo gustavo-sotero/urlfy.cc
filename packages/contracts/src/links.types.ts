@@ -35,8 +35,9 @@ export type UpdateLinkInput = Omit<
 
 export type ListLinksQuery = Omit<
   ListLinksQuerySchema,
-  'isActive' | 'page' | 'perPage' | 'tags'
+  'deleted' | 'isActive' | 'page' | 'perPage' | 'tags'
 > & {
+  deleted?: boolean;
   page?: number;
   perPage?: number;
   tags?: string[];

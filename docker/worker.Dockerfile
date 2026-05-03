@@ -25,7 +25,7 @@ COPY packages/geoip/package.json ./packages/geoip/
 COPY packages/redirect-domain/package.json ./packages/redirect-domain/
 COPY packages/telemetry/package.json ./packages/telemetry/
 
-RUN bun install --frozen-lockfile --filter=worker
+RUN bun install --frozen-lockfile --filter=@urlfy/worker
 
 # ═══════════════════════════════════════════════════════════════════
 FROM oven/bun:${BUN_VERSION}-slim AS runner

@@ -7,6 +7,7 @@ import {
   desc,
   eq,
   gt,
+  isNotNull,
   isNull,
   like,
   lt,
@@ -171,9 +172,18 @@ export async function listUserLinks(
   const sanitizedTags = sanitizeTags(query.tags);
   const sortBy = query.sortBy ?? 'createdAt';
   const sortOrder = query.sortOrder ?? 'desc';
+  const deletedOnly = query.deleted === true;
 
   // ── Build base filters ────────────────────────────────────────
-  const baseFilters = [eq(links.userId, userId), isNull(links.deletedAt)];
+  const baseFilters = [eq(links.userId, userId)];
+
+  if (deletedOnly) {
+    baseFilters.push(isNotNull(links.deletedAt));
+  }
+
+  if (!deletedOnly) {
+    baseFilters.push(isNull(links.deletedAt));
+  }
 
   if (query.isActive !== undefined) {
     const isActive =

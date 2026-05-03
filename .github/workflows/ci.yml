@@ -148,6 +148,9 @@ jobs:
       - name: Run database migrations
         run: bun run db:migrate:prod
 
+      - name: Validate persisted aliases against the canonical policy
+        run: bun run db:validate:aliases
+
       - name: Run unit tests (all workspaces)
         run: bunx turbo run test:unit
         env:

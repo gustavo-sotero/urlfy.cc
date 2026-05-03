@@ -9,6 +9,7 @@ import {
   Lock,
   MoreHorizontal,
   MousePointer,
+  RotateCcw,
   Trash
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -28,12 +29,15 @@ import { CopyButton } from './copy-button';
 interface Props {
   link: LinkResponse;
   onDelete: (id: string) => void;
+  mode?: 'live' | 'deleted';
+  onRestore?: (id: string) => void;
 }
 
-export function LinkCard({ link, onDelete }: Props) {
+export function LinkCard({ link, onDelete, mode = 'live', onRestore }: Props) {
   const t = useTranslations('Dashboard.linkCard');
   const locale = useLocale();
   const intlLocale = locale === 'pt-br' ? 'pt-BR' : locale;
+  const isDeletedView = mode === 'deleted';
 
   const isExpired = link.expiresAt && new Date(link.expiresAt) < new Date();
   const isMaxed = link.maxClicks !== null && link.clicksCount >= link.maxClicks;
@@ -47,15 +51,23 @@ export function LinkCard({ link, onDelete }: Props) {
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1 space-y-3">
             <div className="flex flex-wrap items-start gap-2">
-              <a
-                href={link.shortUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="min-w-0 break-all font-mono text-sm font-semibold text-primary hover:underline"
-              >
-                {link.shortUrl}
-              </a>
-              <CopyButton text={link.shortUrl} />
+              {isDeletedView ? (
+                <span className="min-w-0 break-all font-mono text-sm font-semibold text-muted-foreground">
+                  {link.shortUrl}
+                </span>
+              ) : (
+                <>
+                  <a
+                    href={link.shortUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="min-w-0 break-all font-mono text-sm font-semibold text-primary hover:underline"
+                  >
+                    {link.shortUrl}
+                  </a>
+                  <CopyButton text={link.shortUrl} />
+                </>
+              )}
               {link.isProtected && (
                 <Badge variant="outline" className="rounded-full">
                   <Lock className="mr-1 h-3 w-3" aria-hidden="true" />
@@ -85,40 +97,50 @@ export function LinkCard({ link, onDelete }: Props) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href={`/dashboard/links/${link.id}`}>
-                  <BarChart2 className="mr-2 h-4 w-4" />
-                  {t('viewAnalytics')}
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/dashboard/links/${link.id}/edit`}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  {t('edit')}
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <a
-                  href={link.shortUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  {t('open')}
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onDelete(link.id)}
-                className="text-destructive"
-              >
-                <Trash className="mr-2 h-4 w-4" />
-                {t('delete')}
-              </DropdownMenuItem>
+              {isDeletedView ? (
+                <DropdownMenuItem onClick={() => onRestore?.(link.id)}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  {t('restore')}
+                </DropdownMenuItem>
+              ) : (
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/dashboard/links/${link.id}`}>
+                      <BarChart2 className="mr-2 h-4 w-4" />
+                      {t('viewAnalytics')}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/dashboard/links/${link.id}/edit`}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      {t('edit')}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a
+                      href={link.shortUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      {t('open')}
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onDelete(link.id)}
+                    className="text-destructive"
+                  >
+                    <Trash className="mr-2 h-4 w-4" />
+                    {t('delete')}
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {isDeletedView && <Badge variant="secondary">{t('deleted')}</Badge>}
           {!link.isActive && <Badge variant="secondary">{t('inactive')}</Badge>}
           {isExpired && <Badge variant="destructive">{t('expired')}</Badge>}
           {isMaxed && <Badge variant="destructive">{t('limitReached')}</Badge>}

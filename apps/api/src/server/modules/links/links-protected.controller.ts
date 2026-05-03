@@ -31,7 +31,7 @@ import {
   recordLinkCreation,
   recordLinkCreationFailure
 } from '@/server/middleware/anti-abuse';
-import { optionalAuth, requireAuth } from '@/server/middleware/auth.middleware';
+import { optionalAuth, requireAuth } from '@/server/middleware/auth';
 import {
   buildErrorEnvelope,
   getOrCreateRequestId
@@ -427,6 +427,7 @@ export const protectedLinksController = new Elysia()
         cursor: query.cursor,
         search: query.search,
         tags: query.tags ? query.tags.split(',') : undefined,
+        deleted: query.deleted === 'true' ? true : undefined,
         isActive:
           query.isActive === 'true'
             ? true

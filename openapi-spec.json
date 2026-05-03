@@ -1236,6 +1236,10 @@
             "description": "Comma-separated tags",
             "type": "string"
           },
+          "deleted": {
+            "description": "\"true\" to list deleted links instead of live links",
+            "type": "string"
+          },
           "isActive": {
             "description": "\"true\" or \"false\"",
             "type": "string"
@@ -10120,6 +10124,15 @@
             }
           },
           {
+            "name": "deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "\"true\" to list deleted links instead of live links",
+              "type": "string"
+            }
+          },
+          {
             "name": "isActive",
             "in": "query",
             "required": false,
@@ -16581,6 +16594,15 @@
             "required": false,
             "schema": {
               "description": "Comma-separated tags",
+              "type": "string"
+            }
+          },
+          {
+            "name": "deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "\"true\" to list deleted links instead of live links",
               "type": "string"
             }
           },

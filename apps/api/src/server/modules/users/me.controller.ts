@@ -18,7 +18,7 @@ import { getRedisClient } from '@/server/lib/redis';
 import { requireUser } from '@/server/lib/require-user';
 import { SuccessResponse } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
-import { requireAuth } from '@/server/middleware/auth.middleware';
+import { requireAuth } from '@/server/middleware/auth';
 import { UsersModel } from '@/server/modules/users/users.schema';
 import { requestContext } from '@/server/plugins/request-context';
 import { auditLogService } from '@/server/services/audit.service';

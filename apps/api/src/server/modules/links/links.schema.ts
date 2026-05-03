@@ -136,6 +136,11 @@ export const LinkListQuery = t.Object({
   ),
   search: t.Optional(t.String({ description: 'Search by URL or code' })),
   tags: t.Optional(t.String({ description: 'Comma-separated tags' })),
+  deleted: t.Optional(
+    t.String({
+      description: '"true" to list deleted links instead of live links'
+    })
+  ),
   isActive: t.Optional(t.String({ description: '"true" or "false"' })),
   sortBy: t.Optional(
     t.Union([

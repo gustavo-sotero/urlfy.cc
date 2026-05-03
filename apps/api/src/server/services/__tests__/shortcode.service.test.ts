@@ -1,6 +1,6 @@
 // src/server/services/__tests__/shortcode.service.test.ts
 import { describe, expect, it } from 'bun:test';
-import { ALIAS_REGEX } from '@/server/modules/links/services/shortcode.service';
+import { ALIAS_REGEX } from '@urlfy/contracts/alias-policy';
 
 describe('Shortcode Service', () => {
   describe('ALIAS_REGEX canonical rule', () => {

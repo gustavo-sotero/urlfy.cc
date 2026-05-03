@@ -58,7 +58,7 @@ describe('healthController readiness', () => {
     mock.module('@/server/lib/redis', () => ({
       checkRedisHealth: checkRedisHealthMock
     }));
-    mock.module('@/server/middleware/auth.middleware', () => ({
+    mock.module('@/server/middleware/auth', () => ({
       requireAdmin: new Elysia({ name: 'require-admin.mock' })
     }));
     mock.module('@/server/lib/openapi-merger', () => ({

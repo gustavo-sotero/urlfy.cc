@@ -223,6 +223,7 @@ const listOperations = new Elysia({ name: 'V1Links.List' })
         sortOrder: query.sortOrder ?? 'desc',
         search: query.search,
         tags: query.tags ? query.tags.split(',') : undefined,
+        deleted: query.deleted === 'true' ? true : undefined,
         isActive:
           query.isActive === 'true'
             ? true

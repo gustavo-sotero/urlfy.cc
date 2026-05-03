@@ -71,6 +71,7 @@ export type ListLinksQuerySchema = {
   cursor?: string;
   search?: string;
   tags?: string;
+  deleted?: string;
   isActive?: string;
   sortBy?: 'createdAt' | 'clicksCount' | 'lastClickedAt';
   sortOrder?: 'asc' | 'desc';

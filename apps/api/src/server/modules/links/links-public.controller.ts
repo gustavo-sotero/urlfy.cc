@@ -15,7 +15,7 @@ import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { getClientIp } from '@/server/lib/ip';
 import { rateLimiter } from '@/server/lib/rate-limiter';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
-import { optionalAuth } from '@/server/middleware/auth.middleware';
+import { optionalAuth } from '@/server/middleware/auth';
 import {
   buildErrorEnvelope,
   getOrCreateRequestId

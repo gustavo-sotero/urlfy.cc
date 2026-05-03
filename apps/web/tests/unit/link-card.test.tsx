@@ -14,6 +14,8 @@ mock.module('next-intl', () => ({
         edit: 'Edit',
         open: 'Open',
         delete: 'Delete',
+        restore: 'Restore',
+        deleted: 'Deleted',
         inactive: 'Inactive',
         expired: 'Expired',
         limitReached: 'Limit reached',
@@ -194,5 +196,26 @@ describe('LinkCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(onDelete).toHaveBeenCalledWith('link-1');
+  });
+
+  it('switches the action menu to restore mode for deleted-link views', async () => {
+    const onRestore = mock(() => {});
+    const { LinkCard } = await import('@/components/shared/link-card');
+
+    render(
+      <LinkCard
+        link={baseLink}
+        onDelete={mock(() => {})}
+        mode="deleted"
+        onRestore={onRestore}
+      />
+    );
+
+    expect(screen.getByText('Deleted')).toBeDefined();
+    expect(screen.queryByRole('link', { name: /view analytics/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    expect(onRestore).toHaveBeenCalledWith('link-1');
   });
 });

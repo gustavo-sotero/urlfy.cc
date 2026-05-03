@@ -11,7 +11,7 @@
 import { Elysia, t } from 'elysia';
 import { requireUserId } from '@/server/lib/require-user-id';
 import { ErrorRef, SuccessResponse } from '@/server/lib/response.schema';
-import { requireAuth } from '@/server/middleware/auth.middleware';
+import { requireAuth } from '@/server/middleware/auth';
 import { AnalyticsService } from '@/server/services/analytics-shared.service';
 
 import { LinkIdParam, LinksModel } from './links.schema';

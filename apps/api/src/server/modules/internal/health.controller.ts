@@ -13,7 +13,7 @@ import { Elysia, t } from 'elysia';
 import { getOpenAPIDegradedState } from '@/server/lib/openapi-merger';
 import { checkRedisHealth } from '@/server/lib/redis';
 import { ResponseModels } from '@/server/lib/response.schema';
-import { requireAdmin } from '@/server/middleware/auth.middleware';
+import { requireAdmin } from '@/server/middleware/auth';
 import { reloadBannedDomains } from '../links/services/url-validator';
 
 // ═══════════════════════════════════════════════════════════════════

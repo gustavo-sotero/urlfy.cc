@@ -1,6 +1,6 @@
 // src/server/modules/links/services/shortcode.service.ts
 
-import { ALIAS_REGEX, isAliasFormat } from '@urlfy/contracts/alias-policy';
+import { isAliasFormat } from '@urlfy/contracts/alias-policy';
 import { db } from '@urlfy/data';
 import { links, reservedSlugs } from '@urlfy/data/schema';
 import { eq } from 'drizzle-orm';
@@ -8,8 +8,6 @@ import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { generateShortCode } from '@/server/lib/nanoid';
 
 const MAX_RETRIES = 5;
-
-export { ALIAS_REGEX };
 
 /**
  * Generates a unique short code

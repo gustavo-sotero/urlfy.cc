@@ -15,7 +15,7 @@ import {
 } from '@/server/lib/response.schema';
 import { createLogger } from '@/server/lib/telemetry';
 import { adminRateLimits } from '@/server/middleware/admin-rate-limit';
-import { requireAdmin } from '@/server/middleware/auth.middleware';
+import { requireAdmin } from '@/server/middleware/auth';
 import {
   ContactModel,
   ContactService,

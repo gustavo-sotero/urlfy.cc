@@ -15,7 +15,7 @@ import {
   ResponseModels,
   SuccessResponse
 } from '@/server/lib/response.schema';
-import { requireAuth } from '@/server/middleware/auth.middleware';
+import { requireAuth } from '@/server/middleware/auth';
 import {
   API_KEY_CREATED_EXAMPLE,
   API_KEY_LIST_EXAMPLE,
