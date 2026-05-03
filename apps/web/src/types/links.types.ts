@@ -7,7 +7,6 @@ export type {
   CreateLinkInput,
   DashboardSummaryResponse,
   LinkPreviewResponse,
-  LinkRecord as Link,
   LinkResponse,
   LinkStatsResponse,
   ListLinksQuery,
