@@ -21,6 +21,13 @@ const ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST = `test-admin-mw-github-${Date.now()}`;
 process.env.ADMIN_GITHUB_ACCOUNT_ID = ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST;
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { db } from '@urlfy/data';
+import {
+  account as accountTable,
+  apiKey as apiKeyTable,
+  user as userTable
+} from '@urlfy/data/schema/auth';
+import { HeadersInit } from 'bun';
 import { eq } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 import { nanoid } from 'nanoid';
@@ -30,15 +37,6 @@ import { detectDatabaseAvailability } from '../../../../tests/helpers/integratio
 let infrastructureAvailable = false;
 let setupError: Error | null = null;
 
-// Try to import database - this will fail if db not available
-let db: typeof import('@urlfy/data').db | null = null;
-let apiKeyTable: typeof import('@urlfy/data/schema/auth').apiKey | null = null;
-let sessionTable: typeof import('@urlfy/data/schema/auth').session | null =
-  null;
-let accountTable: typeof import('@urlfy/data/schema/auth').account | null =
-  null;
-let userTable: typeof import('@urlfy/data/schema/auth').user | null = null;
-let auth: typeof import('@/lib/auth').auth | null = null;
 let requireApiKey:
   | typeof import('@/server/middleware/api-key.guard').requireApiKey
   | null = null;
@@ -58,16 +56,6 @@ try {
     throw new Error(databaseStatus.reason || 'Database unavailable');
   }
 
-  const dbModule = await import('@urlfy/data');
-  db = dbModule.db;
-
-  const schemaModule = await import('@urlfy/data/schema/auth');
-  apiKeyTable = schemaModule.apiKey;
-  sessionTable = schemaModule.session;
-  accountTable = schemaModule.account;
-  userTable = schemaModule.user;
-  const authModule = await import('@/lib/auth');
-  auth = authModule.auth;
   const middlewareModule = await import('@/server/middleware/auth');
   const guardModule = await import('@/server/middleware/api-key.guard');
   requireApiKey = guardModule.requireApiKey;
@@ -96,108 +84,72 @@ describe('Auth Middleware', () => {
   let testUser: {
     id: string;
     email: string;
-    password: string;
-    sessionToken?: string;
-  };
+    name: string;
+  } | null = null;
 
   let adminUser: {
     id: string;
     email: string;
-    password: string;
-    sessionToken?: string;
-  };
+    name: string;
+  } | null = null;
 
-  let testApiKey: string;
+  let testApiKey = '';
+
+  function createTestAuthHeaders(user: {
+    id: string;
+    email: string;
+    name: string;
+  }): HeadersInit {
+    return {
+      'x-test-user-id': user.id,
+      'x-test-user-email': user.email,
+      'x-test-user-name': user.name,
+      'x-test-email-verified': 'true'
+    };
+  }
 
   // ═══════════════════════════════════════════════════════════════════
   // SETUP & TEARDOWN
   // ═══════════════════════════════════════════════════════════════════
 
   beforeAll(async () => {
-    // Infrastructure is guaranteed available at this point due to early return above
-    if (!auth || !db) {
-      throw new Error(
-        'Unexpected: auth or db is null after infrastructure check'
-      );
-    }
-
-    // Create regular test user
     testUser = {
       id: nanoid(),
       email: `test-middleware-${nanoid()}@urlfy.test`,
-      password: 'TestPassword123!'
+      name: 'Test User'
     };
 
-    const signUpResult = await auth.api.signUpEmail({
-      body: {
-        email: testUser.email,
-        password: testUser.password,
-        name: 'Test User'
-      },
-      headers: new Headers()
-    });
-
-    if (signUpResult?.user) {
-      testUser.id = signUpResult.user.id;
-    }
-
-    const signInResult = await auth.api.signInEmail({
-      body: {
-        email: testUser.email,
-        password: testUser.password
-      },
-      headers: new Headers()
-    });
-
-    if (signInResult?.token) {
-      testUser.sessionToken = signInResult.token;
-    }
-
-    // Create admin user
     adminUser = {
       id: nanoid(),
       email: `admin-middleware-${nanoid()}@urlfy.test`,
-      password: 'AdminPassword123!'
+      name: 'Admin User'
     };
 
-    const adminSignUpResult = await auth.api.signUpEmail({
-      body: {
-        email: adminUser.email,
-        password: adminUser.password,
-        name: 'Admin User'
+    await db.insert(userTable).values([
+      {
+        id: testUser.id,
+        email: testUser.email,
+        name: testUser.name,
+        emailVerified: true,
+        role: 'user'
       },
-      headers: new Headers()
-    });
-
-    if (adminSignUpResult?.user) {
-      adminUser.id = adminSignUpResult.user.id;
-
-      if (!db || !userTable || !accountTable) {
-        throw new Error('Database tables not initialized');
+      {
+        id: adminUser.id,
+        email: adminUser.email,
+        name: adminUser.name,
+        emailVerified: true,
+        role: 'user'
       }
+    ]);
 
-      // Link GitHub account for admin authority (GitHub-account-based model)
-      await db.insert(accountTable).values({
-        id: nanoid(),
-        userId: adminUser.id,
-        accountId: ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST,
-        providerId: 'github',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-    }
-
-    const adminSignInResult = await auth.api.signInEmail({
-      body: {
-        email: adminUser.email,
-        password: adminUser.password
-      },
-      headers: new Headers()
+    await db.insert(accountTable).values({
+      id: nanoid(),
+      userId: adminUser.id,
+      accountId: ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST,
+      providerId: 'github',
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
-
-    if (adminSignInResult?.token) {
-      adminUser.sessionToken = adminSignInResult.token;
-    }
 
     // Create test API key
     const encoder = new TextEncoder();
@@ -208,10 +160,6 @@ describe('Auth Middleware', () => {
     const keyHash = hashArray
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
-
-    if (!db || !apiKeyTable) {
-      throw new Error('Database tables not initialized');
-    }
 
     await db.insert(apiKeyTable).values({
       id: nanoid(),
@@ -232,23 +180,11 @@ describe('Auth Middleware', () => {
   });
 
   afterAll(async () => {
-    // Cleanup - skip if infrastructure unavailable
-    if (!db || !apiKeyTable || !sessionTable || !userTable || !accountTable) {
-      return;
-    }
-
-    if (testUser.id) {
-      await db.delete(apiKeyTable).where(eq(apiKeyTable.userId, testUser.id));
-      await db.delete(sessionTable).where(eq(sessionTable.userId, testUser.id));
+    if (testUser?.id) {
       await db.delete(userTable).where(eq(userTable.id, testUser.id));
     }
-    if (adminUser.id) {
-      await db
-        .delete(accountTable)
-        .where(eq(accountTable.userId, adminUser.id));
-      await db
-        .delete(sessionTable)
-        .where(eq(sessionTable.userId, adminUser.id));
+
+    if (adminUser?.id) {
       await db.delete(userTable).where(eq(userTable.id, adminUser.id));
     }
   });
@@ -267,12 +203,11 @@ describe('Auth Middleware', () => {
     }
 
     it('should populate user context when authenticated', async () => {
+      if (!testUser) throw new Error('Test user not initialized');
       const app = createApp();
       const response = await app.handle(
         new Request('http://localhost:3000/test', {
-          headers: {
-            Cookie: `urlfy.session=${testUser.sessionToken}`
-          }
+          headers: createTestAuthHeaders(testUser)
         })
       );
 
@@ -306,12 +241,11 @@ describe('Auth Middleware', () => {
     }
 
     it('should allow authenticated requests', async () => {
+      if (!testUser) throw new Error('Test user not initialized');
       const app = createApp();
       const response = await app.handle(
         new Request('http://localhost:3000/test', {
-          headers: {
-            Cookie: `urlfy.session=${testUser.sessionToken}`
-          }
+          headers: createTestAuthHeaders(testUser)
         })
       );
 
@@ -361,6 +295,7 @@ describe('Auth Middleware', () => {
     }
 
     it('should authenticate with valid API key', async () => {
+      if (!testUser) throw new Error('Test user not initialized');
       const app = createApp();
       const response = await app.handle(
         new Request('http://localhost:3000/test', {
@@ -411,7 +346,7 @@ describe('Auth Middleware', () => {
     });
 
     it('should reject expired API keys', async () => {
-      if (!db || !apiKeyTable) throw new Error('DB not available');
+      if (!testUser) throw new Error('Test user not initialized');
 
       const expiredKey = `urlfy_sk_${nanoid(32)}`;
       const encoder = new TextEncoder();
@@ -438,24 +373,20 @@ describe('Auth Middleware', () => {
         expiresAt: new Date(Date.now() - 60_000)
       });
 
-      try {
-        const app = createApp();
-        const response = await app.handle(
-          new Request('http://localhost:3000/test', {
-            headers: {
-              'x-api-key': expiredKey
-            }
-          })
-        );
+      const app = createApp();
+      const response = await app.handle(
+        new Request('http://localhost:3000/test', {
+          headers: {
+            'x-api-key': expiredKey
+          }
+        })
+      );
 
-        expect(response.status).toBe(401);
-      } finally {
-        await db.delete(apiKeyTable).where(eq(apiKeyTable.id, expiredKeyId));
-      }
+      expect(response.status).toBe(401);
     });
 
     it('should reject revoked API keys', async () => {
-      if (!db || !apiKeyTable) throw new Error('DB not available');
+      if (!testUser) throw new Error('Test user not initialized');
 
       const revokedKey = `urlfy_sk_${nanoid(32)}`;
       const encoder = new TextEncoder();
@@ -482,24 +413,20 @@ describe('Auth Middleware', () => {
         revokedAt: new Date()
       });
 
-      try {
-        const app = createApp();
-        const response = await app.handle(
-          new Request('http://localhost:3000/test', {
-            headers: {
-              'x-api-key': revokedKey
-            }
-          })
-        );
+      const app = createApp();
+      const response = await app.handle(
+        new Request('http://localhost:3000/test', {
+          headers: {
+            'x-api-key': revokedKey
+          }
+        })
+      );
 
-        expect(response.status).toBe(401);
-      } finally {
-        await db.delete(apiKeyTable).where(eq(apiKeyTable.id, revokedKeyId));
-      }
+      expect(response.status).toBe(401);
     });
 
     it('should reject deleted API keys', async () => {
-      if (!db || !apiKeyTable) throw new Error('DB not available');
+      if (!testUser) throw new Error('Test user not initialized');
 
       const deletedKey = `urlfy_sk_${nanoid(32)}`;
       const encoder = new TextEncoder();
@@ -526,20 +453,16 @@ describe('Auth Middleware', () => {
         deletedAt: new Date()
       });
 
-      try {
-        const app = createApp();
-        const response = await app.handle(
-          new Request('http://localhost:3000/test', {
-            headers: {
-              'x-api-key': deletedKey
-            }
-          })
-        );
+      const app = createApp();
+      const response = await app.handle(
+        new Request('http://localhost:3000/test', {
+          headers: {
+            'x-api-key': deletedKey
+          }
+        })
+      );
 
-        expect(response.status).toBe(401);
-      } finally {
-        await db.delete(apiKeyTable).where(eq(apiKeyTable.id, deletedKeyId));
-      }
+      expect(response.status).toBe(401);
     });
   });
 
@@ -563,12 +486,11 @@ describe('Auth Middleware', () => {
     }
 
     it('should allow users with authorized linked GitHub account', async () => {
+      if (!adminUser) throw new Error('Admin user not initialized');
       const app = createApp();
       const response = await app.handle(
         new Request('http://localhost:3000/test', {
-          headers: {
-            Cookie: `urlfy.session=${adminUser.sessionToken}`
-          }
+          headers: createTestAuthHeaders(adminUser)
         })
       );
 
@@ -579,12 +501,11 @@ describe('Auth Middleware', () => {
     });
 
     it('should reject regular users', async () => {
+      if (!testUser) throw new Error('Test user not initialized');
       const app = createApp();
       const response = await app.handle(
         new Request('http://localhost:3000/test', {
-          headers: {
-            Cookie: `urlfy.session=${testUser.sessionToken}`
-          }
+          headers: createTestAuthHeaders(testUser)
         })
       );
 
