@@ -1,73 +1,45 @@
-import { afterAll, describe, expect, mock, test } from 'bun:test';
-import { createDbMock } from '../mocks/db.mock';
-
-let loadAttempt = 0;
-
-const whereMock = mock(async () => {
-  loadAttempt += 1;
-
-  if (loadAttempt === 1) {
-    return [{ urlPattern: 'blocked.example', matchType: 'domain' }];
-  }
-
-  throw new Error('database offline');
-});
-
-const dbMock = {
-  ...createDbMock(),
-  select: mock(() => ({
-    from: mock(() => ({
-      where: whereMock
-    }))
-  }))
-};
-
-mock.module('@urlfy/data', () => ({
-  db: dbMock,
-  getDatabase: () => dbMock,
-  getSqlConnection: () => ({}),
-  checkDatabaseHealth: async () => ({ status: 'ok', latencyMs: 1 }),
-  closeDatabase: async () => undefined
-}));
-
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => ({
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {}
-  }),
-  configureLogging: async () => {}
-}));
+import { describe, expect, test } from 'bun:test';
 
 describe('url-validator banned-domain last-known-good snapshot', () => {
-  afterAll(() => {
-    mock.restore();
-  });
-
   test('retains the previous blacklist when a later reload fails', async () => {
-    const { reloadBannedDomains, validateUrlAsync } = await import(
+    const validator = await import(
       `@/server/modules/links/services/url-validator?last-known-good=${Date.now()}`
     );
+    let loadAttempt = 0;
 
-    const initialResult = await validateUrlAsync(
-      'https://blocked.example/path'
-    );
-    expect(initialResult).toEqual({ valid: false, error: 'DOMAIN_BANNED' });
-    expect(whereMock).toHaveBeenCalledTimes(1);
+    validator.__resetBannedDomainsStateForTests();
+    validator.__setBannedDomainsLoaderForTests(async () => {
+      loadAttempt += 1;
 
-    const reloadResult = await reloadBannedDomains();
-    expect(reloadResult).toMatchObject({
-      reloaded: false,
-      retainedSnapshot: true,
-      error: 'database offline'
+      if (loadAttempt === 1) {
+        return [{ urlPattern: 'blocked.example', matchType: 'domain' }];
+      }
+
+      throw new Error('database offline');
     });
-    expect(whereMock).toHaveBeenCalledTimes(2);
 
-    const retainedResult = await validateUrlAsync(
-      'https://blocked.example/after-reload-failure'
-    );
-    expect(retainedResult).toEqual({ valid: false, error: 'DOMAIN_BANNED' });
-    expect(whereMock).toHaveBeenCalledTimes(2);
+    try {
+      const initialResult = await validator.validateUrlAsync(
+        'https://blocked.example/path'
+      );
+      expect(initialResult).toEqual({ valid: false, error: 'DOMAIN_BANNED' });
+      expect(loadAttempt).toBe(1);
+
+      const reloadResult = await validator.reloadBannedDomains();
+      expect(reloadResult).toMatchObject({
+        reloaded: false,
+        retainedSnapshot: true,
+        error: 'database offline'
+      });
+      expect(loadAttempt).toBe(2);
+
+      const retainedResult = await validator.validateUrlAsync(
+        'https://blocked.example/after-reload-failure'
+      );
+      expect(retainedResult).toEqual({ valid: false, error: 'DOMAIN_BANNED' });
+      expect(loadAttempt).toBe(2);
+    } finally {
+      validator.__resetBannedDomainsStateForTests();
+    }
   });
 });

@@ -1,57 +1,28 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test';
-import { createDbMock } from '../mocks/db.mock';
-
-function registerColdStartMocks() {
-  const whereMock = mock(async () => {
-    throw new Error('database offline');
-  });
-
-  const dbMock = {
-    ...createDbMock(),
-    select: mock(() => ({
-      from: mock(() => ({
-        where: whereMock
-      }))
-    }))
-  };
-
-  mock.module('@urlfy/data', () => ({
-    db: dbMock,
-    getDatabase: () => dbMock,
-    getSqlConnection: () => ({}),
-    checkDatabaseHealth: async () => ({ status: 'ok', latencyMs: 1 }),
-    closeDatabase: async () => undefined
-  }));
-
-  mock.module('@/server/lib/telemetry', () => ({
-    createLogger: () => ({
-      debug: () => {},
-      info: () => {},
-      warn: () => {},
-      error: () => {}
-    }),
-    configureLogging: async () => {}
-  }));
-
-  return { whereMock };
-}
+import { describe, expect, test } from 'bun:test';
 
 describe('url-validator banned-domain cold start', () => {
-  afterEach(() => {
-    mock.restore();
-  });
-
   test('fails closed when the first banned-domain load has no reliable snapshot', async () => {
-    const { whereMock } = registerColdStartMocks();
-    const { validateUrlAsync } = await import(
+    const validator = await import(
       `@/server/modules/links/services/url-validator?cold-start=${Date.now()}`
     );
-    const result = await validateUrlAsync('https://example.com');
+    let loadAttempts = 0;
 
-    expect(whereMock).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({
-      valid: false,
-      error: 'BANNED_DOMAINS_UNAVAILABLE'
+    validator.__resetBannedDomainsStateForTests();
+    validator.__setBannedDomainsLoaderForTests(async () => {
+      loadAttempts += 1;
+      throw new Error('database offline');
     });
+
+    try {
+      const result = await validator.validateUrlAsync('https://example.com');
+
+      expect(loadAttempts).toBe(1);
+      expect(result).toEqual({
+        valid: false,
+        error: 'BANNED_DOMAINS_UNAVAILABLE'
+      });
+    } finally {
+      validator.__resetBannedDomainsStateForTests();
+    }
   });
 });

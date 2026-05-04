@@ -13,6 +13,13 @@ import { createLogger } from '@/server/lib/telemetry';
 const logger = createLogger('url-validator');
 const nodeEnv = process.env.NODE_ENV as string | undefined;
 
+interface BannedDomainRecord {
+  urlPattern: string;
+  matchType: string;
+}
+
+type BannedDomainsLoader = () => Promise<BannedDomainRecord[]>;
+
 // SSRF Protection: Private IP ranges (RFC 1918, loopback, link-local)
 const PRIVATE_IP_RANGES = [
   // IPv4
@@ -109,6 +116,7 @@ let bannedDomainsLoaded = false;
 let bannedDomainsLastLoad = 0;
 let hasReliableBannedDomainsSnapshot = false;
 const CACHE_TTL_MS = 60_000; // Reload every minute
+let bannedDomainsLoader: BannedDomainsLoader = loadBannedDomainsFromSource;
 
 const DNS_LOOKUP_TIMEOUT_MS = 10000; // Increased timeout for test environments with slow DNS
 
@@ -142,6 +150,16 @@ export interface BannedDomainsReloadResult {
   error: string | null;
 }
 
+async function loadBannedDomainsFromSource(): Promise<BannedDomainRecord[]> {
+  return db
+    .select({
+      urlPattern: bannedUrls.urlPattern,
+      matchType: bannedUrls.matchType
+    })
+    .from(bannedUrls)
+    .where(eq(bannedUrls.matchType, 'domain'));
+}
+
 /**
  * Loads banned domains from the database into memory cache.
  * Called automatically by validateUrl when cache is stale.
@@ -168,13 +186,7 @@ async function loadBannedDomainsFromDb(
   const isFirstLoad = !bannedDomainsLoaded;
 
   try {
-    const results = await db
-      .select({
-        urlPattern: bannedUrls.urlPattern,
-        matchType: bannedUrls.matchType
-      })
-      .from(bannedUrls)
-      .where(eq(bannedUrls.matchType, 'domain'));
+    const results = await bannedDomainsLoader();
 
     // Build staging set first; only replace the live set on full success
     const staging = new Set<string>();
@@ -254,6 +266,20 @@ export function getBannedDomainsSnapshotStatus(): BannedDomainsSnapshotStatus {
     cacheAgeMs:
       bannedDomainsLastLoad > 0 ? Date.now() - bannedDomainsLastLoad : null
   };
+}
+
+export function __resetBannedDomainsStateForTests(): void {
+  BLOCKED_DOMAINS.clear();
+  bannedDomainsLoaded = false;
+  bannedDomainsLastLoad = 0;
+  hasReliableBannedDomainsSnapshot = false;
+  bannedDomainsLoader = loadBannedDomainsFromSource;
+}
+
+export function __setBannedDomainsLoaderForTests(
+  loader: BannedDomainsLoader
+): void {
+  bannedDomainsLoader = loader;
 }
 
 /**
