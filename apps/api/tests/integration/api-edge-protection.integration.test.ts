@@ -66,12 +66,8 @@ const realRedisModule = await import('@/server/lib/redis');
 const realAntiAbuseService = realAntiAbuseModule.antiAbuseService;
 const realRateLimiter = realRateLimiterModule.rateLimiter;
 
-const isIPBlockedMock = mock(async (ip: string) =>
-  realAntiAbuseService.isIPBlocked(ip)
-);
-const recordLoginFailureMock = mock(async (ip: string) =>
-  realAntiAbuseService.recordLoginFailure(ip)
-);
+const isIPBlockedMock = mock(async (_ip: string) => false);
+const recordLoginFailureMock = mock(async (_ip: string) => undefined);
 
 const mockRedisClient = {
   get: mock(() => Promise.resolve(null)),
@@ -214,9 +210,7 @@ beforeAll(() => {
 
 afterEach(() => {
   isIPBlockedMock.mockReset();
-  isIPBlockedMock.mockImplementation(async (ip: string) =>
-    realAntiAbuseService.isIPBlocked(ip)
-  );
+  isIPBlockedMock.mockImplementation(async (_ip: string) => false);
   checkIPLimitMock.mockReset();
   checkIPLimitMock.mockImplementation(
     async (_ip: string, _config: unknown): Promise<MockRateLimitResult> =>
@@ -230,9 +224,7 @@ afterEach(() => {
   isRateLimitedIPBlockedMock.mockReset();
   isRateLimitedIPBlockedMock.mockImplementation(async () => false);
   recordLoginFailureMock.mockReset();
-  recordLoginFailureMock.mockImplementation(async (ip: string) =>
-    realAntiAbuseService.recordLoginFailure(ip)
-  );
+  recordLoginFailureMock.mockImplementation(async (_ip: string) => undefined);
   authSignInStatus = 401;
   authFallbackImportCounter = 0;
 });

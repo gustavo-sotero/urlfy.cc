@@ -102,7 +102,8 @@ const markRedisCommandSuccessMock = mock(() => {});
 // so that @urlfy/cache/stream internals see the mock Redis too.
 mock.module('@/server/lib/redis', () => ({
   redis: mockRedis,
-  getRedisClient: () => mockRedis
+  getRedisClient: () => mockRedis,
+  checkRedisHealth: async () => ({ status: 'ok' as const, latencyMs: 1 })
 }));
 mock.module('@urlfy/cache/client', () => ({
   ...realCacheClientModule,

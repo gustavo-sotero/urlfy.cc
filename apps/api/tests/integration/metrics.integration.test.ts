@@ -15,8 +15,8 @@
 
 import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
 
-// Mock telemetry to prevent connection attempts
-mock.module('@/server/lib/telemetry', () => ({
+// Mock canonical telemetry used by the cache package.
+mock.module('@urlfy/telemetry', () => ({
   createLogger: () => ({
     debug: () => {},
     info: () => {},
@@ -61,14 +61,41 @@ const mockRedis = {
   })
 };
 
-mock.module('@/server/lib/redis', () => ({
+mock.module('@urlfy/cache/client', () => ({
   redis: mockRedis,
   getRedisClient: () => mockRedis,
-  shouldLogRedisFailure: () => true
+  canAttemptRedisCommand: () => true,
+  markRedisCommandFailure: () => {},
+  markRedisCommandSuccess: () => {},
+  shouldLogRedisFailure: () => false,
+  getRedisHealthSnapshot: () => ({
+    isHealthy: true,
+    isConnected: true,
+    isDegraded: false,
+    consecutiveFailures: 0,
+    lastError: null,
+    lastConnectedAt: null,
+    lastFailureAt: null,
+    lastSuccessfulCommandAt: null,
+    degradedUntil: null
+  }),
+  checkRedisHealth: async () => ({ status: 'ok', latencyMs: 1 }),
+  closeRedis: async () => {},
+  redisHealth: {
+    isHealthy: true,
+    isConnected: true,
+    isDegraded: false,
+    consecutiveFailures: 0,
+    lastError: null,
+    lastConnectedAt: null,
+    lastFailureAt: null,
+    lastSuccessfulCommandAt: null,
+    degradedUntil: null
+  }
 }));
 
 // Import after mocking
-import { MetricsService } from '@/server/services/metrics.service';
+import { MetricsService } from '@urlfy/cache/metrics-service';
 
 describe('Metrics Integration - RPS Tracking', () => {
   const _testKeys = [

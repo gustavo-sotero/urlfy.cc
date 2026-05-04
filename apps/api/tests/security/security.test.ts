@@ -115,8 +115,8 @@ const mockRedis = {
   })
 };
 
-// Mock telemetry to prevent OpenTelemetry initialization
-mock.module('../../src/server/lib/telemetry', () => ({
+// Mock canonical telemetry used by the cache package.
+mock.module('@urlfy/telemetry', () => ({
   createLogger: () => ({
     debug: () => {},
     info: () => {},
@@ -125,13 +125,42 @@ mock.module('../../src/server/lib/telemetry', () => ({
   }),
   initTelemetry: () => {},
   configureLogging: async () => {},
-  shutdownTelemetry: () => Promise.resolve()
+  shutdownTelemetry: () => Promise.resolve(),
+  maskIpForLog: (ip: string) => ip
 }));
 
-// Mock Redis module before other imports
-mock.module('../../src/server/lib/redis', () => ({
+// Mock the canonical cache client used by the service shims.
+mock.module('@urlfy/cache/client', () => ({
   getRedisClient: () => mockRedis,
-  redis: mockRedis
+  redis: mockRedis,
+  canAttemptRedisCommand: () => true,
+  markRedisCommandFailure: () => {},
+  markRedisCommandSuccess: () => {},
+  shouldLogRedisFailure: () => false,
+  getRedisHealthSnapshot: () => ({
+    isHealthy: true,
+    isConnected: true,
+    isDegraded: false,
+    consecutiveFailures: 0,
+    lastError: null,
+    lastConnectedAt: null,
+    lastFailureAt: null,
+    lastSuccessfulCommandAt: null,
+    degradedUntil: null
+  }),
+  checkRedisHealth: async () => ({ status: 'ok', latencyMs: 1 }),
+  closeRedis: async () => {},
+  redisHealth: {
+    isHealthy: true,
+    isConnected: true,
+    isDegraded: false,
+    consecutiveFailures: 0,
+    lastError: null,
+    lastConnectedAt: null,
+    lastFailureAt: null,
+    lastSuccessfulCommandAt: null,
+    degradedUntil: null
+  }
 }));
 
 // Dynamic imports after mocking
@@ -152,9 +181,8 @@ const {
   unblockDomain,
   validateUrlSafe: validateUrlCanonical
 } = await import('../../src/server/modules/links/services/url-validator');
-const { antiAbuseService } = await import(
-  '../../src/server/services/anti-abuse.service'
-);
+const { AntiAbuseService } = await import('@urlfy/cache/anti-abuse-service');
+const antiAbuseService = new AntiAbuseService();
 
 const SNAPSHOT_SENTINEL_DOMAIN = 'security-test-snapshot.local';
 

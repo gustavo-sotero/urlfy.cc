@@ -16,6 +16,9 @@ mock.module('@/server/lib/redis', () => ({
   getRedisClient: () => mockRedis,
   redis: mockRedis,
   shouldLogRedisFailure: () => true,
+  checkRedisHealth: mock(() =>
+    Promise.resolve({ status: 'ok' as const, latencyMs: 1 })
+  ),
   CACHE_KEYS: {},
   CACHE_TTL: {}
 }));
