@@ -27,7 +27,7 @@ import {
   apiKey as apiKeyTable,
   user as userTable
 } from '@urlfy/data/schema/auth';
-import { HeadersInit } from 'bun';
+import type { HeadersInit } from 'bun';
 import { eq } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 import { nanoid } from 'nanoid';
@@ -198,7 +198,7 @@ describe('Auth Middleware', () => {
       if (!optionalAuth) throw new Error('Middleware not available');
       return new Elysia().use(optionalAuth).get('/test', (context) => ({
         isAuth: (context as { isAuthenticated?: boolean }).isAuthenticated,
-        userId: (context as { user?: { id: string } }).user?.id
+        userId: (context as { user?: { id: string } | null }).user?.id ?? null
       }));
     }
 
