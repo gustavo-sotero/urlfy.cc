@@ -7,6 +7,7 @@ mock.module('@urlfy/telemetry', () => ({
     warn: mock(() => {}),
     error: mock(() => {})
   }),
+  maskIpForLog: (ip: string) => ip,
   circuitBreakerTrips: {
     add: mock(() => {})
   }
