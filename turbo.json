@@ -110,7 +110,21 @@
     "test:unit": {
       "dependsOn": ["^build"],
       "outputs": [],
-      "env": ["NODE_ENV", "SKIP_ENV_VALIDATION"]
+      "env": [
+        "DATABASE_URL",
+        "REDIS_URL",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "BETTER_AUTH_SECRET",
+        "AUTH_SECRET",
+        "JWT_SECRET",
+        "INTERNAL_API_SECRET",
+        "INTERNAL_ANALYTICS_SECRET",
+        "NEXT_PUBLIC_APP_URL",
+        "NODE_ENV",
+        "SKIP_ENV_VALIDATION",
+        "ADMIN_GITHUB_ACCOUNT_ID"
+      ]
     },
     "test:integration": {
       "dependsOn": ["^build"],
@@ -121,8 +135,10 @@
         "REDIS_HOST",
         "REDIS_PORT",
         "BETTER_AUTH_SECRET",
+        "AUTH_SECRET",
         "JWT_SECRET",
         "INTERNAL_API_SECRET",
+        "INTERNAL_ANALYTICS_SECRET",
         "NEXT_PUBLIC_APP_URL",
         "NODE_ENV",
         "SKIP_ENV_VALIDATION",
@@ -139,8 +155,11 @@
         "REDIS_HOST",
         "REDIS_PORT",
         "BETTER_AUTH_SECRET",
+        "AUTH_SECRET",
         "JWT_SECRET",
         "INTERNAL_API_SECRET",
+        "INTERNAL_ANALYTICS_SECRET",
+        "NEXT_PUBLIC_APP_URL",
         "NODE_ENV",
         "SKIP_ENV_VALIDATION",
         "ADMIN_GITHUB_ACCOUNT_ID"
@@ -148,7 +167,22 @@
     },
     "test:perf": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [],
+      "env": [
+        "DATABASE_URL",
+        "REDIS_URL",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "BETTER_AUTH_SECRET",
+        "AUTH_SECRET",
+        "JWT_SECRET",
+        "INTERNAL_API_SECRET",
+        "INTERNAL_ANALYTICS_SECRET",
+        "NEXT_PUBLIC_APP_URL",
+        "NODE_ENV",
+        "SKIP_ENV_VALIDATION",
+        "ADMIN_GITHUB_ACCOUNT_ID"
+      ]
     },
     "db:generate": {
       "cache": false,
