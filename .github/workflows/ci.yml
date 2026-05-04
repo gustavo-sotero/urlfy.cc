@@ -119,8 +119,9 @@ jobs:
       REDIS_PORT: 6379
       NODE_ENV: test
       BETTER_AUTH_SECRET: ci-test-secret-minimum-32-characters-long
+      AUTH_SECRET: ci-test-auth-secret-minimum-32-characters-long
       JWT_SECRET: ci-test-jwt-secret-minimum-32-characters
-      INTERNAL_API_SECRET: ci-test-internal-secret
+      INTERNAL_API_SECRET: ci-test-internal-secret-minimum-32-chars
       INTERNAL_ANALYTICS_SECRET: ci-test-analytics-secret-minimum-32-chars
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       ADMIN_GITHUB_ACCOUNT_ID: ci-test-admin-github-account-id-00000000
