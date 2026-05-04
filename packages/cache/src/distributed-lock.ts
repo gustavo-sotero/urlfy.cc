@@ -20,6 +20,19 @@ function getRedis() {
   return getRedisClient();
 }
 
+type DistributedLockRedisClient = Pick<
+  ReturnType<typeof getRedisClient>,
+  'pttl' | 'send'
+> & {
+  set: (
+    key: string,
+    value: string,
+    mode: 'PX',
+    ttlMs: string,
+    condition: 'NX'
+  ) => Promise<'OK' | null>;
+};
+
 /**
  * Attempt to acquire a distributed lock using Redis SETNX
  *
@@ -33,22 +46,18 @@ export async function acquireLock(
   key: string,
   ttlMs: number,
   retries = 0,
-  retryDelayMs = 50
+  retryDelayMs = 50,
+  redisClient?: DistributedLockRedisClient
 ): Promise<boolean> {
   let attempts = 0;
   const maxAttempts = retries + 1;
   const token = crypto.randomUUID();
+  const lockRedis = redisClient ?? getRedis();
 
   while (attempts < maxAttempts) {
     try {
       // SET NX PX: Set if Not eXists + Expiration in milliseconds
-      const result = await getRedis().set(
-        key,
-        token,
-        'PX',
-        String(ttlMs),
-        'NX'
-      );
+      const result = await lockRedis.set(key, token, 'PX', String(ttlMs), 'NX');
 
       if (result === 'OK') {
         heldLockTokens.set(key, token);
@@ -82,7 +91,10 @@ export async function acquireLock(
  *
  * @param key - Lock key to release
  */
-export async function releaseLock(key: string): Promise<void> {
+export async function releaseLock(
+  key: string,
+  redisClient?: DistributedLockRedisClient
+): Promise<void> {
   try {
     const token = heldLockTokens.get(key);
 
@@ -93,7 +105,7 @@ export async function releaseLock(key: string): Promise<void> {
       return;
     }
 
-    const result = (await getRedis().send('EVAL', [
+    const result = (await (redisClient ?? getRedis()).send('EVAL', [
       RELEASE_LOCK_SCRIPT,
       '1',
       key,
@@ -150,9 +162,14 @@ export async function withLock<T>(
  * @param key - Lock key
  * @returns true if the lock exists, false otherwise
  */
-export async function hasLock(key: string): Promise<boolean> {
+export async function hasLock(
+  key: string,
+  redisClient?: DistributedLockRedisClient
+): Promise<boolean> {
   try {
-    const exists = (await getRedis().send('EXISTS', [key])) as number;
+    const exists = (await (redisClient ?? getRedis()).send('EXISTS', [
+      key
+    ])) as number;
     return exists === 1;
   } catch (error) {
     logger.error('Error checking lock', {
@@ -169,9 +186,12 @@ export async function hasLock(key: string): Promise<boolean> {
  * @param key - Lock key
  * @returns TTL in ms, or -1 if missing, -2 if no TTL
  */
-export async function getLockTTL(key: string): Promise<number> {
+export async function getLockTTL(
+  key: string,
+  redisClient?: DistributedLockRedisClient
+): Promise<number> {
   try {
-    const ttl = await getRedis().pttl(key);
+    const ttl = await (redisClient ?? getRedis()).pttl(key);
     return ttl;
   } catch (error) {
     logger.error('Error getting lock TTL', {

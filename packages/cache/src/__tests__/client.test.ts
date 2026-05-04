@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
+async function importFreshModule<T>(path: string, scope: string): Promise<T> {
+  return (await import(`${path}?${scope}`)) as T;
+}
+
+const realTelemetryModule = await importFreshModule<
+  typeof import('../../../telemetry/src/index.ts')
+>('../../../telemetry/src/index.ts', 'cache-client-real-telemetry');
+
 mock.module('@urlfy/telemetry', () => ({
+  ...realTelemetryModule,
   createLogger: () => ({
     debug: mock(() => {}),
     info: mock(() => {}),
@@ -13,7 +22,7 @@ mock.module('@urlfy/telemetry', () => ({
   }
 }));
 
-import {
+const {
   canAttemptRedisCommand,
   checkRedisHealth,
   getRedisClient,
@@ -23,7 +32,10 @@ import {
   redisHealth,
   resolveRedisUrlFromEnv,
   shouldLogRedisFailure
-} from '../client';
+} = await importFreshModule<typeof import('../client')>(
+  '../client',
+  'cache-client-test-module'
+);
 
 const originalRedisEnv = {
   REDIS_URL: process.env.REDIS_URL,

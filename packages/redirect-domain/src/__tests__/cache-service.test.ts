@@ -9,7 +9,16 @@ import {
 } from 'bun:test';
 import type { CachedLink } from '@urlfy/contracts/redirect';
 
+const realTelemetryModule = await import(
+  '../../../telemetry/src/index.ts?redirect-domain-cache-service-real-telemetry'
+);
+
+const realCacheModule = await import(
+  '../../../../packages/cache/src/index.ts?redirect-domain-cache-service-real-cache'
+);
+
 mock.module('@urlfy/telemetry', () => ({
+  ...realTelemetryModule,
   createLogger: () => ({
     debug: () => {},
     info: () => {},
@@ -132,6 +141,7 @@ const mockRedis = {
 };
 
 mock.module('@urlfy/cache', () => ({
+  ...realCacheModule,
   acquireLock: async () => true,
   getRedisClient: () => mockRedis,
   getPendingClicks: async () => 0,
@@ -142,6 +152,7 @@ mock.module('@urlfy/cache', () => ({
   releaseLock: async () => {},
   redis: mockRedis,
   CACHE_KEYS: {
+    ...realCacheModule.CACHE_KEYS,
     LINK: (code: string) => `link:${code}`,
     LINK_META: (code: string) => `link:meta:${code}`,
     LINK_404: (code: string) => `link:404:${code}`,
@@ -152,6 +163,7 @@ mock.module('@urlfy/cache', () => ({
     LOCK: (code: string) => `lock:${code}`
   },
   CACHE_TTL: {
+    ...realCacheModule.CACHE_TTL,
     LINK: 3600,
     LINK_META: 300,
     LINK_404: 300,
@@ -162,7 +174,9 @@ mock.module('@urlfy/cache', () => ({
   }
 }));
 
-const { cacheService } = await import('../cache-service');
+const { cacheService } = await import(
+  '../cache-service?redirect-domain-cache-service-test-module'
+);
 
 async function withTimeout<T>(
   promise: Promise<T>,

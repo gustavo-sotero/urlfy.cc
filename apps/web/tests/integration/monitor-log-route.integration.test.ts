@@ -13,6 +13,10 @@
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 
+const realTelemetryIpModule = await import(
+  '../../../../packages/telemetry/src/ip.ts?monitor-log-real-ip'
+);
+
 // ─── Mock logger ─────────────────────────────────────────────────────
 const errorLog = mock(() => {});
 
@@ -20,7 +24,7 @@ const errorLog = mock(() => {});
 // The route imports getClientIp from @/server/lib/ip which re-exports
 // from @urlfy/telemetry. We mock it here so tests control the returned
 // IP and can verify the route uses it (rather than raw headers).
-const getClientIpMock = mock((_req: unknown): string => '127.0.0.1');
+const getClientIpMock = mock((_req: unknown): string | undefined => undefined);
 
 mock.module('@urlfy/telemetry', () => ({
   createLogger: () => ({
@@ -32,11 +36,19 @@ mock.module('@urlfy/telemetry', () => ({
   fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
     fn().catch(() => {});
   },
-  getClientIp: getClientIpMock,
-  getClientIpFromHeaders: mock((_headers: unknown): string => '127.0.0.1'),
-  isPrivateIp: mock(() => true),
-  isValidIp: mock(() => true),
-  maskIpForLog: mock((ip: string) => ip)
+  getClientIp: (request: Request) => {
+    const override = getClientIpMock(request);
+    if (override) {
+      return override;
+    }
+
+    return realTelemetryIpModule.getClientIp(request);
+  },
+  getClientIpFromHeaders: (headers: Headers) =>
+    realTelemetryIpModule.getClientIpFromHeaders(headers),
+  isPrivateIp: realTelemetryIpModule.isPrivateIp,
+  isValidIp: realTelemetryIpModule.isValidIp,
+  maskIpForLog: realTelemetryIpModule.maskIpForLog
 }));
 
 // ─── Controllable rate-limiter ───────────────────────────────────────

@@ -40,11 +40,14 @@ const cookiesGetMock = mock(() => undefined);
 const trackRequestMock = mock(async () => {});
 const checkIPLimitMock = mock(async () => ({ allowed: true as const }));
 const checkLinkLimitMock = mock(async () => ({ allowed: true as const }));
-const streamAddMock = mock(async () => '1-0');
+const enqueueRedirectAnalyticsMock = mock(async () => undefined);
+const reserveRedirectPendingClickMock = mock(async () => 1);
+const revertRedirectPendingClickMock = mock(async () => undefined);
 
-mock.module('@urlfy/cache', () => ({
-  RedisStream: { add: streamAddMock },
-  STREAM_NAMES: { analyticsClicks: 'analytics:clicks' }
+mock.module('@/server/lib/redirect-events', () => ({
+  enqueueRedirectAnalytics: enqueueRedirectAnalyticsMock,
+  reserveRedirectPendingClick: reserveRedirectPendingClickMock,
+  revertRedirectPendingClick: revertRedirectPendingClickMock
 }));
 
 mock.module('@/server/services/redirect-service', () => ({
@@ -64,10 +67,6 @@ mock.module('@urlfy/telemetry', () => ({
 
 mock.module('next/headers', () => ({
   cookies: mock(async () => ({ get: cookiesGetMock }))
-}));
-
-mock.module('@/server/lib/ip', () => ({
-  getClientIp: mock(() => '203.0.113.10')
 }));
 
 mock.module('@/server/lib/rate-limiter', () => ({
@@ -110,7 +109,9 @@ describe('Create-to-open public contract', () => {
     checkLinkLimitMock.mockImplementation(async () => ({
       allowed: true as const
     }));
-    streamAddMock.mockImplementation(async () => '1-0');
+    enqueueRedirectAnalyticsMock.mockImplementation(async () => undefined);
+    reserveRedirectPendingClickMock.mockImplementation(async () => 1);
+    revertRedirectPendingClickMock.mockImplementation(async () => undefined);
   });
 
   // ── 1. Short URL format contract ─────────────────────────────────────────

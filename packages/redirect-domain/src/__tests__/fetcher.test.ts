@@ -13,26 +13,13 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { CachedLink } from '@urlfy/contracts/redirect';
 import type { RedirectFetcherDependencies } from '../types';
 
-// ─── NoOp OpenTelemetry ────────────────────────────────────────────────────────
+const realTelemetryModule = await import(
+  '../../../telemetry/src/index.ts?redirect-domain-fetcher-real-telemetry'
+);
 
-const noOpSpan = {
-  setAttribute: () => {},
-  recordException: () => {},
-  setStatus: () => {},
-  end: () => {}
-};
-
-mock.module('@opentelemetry/api', () => ({
-  trace: {
-    getTracer: () => ({
-      startActiveSpan: (...args: unknown[]) => {
-        const fn = args[args.length - 1] as (span: unknown) => Promise<unknown>;
-        return fn(noOpSpan);
-      }
-    })
-  },
-  SpanStatusCode: { OK: 1, ERROR: 2 }
-}));
+const realCacheModule = await import(
+  '../../../../packages/cache/src/index.ts?redirect-domain-fetcher-real-cache'
+);
 
 // ─── NoOp Telemetry ────────────────────────────────────────────────────────────
 
@@ -40,6 +27,7 @@ const noOpCounter = { add: () => {} };
 const noOpHistogram = { record: () => {} };
 
 mock.module('@urlfy/telemetry', () => ({
+  ...realTelemetryModule,
   createLogger: () => ({
     debug: () => {},
     info: () => {},
@@ -94,7 +82,9 @@ const redisMock = {
 };
 
 mock.module('@urlfy/cache', () => ({
+  ...realCacheModule,
   CACHE_KEYS: {
+    ...realCacheModule.CACHE_KEYS,
     LINK: (code: string) => `link:${code}`,
     LINK_META: (code: string) => `link:meta:${code}`,
     LINK_404: (code: string) => `link:404:${code}`,
@@ -106,6 +96,7 @@ mock.module('@urlfy/cache', () => ({
     LOCK: (code: string) => `lock:${code}`
   },
   CACHE_TTL: {
+    ...realCacheModule.CACHE_TTL,
     LINK: 3600,
     LINK_META: 300,
     LINK_404: 300,

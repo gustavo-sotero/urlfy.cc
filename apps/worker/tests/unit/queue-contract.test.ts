@@ -1,30 +1,19 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 
+const realCacheModule = await import(
+  '../../../../packages/cache/src/index.ts?worker-queue-contract-real-cache'
+);
+
 const addMock = mock(async () => 'stream-id-1');
 
 mock.module('@urlfy/cache', () => ({
+  ...realCacheModule,
   RedisStream: {
+    ...realCacheModule.RedisStream,
     add: addMock
   },
-  STREAM_NAMES: {
-    analyticsClicks: 'analytics:clicks',
-    analyticsDead: 'analytics:dead',
-    aggregation: 'aggregation',
-    aggregationDead: 'aggregation:dead',
-    cleanup: 'cleanup',
-    cleanupDead: 'cleanup:dead',
-    deletion: 'deletion',
-    deletionDead: 'deletion:dead',
-    notifications: 'notifications'
-  },
-  CONSUMER_GROUPS: {
-    analytics: 'analytics-group',
-    analyticsDead: 'analytics-dead-group',
-    aggregation: 'aggregation-group',
-    cleanup: 'cleanup-group',
-    deletion: 'deletion-group',
-    notifications: 'notifications-group'
-  }
+  STREAM_NAMES: { ...realCacheModule.STREAM_NAMES },
+  CONSUMER_GROUPS: { ...realCacheModule.CONSUMER_GROUPS }
 }));
 
 mock.module('@/server/lib/telemetry', () => ({

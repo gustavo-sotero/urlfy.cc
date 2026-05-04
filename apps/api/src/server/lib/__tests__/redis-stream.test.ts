@@ -12,7 +12,9 @@ import {
   mock
 } from 'bun:test';
 
-const realCacheClientModule = await import('@urlfy/cache/client');
+const realCacheClientModule = await import(
+  '../../../../../../packages/cache/src/client.ts?api-redis-stream-real-cache-client'
+);
 
 // Mock telemetry
 const mockLogger = {
@@ -129,12 +131,10 @@ mock.module('@urlfy/cache/client', () => ({
   redisHealth: { isHealthy: true, consecutiveFailures: 0, lastError: null }
 }));
 
-// Import RedisStream directly from @urlfy/cache/stream (not the local shim).
-// This is the canonical sub-path export (packages/cache/src/stream.ts) and is
-// not mocked by any other test file, so it always gives the real implementation
-// with only @urlfy/cache/client mocked above.
+// Import the canonical stream module through a query-suffixed source path so
+// this test gets a fresh module instance after the cache client mock is set up.
 const { CONSUMER_GROUPS, RedisStream, STREAM_NAMES } = await import(
-  '@urlfy/cache/stream'
+  '../../../../../../packages/cache/src/stream.ts?api-redis-stream-test-module'
 );
 
 // Test stream names

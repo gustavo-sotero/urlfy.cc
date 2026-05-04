@@ -4,6 +4,11 @@ import { CACHE_KEYS, CACHE_TTL } from './keys';
 
 const logger = createLogger('realtime-clicks');
 
+type PendingClicksRedisClient = Pick<
+  ReturnType<typeof getRedisClient>,
+  'del' | 'expire' | 'get' | 'send'
+>;
+
 function normalizeAmount(amount: number): number {
   if (!Number.isFinite(amount) || amount <= 0) {
     return 1;
@@ -14,10 +19,11 @@ function normalizeAmount(amount: number): number {
 
 export async function incrementPendingClicks(
   linkId: string,
-  amount = 1
+  amount = 1,
+  redisClient?: PendingClicksRedisClient
 ): Promise<number | null> {
   try {
-    const redis = getRedisClient();
+    const redis = redisClient ?? getRedisClient();
     const key = CACHE_KEYS.ANALYTICS_PENDING_CLICKS(linkId);
     const normalizedAmount = normalizeAmount(amount);
     const nextValue = Number(
@@ -38,10 +44,11 @@ export async function incrementPendingClicks(
 
 export async function drainPendingClicks(
   linkId: string,
-  amount = 1
+  amount = 1,
+  redisClient?: PendingClicksRedisClient
 ): Promise<number | null> {
   try {
-    const redis = getRedisClient();
+    const redis = redisClient ?? getRedisClient();
     const key = CACHE_KEYS.ANALYTICS_PENDING_CLICKS(linkId);
     const normalizedAmount = normalizeAmount(amount);
     const remaining = Number(
@@ -65,9 +72,12 @@ export async function drainPendingClicks(
   }
 }
 
-export async function getPendingClicks(linkId: string): Promise<number> {
+export async function getPendingClicks(
+  linkId: string,
+  redisClient?: PendingClicksRedisClient
+): Promise<number> {
   try {
-    const redis = getRedisClient();
+    const redis = redisClient ?? getRedisClient();
     const value = await redis.get(CACHE_KEYS.ANALYTICS_PENDING_CLICKS(linkId));
 
     if (!value) {
@@ -86,7 +96,8 @@ export async function getPendingClicks(linkId: string): Promise<number> {
 }
 
 export async function getPendingClicksMap(
-  linkIds: string[]
+  linkIds: string[],
+  redisClient?: PendingClicksRedisClient
 ): Promise<Map<string, number>> {
   const uniqueLinkIds = [...new Set(linkIds.filter(Boolean))];
 
@@ -95,7 +106,7 @@ export async function getPendingClicksMap(
   }
 
   try {
-    const redis = getRedisClient();
+    const redis = redisClient ?? getRedisClient();
     const keys = uniqueLinkIds.map((linkId) =>
       CACHE_KEYS.ANALYTICS_PENDING_CLICKS(linkId)
     );
@@ -121,9 +132,10 @@ export async function getPendingClicksMap(
 }
 
 export async function getPendingClicksTotal(
-  linkIds: string[]
+  linkIds: string[],
+  redisClient?: PendingClicksRedisClient
 ): Promise<number> {
-  const counts = await getPendingClicksMap(linkIds);
+  const counts = await getPendingClicksMap(linkIds, redisClient);
 
   let total = 0;
   for (const count of counts.values()) {

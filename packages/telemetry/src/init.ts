@@ -203,6 +203,7 @@ let telemetryInitialized = false;
 let logProcessorConfigured = false;
 let telemetryShuttingDown = false;
 let loggingConfigured = false;
+let telemetryStartupPromise: Promise<void> = Promise.resolve();
 
 function writeBootstrap(
   level: 'info' | 'warn' | 'error',
@@ -384,7 +385,14 @@ export function initTelemetry() {
     ]
   });
 
-  sdk.start();
+  telemetryStartupPromise = Promise.resolve(sdk.start())
+    .then(() => undefined)
+    .catch((error) => {
+      writeBootstrap('error', 'Telemetry SDK start failed', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    });
+
   telemetryInitialized = true;
   telemetryShuttingDown = false;
 
@@ -409,15 +417,17 @@ export function initTelemetry() {
   });
 
   if (logProcessorConfigured && logsEndpoint) {
-    void loggerProvider.forceFlush().catch((err: unknown) => {
-      writeBootstrap(
-        'warn',
-        'Bootstrap log forceFlush failed – logs may not export initially',
-        {
-          error: err instanceof Error ? err.message : String(err),
-          logsEndpoint
-        }
-      );
+    void telemetryStartupPromise.then(() => {
+      return loggerProvider.forceFlush().catch((err: unknown) => {
+        writeBootstrap(
+          'warn',
+          'Bootstrap log forceFlush failed – logs may not export initially',
+          {
+            error: err instanceof Error ? err.message : String(err),
+            logsEndpoint
+          }
+        );
+      });
     });
   }
 }
@@ -435,6 +445,8 @@ export async function shutdownTelemetry() {
   const activeSdk = sdk;
 
   try {
+    await telemetryStartupPromise;
+
     // Reset LogTape before shutting down the OTel provider so any
     // in-flight log records are flushed through the OTel sink first.
     if (loggingConfigured) {
@@ -485,6 +497,7 @@ export async function shutdownTelemetry() {
     telemetryInitialized = false;
     telemetryShuttingDown = false;
     logProcessorConfigured = false;
+    telemetryStartupPromise = Promise.resolve();
     loggerProvider = createLoggerProvider();
 
     writeBootstrap('info', 'Telemetry shut down gracefully');
@@ -541,6 +554,8 @@ const URLFY_REDACT_PATTERNS: (string | RegExp)[] = [
  */
 export async function configureLogging(): Promise<void> {
   if (loggingConfigured) return;
+
+  await telemetryStartupPromise;
 
   const isDev = process.env.NODE_ENV === 'development';
   // Use the module-level logProcessorConfigured flag rather than re-reading env vars.

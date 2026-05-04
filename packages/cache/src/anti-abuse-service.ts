@@ -25,8 +25,15 @@ const THRESHOLDS = {
   PASSWORD_RESET: { count: 5, window: 3600 } // 5 resets per hour
 } as const;
 
+type AntiAbuseRedisClient = Pick<
+  ReturnType<typeof getRedisClient>,
+  'del' | 'expire' | 'get' | 'incr' | 'send' | 'set' | 'setex'
+>;
+
 export class AntiAbuseService {
-  private redis = getRedisClient();
+  constructor(
+    private readonly redis: AntiAbuseRedisClient = getRedisClient()
+  ) {}
 
   async recordEvent(type: keyof typeof THRESHOLDS, key: string): Promise<void> {
     if (!canAttemptRedisCommand()) return;

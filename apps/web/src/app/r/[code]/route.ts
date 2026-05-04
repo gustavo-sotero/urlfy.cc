@@ -11,18 +11,17 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import {
-  drainPendingClicks,
-  incrementPendingClicks,
-  RedisStream,
-  STREAM_NAMES
-} from '@urlfy/cache';
 import { REDIRECT_RATE_LIMIT_CONFIG } from '@urlfy/contracts';
 import { createLogger, fireAndForget } from '@urlfy/telemetry';
 import { cookies } from 'next/headers';
 import { type NextRequest, NextResponse } from 'next/server';
 import { getClientIp } from '@/server/lib/ip';
 import { rateLimiter } from '@/server/lib/rate-limiter';
+import {
+  enqueueRedirectAnalytics,
+  reserveRedirectPendingClick,
+  revertRedirectPendingClick
+} from '@/server/lib/redirect-events';
 import { MetricsService } from '@/server/services/metrics.service';
 import { redirectService } from '@/server/services/redirect-service';
 
@@ -169,7 +168,7 @@ async function reservePendingClick(
   linkId: string,
   code: string
 ): Promise<boolean> {
-  const nextPendingCount = await incrementPendingClicks(linkId);
+  const nextPendingCount = await reserveRedirectPendingClick(linkId);
 
   if (nextPendingCount === null) {
     logger.warn('Failed to reserve pending click before redirect response', {
@@ -193,28 +192,14 @@ function dispatchAnalytics(
   linkId: string,
   pendingClickReserved: boolean
 ): void {
-  const searchParams = request.nextUrl.searchParams;
-
   fireAndForget(
     'analytics-emit',
     async () => {
       try {
-        await RedisStream.add(STREAM_NAMES.analyticsClicks, {
-          linkId,
-          shortCode: code,
-          ip: getClientIp(request),
-          userAgent: request.headers.get('user-agent') ?? '',
-          referer: request.headers.get('referer') ?? '',
-          utmSource: searchParams.get('utm_source') ?? '',
-          utmMedium: searchParams.get('utm_medium') ?? '',
-          utmCampaign: searchParams.get('utm_campaign') ?? '',
-          utmContent: searchParams.get('utm_content') ?? '',
-          utmTerm: searchParams.get('utm_term') ?? '',
-          timestamp: new Date().toISOString()
-        });
+        await enqueueRedirectAnalytics(request, code, linkId);
       } catch (error) {
         if (pendingClickReserved) {
-          await drainPendingClicks(linkId);
+          await revertRedirectPendingClick(linkId);
         }
         throw error;
       }

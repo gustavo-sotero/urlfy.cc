@@ -3,7 +3,15 @@
  * Comprehensive tests for injection attacks, rate limiting, CORS, and security headers
  */
 
-import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock
+} from 'bun:test';
 
 // Create a stateful mock Redis client for testing
 const mockStore = new Map<string, { value: string; expiry?: number }>();
@@ -115,6 +123,10 @@ const mockRedis = {
   })
 };
 
+const realCacheClientModule = await import(
+  '../../../../packages/cache/src/client.ts?api-security-real-cache-client'
+);
+
 // Mock canonical telemetry used by the cache package.
 mock.module('@urlfy/telemetry', () => ({
   createLogger: () => ({
@@ -129,39 +141,15 @@ mock.module('@urlfy/telemetry', () => ({
   maskIpForLog: (ip: string) => ip
 }));
 
-// Mock the canonical cache client used by the service shims.
-mock.module('@urlfy/cache/client', () => ({
-  getRedisClient: () => mockRedis,
-  redis: mockRedis,
-  canAttemptRedisCommand: () => true,
-  markRedisCommandFailure: () => {},
-  markRedisCommandSuccess: () => {},
-  shouldLogRedisFailure: () => false,
-  getRedisHealthSnapshot: () => ({
-    isHealthy: true,
-    isConnected: true,
-    isDegraded: false,
-    consecutiveFailures: 0,
-    lastError: null,
-    lastConnectedAt: null,
-    lastFailureAt: null,
-    lastSuccessfulCommandAt: null,
-    degradedUntil: null
-  }),
-  checkRedisHealth: async () => ({ status: 'ok', latencyMs: 1 }),
-  closeRedis: async () => {},
-  redisHealth: {
-    isHealthy: true,
-    isConnected: true,
-    isDegraded: false,
-    consecutiveFailures: 0,
-    lastError: null,
-    lastConnectedAt: null,
-    lastFailureAt: null,
-    lastSuccessfulCommandAt: null,
-    degradedUntil: null
-  }
-}));
+realCacheClientModule.markRedisCommandSuccess();
+
+beforeEach(() => {
+  realCacheClientModule.markRedisCommandSuccess();
+});
+
+afterEach(() => {
+  realCacheClientModule.markRedisCommandSuccess();
+});
 
 // Dynamic imports after mocking
 const { RATE_LIMIT_CONFIGS, RateLimiter } = await import(
@@ -182,7 +170,7 @@ const {
   validateUrlSafe: validateUrlCanonical
 } = await import('../../src/server/modules/links/services/url-validator');
 const { AntiAbuseService } = await import('@urlfy/cache/anti-abuse-service');
-const antiAbuseService = new AntiAbuseService();
+const antiAbuseService = new AntiAbuseService(mockRedis);
 
 const SNAPSHOT_SENTINEL_DOMAIN = 'security-test-snapshot.local';
 
@@ -743,6 +731,7 @@ describe('Anti-Abuse Detection (Extended)', () => {
 });
 
 afterAll(() => {
+  realCacheClientModule.markRedisCommandSuccess();
   mock.restore();
   clearMockStore();
 });

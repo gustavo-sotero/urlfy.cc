@@ -1,5 +1,5 @@
-import { checkRedisHealth } from '@urlfy/cache';
 import { checkDatabaseHealth } from '@urlfy/data';
+import { checkRedisHealth } from '@/server/lib/cache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

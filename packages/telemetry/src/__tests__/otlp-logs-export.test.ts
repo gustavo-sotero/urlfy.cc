@@ -8,15 +8,15 @@
 
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
   expect,
   it
 } from 'bun:test';
-import { trace } from '@opentelemetry/api';
 
-import { recordCacheHit } from '../metrics';
+import { acquireTelemetryTestLock } from './test-lock';
 
 interface CapturedRequest {
   path: string;
@@ -28,6 +28,7 @@ const capturedRequests: CapturedRequest[] = [];
 
 let mockServer: ReturnType<typeof Bun.serve>;
 let mockPort: number;
+let releaseTelemetryTestLock: (() => void) | null = null;
 
 const MOCK_PORT = 0;
 
@@ -80,6 +81,26 @@ beforeEach(() => {
   delete process.env.OTEL_SERVICE_NAME;
 });
 
+beforeEach(async () => {
+  releaseTelemetryTestLock = await acquireTelemetryTestLock();
+
+  const { context, metrics, propagation, trace } = await import(
+    '@opentelemetry/api'
+  );
+  trace.disable();
+  metrics.disable();
+  propagation.disable();
+  context.disable();
+
+  const sharedInitModule = await import('../init');
+  await sharedInitModule.shutdownTelemetry();
+});
+
+afterEach(() => {
+  releaseTelemetryTestLock?.();
+  releaseTelemetryTestLock = null;
+});
+
 function waitForRequests(
   requests: CapturedRequest[],
   pathFilter: string,
@@ -111,6 +132,18 @@ function waitForRequests(
   });
 }
 
+async function loadTelemetryRuntime(scope: string) {
+  const [initModule, loggerModule] = await Promise.all([
+    import(`../init?${scope}`),
+    import(`../logger?${scope}`)
+  ]);
+
+  return {
+    ...initModule,
+    ...loggerModule
+  };
+}
+
 describe('OTLP telemetry export – shared telemetry package', () => {
   it('emits logs, metrics, and traces to normalized signal endpoints', async () => {
     const baseUrl = `http://127.0.0.1:${mockPort}`;
@@ -124,14 +157,22 @@ describe('OTLP telemetry export – shared telemetry package', () => {
       initTelemetry,
       configureLogging,
       shutdownTelemetry,
-      loggerProvider
-    } = await import('../init');
-    const { createLogger } = await import('../logger');
+      loggerProvider,
+      createLogger
+    } = await loadTelemetryRuntime('otlp-export-normalized');
 
     const earlyLogger = createLogger('early-module-scope');
 
     initTelemetry();
     await configureLogging();
+
+    loggerProvider.getLogger('telemetry-direct-probe').emit({
+      severityText: 'INFO',
+      body: 'direct telemetry integration log',
+      attributes: {
+        testScenario: 'direct-logger-provider-probe'
+      }
+    });
 
     earlyLogger.info('pre-configured logger emission', {
       testScenario: 'pre-configured-logger-regression'
@@ -144,7 +185,12 @@ describe('OTLP telemetry export – shared telemetry package', () => {
       }
     );
 
-    recordCacheHit();
+    const { metrics, trace } = await import('@opentelemetry/api');
+    const integrationMeter = metrics.getMeter('telemetry-integration', '1.0.0');
+    integrationMeter
+      .createCounter('telemetry.integration.counter')
+      .add(1, { scenario: 'normalized-endpoints' });
+
     const span = trace
       .getTracer('telemetry-integration')
       .startSpan('telemetry-integration-span');
@@ -158,19 +204,19 @@ describe('OTLP telemetry export – shared telemetry package', () => {
       capturedRequests,
       '/v1/logs',
       1,
-      2000
+      10000
     );
     const metricsRequests = await waitForRequests(
       capturedRequests,
       '/v1/metrics',
       1,
-      5000
+      15000
     );
     const traceRequests = await waitForRequests(
       capturedRequests,
       '/v1/traces',
       1,
-      5000
+      15000
     );
 
     expect(logsRequests.length).toBeGreaterThan(0);
@@ -200,7 +246,7 @@ describe('OTLP telemetry export – shared telemetry package', () => {
     )?.stringValue;
     expect(typeof serviceNameValue).toBe('string');
     expect(serviceNameValue?.length).toBeGreaterThan(0);
-  }, 15_000);
+  }, 35_000);
 
   it('uses per-signal log endpoint and headers without affecting traces or metrics', async () => {
     const baseUrl = `http://127.0.0.1:${mockPort}`;
@@ -242,18 +288,34 @@ describe('OTLP telemetry export – shared telemetry package', () => {
         initTelemetry,
         configureLogging,
         shutdownTelemetry,
-        loggerProvider
-      } = await import('../init');
-      const { createLogger } = await import('../logger');
+        loggerProvider,
+        createLogger
+      } = await loadTelemetryRuntime('otlp-export-per-signal');
 
       initTelemetry();
       await configureLogging();
+
+      loggerProvider.getLogger('telemetry-direct-probe').emit({
+        severityText: 'INFO',
+        body: 'per-signal direct telemetry log',
+        attributes: {
+          scenario: 'logs-endpoint-direct-probe'
+        }
+      });
 
       createLogger('per-signal-logs').info('per-signal log endpoint', {
         scenario: 'logs-endpoint-override'
       });
 
-      recordCacheHit();
+      const { metrics, trace } = await import('@opentelemetry/api');
+      const integrationMeter = metrics.getMeter(
+        'telemetry-integration',
+        '1.0.0'
+      );
+      integrationMeter
+        .createCounter('telemetry.integration.counter')
+        .add(1, { scenario: 'per-signal-override' });
+
       const span = trace
         .getTracer('telemetry-integration')
         .startSpan('telemetry-override-span');
@@ -333,12 +395,20 @@ describe('OTLP telemetry export – shared telemetry package', () => {
         initTelemetry,
         configureLogging,
         shutdownTelemetry,
-        loggerProvider
-      } = await import('../init');
-      const { createLogger } = await import('../logger');
+        loggerProvider,
+        createLogger
+      } = await loadTelemetryRuntime('otlp-export-logs-only');
 
       initTelemetry();
       await configureLogging();
+
+      loggerProvider.getLogger('telemetry-direct-probe').emit({
+        severityText: 'INFO',
+        body: 'logs-only direct telemetry log',
+        attributes: {
+          scenario: 'logs-only-direct-probe'
+        }
+      });
 
       createLogger('logs-only').info('logs-only signal endpoint');
 

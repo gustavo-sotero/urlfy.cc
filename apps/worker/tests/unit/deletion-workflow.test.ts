@@ -27,6 +27,10 @@ import * as realDataSchema from '@urlfy/data/schema';
 import * as realAuthSchema from '@urlfy/data/schema/auth';
 import * as realDrizzle from 'drizzle-orm';
 
+const realCacheModule = await import(
+  '../../../../packages/cache/src/index.ts?worker-deletion-workflow-real-cache'
+);
+
 // ─── Fixtures ──────────────────────────────────────────────────────────────
 const REQUEST_ID = 'del-req-001';
 const USER_ID = 'user-del-001';
@@ -179,6 +183,7 @@ mock.module('drizzle-orm', () => ({
 }));
 
 mock.module('@urlfy/cache', () => ({
+  ...realCacheModule,
   // Full CONSUMER_GROUPS / STREAM_NAMES so redis-stream tests that run later
   // don't get an incomplete set if they accidentally hit this cached mock.
   CONSUMER_GROUPS: {
@@ -201,6 +206,7 @@ mock.module('@urlfy/cache', () => ({
     notifications: 'notifications'
   },
   RedisStream: {
+    ...realCacheModule.RedisStream,
     createGroup: mock(async () => {}),
     readGroup: mock(async () => []),
     ack: mock(async () => 0),
@@ -212,6 +218,7 @@ mock.module('@urlfy/cache', () => ({
     getPendingCount: mock(async () => 0)
   },
   redis: {
+    ...realCacheModule.redis,
     send: mock(async () => null),
     get: mock(async () => null),
     set: mock(async () => 'OK'),

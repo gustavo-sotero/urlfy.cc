@@ -1,5 +1,6 @@
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -8,11 +9,14 @@ import {
 } from 'bun:test';
 import { LoggerProvider } from '@opentelemetry/sdk-logs';
 
+import { acquireTelemetryTestLock } from './test-lock';
+
 type InitModule = typeof import('../init');
 
 let initModule: InitModule | null = null;
 let mockServer: ReturnType<typeof Bun.serve>;
 let mockPort: number;
+let releaseTelemetryTestLock: (() => void) | null = null;
 
 const TELEMETRY_ENV_KEYS = [
   'TELEMETRY_ENABLED',
@@ -91,6 +95,10 @@ function waitForStderrMessage(
   });
 }
 
+async function loadInitModule(scope: string): Promise<InitModule> {
+  return (await import(`../init?${scope}`)) as InitModule;
+}
+
 beforeAll(() => {
   mockServer = Bun.serve({
     port: 0,
@@ -115,13 +123,31 @@ afterAll(() => {
 });
 
 beforeEach(async () => {
+  releaseTelemetryTestLock = await acquireTelemetryTestLock();
+
+  const { context, metrics, propagation, trace } = await import(
+    '@opentelemetry/api'
+  );
+  trace.disable();
+  metrics.disable();
+  propagation.disable();
+  context.disable();
+
   resetTelemetryEnv();
+
+  const sharedInitModule = await import('../init');
+  await sharedInitModule.shutdownTelemetry();
 
   if (initModule) {
     await initModule.shutdownTelemetry();
   }
 
   initModule = null;
+});
+
+afterEach(() => {
+  releaseTelemetryTestLock?.();
+  releaseTelemetryTestLock = null;
 });
 
 describe('telemetry diagnostics', () => {
@@ -133,7 +159,7 @@ describe('telemetry diagnostics', () => {
     const stderr = captureStderr();
 
     try {
-      initModule = await import('../init');
+      initModule = await loadInitModule('telemetry-diagnostics-bootstrap');
 
       const originalForceFlush = LoggerProvider.prototype.forceFlush;
       let shouldFailForceFlush = true;
@@ -185,9 +211,10 @@ describe('telemetry diagnostics', () => {
     const stderr = captureStderr();
 
     try {
-      initModule = await import('../init');
+      initModule = await loadInitModule('telemetry-diagnostics-shutdown');
 
       initModule.initTelemetry();
+      await Bun.sleep(25);
 
       const originalForceFlush = LoggerProvider.prototype.forceFlush;
       let shouldFailForceFlush = true;

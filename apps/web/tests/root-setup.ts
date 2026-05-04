@@ -1,3 +1,3 @@
 import { configureWebTestEnvironment } from './bootstrap';
 
-configureWebTestEnvironment({ mockLogtape: true });
+configureWebTestEnvironment();

@@ -18,6 +18,10 @@
 
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
+const realCacheModule = await import(
+  '../../../../packages/cache/src/index.ts?worker-scheduler-real-cache'
+);
+
 // ─── Failure flags ──────────────────────────────────────────────────────────
 const failures = {
   dbSelect: false, // When true: db.select().from(...) throws
@@ -106,7 +110,9 @@ mock.module('@urlfy/data/schema/audit', () => ({
 }));
 
 mock.module('@urlfy/cache', () => ({
+  ...realCacheModule,
   RedisStream: {
+    ...realCacheModule.RedisStream,
     add: redisStreamAddMock
   },
   STREAM_NAMES: STREAM_NAMES_MOCK,

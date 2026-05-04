@@ -15,6 +15,10 @@
 
 import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
 
+const realCacheClientModule = await import(
+  '../../../../packages/cache/src/client.ts?api-metrics-real-cache-client'
+);
+
 // Mock canonical telemetry used by the cache package.
 mock.module('@urlfy/telemetry', () => ({
   createLogger: () => ({
@@ -61,41 +65,19 @@ const mockRedis = {
   })
 };
 
-mock.module('@urlfy/cache/client', () => ({
-  redis: mockRedis,
-  getRedisClient: () => mockRedis,
+// Import after mocking
+realCacheClientModule.markRedisCommandSuccess();
+
+const { MetricsService } = await import(
+  '../../../../packages/cache/src/metrics-service.ts?api-metrics-integration-module'
+);
+
+const metricsControls = {
   canAttemptRedisCommand: () => true,
   markRedisCommandFailure: () => {},
   markRedisCommandSuccess: () => {},
-  shouldLogRedisFailure: () => false,
-  getRedisHealthSnapshot: () => ({
-    isHealthy: true,
-    isConnected: true,
-    isDegraded: false,
-    consecutiveFailures: 0,
-    lastError: null,
-    lastConnectedAt: null,
-    lastFailureAt: null,
-    lastSuccessfulCommandAt: null,
-    degradedUntil: null
-  }),
-  checkRedisHealth: async () => ({ status: 'ok', latencyMs: 1 }),
-  closeRedis: async () => {},
-  redisHealth: {
-    isHealthy: true,
-    isConnected: true,
-    isDegraded: false,
-    consecutiveFailures: 0,
-    lastError: null,
-    lastConnectedAt: null,
-    lastFailureAt: null,
-    lastSuccessfulCommandAt: null,
-    degradedUntil: null
-  }
-}));
-
-// Import after mocking
-import { MetricsService } from '@urlfy/cache/metrics-service';
+  shouldLogRedisFailure: () => false
+};
 
 describe('Metrics Integration - RPS Tracking', () => {
   const _testKeys = [
@@ -107,17 +89,19 @@ describe('Metrics Integration - RPS Tracking', () => {
 
   beforeAll(async () => {
     store.clear();
+    realCacheClientModule.markRedisCommandSuccess();
   });
 
   afterAll(async () => {
     store.clear();
+    realCacheClientModule.markRedisCommandSuccess();
     mock.restore();
   });
 
   it('should track requests and calculate RPS', async () => {
     // Step 1: Simulate 120 requests being tracked
     for (let i = 0; i < 120; i++) {
-      await MetricsService.trackRequest();
+      await MetricsService.trackRequest(mockRedis, metricsControls);
     }
 
     // Verify counter was incremented
@@ -128,7 +112,7 @@ describe('Metrics Integration - RPS Tracking', () => {
     await Bun.sleep(100);
 
     // Step 3: Calculate RPS (simulates scheduler job)
-    const rps = await MetricsService.calculateRPS();
+    const rps = await MetricsService.calculateRPS(mockRedis, metricsControls);
 
     // Verify RPS was calculated
     expect(rps).not.toBeNull();
@@ -147,7 +131,7 @@ describe('Metrics Integration - RPS Tracking', () => {
   it('should handle concurrent request tracking', async () => {
     // Simulate concurrent requests (more realistic scenario)
     const promises = Array.from({ length: 50 }, () =>
-      MetricsService.trackRequest()
+      MetricsService.trackRequest(mockRedis, metricsControls)
     );
 
     await Promise.all(promises);
@@ -159,19 +143,19 @@ describe('Metrics Integration - RPS Tracking', () => {
 
   it('should maintain RPS across multiple calculation cycles', async () => {
     // First cycle
-    await MetricsService.trackRequest();
-    await MetricsService.trackRequest();
-    const rps1 = await MetricsService.calculateRPS();
+    await MetricsService.trackRequest(mockRedis, metricsControls);
+    await MetricsService.trackRequest(mockRedis, metricsControls);
+    const rps1 = await MetricsService.calculateRPS(mockRedis, metricsControls);
     expect(rps1).not.toBeNull();
 
     // Wait a bit
     await Bun.sleep(100);
 
     // Second cycle
-    await MetricsService.trackRequest();
-    await MetricsService.trackRequest();
-    await MetricsService.trackRequest();
-    const rps2 = await MetricsService.calculateRPS();
+    await MetricsService.trackRequest(mockRedis, metricsControls);
+    await MetricsService.trackRequest(mockRedis, metricsControls);
+    await MetricsService.trackRequest(mockRedis, metricsControls);
+    const rps2 = await MetricsService.calculateRPS(mockRedis, metricsControls);
     expect(rps2).not.toBeNull();
 
     // Both cycles should succeed
@@ -181,8 +165,8 @@ describe('Metrics Integration - RPS Tracking', () => {
 
   it('should have TTL set on RPS value for auto-expiry', async () => {
     // Track and calculate
-    await MetricsService.trackRequest();
-    await MetricsService.calculateRPS();
+    await MetricsService.trackRequest(mockRedis, metricsControls);
+    await MetricsService.calculateRPS(mockRedis, metricsControls);
 
     // Verify TTL exists (should be 120 seconds)
     const ttl = await mockRedis.ttl('metrics:rps');
@@ -207,10 +191,10 @@ describe('Metrics Integration - Admin Dashboard', () => {
   it('should return calculated RPS value', async () => {
     // Simulate requests and calculation
     for (let i = 0; i < 60; i++) {
-      await MetricsService.trackRequest();
+      await MetricsService.trackRequest(mockRedis, metricsControls);
     }
 
-    await MetricsService.calculateRPS();
+    await MetricsService.calculateRPS(mockRedis, metricsControls);
 
     // Simulate AdminService reading RPS
     const rpsValue = await mockRedis.get('metrics:rps');

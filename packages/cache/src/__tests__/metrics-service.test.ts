@@ -8,7 +8,16 @@ import {
   mock
 } from 'bun:test';
 
+async function importFreshModule<T>(path: string): Promise<T> {
+  return (await import(`${path}?cache-metrics-test-module`)) as T;
+}
+
+const realTelemetryModule = await importFreshModule<
+  typeof import('../../../telemetry/src/index.ts')
+>('../../../telemetry/src/index.ts');
+
 mock.module('@urlfy/telemetry', () => ({
+  ...realTelemetryModule,
   createLogger: () => ({
     debug: () => {},
     info: () => {},
@@ -21,17 +30,61 @@ mock.module('@urlfy/telemetry', () => ({
   }
 }));
 
-const { getRedisClient, markRedisCommandSuccess, redisHealth } = await import(
-  '../client'
-);
-const { MetricsService } = await import('../metrics-service');
+const { markRedisCommandSuccess, redisHealth } = await import('../client');
+const { MetricsService } =
+  await importFreshModule<typeof import('../metrics-service')>(
+    '../metrics-service'
+  );
 
-const redis = getRedisClient() as {
-  del: (...keys: string[]) => Promise<number>;
-  get: (key: string) => Promise<string | null>;
-  set: (key: string, value: string, ...args: string[]) => Promise<string>;
-  ttl: (key: string) => Promise<number>;
+const metricsControls = {
+  canAttemptRedisCommand: () => true,
+  markRedisCommandFailure: () => {},
+  markRedisCommandSuccess: () => {},
+  shouldLogRedisFailure: () => false
 };
+
+type TestRedisClient = Pick<
+  typeof import('../client').redis,
+  'get' | 'getset' | 'incr' | 'set'
+> & {
+  del: (...keys: string[]) => Promise<number>;
+  ttl: (_key: string) => Promise<number>;
+};
+
+const store = new Map<string, string>();
+
+const redis = {
+  del: async (...keys: string[]) => {
+    let deleted = 0;
+    for (const key of keys) {
+      if (store.delete(key)) {
+        deleted++;
+      }
+    }
+
+    return deleted;
+  },
+  get: async (key: string) => store.get(key) ?? null,
+  getset: async (key: string, value: string) => {
+    const previous = store.get(key) ?? null;
+    store.set(key, value);
+    return previous;
+  },
+  incr: async (key: string) => {
+    const nextValue = Number.parseInt(store.get(key) ?? '0', 10) + 1;
+    store.set(key, String(nextValue));
+    return nextValue;
+  },
+  set: async (
+    key: string,
+    value: string,
+    ..._args: Array<string | number>
+  ): Promise<'OK'> => {
+    store.set(key, value);
+    return 'OK';
+  },
+  ttl: async (_key: string) => 60
+} satisfies TestRedisClient;
 
 describe('MetricsService', () => {
   const REDIS_KEYS = {
@@ -46,19 +99,11 @@ describe('MetricsService', () => {
     redisHealth.consecutiveFailures = 0;
     redisHealth.lastError = null;
     markRedisCommandSuccess();
-    await redis.del(
-      REDIS_KEYS.REQUEST_COUNT,
-      REDIS_KEYS.LAST_CALC_TIME,
-      REDIS_KEYS.RPS
-    );
+    store.clear();
   });
 
   afterEach(async () => {
-    await redis.del(
-      REDIS_KEYS.REQUEST_COUNT,
-      REDIS_KEYS.LAST_CALC_TIME,
-      REDIS_KEYS.RPS
-    );
+    store.clear();
   });
 
   afterAll(() => {
@@ -67,23 +112,25 @@ describe('MetricsService', () => {
 
   describe('trackRequest', () => {
     it('increments the request counter', async () => {
-      await MetricsService.trackRequest();
+      await MetricsService.trackRequest(redis, metricsControls);
 
       const count = await redis.get(REDIS_KEYS.REQUEST_COUNT);
       expect(count).toBe('1');
     });
 
     it('increments the counter multiple times', async () => {
-      await MetricsService.trackRequest();
-      await MetricsService.trackRequest();
-      await MetricsService.trackRequest();
+      await MetricsService.trackRequest(redis, metricsControls);
+      await MetricsService.trackRequest(redis, metricsControls);
+      await MetricsService.trackRequest(redis, metricsControls);
 
       const count = await redis.get(REDIS_KEYS.REQUEST_COUNT);
       expect(count).toBe('3');
     });
 
     it('does not throw on Redis errors', async () => {
-      await expect(MetricsService.trackRequest()).resolves.toBeUndefined();
+      await expect(
+        MetricsService.trackRequest(redis, metricsControls)
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -95,7 +142,7 @@ describe('MetricsService', () => {
       await redis.set(REDIS_KEYS.REQUEST_COUNT, '60');
       await redis.set(REDIS_KEYS.LAST_CALC_TIME, sixtySecondsAgo.toString());
 
-      const rps = await MetricsService.calculateRPS();
+      const rps = await MetricsService.calculateRPS(redis, metricsControls);
 
       expect(rps).not.toBeNull();
       expect(rps).toBeGreaterThanOrEqual(0.9);
@@ -114,7 +161,7 @@ describe('MetricsService', () => {
     it('handles the first calculation without a previous timestamp', async () => {
       await redis.set(REDIS_KEYS.REQUEST_COUNT, '100');
 
-      const rps = await MetricsService.calculateRPS();
+      const rps = await MetricsService.calculateRPS(redis, metricsControls);
 
       expect(rps).not.toBeNull();
       expect(rps).toBeGreaterThan(0);
@@ -127,7 +174,7 @@ describe('MetricsService', () => {
       const now = Date.now();
       await redis.set(REDIS_KEYS.LAST_CALC_TIME, (now - 60000).toString());
 
-      const rps = await MetricsService.calculateRPS();
+      const rps = await MetricsService.calculateRPS(redis, metricsControls);
 
       expect(rps).toBe(0);
     });
@@ -139,7 +186,7 @@ describe('MetricsService', () => {
         (Date.now() - 60000).toString()
       );
 
-      await MetricsService.calculateRPS();
+      await MetricsService.calculateRPS(redis, metricsControls);
 
       const ttl = await redis.ttl(REDIS_KEYS.RPS);
       expect(ttl).toBeGreaterThan(0);
@@ -151,7 +198,7 @@ describe('MetricsService', () => {
       await redis.set(REDIS_KEYS.REQUEST_COUNT, '6000');
       await redis.set(REDIS_KEYS.LAST_CALC_TIME, (now - 60000).toString());
 
-      const rps = await MetricsService.calculateRPS();
+      const rps = await MetricsService.calculateRPS(redis, metricsControls);
 
       expect(rps).not.toBeNull();
       expect(rps).toBeGreaterThanOrEqual(95);
@@ -163,7 +210,7 @@ describe('MetricsService', () => {
       await redis.set(REDIS_KEYS.REQUEST_COUNT, '10');
       await redis.set(REDIS_KEYS.LAST_CALC_TIME, now.toString());
 
-      const rps = await MetricsService.calculateRPS();
+      const rps = await MetricsService.calculateRPS(redis, metricsControls);
 
       expect(rps).not.toBeNull();
       expect(rps).toBeGreaterThan(0);
@@ -174,7 +221,7 @@ describe('MetricsService', () => {
       await redis.set(REDIS_KEYS.REQUEST_COUNT, '123');
       await redis.set(REDIS_KEYS.LAST_CALC_TIME, (now - 60000).toString());
 
-      const rps = await MetricsService.calculateRPS();
+      const rps = await MetricsService.calculateRPS(redis, metricsControls);
 
       expect(rps).not.toBeNull();
       const rpsStr = rps?.toString() ?? '';
@@ -186,12 +233,12 @@ describe('MetricsService', () => {
   describe('integration flow', () => {
     it('tracks requests and calculates RPS', async () => {
       for (let i = 0; i < 10; i++) {
-        await MetricsService.trackRequest();
+        await MetricsService.trackRequest(redis, metricsControls);
       }
 
       await Bun.sleep(100);
 
-      const rps = await MetricsService.calculateRPS();
+      const rps = await MetricsService.calculateRPS(redis, metricsControls);
 
       expect(rps).not.toBeNull();
       expect(rps).toBeGreaterThan(0);
@@ -202,14 +249,14 @@ describe('MetricsService', () => {
 
     it('handles multiple calculation cycles', async () => {
       await redis.set(REDIS_KEYS.REQUEST_COUNT, '100');
-      const rps1 = await MetricsService.calculateRPS();
+      const rps1 = await MetricsService.calculateRPS(redis, metricsControls);
       expect(rps1).not.toBeNull();
 
       await Bun.sleep(50);
-      await MetricsService.trackRequest();
-      await MetricsService.trackRequest();
+      await MetricsService.trackRequest(redis, metricsControls);
+      await MetricsService.trackRequest(redis, metricsControls);
 
-      const rps2 = await MetricsService.calculateRPS();
+      const rps2 = await MetricsService.calculateRPS(redis, metricsControls);
       expect(rps2).not.toBeNull();
 
       expect(rps1).toBeGreaterThanOrEqual(0);
@@ -219,7 +266,7 @@ describe('MetricsService', () => {
 
   describe('error handling', () => {
     it('returns a number when calculation has no prior state', async () => {
-      const rps = await MetricsService.calculateRPS();
+      const rps = await MetricsService.calculateRPS(redis, metricsControls);
 
       expect(rps).not.toBeNull();
       expect(typeof rps).toBe('number');

@@ -3,12 +3,12 @@
  * App-local adapter over the canonical shared evaluator.
  */
 
+import { createLogger } from '@urlfy/telemetry';
 import {
   CanonicalRateLimiter,
   getRedisClient,
   type RateLimitResult
-} from '@urlfy/cache';
-import { createLogger } from '@urlfy/telemetry';
+} from './cache';
 import { maskIpForLog } from './ip';
 
 export type { RateLimitConfig, RouteRateLimitEntry } from '@urlfy/contracts';

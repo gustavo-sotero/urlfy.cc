@@ -36,14 +36,6 @@ mock.module('@urlfy/telemetry', () => ({
   }
 }));
 
-// ip utilities (re-exported from @urlfy/telemetry; mock the shim directly)
-mock.module('@/server/lib/ip', () => ({
-  getClientIp: () => '127.0.0.1',
-  maskIpForLog: (ip: string) => `ip:${ip.slice(0, 4)}`,
-  isValidIp: () => true,
-  isPrivateIp: () => true
-}));
-
 // Controllable redirectService
 type RedirectResult =
   | {
@@ -80,21 +72,19 @@ let incrementPendingClicksMock = async (): Promise<number | null> => {
   pendingClicksIncremented = true;
   return 1;
 };
-mock.module('@urlfy/cache', () => ({
-  RedisStream: {
-    add: async (): Promise<void> => {
-      if (analyticsAddShouldFail) {
-        throw new Error('stream enqueue failed');
-      }
-      analyticsAddCalled = true;
+mock.module('@/server/lib/redirect-events', () => ({
+  enqueueRedirectAnalytics: async (): Promise<void> => {
+    if (analyticsAddShouldFail) {
+      throw new Error('stream enqueue failed');
     }
+
+    analyticsAddCalled = true;
   },
-  drainPendingClicks: async (): Promise<void> => {
-    pendingClicksDrained = true;
-  },
-  incrementPendingClicks: async (): Promise<number | null> =>
+  reserveRedirectPendingClick: async (): Promise<number | null> =>
     incrementPendingClicksMock(),
-  STREAM_NAMES: { analyticsClicks: 'analytics:clicks' }
+  revertRedirectPendingClick: async (): Promise<void> => {
+    pendingClicksDrained = true;
+  }
 }));
 
 // next/headers — cookies() and headers()

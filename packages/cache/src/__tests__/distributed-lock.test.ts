@@ -1,18 +1,31 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { redisHealth } from '../client';
 
-const setCalls: Array<Array<string>> = [];
+async function importFreshModule<T>(path: string, scope: string): Promise<T> {
+  return (await import(`${path}?${scope}`)) as T;
+}
+
+const realTelemetryModule = await importFreshModule<
+  typeof import('../../../telemetry/src/index.ts')
+>('../../../telemetry/src/index.ts', 'cache-distributed-lock-real-telemetry');
+
+const setCalls: Array<[string, string, 'PX', string, 'NX']> = [];
 const delCalls: Array<Array<string>> = [];
 const sendCalls: Array<{ command: string; args: string[] }> = [];
 
-let setResult: string | null = 'OK';
+let setResult: 'OK' | null = 'OK';
 let evalResult = 1;
 let existsResult = 1;
 let pttlResult = 4200;
 
 const redisMock = {
-  set: async (...args: string[]) => {
-    setCalls.push(args);
+  set: async (
+    key: string,
+    value: string,
+    mode: 'PX',
+    ttlMs: string,
+    condition: 'NX'
+  ): Promise<'OK' | null> => {
+    setCalls.push([key, value, mode, ttlMs, condition]);
     return setResult;
   },
   del: async (...args: string[]) => {
@@ -31,6 +44,7 @@ const redisMock = {
 };
 
 mock.module('@urlfy/telemetry', () => ({
+  ...realTelemetryModule,
   createLogger: () => ({
     debug: () => {},
     info: () => {},
@@ -49,12 +63,6 @@ const { acquireLock, getLockTTL, hasLock, releaseLock } = await import(
 
 describe('distributed-lock', () => {
   beforeEach(() => {
-    (globalThis as { __REDIS_CLIENT__?: typeof redisMock }).__REDIS_CLIENT__ =
-      redisMock;
-    redisHealth.isDegraded = false;
-    redisHealth.degradedUntil = null;
-    redisHealth.consecutiveFailures = 0;
-    redisHealth.lastError = null;
     setCalls.length = 0;
     delCalls.length = 0;
     sendCalls.length = 0;
@@ -66,13 +74,11 @@ describe('distributed-lock', () => {
   });
 
   afterAll(() => {
-    delete (globalThis as { __REDIS_CLIENT__?: typeof redisMock })
-      .__REDIS_CLIENT__;
     mock.restore();
   });
 
   it('acquires lock with PX and millisecond TTL', async () => {
-    const acquired = await acquireLock('lock:abc123', 5000);
+    const acquired = await acquireLock('lock:abc123', 5000, 0, 50, redisMock);
 
     expect(acquired).toBe(true);
     expect(setCalls).toHaveLength(1);
@@ -85,7 +91,7 @@ describe('distributed-lock', () => {
   });
 
   it('stores a unique token instead of static lock value', async () => {
-    await acquireLock('lock:abc123', 5000);
+    await acquireLock('lock:abc123', 5000, 0, 50, redisMock);
 
     const args = setCalls[0];
     expect(args[1]).not.toBe('1');
@@ -95,18 +101,18 @@ describe('distributed-lock', () => {
   it('returns false when lock acquisition fails', async () => {
     setResult = null;
 
-    const acquired = await acquireLock('lock:busy', 5000);
+    const acquired = await acquireLock('lock:busy', 5000, 0, 50, redisMock);
 
     expect(acquired).toBe(false);
   });
 
   it('releases lock with atomic compare-and-delete script', async () => {
-    await acquireLock('lock:abc123', 5000);
+    await acquireLock('lock:abc123', 5000, 0, 50, redisMock);
 
     const setArgs = setCalls[0];
     const token = setArgs[1];
 
-    await releaseLock('lock:abc123');
+    await releaseLock('lock:abc123', redisMock);
 
     const evalCall = sendCalls.find((call) => call.command === 'EVAL');
     expect(evalCall).toBeDefined();
@@ -119,7 +125,7 @@ describe('distributed-lock', () => {
   });
 
   it('does not try to release lock when token is missing', async () => {
-    await releaseLock('lock:not-held');
+    await releaseLock('lock:not-held', redisMock);
 
     const evalCall = sendCalls.find((call) => call.command === 'EVAL');
     expect(evalCall).toBeUndefined();
@@ -128,14 +134,14 @@ describe('distributed-lock', () => {
 
   it('checks lock existence using EXISTS', async () => {
     existsResult = 1;
-    expect(await hasLock('lock:abc123')).toBe(true);
+    expect(await hasLock('lock:abc123', redisMock)).toBe(true);
 
     existsResult = 0;
-    expect(await hasLock('lock:abc123')).toBe(false);
+    expect(await hasLock('lock:abc123', redisMock)).toBe(false);
   });
 
   it('returns lock TTL using PTTL', async () => {
     pttlResult = 3700;
-    expect(await getLockTTL('lock:abc123')).toBe(3700);
+    expect(await getLockTTL('lock:abc123', redisMock)).toBe(3700);
   });
 });

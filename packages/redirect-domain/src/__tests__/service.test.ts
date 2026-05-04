@@ -12,27 +12,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
-// NoOp OpenTelemetry tracer — avoids SDK initialisation in unit tests
-mock.module('@opentelemetry/api', () => ({
-  trace: {
-    getTracer: () => ({
-      startActiveSpan: async (
-        _name: string,
-        _opts: unknown,
-        fn: (span: unknown) => unknown
-      ) => {
-        return fn({
-          setStatus: () => {},
-          setAttributes: () => {},
-          setAttribute: () => {},
-          recordException: () => {},
-          end: () => {}
-        });
-      }
-    })
-  },
-  SpanStatusCode: { OK: 0, UNSET: 0, ERROR: 2 }
-}));
+const realTelemetryModule = await import(
+  '../../../telemetry/src/index.ts?redirect-domain-service-real-telemetry'
+);
 
 // Silent logger + NoOp metrics — avoids LogTape sink errors and covers
 // all transitive imports (including @urlfy/cache/circuit-breaker)
@@ -40,6 +22,7 @@ const noOpCounter = { add: () => {} };
 const noOpHistogram = { record: () => {} };
 
 mock.module('@urlfy/telemetry', () => ({
+  ...realTelemetryModule,
   createLogger: () => ({
     debug: () => {},
     info: () => {},

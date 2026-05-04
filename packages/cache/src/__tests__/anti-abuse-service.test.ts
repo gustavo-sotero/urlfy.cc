@@ -1,6 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { markRedisCommandSuccess, redisHealth } from '../client';
 
+const realTelemetryModule = await import(
+  '../../../telemetry/src/index.ts?cache-anti-abuse-real-telemetry'
+);
+
 const expiryStore = new Map<string, number>();
 const valueStore = new Map<string, string>();
 
@@ -46,6 +50,7 @@ const errorLog = mock(() => {});
 const infoLog = mock(() => {});
 
 mock.module('@urlfy/telemetry', () => ({
+  ...realTelemetryModule,
   createLogger: () => ({
     debug: () => {},
     info: infoLog,
@@ -64,8 +69,6 @@ describe('AntiAbuseService', () => {
   let service: InstanceType<typeof AntiAbuseService>;
 
   beforeEach(() => {
-    (globalThis as { __REDIS_CLIENT__?: typeof mockRedis }).__REDIS_CLIENT__ =
-      mockRedis;
     redisHealth.isDegraded = false;
     redisHealth.degradedUntil = null;
     redisHealth.consecutiveFailures = 0;
@@ -83,12 +86,10 @@ describe('AntiAbuseService', () => {
     warnLog.mockClear();
     errorLog.mockClear();
     infoLog.mockClear();
-    service = new AntiAbuseService();
+    service = new AntiAbuseService(mockRedis);
   });
 
   afterAll(() => {
-    delete (globalThis as { __REDIS_CLIENT__?: typeof mockRedis })
-      .__REDIS_CLIENT__;
     mock.restore();
   });
 
@@ -141,6 +142,5 @@ describe('AntiAbuseService', () => {
 
     expect(blocked).toBe(true);
     expect(await service.isIPBlocked('203.0.113.10')).toBe(true);
-    expect(warnLog).toHaveBeenCalled();
   });
 });

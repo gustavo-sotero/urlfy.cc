@@ -12,6 +12,14 @@
 
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
+const realTelemetryModule = await import(
+  '../../../telemetry/src/index.ts?geoip-real-telemetry'
+);
+
+const realCacheModule = await import(
+  '../../../../packages/cache/src/index.ts?packages-geoip-real-cache'
+);
+
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 const redisCalls: { get: string[]; setex: string[] } = { get: [], setex: [] };
@@ -29,16 +37,21 @@ const mockRedis: {
 };
 
 mock.module('@urlfy/cache', () => ({
+  ...realCacheModule,
   CACHE_KEYS: {
+    ...realCacheModule.CACHE_KEYS,
     GEO: (prefix: string) => `geo:${prefix}`
   },
   CACHE_TTL: {
+    ...realCacheModule.CACHE_TTL,
     GEO: 86400
   },
-  redis: mockRedis
+  redis: mockRedis,
+  getRedisClient: () => mockRedis
 }));
 
 mock.module('@urlfy/telemetry', () => ({
+  ...realTelemetryModule,
   createLogger: () => ({
     debug: () => {},
     info: () => {},

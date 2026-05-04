@@ -22,7 +22,7 @@ describe('Web readiness endpoint', () => {
   });
 
   beforeEach(() => {
-    mock.module('@urlfy/cache', () => ({
+    mock.module('@/server/lib/cache', () => ({
       checkRedisHealth: checkRedisHealthMock
     }));
     mock.module('@urlfy/data', () => ({

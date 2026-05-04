@@ -42,19 +42,15 @@ const cookiesGetMock = mock(() => undefined);
 const trackRequestMock = mock(async () => {});
 const checkIPLimitMock = mock(async () => ({ allowed: true as const }));
 const checkLinkLimitMock = mock(async () => ({ allowed: true as const }));
-const getClientIpMock = mock(() => '203.0.113.10');
-const streamAddMock = mock(async () => '1-0');
+const enqueueRedirectAnalyticsMock = mock(async () => undefined);
+const reserveRedirectPendingClickMock = mock(async () => 1);
+const revertRedirectPendingClickMock = mock(async () => undefined);
 const originalTrustProxy = process.env.TRUST_PROXY;
 
-mock.module('@urlfy/cache', () => ({
-  RedisStream: {
-    add: streamAddMock
-  },
-  drainPendingClicks: async (): Promise<void> => {},
-  incrementPendingClicks: async (): Promise<number> => 1,
-  STREAM_NAMES: {
-    analyticsClicks: 'analytics:clicks'
-  }
+mock.module('@/server/lib/redirect-events', () => ({
+  enqueueRedirectAnalytics: enqueueRedirectAnalyticsMock,
+  reserveRedirectPendingClick: reserveRedirectPendingClickMock,
+  revertRedirectPendingClick: revertRedirectPendingClickMock
 }));
 
 mock.module('@/server/services/redirect-service', () => ({
@@ -72,10 +68,6 @@ mock.module('@urlfy/telemetry', () => ({
   fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
     fn().catch(() => {});
   }
-}));
-
-mock.module('@/server/lib/ip', () => ({
-  getClientIp: getClientIpMock
 }));
 
 mock.module('next/headers', () => ({
@@ -135,9 +127,10 @@ describe('Redirect hot path isolation', () => {
     checkLinkLimitMock.mockImplementation(async () => ({
       allowed: true as const
     }));
-    streamAddMock.mockImplementation(async () => '1-0');
+    enqueueRedirectAnalyticsMock.mockImplementation(async () => undefined);
+    reserveRedirectPendingClickMock.mockImplementation(async () => 1);
+    revertRedirectPendingClickMock.mockImplementation(async () => undefined);
     trackRequestMock.mockImplementation(async () => {});
-    getClientIpMock.mockImplementation(() => '203.0.113.10');
 
     fetchSpy = mock(async () => new Response(null, { status: 500 }));
     global.fetch = fetchSpy as unknown as typeof fetch;
@@ -149,9 +142,10 @@ describe('Redirect hot path isolation', () => {
     cookiesGetMock.mockClear();
     checkIPLimitMock.mockClear();
     checkLinkLimitMock.mockClear();
-    streamAddMock.mockClear();
+    enqueueRedirectAnalyticsMock.mockClear();
+    reserveRedirectPendingClickMock.mockClear();
+    revertRedirectPendingClickMock.mockClear();
     trackRequestMock.mockClear();
-    getClientIpMock.mockClear();
     fetchSpy.mockClear();
   });
 

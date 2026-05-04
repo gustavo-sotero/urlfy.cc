@@ -19,12 +19,22 @@ const secureEnv = {
 } satisfies Record<string, string>;
 
 async function runCheck(extraEnv: Record<string, string | undefined>) {
+  const env = {
+    ...process.env,
+    ...secureEnv
+  } satisfies Record<string, string | undefined>;
+
+  for (const [key, value] of Object.entries(extraEnv)) {
+    if (value === undefined) {
+      delete env[key];
+      continue;
+    }
+
+    env[key] = value;
+  }
+
   const proc = Bun.spawn(['bun', scriptPath], {
-    env: {
-      ...process.env,
-      ...secureEnv,
-      ...extraEnv
-    },
+    env,
     stdout: 'pipe',
     stderr: 'pipe'
   });
@@ -60,7 +70,7 @@ describe('check-test-secrets guard', () => {
   });
 
   test('fails when ADMIN_GITHUB_ACCOUNT_ID is missing', async () => {
-    const result = await runCheck({ ADMIN_GITHUB_ACCOUNT_ID: undefined });
+    const result = await runCheck({ ADMIN_GITHUB_ACCOUNT_ID: '' });
 
     expectExitCode(result, 1);
     expect(result.stderr).toContain('ADMIN_GITHUB_ACCOUNT_ID: Not set');

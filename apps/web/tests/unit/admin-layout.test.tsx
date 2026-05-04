@@ -76,14 +76,6 @@ mock.module('@/components/admin/layout/admin-sidebar', () => ({
   )
 }));
 
-mock.module('@/server/lib/ip', () => ({
-  getClientIp: () => '127.0.0.1',
-  isPrivateIp: () => false,
-  isValidIp: () => true,
-  maskIpForLog: (ip: string) => ip,
-  getClientIpFromHeaders: () => '127.0.0.1'
-}));
-
 mock.module('@/server/services/audit.service', () => ({
   auditLogService: {
     log: auditLogMock
