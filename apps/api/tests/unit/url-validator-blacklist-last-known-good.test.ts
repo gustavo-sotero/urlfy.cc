@@ -1,14 +1,10 @@
 import { describe, expect, test } from 'bun:test';
+import { BannedDomainsCache } from '@/server/modules/links/services/url-validator';
 
 describe('url-validator banned-domain last-known-good snapshot', () => {
   test('retains the previous blacklist when a later reload fails', async () => {
-    const validator = await import(
-      `@/server/modules/links/services/url-validator?last-known-good=${Date.now()}`
-    );
     let loadAttempt = 0;
-
-    validator.__resetBannedDomainsStateForTests();
-    validator.__setBannedDomainsLoaderForTests(async () => {
+    const cache = new BannedDomainsCache(async () => {
       loadAttempt += 1;
 
       if (loadAttempt === 1) {
@@ -18,28 +14,24 @@ describe('url-validator banned-domain last-known-good snapshot', () => {
       throw new Error('database offline');
     });
 
-    try {
-      const initialResult = await validator.validateUrlAsync(
-        'https://blocked.example/path'
-      );
-      expect(initialResult).toEqual({ valid: false, error: 'DOMAIN_BANNED' });
-      expect(loadAttempt).toBe(1);
+    const initialResult = await cache.validateAsync(
+      'https://blocked.example/path'
+    );
+    expect(initialResult).toEqual({ valid: false, error: 'DOMAIN_BANNED' });
+    expect(loadAttempt).toBe(1);
 
-      const reloadResult = await validator.reloadBannedDomains();
-      expect(reloadResult).toMatchObject({
-        reloaded: false,
-        retainedSnapshot: true,
-        error: 'database offline'
-      });
-      expect(loadAttempt).toBe(2);
+    const reloadResult = await cache.reload();
+    expect(reloadResult).toMatchObject({
+      reloaded: false,
+      retainedSnapshot: true,
+      error: 'database offline'
+    });
+    expect(loadAttempt).toBe(2);
 
-      const retainedResult = await validator.validateUrlAsync(
-        'https://blocked.example/after-reload-failure'
-      );
-      expect(retainedResult).toEqual({ valid: false, error: 'DOMAIN_BANNED' });
-      expect(loadAttempt).toBe(2);
-    } finally {
-      validator.__resetBannedDomainsStateForTests();
-    }
+    const retainedResult = await cache.validateAsync(
+      'https://blocked.example/after-reload-failure'
+    );
+    expect(retainedResult).toEqual({ valid: false, error: 'DOMAIN_BANNED' });
+    expect(loadAttempt).toBe(2);
   });
 });

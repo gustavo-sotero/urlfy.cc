@@ -18,7 +18,7 @@ interface BannedDomainRecord {
   matchType: string;
 }
 
-type BannedDomainsLoader = () => Promise<BannedDomainRecord[]>;
+export type BannedDomainsLoader = () => Promise<BannedDomainRecord[]>;
 
 // SSRF Protection: Private IP ranges (RFC 1918, loopback, link-local)
 const PRIVATE_IP_RANGES = [
@@ -108,16 +108,7 @@ export function isSelfShortenerTarget(url: string): boolean {
   }
 }
 
-// In-memory cache for banned domains (loaded from database)
-const BLOCKED_DOMAINS = new Set<string>();
-
-// Cache state
-let bannedDomainsLoaded = false;
-let bannedDomainsLastLoad = 0;
-let hasReliableBannedDomainsSnapshot = false;
 const CACHE_TTL_MS = 60_000; // Reload every minute
-let bannedDomainsLoader: BannedDomainsLoader = loadBannedDomainsFromSource;
-
 const DNS_LOOKUP_TIMEOUT_MS = 10000; // Increased timeout for test environments with slow DNS
 
 export type ValidationResult =
@@ -160,285 +151,15 @@ async function loadBannedDomainsFromSource(): Promise<BannedDomainRecord[]> {
     .where(eq(bannedUrls.matchType, 'domain'));
 }
 
-/**
- * Loads banned domains from the database into memory cache.
- * Called automatically by validateUrl when cache is stale.
- */
-async function loadBannedDomainsFromDb(
-  forceReload = false
-): Promise<BannedDomainsReloadResult> {
-  const now = Date.now();
-
-  // Skip if recently loaded
-  if (
-    !forceReload &&
-    bannedDomainsLoaded &&
-    now - bannedDomainsLastLoad < CACHE_TTL_MS
-  ) {
-    return {
-      reloaded: false,
-      retainedSnapshot: true,
-      snapshot: getBannedDomainsSnapshotStatus(),
-      error: null
-    };
-  }
-
-  const isFirstLoad = !bannedDomainsLoaded;
-
-  try {
-    const results = await bannedDomainsLoader();
-
-    // Build staging set first; only replace the live set on full success
-    const staging = new Set<string>();
-    for (const row of results) {
-      const normalized = row.urlPattern.replace(/^www\./, '').toLowerCase();
-      staging.add(normalized);
-    }
-
-    // Atomic swap: clear and refill from staging in the same sync block
-    BLOCKED_DOMAINS.clear();
-    for (const domain of staging) {
-      BLOCKED_DOMAINS.add(domain);
-    }
-
-    bannedDomainsLoaded = true;
-    bannedDomainsLastLoad = now;
-    hasReliableBannedDomainsSnapshot = true;
-
-    return {
-      reloaded: true,
-      retainedSnapshot: false,
-      snapshot: getBannedDomainsSnapshotStatus(),
-      error: null
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    logger.error('Failed to load banned domains from database', {
-      error: errorMessage,
-      snapshotDomains: BLOCKED_DOMAINS.size,
-      isFirstLoad
-    });
-
-    if (isFirstLoad) {
-      logger.error(
-        'Banned-domain enforcement is degraded: no snapshot available on first load'
-      );
-      // Do not update bannedDomainsLastLoad so the next request retries
-    } else {
-      logger.warn(
-        'Banned-domain reload failed; retaining last-known-good snapshot',
-        {
-          snapshotAge: `${Math.round((now - bannedDomainsLastLoad) / 1000).toString()}s`
-        }
-      );
-      // Update timestamp to avoid hammering the DB on every request
-      bannedDomainsLastLoad = now;
-    }
-
-    return {
-      reloaded: false,
-      retainedSnapshot: hasReliableBannedDomainsSnapshot,
-      snapshot: getBannedDomainsSnapshotStatus(),
-      error: errorMessage
-    };
-  }
-}
-
-/**
- * Force reload of banned domains cache
- */
-export async function reloadBannedDomains(): Promise<BannedDomainsReloadResult> {
-  return loadBannedDomainsFromDb(true);
-}
-
-export function getBannedDomainsSnapshotStatus(): BannedDomainsSnapshotStatus {
-  const lastLoadedAt =
-    bannedDomainsLastLoad > 0
-      ? new Date(bannedDomainsLastLoad).toISOString()
-      : null;
-
-  return {
-    loaded: bannedDomainsLoaded,
-    hasReliableSnapshot: hasReliableBannedDomainsSnapshot,
-    domainCount: BLOCKED_DOMAINS.size,
-    lastLoadedAt,
-    cacheAgeMs:
-      bannedDomainsLastLoad > 0 ? Date.now() - bannedDomainsLastLoad : null
-  };
-}
-
-export function __resetBannedDomainsStateForTests(): void {
-  BLOCKED_DOMAINS.clear();
-  bannedDomainsLoaded = false;
-  bannedDomainsLastLoad = 0;
-  hasReliableBannedDomainsSnapshot = false;
-  bannedDomainsLoader = loadBannedDomainsFromSource;
-}
-
-export function __setBannedDomainsLoaderForTests(
-  loader: BannedDomainsLoader
-): void {
-  bannedDomainsLoader = loader;
-}
-
-/**
- * Check if an IP address is in a private/internal range
- * @param ip - IP address to check
- * @returns true if IP is private/internal
- */
 export function isPrivateIP(ip: string): boolean {
   const normalized = ip.trim().replace(/^\[/, '').replace(/\]$/, '');
   return PRIVATE_IP_RANGES.some((regex) => regex.test(normalized));
 }
 
-/**
- * Check if a hostname should be blocked (localhost, metadata endpoints)
- * @param hostname - Hostname to check
- * @returns true if hostname is blocked
- */
 export function isBlockedHostname(hostname: string): boolean {
   const lower = hostname.toLowerCase();
-
-  // Exact match
-  if (BLOCKED_HOSTNAMES.includes(lower)) {
-    return true;
-  }
-
-  // Pattern match for internal TLDs
+  if (BLOCKED_HOSTNAMES.includes(lower)) return true;
   return INTERNAL_TLD_PATTERNS.some((pattern) => pattern.test(lower));
-}
-
-/**
- * Validate a destination URL
- * @param url - URL to validate
- * @returns Validation result
- */
-export function validateUrl(url: string): ValidationResult {
-  // 1. Maximum length (2048 chars is a common browser limit)
-  if (url.length > 2048) {
-    return { valid: false, error: 'URL_TOO_LONG' };
-  }
-
-  // 2. Valid format
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return { valid: false, error: 'INVALID_FORMAT' };
-  }
-
-  // 3. Allowed protocol (http/https only)
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
-    return { valid: false, error: 'INVALID_PROTOCOL' };
-  }
-
-  // 4. Block self-shortener targets (prevents shortlink loops)
-  if (isSelfShortenerTarget(url)) {
-    return { valid: false, error: 'SELF_SHORTENER_BLOCKED' };
-  }
-
-  // 5. Block other URL shorteners
-  const domain = parsed.hostname.replace(/^www\./, '').toLowerCase();
-  if (BLOCKED_SHORTENERS.has(domain)) {
-    return { valid: false, error: 'SHORTENER_BLOCKED' };
-  }
-
-  // 6. Domain blacklist (from in-memory cache)
-  if (BLOCKED_DOMAINS.has(domain)) {
-    return { valid: false, error: 'DOMAIN_BANNED' };
-  }
-
-  return { valid: true };
-}
-
-/**
- * Async version of validateUrl that ensures banned domains are loaded
- * Use this when you need to guarantee the latest banned domains are checked
- */
-export async function validateUrlAsync(url: string): Promise<ValidationResult> {
-  await loadBannedDomainsFromDb();
-
-  if (!hasReliableBannedDomainsSnapshot) {
-    logger.error(
-      'Banned-domain validation unavailable: no reliable snapshot loaded'
-    );
-    return { valid: false, error: 'BANNED_DOMAINS_UNAVAILABLE' };
-  }
-
-  return validateUrl(url);
-}
-
-/**
- * Safe URL validation with SSRF protection (async DNS resolution)
- * This is the recommended function for validating user-provided URLs
- * @param url - URL to validate
- * @returns Validation result with SSRF checks
- */
-export async function validateUrlSafe(url: string): Promise<ValidationResult> {
-  // Run synchronous checks first (format, protocol, shortener block)
-  const syncResult = await validateUrlAsync(url);
-  if (!syncResult.valid) {
-    return syncResult;
-  }
-
-  const { hostname } = new URL(url);
-
-  // Block known dangerous hostnames
-  if (isBlockedHostname(hostname)) {
-    logger.warn('Blocked internal hostname', { hostname });
-    return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
-  }
-
-  if (nodeEnv === 'test') {
-    if (isPrivateIP(hostname)) {
-      logger.warn('Blocked private IP hostname in test mode', { hostname });
-      return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
-    }
-
-    return { valid: true };
-  }
-
-  // Resolve DNS and check IPs
-  try {
-    const addresses = await resolveHostname(hostname, DNS_LOOKUP_TIMEOUT_MS);
-
-    if (addresses.length === 0) {
-      logger.warn('DNS resolution returned no addresses', { hostname });
-      return { valid: false, error: 'URL_RESOLUTION_FAILED' };
-    }
-
-    const privateAddress = addresses.find((address) => isPrivateIP(address));
-    if (privateAddress) {
-      logger.warn('Blocked private IP address', {
-        hostname,
-        address: privateAddress
-      });
-      return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
-    }
-
-    logger.debug('URL passed SSRF validation', {
-      hostname,
-      addresses
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    // In test environment, be more lenient with DNS timeouts for known domains
-    if (nodeEnv === 'test' && errorMessage.includes('TIMEOUT')) {
-      logger.warn('DNS timeout in test environment - allowing', { hostname });
-      return { valid: true };
-    }
-
-    // DNS resolution failed - block to be safe
-    logger.warn('DNS resolution failed', {
-      hostname,
-      error: errorMessage
-    });
-    return { valid: false, error: 'URL_RESOLUTION_FAILED' };
-  }
-
-  return { valid: true };
 }
 
 async function resolveHostname(
@@ -464,65 +185,287 @@ async function resolveHostname(
 }
 
 /**
- * Add a domain to the blacklist (runtime + database)
- * @param domain - Domain to block
- * @param reason - Reason for blocking
- * @param createdBy - User ID who created the ban
+ * Encapsulates the banned-domain cache and all URL validation logic.
+ * Inject a custom BannedDomainsLoader in tests to avoid touching the database.
  */
+export class BannedDomainsCache {
+  private readonly blockedDomains = new Set<string>();
+  private loaded = false;
+  private lastLoad = 0;
+  private hasReliableSnapshot = false;
+  private readonly loader: BannedDomainsLoader;
+
+  constructor(loader: BannedDomainsLoader = loadBannedDomainsFromSource) {
+    this.loader = loader;
+  }
+
+  async load(forceReload = false): Promise<BannedDomainsReloadResult> {
+    const now = Date.now();
+
+    if (!forceReload && this.loaded && now - this.lastLoad < CACHE_TTL_MS) {
+      return {
+        reloaded: false,
+        retainedSnapshot: true,
+        snapshot: this.getStatus(),
+        error: null
+      };
+    }
+
+    const isFirstLoad = !this.loaded;
+
+    try {
+      const results = await this.loader();
+
+      // Build staging set first; only replace the live set on full success
+      const staging = new Set<string>();
+      for (const row of results) {
+        staging.add(row.urlPattern.replace(/^www\./, '').toLowerCase());
+      }
+
+      // Atomic swap: clear and refill from staging in the same sync block
+      this.blockedDomains.clear();
+      for (const domain of staging) {
+        this.blockedDomains.add(domain);
+      }
+
+      this.loaded = true;
+      this.lastLoad = now;
+      this.hasReliableSnapshot = true;
+
+      return {
+        reloaded: true,
+        retainedSnapshot: false,
+        snapshot: this.getStatus(),
+        error: null
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      logger.error('Failed to load banned domains from database', {
+        error: errorMessage,
+        snapshotDomains: this.blockedDomains.size,
+        isFirstLoad
+      });
+
+      if (isFirstLoad) {
+        logger.error(
+          'Banned-domain enforcement is degraded: no snapshot available on first load'
+        );
+        // Do not update lastLoad so the next request retries
+      } else {
+        logger.warn(
+          'Banned-domain reload failed; retaining last-known-good snapshot',
+          {
+            snapshotAge: `${Math.round((now - this.lastLoad) / 1000).toString()}s`
+          }
+        );
+        // Update timestamp to avoid hammering the DB on every request
+        this.lastLoad = now;
+      }
+
+      return {
+        reloaded: false,
+        retainedSnapshot: this.hasReliableSnapshot,
+        snapshot: this.getStatus(),
+        error: errorMessage
+      };
+    }
+  }
+
+  async reload(): Promise<BannedDomainsReloadResult> {
+    return this.load(true);
+  }
+
+  getStatus(): BannedDomainsSnapshotStatus {
+    return {
+      loaded: this.loaded,
+      hasReliableSnapshot: this.hasReliableSnapshot,
+      domainCount: this.blockedDomains.size,
+      lastLoadedAt:
+        this.lastLoad > 0 ? new Date(this.lastLoad).toISOString() : null,
+      cacheAgeMs: this.lastLoad > 0 ? Date.now() - this.lastLoad : null
+    };
+  }
+
+  block(domain: string): void {
+    const normalized = domain.replace(/^www\./, '').toLowerCase();
+    this.blockedDomains.add(normalized);
+    this.loaded = true;
+    this.lastLoad = Date.now();
+    this.hasReliableSnapshot = true;
+  }
+
+  unblock(domain: string): void {
+    const normalized = domain.replace(/^www\./, '').toLowerCase();
+    this.blockedDomains.delete(normalized);
+    this.hasReliableSnapshot = true;
+  }
+
+  isBlocked(domain: string): boolean {
+    const normalized = domain.replace(/^www\./, '').toLowerCase();
+    return (
+      this.blockedDomains.has(normalized) || BLOCKED_SHORTENERS.has(normalized)
+    );
+  }
+
+  async blockPersistent(
+    domain: string,
+    reason: string,
+    createdBy?: string
+  ): Promise<void> {
+    const normalized = domain.replace(/^www\./, '').toLowerCase();
+    await db
+      .insert(bannedUrls)
+      .values({
+        urlPattern: normalized,
+        matchType: 'domain',
+        reason,
+        source: 'manual',
+        createdBy
+      })
+      .onConflictDoNothing();
+    this.block(normalized);
+  }
+
+  validate(url: string): ValidationResult {
+    if (url.length > 2048) {
+      return { valid: false, error: 'URL_TOO_LONG' };
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return { valid: false, error: 'INVALID_FORMAT' };
+    }
+
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { valid: false, error: 'INVALID_PROTOCOL' };
+    }
+
+    if (isSelfShortenerTarget(url)) {
+      return { valid: false, error: 'SELF_SHORTENER_BLOCKED' };
+    }
+
+    const domain = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    if (BLOCKED_SHORTENERS.has(domain)) {
+      return { valid: false, error: 'SHORTENER_BLOCKED' };
+    }
+
+    if (this.blockedDomains.has(domain)) {
+      return { valid: false, error: 'DOMAIN_BANNED' };
+    }
+
+    return { valid: true };
+  }
+
+  async validateAsync(url: string): Promise<ValidationResult> {
+    await this.load();
+
+    if (!this.hasReliableSnapshot) {
+      logger.error(
+        'Banned-domain validation unavailable: no reliable snapshot loaded'
+      );
+      return { valid: false, error: 'BANNED_DOMAINS_UNAVAILABLE' };
+    }
+
+    return this.validate(url);
+  }
+
+  async validateSafe(url: string): Promise<ValidationResult> {
+    const syncResult = await this.validateAsync(url);
+    if (!syncResult.valid) return syncResult;
+
+    const { hostname } = new URL(url);
+
+    if (isBlockedHostname(hostname)) {
+      logger.warn('Blocked internal hostname', { hostname });
+      return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
+    }
+
+    if (nodeEnv === 'test') {
+      if (isPrivateIP(hostname)) {
+        logger.warn('Blocked private IP hostname in test mode', { hostname });
+        return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
+      }
+      return { valid: true };
+    }
+
+    try {
+      const addresses = await resolveHostname(hostname, DNS_LOOKUP_TIMEOUT_MS);
+
+      if (addresses.length === 0) {
+        logger.warn('DNS resolution returned no addresses', { hostname });
+        return { valid: false, error: 'URL_RESOLUTION_FAILED' };
+      }
+
+      const privateAddress = addresses.find((address) => isPrivateIP(address));
+      if (privateAddress) {
+        logger.warn('Blocked private IP address', {
+          hostname,
+          address: privateAddress
+        });
+        return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
+      }
+
+      logger.debug('URL passed SSRF validation', { hostname, addresses });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      if (nodeEnv === 'test' && errorMessage.includes('TIMEOUT')) {
+        logger.warn('DNS timeout in test environment - allowing', { hostname });
+        return { valid: true };
+      }
+
+      logger.warn('DNS resolution failed', { hostname, error: errorMessage });
+      return { valid: false, error: 'URL_RESOLUTION_FAILED' };
+    }
+
+    return { valid: true };
+  }
+}
+
+// Singleton for production use
+const _defaultCache = new BannedDomainsCache();
+
+export async function reloadBannedDomains(): Promise<BannedDomainsReloadResult> {
+  return _defaultCache.reload();
+}
+
+export function getBannedDomainsSnapshotStatus(): BannedDomainsSnapshotStatus {
+  return _defaultCache.getStatus();
+}
+
+export function validateUrl(url: string): ValidationResult {
+  return _defaultCache.validate(url);
+}
+
+export async function validateUrlAsync(url: string): Promise<ValidationResult> {
+  return _defaultCache.validateAsync(url);
+}
+
+export async function validateUrlSafe(url: string): Promise<ValidationResult> {
+  return _defaultCache.validateSafe(url);
+}
+
 export async function blockDomainPersistent(
   domain: string,
   reason: string,
   createdBy?: string
 ): Promise<void> {
-  const normalized = domain.replace(/^www\./, '').toLowerCase();
-
-  // Add to database
-  await db
-    .insert(bannedUrls)
-    .values({
-      urlPattern: normalized,
-      matchType: 'domain',
-      reason,
-      source: 'manual',
-      createdBy
-    })
-    .onConflictDoNothing();
-
-  // Add to memory cache
-  BLOCKED_DOMAINS.add(normalized);
-  bannedDomainsLoaded = true;
-  bannedDomainsLastLoad = Date.now();
-  hasReliableBannedDomainsSnapshot = true;
+  return _defaultCache.blockPersistent(domain, reason, createdBy);
 }
 
-/**
- * Add a domain to the blacklist (runtime only)
- * @param domain - Domain to block
- */
 export function blockDomain(domain: string): void {
-  const normalized = domain.replace(/^www\./, '').toLowerCase();
-  BLOCKED_DOMAINS.add(normalized);
-  bannedDomainsLoaded = true;
-  bannedDomainsLastLoad = Date.now();
-  hasReliableBannedDomainsSnapshot = true;
+  _defaultCache.block(domain);
 }
 
-/**
- * Remove a domain from the blacklist (runtime only)
- * @param domain - Domain to unblock
- */
 export function unblockDomain(domain: string): void {
-  const normalized = domain.replace(/^www\./, '').toLowerCase();
-  BLOCKED_DOMAINS.delete(normalized);
-  hasReliableBannedDomainsSnapshot = true;
+  _defaultCache.unblock(domain);
 }
 
-/**
- * Check whether a domain is blocked
- * @param domain - Domain to check
- * @returns true if blocked
- */
 export function isDomainBlocked(domain: string): boolean {
-  const normalized = domain.replace(/^www\./, '').toLowerCase();
-  return BLOCKED_DOMAINS.has(normalized) || BLOCKED_SHORTENERS.has(normalized);
+  return _defaultCache.isBlocked(domain);
 }
