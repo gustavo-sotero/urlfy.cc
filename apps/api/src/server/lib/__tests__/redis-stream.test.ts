@@ -12,6 +12,8 @@ import {
   mock
 } from 'bun:test';
 
+const realCacheClientModule = await import('@urlfy/cache/client');
+
 // Mock telemetry
 const mockLogger = {
   info: mock(() => {}),
@@ -103,6 +105,7 @@ mock.module('@/server/lib/redis', () => ({
   getRedisClient: () => mockRedis
 }));
 mock.module('@urlfy/cache/client', () => ({
+  ...realCacheClientModule,
   redis: mockRedis,
   getRedisClient: () => mockRedis,
   canAttemptRedisCommand: canAttemptRedisCommandMock,

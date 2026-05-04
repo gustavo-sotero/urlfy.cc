@@ -6,6 +6,11 @@ process.env.INTERNAL_API_SECRET =
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
 
+const realAuthModule = await import('@/lib/auth');
+const realAdminResolverModule = await import(
+  '@/server/services/admin.resolver'
+);
+
 interface MockSessionPayload {
   user: {
     id: string;
@@ -44,14 +49,18 @@ describe('internalController session route', () => {
     process.env.INTERNAL_API_SECRET = 'test-internal-api-secret-32chars';
 
     mock.module('@/lib/auth', () => ({
+      ...realAuthModule,
       auth: {
+        ...realAuthModule.auth,
         api: {
+          ...realAuthModule.auth.api,
           getSession: getSessionMock
         }
       }
     }));
 
     mock.module('@/server/services/admin.resolver', () => ({
+      ...realAdminResolverModule,
       resolveIsAdminByGitHubAccount: resolveIsAdminMock
     }));
 

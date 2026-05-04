@@ -9,7 +9,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { beforeAll, describe, test } from 'bun:test';
+import { afterAll, beforeAll, describe, test } from 'bun:test';
+import { Elysia } from 'elysia';
 import {
   createElysiaTestClient,
   type ElysiaTestClient,
@@ -20,9 +21,45 @@ describe('Analytics Endpoints (handler-level)', () => {
   let client: ElysiaTestClient;
 
   beforeAll(async () => {
-    // Lazy import to avoid initialization issues when infrastructure isn't running
-    const { api } = await import('@/server');
-    client = createElysiaTestClient(api);
+    const [{ ResponseModels }, { createAnalyticsController }] =
+      await Promise.all([
+        import('../../src/server/lib/response.schema'),
+        import(
+          `../../src/server/modules/analytics/analytics.controller?handler=${Date.now()}`
+        )
+      ]);
+
+    const requireAuthMock = new Elysia({
+      name: 'require-auth.analytics-handler.mock'
+    })
+      .onBeforeHandle({ as: 'scoped' }, ({ request, set }) => {
+        const requestId =
+          request.headers.get('x-request-id') ||
+          `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+        set.status = 401;
+        set.headers['x-request-id'] = requestId;
+
+        return {
+          success: false as const,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required',
+            requestId
+          }
+        };
+      })
+      .as('scoped');
+
+    const app = new Elysia({ prefix: '/api' })
+      .use(ResponseModels)
+      .use(createAnalyticsController(requireAuthMock));
+
+    client = createElysiaTestClient(app);
+  });
+
+  afterAll(() => {
+    // No shared module mocks to restore in this file.
   });
 
   describe('GET /api/analytics/:linkId/summary', () => {

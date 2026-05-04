@@ -79,10 +79,15 @@ import {
 
 describe('Auth Endpoints (handler-level)', () => {
   let client: ElysiaTestClient;
+  let importCounter = 0;
 
   beforeAll(async () => {
-    // Lazy import to avoid initialization issues when infrastructure isn't running
-    const { api } = await import('@/server');
+    // Use a fresh server import so handler tests do not reuse a cached app
+    // from earlier files that loaded the server under different mocks.
+    importCounter += 1;
+    const { api } = await import(
+      `../../src/server/index.ts?auth-handler=${importCounter}`
+    );
     client = createElysiaTestClient(api);
   });
 

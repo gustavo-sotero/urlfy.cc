@@ -8,6 +8,14 @@ import type {
   BannedDomainsSnapshotStatus
 } from '@/server/modules/links/services/url-validator';
 
+const realDataModule = await import('@urlfy/data');
+const realRedisModule = await import('@/server/lib/redis');
+const realAuthMiddlewareModule = await import('@/server/middleware/auth');
+const realOpenApiMergerModule = await import('@/server/lib/openapi-merger');
+const realUrlValidatorModule = await import(
+  '@/server/modules/links/services/url-validator'
+);
+
 type DependencyHealthResult = {
   status: 'ok' | 'error';
   latencyMs?: number;
@@ -51,20 +59,27 @@ const getBannedDomainsSnapshotStatusMock = mock(
 );
 
 describe('healthController readiness', () => {
+  let importCounter = 0;
+
   beforeEach(() => {
     mock.module('@urlfy/data', () => ({
+      ...realDataModule,
       checkDatabaseHealth: checkDatabaseHealthMock
     }));
     mock.module('@/server/lib/redis', () => ({
+      ...realRedisModule,
       checkRedisHealth: checkRedisHealthMock
     }));
     mock.module('@/server/middleware/auth', () => ({
+      ...realAuthMiddlewareModule,
       requireAdmin: new Elysia({ name: 'require-admin.mock' })
     }));
     mock.module('@/server/lib/openapi-merger', () => ({
+      ...realOpenApiMergerModule,
       getOpenAPIDegradedState: () => false
     }));
     mock.module('@/server/modules/links/services/url-validator', () => ({
+      ...realUrlValidatorModule,
       reloadBannedDomains: reloadBannedDomainsMock,
       getBannedDomainsSnapshotStatus: getBannedDomainsSnapshotStatusMock
     }));
@@ -106,8 +121,15 @@ describe('healthController readiness', () => {
     mock.restore();
   });
 
+  async function loadHealthController() {
+    importCounter += 1;
+    return import(
+      `../health.controller?health-controller-test=${importCounter}`
+    );
+  }
+
   test('returns ready when database and Redis are healthy', async () => {
-    const { healthController } = await import('../health.controller');
+    const { healthController } = await loadHealthController();
     const app = new Elysia({ prefix: '/api' }).use(healthController);
 
     const response = await app.handle(
@@ -136,7 +158,7 @@ describe('healthController readiness', () => {
       error: 'redis connection refused'
     }));
 
-    const { healthController } = await import('../health.controller');
+    const { healthController } = await loadHealthController();
     const app = new Elysia({ prefix: '/api' }).use(healthController);
 
     const response = await app.handle(
@@ -165,7 +187,7 @@ describe('healthController readiness', () => {
       error: 'connection refused'
     }));
 
-    const { healthController } = await import('../health.controller');
+    const { healthController } = await loadHealthController();
     const app = new Elysia({ prefix: '/api' }).use(healthController);
 
     const response = await app.handle(
@@ -188,7 +210,7 @@ describe('healthController readiness', () => {
   });
 
   test('reloads the banned-domain snapshot via the admin health route', async () => {
-    const { healthController } = await import('../health.controller');
+    const { healthController } = await loadHealthController();
     const app = new Elysia({ prefix: '/api' }).use(healthController);
 
     const response = await app.handle(
@@ -232,7 +254,7 @@ describe('healthController readiness', () => {
       cacheAgeMs: null
     }));
 
-    const { healthController } = await import('../health.controller');
+    const { healthController } = await loadHealthController();
     const app = new Elysia({ prefix: '/api' }).use(healthController);
 
     const response = await app.handle(
@@ -269,7 +291,7 @@ describe('healthController readiness', () => {
       }
     }));
 
-    const { healthController } = await import('../health.controller');
+    const { healthController } = await loadHealthController();
     const app = new Elysia({ prefix: '/api' }).use(healthController);
 
     const response = await app.handle(

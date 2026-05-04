@@ -10,7 +10,15 @@
  * ═══════════════════════════════════════════════════════════════════════
  */
 
-import { afterEach, beforeAll, describe, expect, mock, test } from 'bun:test';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  mock,
+  test
+} from 'bun:test';
 import {
   createElysiaTestClient,
   type ElysiaTestClient
@@ -19,9 +27,6 @@ import {
 process.env.TRUST_PROXY = 'true';
 
 // ── Shared mocks ───────────────────────────────────────────────────────
-
-const isIPBlockedMock = mock(async (_ip: string) => false);
-const recordLoginFailureMock = mock(async (_ip: string) => undefined);
 
 type MockRateLimitResult = {
   allowed: boolean;
@@ -49,8 +54,40 @@ const checkTokenLimitMock = mock(
 const isRateLimitedIPBlockedMock = mock(async (_ip: string) => false);
 
 let authSignInStatus = 401;
+let authFallbackImportCounter = 0;
 
 const realAuthModule = await import('@/lib/auth');
+const realAntiAbuseModule = await import(
+  '@/server/services/anti-abuse.service'
+);
+const realRateLimiterModule = await import('@/server/lib/rate-limiter');
+const realRedisModule = await import('@/server/lib/redis');
+
+const realAntiAbuseService = realAntiAbuseModule.antiAbuseService;
+const realRateLimiter = realRateLimiterModule.rateLimiter;
+
+const isIPBlockedMock = mock(async (ip: string) =>
+  realAntiAbuseService.isIPBlocked(ip)
+);
+const recordLoginFailureMock = mock(async (ip: string) =>
+  realAntiAbuseService.recordLoginFailure(ip)
+);
+
+const mockRedisClient = {
+  get: mock(() => Promise.resolve(null)),
+  set: mock(() => Promise.resolve('OK')),
+  setex: mock(() => Promise.resolve('OK')),
+  del: mock(() => Promise.resolve(1)),
+  exists: mock(() => Promise.resolve(0)),
+  expire: mock(() => Promise.resolve(1)),
+  incr: mock(() => Promise.resolve(1)),
+  send: mock(() => Promise.resolve('PONG')),
+  pipeline: mock(() => ({
+    del: mock(),
+    set: mock(),
+    exec: mock(() => Promise.resolve())
+  }))
+};
 
 beforeAll(() => {
   mock.module('@/lib/auth', () => ({
@@ -84,22 +121,33 @@ beforeAll(() => {
           );
         }
 
-        return new Response('Not Found', { status: 404 });
+        authFallbackImportCounter += 1;
+        const { auth } = await import(
+          `../../src/lib/auth.ts?api-edge-fallback=${authFallbackImportCounter}`
+        );
+        return auth.handler(request);
       }
     }
   }));
 
   // Anti-abuse service
   mock.module('@/server/services/anti-abuse.service', () => ({
-    antiAbuseService: {
-      isIPBlocked: isIPBlockedMock,
-      recordLoginFailure: recordLoginFailureMock
-    }
+    ...realAntiAbuseModule,
+    antiAbuseService: Object.assign(
+      Object.create(Object.getPrototypeOf(realAntiAbuseService)),
+      realAntiAbuseService,
+      {
+        isIPBlocked: isIPBlockedMock,
+        recordLoginFailure: recordLoginFailureMock
+      }
+    )
   }));
 
   // Rate limiter — rateLimit() delegates to this
   mock.module('@/server/lib/rate-limiter', () => ({
+    ...realRateLimiterModule,
     RATE_LIMIT_CONFIGS: {
+      ...realRateLimiterModule.RATE_LIMIT_CONFIGS,
       'GET /api/health': {
         guest: { points: 600, duration: 60 },
         auth: { points: 600, duration: 60 }
@@ -108,17 +156,57 @@ beforeAll(() => {
         guest: { points: 5, duration: 900, failClosed: true }
       }
     },
-    rateLimiter: {
-      isIPBlocked: isRateLimitedIPBlockedMock,
-      checkIPLimit: checkIPLimitMock,
-      checkTokenLimit: checkTokenLimitMock
-    }
+    rateLimiter: Object.assign(
+      Object.create(Object.getPrototypeOf(realRateLimiter)),
+      realRateLimiter,
+      {
+        isIPBlocked: isRateLimitedIPBlockedMock,
+        checkIPLimit: checkIPLimitMock,
+        checkTokenLimit: checkTokenLimitMock
+      }
+    )
   }));
 
   // Redis (avoid real connection)
   mock.module('@/server/lib/redis', () => ({
-    redis: null,
-    getRedisClient: mock(() => null),
+    ...realRedisModule,
+    redis: mockRedisClient,
+    getRedisClient: mock(() => mockRedisClient),
+    canAttemptRedisCommand: () => true,
+    markRedisCommandFailure: mock(() => undefined),
+    markRedisCommandSuccess: mock(() => undefined),
+    getRedisHealthSnapshot: mock(() => ({
+      isHealthy: true,
+      isConnected: true,
+      isDegraded: false,
+      consecutiveFailures: 0,
+      lastError: null,
+      lastConnectedAt: null,
+      lastFailureAt: null,
+      lastSuccessfulCommandAt: null,
+      degradedUntil: null
+    })),
+    shouldLogRedisFailure: () => true,
+    CACHE_KEYS: {
+      ...realRedisModule.CACHE_KEYS,
+      link: (code: string) => `link:${code}`,
+      linkMeta: (code: string) => `link:meta:${code}`,
+      link404: (code: string) => `link:404:${code}`,
+      linkBanned: (code: string) => `link:banned:${code}`,
+      qr: (code: string) => `qr:${code}`,
+      geo: (ip: string) => `geo:${ip}`,
+      rateLimit: (key: string) => `rl:${key}`,
+      lock: (resource: string) => `lock:${resource}`,
+      idempotency: (principal: string, route: string, key: string) =>
+        `idempotency:${principal}:${route}:${key}`
+    },
+    CACHE_TTL: {
+      ...realRedisModule.CACHE_TTL,
+      link: 3600
+    },
+    acquireLock: mock(() => Promise.resolve(true)),
+    releaseLock: mock(() => Promise.resolve()),
+    withLock: mock((_resource: unknown, fn: () => unknown) => fn()),
     checkRedisHealth: mock(async () => ({ status: 'ok', latencyMs: 1 })),
     closeRedis: mock(async () => undefined)
   }));
@@ -126,7 +214,9 @@ beforeAll(() => {
 
 afterEach(() => {
   isIPBlockedMock.mockReset();
-  isIPBlockedMock.mockImplementation(async () => false);
+  isIPBlockedMock.mockImplementation(async (ip: string) =>
+    realAntiAbuseService.isIPBlocked(ip)
+  );
   checkIPLimitMock.mockReset();
   checkIPLimitMock.mockImplementation(
     async (_ip: string, _config: unknown): Promise<MockRateLimitResult> =>
@@ -140,8 +230,11 @@ afterEach(() => {
   isRateLimitedIPBlockedMock.mockReset();
   isRateLimitedIPBlockedMock.mockImplementation(async () => false);
   recordLoginFailureMock.mockReset();
-  recordLoginFailureMock.mockImplementation(async (_ip: string) => undefined);
+  recordLoginFailureMock.mockImplementation(async (ip: string) =>
+    realAntiAbuseService.recordLoginFailure(ip)
+  );
   authSignInStatus = 401;
+  authFallbackImportCounter = 0;
 });
 
 // ── Test suite ─────────────────────────────────────────────────────────
@@ -150,7 +243,9 @@ describe('API edge protection (onBeforeHandle hooks)', () => {
   let client: ElysiaTestClient;
 
   beforeAll(async () => {
-    const { api } = await import('@/server');
+    const { api } = await import(
+      `../../src/server/index.ts?api-edge=${Date.now()}`
+    );
     client = createElysiaTestClient(api);
   });
 
@@ -203,12 +298,19 @@ describe('API edge protection (onBeforeHandle hooks)', () => {
         })
       );
 
-      const response = await client.get('/api/health', {
-        headers: { 'x-forwarded-for': '2.3.4.5' }
-      });
+      const response = await client.post(
+        '/api/auth/sign-in',
+        {
+          email: 'user@example.com',
+          password: 'wrong-password'
+        },
+        {
+          headers: { 'x-forwarded-for': '2.3.4.5' }
+        }
+      );
 
-      expect([200, 503]).toContain(response.status);
-      expect(response.headers.get('x-ratelimit-limit')).toBe('600');
+      expect(response.status).toBe(401);
+      expect(response.headers.get('x-ratelimit-limit')).toBe('5');
       expect(response.headers.get('x-ratelimit-remaining')).toBe('42');
       expect(response.headers.get('x-ratelimit-reset')).toBe(
         String(Math.floor(resetTime / 1000))
@@ -231,8 +333,12 @@ describe('API edge protection (onBeforeHandle hooks)', () => {
         })
       );
 
-      const response = await client.get<{ error: { code: string } }>(
-        '/api/health',
+      const response = await client.post<{ error: { code: string } }>(
+        '/api/auth/sign-in',
+        {
+          email: 'user@example.com',
+          password: 'wrong-password'
+        },
         {
           headers: {
             'x-forwarded-for': '2.3.4.5',
@@ -245,7 +351,7 @@ describe('API edge protection (onBeforeHandle hooks)', () => {
       expect(response.body.error?.code).toBe('RATE_LIMITED');
       expect(response.headers.get('retry-after')).toBe('120');
       expect(response.headers.get('x-request-id')).toBe(requestId);
-      expect(response.headers.get('x-ratelimit-limit')).toBe('600');
+      expect(response.headers.get('x-ratelimit-limit')).toBe('5');
       expect(response.headers.get('x-ratelimit-remaining')).toBe('0');
     });
   });
@@ -381,4 +487,8 @@ describe('API edge protection (onBeforeHandle hooks)', () => {
       expect(response.headers.get('access-control-max-age')).toBeTruthy();
     });
   });
+});
+
+afterAll(() => {
+  mock.restore();
 });

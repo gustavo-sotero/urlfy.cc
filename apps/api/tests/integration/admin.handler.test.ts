@@ -51,7 +51,12 @@ const resolveIsAdminByGitHubAccountMock = mock(
   async (userId: string) => userId === adminHeaders['x-test-user-id']
 );
 
+const realAdminResolverModule = await import(
+  '@/server/services/admin.resolver'
+);
+
 mock.module('@/server/services/admin.resolver', () => ({
+  ...realAdminResolverModule,
   resolveIsAdminByGitHubAccount: resolveIsAdminByGitHubAccountMock
 }));
 
@@ -62,32 +67,30 @@ const _realRateLimiterModule = await import('@/server/lib/rate-limiter');
 const realRateLimiter = _realRateLimiterModule.rateLimiter;
 
 mock.module('@/server/lib/rate-limiter', () => ({
-  // Preserve real exports for cross-file compatibility
-  RateLimiter: _realRateLimiterModule.RateLimiter,
-  RATE_LIMIT_CONFIGS: _realRateLimiterModule.RATE_LIMIT_CONFIGS,
-  // Override singleton with mock for this test's purposes
-  rateLimiter: {
-    checkLimit: realRateLimiter.checkLimit.bind(realRateLimiter),
-    checkIPLimit: mock(() =>
-      Promise.resolve({
-        allowed: true,
-        remaining: 99,
-        resetTime: Date.now() + 60_000,
-        retryAfter: undefined
-      })
-    ),
-    checkLinkLimit: mock(() =>
-      Promise.resolve({
-        allowed: true,
-        remaining: 4999,
-        resetTime: Date.now() + 60_000,
-        retryAfter: undefined
-      })
-    ),
-    checkTokenLimit: checkTokenLimitMock,
-    blockIP: realRateLimiter.blockIP.bind(realRateLimiter),
-    isIPBlocked: realRateLimiter.isIPBlocked.bind(realRateLimiter)
-  }
+  ..._realRateLimiterModule,
+  rateLimiter: Object.assign(
+    Object.create(Object.getPrototypeOf(realRateLimiter)),
+    realRateLimiter,
+    {
+      checkIPLimit: mock(() =>
+        Promise.resolve({
+          allowed: true,
+          remaining: 99,
+          resetTime: Date.now() + 60_000,
+          retryAfter: undefined
+        })
+      ),
+      checkLinkLimit: mock(() =>
+        Promise.resolve({
+          allowed: true,
+          remaining: 4999,
+          resetTime: Date.now() + 60_000,
+          retryAfter: undefined
+        })
+      ),
+      checkTokenLimit: checkTokenLimitMock
+    }
+  )
 }));
 
 describe('Admin Endpoints (handler-level)', () => {

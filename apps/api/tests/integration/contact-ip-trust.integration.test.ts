@@ -24,21 +24,17 @@ const _realRateLimiterModule = await import('@/server/lib/rate-limiter');
 const realRateLimiter = _realRateLimiterModule.rateLimiter;
 
 mock.module('@/server/lib/rate-limiter', () => ({
-  // Preserve real exports for cross-file compatibility
-  RateLimiter: _realRateLimiterModule.RateLimiter,
-  RATE_LIMIT_CONFIGS: _realRateLimiterModule.RATE_LIMIT_CONFIGS,
-  // Override singleton with mock for this test's purposes
-  rateLimiter: {
-    checkLimit: realRateLimiter.checkLimit.bind(realRateLimiter),
-    checkIPLimit: mock((ip: string) => {
-      observedIp = ip;
-      return checkIPLimitMock(ip);
-    }),
-    checkLinkLimit: realRateLimiter.checkLinkLimit.bind(realRateLimiter),
-    checkTokenLimit: realRateLimiter.checkTokenLimit.bind(realRateLimiter),
-    blockIP: realRateLimiter.blockIP.bind(realRateLimiter),
-    isIPBlocked: realRateLimiter.isIPBlocked.bind(realRateLimiter)
-  }
+  ..._realRateLimiterModule,
+  rateLimiter: Object.assign(
+    Object.create(Object.getPrototypeOf(realRateLimiter)),
+    realRateLimiter,
+    {
+      checkIPLimit: mock((ip: string) => {
+        observedIp = ip;
+        return checkIPLimitMock(ip);
+      })
+    }
+  )
 }));
 
 mock.module('@/server/modules/contact/contact.service', () => ({
@@ -88,7 +84,7 @@ describe('Contact limiter trusted IP resolution (P0-S2)', () => {
     process.env.TRUST_PROXY = 'false';
 
     const { contactController } = await import(
-      '../../src/server/modules/contact/contact.controller'
+      `../../src/server/modules/contact/contact.controller?trust-proxy=${Date.now()}`
     );
 
     const response = await contactController.handle(
@@ -117,7 +113,7 @@ describe('Contact limiter trusted IP resolution (P0-S2)', () => {
     process.env.TRUST_PROXY = 'true';
 
     const { contactController } = await import(
-      '../../src/server/modules/contact/contact.controller'
+      `../../src/server/modules/contact/contact.controller?trust-proxy=${Date.now()}`
     );
 
     const response = await contactController.handle(

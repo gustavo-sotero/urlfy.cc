@@ -14,6 +14,9 @@
 import { afterAll, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
 
+const realRateLimiterModule = await import('@/server/lib/rate-limiter');
+const realRateLimiter = realRateLimiterModule.rateLimiter;
+
 // ─── Stable mock key fixtures ────────────────────────────────────────────────
 
 /** SHA-256 of 'urlfy_sk_testkey12345678' — pre-computed so no actual crypto. */
@@ -96,13 +99,18 @@ mock.module('@urlfy/data/schema/auth', () => ({
 // ─── Rate limiter: always allow ──────────────────────────────────────────────
 
 mock.module('@/server/lib/rate-limiter', () => ({
-  rateLimiter: {
-    checkLimit: mock(async () => ({
-      allowed: true,
-      remaining: 999,
-      resetTime: Date.now() + 3600_000
-    }))
-  }
+  ...realRateLimiterModule,
+  rateLimiter: Object.assign(
+    Object.create(Object.getPrototypeOf(realRateLimiter)),
+    realRateLimiter,
+    {
+      checkLimit: mock(async () => ({
+        allowed: true,
+        remaining: 999,
+        resetTime: Date.now() + 3600_000
+      }))
+    }
+  )
 }));
 
 mock.module('@/server/lib/telemetry', () => ({

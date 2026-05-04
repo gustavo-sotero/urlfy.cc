@@ -1,5 +1,7 @@
 import { afterAll, describe, expect, it, mock } from 'bun:test';
 
+const realCacheModule = await import('@urlfy/cache');
+
 const CANONICAL_GEOIP_DB_PATH = '/app/geoip/GeoLite2-City.mmdb';
 const CANONICAL_GEOIP_MAX_AGE_DAYS = '25';
 const CANONICAL_GEOIP_MMDB_URL =
@@ -18,16 +20,19 @@ async function readWorkspaceFile(relativePath: string): Promise<string> {
 }
 
 mock.module('@urlfy/cache', () => ({
+  ...realCacheModule,
   CACHE_KEYS: {
+    ...realCacheModule.CACHE_KEYS,
     GEO: (prefix: string) => `geo:${prefix}`
   },
   CACHE_TTL: {
+    ...realCacheModule.CACHE_TTL,
     GEO: 86400
   },
-  redis: {
+  redis: Object.assign({}, realCacheModule.redis, {
     get: async () => null,
     setex: async () => {}
-  }
+  })
 }));
 
 mock.module('@urlfy/telemetry', () => ({

@@ -176,7 +176,6 @@ import { and, eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { Scopes } from '@/server/config/scopes';
 import { ApiKeysService } from '@/server/modules/api-keys/api-keys.service';
-import { requireDatabase } from '../helpers/integration-helper';
 
 // Test user ID
 const TEST_USER_ID = `test-user-${nanoid(8)}`;
@@ -197,8 +196,6 @@ async function cleanupTestKeys() {
 
 describe('ApiKeysService', () => {
   beforeAll(async () => {
-    await requireDatabase();
-
     await db.insert(user).values({
       id: TEST_USER_ID,
       name: 'API Keys Test User',

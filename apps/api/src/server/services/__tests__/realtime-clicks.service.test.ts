@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
+const realCacheModule = await import('@urlfy/cache');
+
 const getPendingClicks = mock(async (_linkId: string) => 0);
 const getPendingClicksMap = mock(async (_linkIds: string[]) => new Map());
 const getPendingClicksTotal = mock(async (_linkIds: string[]) => 0);
 
 mock.module('@urlfy/cache', () => ({
+  ...realCacheModule,
   getPendingClicks,
   getPendingClicksMap,
   getPendingClicksTotal
