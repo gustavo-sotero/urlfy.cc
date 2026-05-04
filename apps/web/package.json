@@ -8,11 +8,11 @@
     "start": "bun --env-file=../../.env --bun next start",
     "lint": "bunx biome check . --write",
     "type-check": "bunx tsc --noEmit",
-    "test": "bun test src/ tests/unit tests/integration tests/perf tests/security",
-    "test:unit": "bun test src/ tests/unit/",
-    "test:integration": "bun test tests/integration/",
-    "test:security": "bun test tests/security/",
-    "test:perf": "bun test tests/perf/",
+    "test": "bun test --preload ./tests/setup.ts src/ tests/unit tests/integration tests/perf tests/security",
+    "test:unit": "bun test --preload ./tests/setup.ts src/ tests/unit/",
+    "test:integration": "bun test --preload ./tests/setup.ts tests/integration/",
+    "test:security": "bun test --preload ./tests/setup.ts tests/security/",
+    "test:perf": "bun test --preload ./tests/setup.ts tests/perf/",
     "test:e2e": "bunx playwright test"
   },
   "dependencies": {
