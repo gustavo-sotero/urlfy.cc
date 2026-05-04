@@ -9,6 +9,7 @@
  */
 
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { createDbMock } from '../mocks/db.mock';
 
 // ─── Controllable cache mock ────────────────────────────────────────────────
 const invalidateLinkMock = mock(async () => {});
@@ -62,6 +63,7 @@ const defaultLinkRow = {
 };
 
 const dbMock = {
+  ...createDbMock(),
   insert: mock(() => ({
     values: mock(() => ({
       returning: mock(async () => [defaultLinkRow])
@@ -85,20 +87,6 @@ mock.module('@urlfy/data', () => ({
     Promise.resolve({ status: 'ok', latencyMs: 1 })
   ),
   closeDatabase: mock(() => Promise.resolve())
-}));
-
-mock.module('@urlfy/data/schema', () => ({
-  bannedUrls: {
-    urlPattern: 'url_pattern',
-    matchType: 'match_type'
-  },
-  links: {
-    id: 'id',
-    shortCode: 'short_code',
-    originalUrl: 'original_url',
-    userId: 'user_id'
-  },
-  reservedSlugs: { slug: 'slug' }
 }));
 
 mock.module('@/server/services/cache.service', () => ({

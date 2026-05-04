@@ -13,6 +13,7 @@
 
 import { afterAll, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
+import { createDbMock } from '../mocks/db.mock';
 
 const realRateLimiterModule = await import('@/server/lib/rate-limiter');
 const realRateLimiter = realRateLimiterModule.rateLimiter;
@@ -66,6 +67,7 @@ const selectUpdateMock = mock(() => ({
 }));
 
 const dbMock = {
+  ...createDbMock(),
   select: mock(() => selectOneMock()),
   update: mock(() => selectUpdateMock())
 };
@@ -74,26 +76,9 @@ mock.module('@urlfy/data', () => ({
   db: dbMock,
   checkDatabaseHealth: async () => ({ status: 'ok', latencyMs: 1 }),
   getDatabase: () => dbMock,
+  getSqlConnection: () => ({}),
+  closeDatabase: async () => undefined,
   initDatabase: async () => {}
-}));
-
-mock.module('@urlfy/data/schema/auth', () => ({
-  apiKey: {
-    id: 'id',
-    keyHash: 'keyHash',
-    enabled: 'enabled',
-    deletedAt: 'deletedAt',
-    revokedAt: 'revokedAt',
-    expiresAt: 'expiresAt',
-    rateLimitEnabled: 'rateLimitEnabled',
-    rateLimitMax: 'rateLimitMax',
-    rateLimitTimeWindow: 'rateLimitTimeWindow',
-    usageCount: 'usageCount',
-    lastUsedAt: 'lastUsedAt',
-    remaining: 'remaining',
-    permissions: 'permissions',
-    userId: 'userId'
-  }
 }));
 
 // ─── Rate limiter: always allow ──────────────────────────────────────────────

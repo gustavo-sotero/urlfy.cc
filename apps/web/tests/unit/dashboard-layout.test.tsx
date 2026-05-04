@@ -86,6 +86,7 @@ mock.module('next-intl/server', () => ({
 }));
 
 mock.module('@/i18n/routing', () => ({
+  routing: { locales: ['en', 'pt-br'], defaultLocale: 'en' },
   Link: ({
     children,
     href,

@@ -13,7 +13,6 @@ const checkTokenLimitMock = mock(async () => ({
   remaining: 9,
   resetTime: Date.now() + 60_000
 }));
-const getClientIpMock = mock(() => '203.0.113.10');
 
 async function importFreshRateLimitModule(suffix: string) {
   return import(`../rate-limit.ts?rate-limit-test=${suffix}`);
@@ -34,13 +33,6 @@ describe('rateLimit middleware', () => {
       allowed: true,
       remaining: 9,
       resetTime: Date.now() + 60_000
-    }));
-    getClientIpMock.mockReset();
-    getClientIpMock.mockImplementation(() => '203.0.113.10');
-
-    mock.module('@/server/lib/ip', () => ({
-      getClientIp: getClientIpMock,
-      maskIpForLog: (ip: string) => ip
     }));
     mock.module('@/server/lib/telemetry', () => ({
       createLogger: () => ({
@@ -82,7 +74,6 @@ describe('rateLimit middleware', () => {
 
     expect(result.response).toBeNull();
     expect(result.headers).toBeUndefined();
-    expect(getClientIpMock).not.toHaveBeenCalled();
     expect(isIPBlockedMock).not.toHaveBeenCalled();
     expect(checkIPLimitMock).not.toHaveBeenCalled();
     expect(checkTokenLimitMock).not.toHaveBeenCalled();
@@ -91,11 +82,14 @@ describe('rateLimit middleware', () => {
   test('still evaluates non-health API routes', async () => {
     const { rateLimit } = await importFreshRateLimitModule('links');
 
-    const result = await rateLimit(new Request('http://localhost/api/links'));
+    const result = await rateLimit(
+      new Request('http://localhost/api/links'),
+      '203.0.113.10'
+    );
 
     expect(result.response).toBeNull();
-    expect(getClientIpMock).toHaveBeenCalledTimes(1);
     expect(isIPBlockedMock).toHaveBeenCalledTimes(1);
+    expect(isIPBlockedMock).toHaveBeenCalledWith('203.0.113.10');
     expect(checkIPLimitMock).toHaveBeenCalledTimes(1);
   });
 });

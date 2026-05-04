@@ -21,8 +21,23 @@ mock.module('next-intl', () => ({
 
 mock.module('@/i18n/routing', () => ({
   routing: {
-    locales: ['en', 'pt-br']
+    locales: ['en', 'pt-br'],
+    defaultLocale: 'en'
   },
+  Link: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: React.ReactNode;
+    href: string;
+    [key: string]: unknown;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+  redirect: () => undefined,
   usePathname: () =>
     currentLocale === 'pt-br' ? '/pt-br/project' : '/en/project',
   useRouter: () => ({

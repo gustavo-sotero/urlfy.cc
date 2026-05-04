@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, mock, test } from 'bun:test';
+import { createDbMock } from '../mocks/db.mock';
 
 let loadAttempt = 0;
 
@@ -13,6 +14,7 @@ const whereMock = mock(async () => {
 });
 
 const dbMock = {
+  ...createDbMock(),
   select: mock(() => ({
     from: mock(() => ({
       where: whereMock
@@ -22,14 +24,10 @@ const dbMock = {
 
 mock.module('@urlfy/data', () => ({
   db: dbMock,
-  checkDatabaseHealth: async () => ({ status: 'ok', latencyMs: 1 })
-}));
-
-mock.module('@urlfy/data/schema', () => ({
-  bannedUrls: {
-    urlPattern: 'urlPattern',
-    matchType: 'matchType'
-  }
+  getDatabase: () => dbMock,
+  getSqlConnection: () => ({}),
+  checkDatabaseHealth: async () => ({ status: 'ok', latencyMs: 1 }),
+  closeDatabase: async () => undefined
 }));
 
 mock.module('@/server/lib/telemetry', () => ({

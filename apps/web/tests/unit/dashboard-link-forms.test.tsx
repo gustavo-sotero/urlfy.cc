@@ -151,6 +151,7 @@ mock.module('next/navigation', () => ({
 }));
 
 mock.module('@/i18n/routing', () => ({
+  routing: { locales: ['en', 'pt-br'], defaultLocale: 'en' },
   Link: ({
     children,
     href,
@@ -164,6 +165,8 @@ mock.module('@/i18n/routing', () => ({
       {children}
     </a>
   ),
+  redirect: () => undefined,
+  usePathname: () => '/en/dashboard/links/link-1/edit',
   useRouter: () => ({
     push: () => {}
   })
