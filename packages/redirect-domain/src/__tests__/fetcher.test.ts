@@ -13,13 +13,17 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { CachedLink } from '@urlfy/contracts/redirect';
 import type { RedirectFetcherDependencies } from '../types';
 
-const realTelemetryModule = await import(
-  '../../../telemetry/src/index.ts?redirect-domain-fetcher-real-telemetry'
-);
+async function importFreshModule<T>(path: string): Promise<T> {
+  return (await import(`${path}?redirect-domain-fetcher-test-module`)) as T;
+}
 
-const realCacheModule = await import(
-  '../../../../packages/cache/src/index.ts?redirect-domain-fetcher-real-cache'
-);
+const realTelemetryModule = await importFreshModule<
+  typeof import('../../../telemetry/src/index.ts')
+>('../../../telemetry/src/index.ts');
+
+const realCacheModule = await importFreshModule<
+  typeof import('../../../../packages/cache/src/index.ts')
+>('../../../../packages/cache/src/index.ts');
 
 // ─── NoOp Telemetry ────────────────────────────────────────────────────────────
 
@@ -201,7 +205,8 @@ function makeTestDeps(
 }
 
 // Import module under test AFTER all mocks are in place
-const { getLink } = await import('../fetcher');
+const { getLink } =
+  await importFreshModule<typeof import('../fetcher')>('../fetcher');
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 

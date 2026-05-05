@@ -7,11 +7,11 @@
  */
 
 import { MONITOR_LOG_RATE_LIMIT_CONFIG } from '@urlfy/contracts';
-import { createLogger } from '@urlfy/telemetry';
 import { type NextRequest, NextResponse } from 'next/server';
 import type { BrowserLogPayload } from '@/lib/browser-log-contract';
 import { getClientIp } from '@/server/lib/ip';
 import { rateLimiter } from '@/server/lib/rate-limiter';
+import { createLogger } from '@/server/lib/telemetry';
 
 const logger = createLogger('client-error-monitor');
 

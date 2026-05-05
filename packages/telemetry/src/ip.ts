@@ -8,10 +8,33 @@ import { createHash } from 'node:crypto';
 
 let trustProxyWarningLogged = false;
 
+export interface ClientIpResolutionOptions {
+  nodeEnv?: string;
+  trustProxy?: string | boolean;
+}
+
 interface TrustProxyConfigInput {
   nodeEnv?: string;
   publicAppUrl?: string;
   trustProxy?: string | boolean;
+}
+
+function resolveTrustProxyValue(
+  trustProxy?: ClientIpResolutionOptions['trustProxy']
+): boolean {
+  if (typeof trustProxy === 'boolean') {
+    return trustProxy;
+  }
+
+  if (typeof trustProxy === 'string') {
+    return trustProxy === 'true';
+  }
+
+  return process.env.TRUST_PROXY === 'true';
+}
+
+function resolveNodeEnv(nodeEnv?: string): string | undefined {
+  return nodeEnv ?? process.env.NODE_ENV;
 }
 
 function isLocalHostname(hostname: string): boolean {
@@ -100,10 +123,14 @@ export function assertTrustProxyConfig({
  * 5. Fallback to 127.0.0.1 (development) or logged warning (production)
  *
  * @param request - Standard Request or NextRequest object
+ * @param options - Optional explicit config override for trust-proxy resolution
  * @returns Client IP address as string
  */
-export function getClientIp(request: Request): string {
-  const trustProxy = process.env.TRUST_PROXY === 'true';
+export function getClientIp(
+  request: Request,
+  options: ClientIpResolutionOptions = {}
+): string {
+  const trustProxy = resolveTrustProxyValue(options.trustProxy);
 
   if (trustProxy) {
     const cfConnectingIp = request.headers.get('cf-connecting-ip');
@@ -137,7 +164,7 @@ export function getClientIp(request: Request): string {
     return requestIp;
   }
 
-  if (process.env.NODE_ENV === 'development') {
+  if (resolveNodeEnv(options.nodeEnv) === 'development') {
     return '127.0.0.1';
   }
 
@@ -153,8 +180,11 @@ export function getClientIp(request: Request): string {
  * as `getClientIp`. Useful in contexts where only a `Headers` instance
  * is available (e.g. Next.js server components via `headers()`).
  */
-export function getClientIpFromHeaders(headers: Headers): string {
-  const trustProxy = process.env.TRUST_PROXY === 'true';
+export function getClientIpFromHeaders(
+  headers: Headers,
+  options: ClientIpResolutionOptions = {}
+): string {
+  const trustProxy = resolveTrustProxyValue(options.trustProxy);
 
   if (trustProxy) {
     const cfConnectingIp = headers.get('cf-connecting-ip');
@@ -174,7 +204,7 @@ export function getClientIpFromHeaders(headers: Headers): string {
     warnWhenProxyHeadersAreIgnored(headers);
   }
 
-  if (process.env.NODE_ENV === 'development') {
+  if (resolveNodeEnv(options.nodeEnv) === 'development') {
     return '127.0.0.1';
   }
 

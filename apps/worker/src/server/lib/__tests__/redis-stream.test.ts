@@ -1,8 +1,6 @@
 import { afterAll, describe, expect, it, mock } from 'bun:test';
 
-const canonicalStreamModule = await import(
-  '../../../../../../packages/cache/src/stream.ts?worker-redis-stream-canonical'
-);
+const canonicalStreamModule = await import('@urlfy/cache');
 
 const { CONSUMER_GROUPS, RedisStream, STREAM_NAMES } = await import(
   '@/server/lib/redis-stream'

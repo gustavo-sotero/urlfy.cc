@@ -12,27 +12,34 @@
 
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
-const realTelemetryModule = await import(
-  '../../../telemetry/src/index.ts?geoip-real-telemetry'
-);
+async function importFreshModule<T>(path: string): Promise<T> {
+  return (await import(`${path}?geoip-test-module`)) as T;
+}
 
-const realCacheModule = await import(
-  '../../../../packages/cache/src/index.ts?packages-geoip-real-cache'
-);
+const realTelemetryModule = await importFreshModule<
+  typeof import('../../../telemetry/src/index.ts')
+>('../../../telemetry/src/index.ts');
+
+const realCacheModule = await importFreshModule<
+  typeof import('../../../../packages/cache/src/index.ts')
+>('../../../../packages/cache/src/index.ts');
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 const redisCalls: { get: string[]; setex: string[] } = { get: [], setex: [] };
-const mockRedis: {
-  get: (key: string) => Promise<string | null>;
-  setex: (key: string, ttl: number, value: string) => Promise<void>;
-} = {
-  get: async (key: string) => {
+type TestRedisClient = Pick<
+  typeof import('@urlfy/cache').redis,
+  'get' | 'setex'
+>;
+
+const mockRedis: TestRedisClient = {
+  get: async (key: string): Promise<string | null> => {
     redisCalls.get.push(key);
     return null;
   },
-  setex: async (key: string, _ttl: number, _value: string) => {
+  setex: async (key: string, _ttl: number, _value: string): Promise<'OK'> => {
     redisCalls.setex.push(key);
+    return 'OK';
   }
 };
 
@@ -69,7 +76,8 @@ mock.module('@maxmind/geoip2-node', () => ({
 }));
 
 // Import after mocks
-const { getGeoIPReader, getWeeklySalt, lookupGeoIP } = await import('../index');
+const { getGeoIPReader, getWeeklySalt, lookupGeoIP } =
+  await importFreshModule<typeof import('../index')>('../index');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

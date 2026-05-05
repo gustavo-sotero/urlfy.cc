@@ -13,42 +13,17 @@
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 
-const realTelemetryIpModule = await import(
-  '../../../../packages/telemetry/src/ip.ts?monitor-log-real-ip'
-);
-
 // ─── Mock logger ─────────────────────────────────────────────────────
 const errorLog = mock(() => {});
+const originalTrustProxy = process.env.TRUST_PROXY;
 
-// ─── Controllable IP extractor (canonical trust-model shim) ─────────
-// The route imports getClientIp from @/server/lib/ip which re-exports
-// from @urlfy/telemetry. We mock it here so tests control the returned
-// IP and can verify the route uses it (rather than raw headers).
-const getClientIpMock = mock((_req: unknown): string | undefined => undefined);
-
-mock.module('@urlfy/telemetry', () => ({
+mock.module('@/server/lib/telemetry', () => ({
   createLogger: () => ({
     debug: mock(() => {}),
     info: mock(() => {}),
     warn: mock(() => {}),
     error: errorLog
-  }),
-  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
-    fn().catch(() => {});
-  },
-  getClientIp: (request: Request) => {
-    const override = getClientIpMock(request);
-    if (override) {
-      return override;
-    }
-
-    return realTelemetryIpModule.getClientIp(request);
-  },
-  getClientIpFromHeaders: (headers: Headers) =>
-    realTelemetryIpModule.getClientIpFromHeaders(headers),
-  isPrivateIp: realTelemetryIpModule.isPrivateIp,
-  isValidIp: realTelemetryIpModule.isValidIp,
-  maskIpForLog: realTelemetryIpModule.maskIpForLog
+  })
 }));
 
 // ─── Controllable rate-limiter ───────────────────────────────────────
@@ -75,8 +50,12 @@ let POST: (req: unknown) => Promise<Response>;
 describe('monitor log route', () => {
   beforeEach(async () => {
     errorLog.mockClear();
-    getClientIpMock.mockClear();
     checkIPLimitMock.mockClear();
+    checkIPLimitMock.mockImplementation(async () => ({
+      allowed: true,
+      remaining: 99,
+      resetAt: Date.now() + 60_000
+    }));
     // Import lazily so the first import picks up all registered mocks.
     // On subsequent tests Bun returns the cached (already-mocked) module.
     if (!POST) {
@@ -86,7 +65,12 @@ describe('monitor log route', () => {
   });
 
   afterEach(() => {
-    mock.restore();
+    if (originalTrustProxy === undefined) {
+      delete process.env.TRUST_PROXY;
+      return;
+    }
+
+    process.env.TRUST_PROXY = originalTrustProxy;
   });
 
   // ─────────────────────────────────────────────────────────────────
@@ -169,21 +153,19 @@ describe('monitor log route', () => {
   });
 
   test('calls checkIPLimit with IP from canonical getClientIp, not raw headers', async () => {
-    // The mock returns a fixed IP that differs from the spoofed header value.
-    // This verifies the route is not reading x-forwarded-for directly.
-    getClientIpMock.mockReturnValueOnce('10.0.0.1');
+    process.env.TRUST_PROXY = 'false';
 
-    await POST(
-      new Request('http://localhost/ops/monitor/log', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          // Attempt to spoof a different IP via the header
-          'x-forwarded-for': '9.9.9.9'
-        },
-        body: JSON.stringify({ error: 'test', url: 'https://urlfy.cc/' })
-      }) as never
-    );
+    const request = {
+      headers: new Headers({
+        'content-type': 'application/json',
+        // Attempt to spoof a different IP via the header
+        'x-forwarded-for': '9.9.9.9'
+      }),
+      ip: '10.0.0.1',
+      json: async () => ({ error: 'test', url: 'https://urlfy.cc/' })
+    } as unknown as Request;
+
+    await POST(request as never);
 
     expect(checkIPLimitMock).toHaveBeenCalledTimes(1);
     const calledWithIp = (checkIPLimitMock.mock.calls[0] as unknown[])[0];

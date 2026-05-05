@@ -12,9 +12,13 @@
 
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
-const realTelemetryModule = await import(
-  '../../../telemetry/src/index.ts?redirect-domain-service-real-telemetry'
-);
+async function importFreshModule<T>(path: string): Promise<T> {
+  return (await import(`${path}?redirect-domain-service-test-module`)) as T;
+}
+
+const realTelemetryModule = await importFreshModule<
+  typeof import('../../../telemetry/src/index.ts')
+>('../../../telemetry/src/index.ts');
 
 // Silent logger + NoOp metrics — avoids LogTape sink errors and covers
 // all transitive imports (including @urlfy/cache/circuit-breaker)
@@ -86,7 +90,8 @@ const PAST = new Date(Date.now() - 60_000).toISOString();
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 // Dynamic import AFTER mock.module calls so Bun uses the mocked versions
-const { RedirectService } = await import('../service');
+const { RedirectService } =
+  await importFreshModule<typeof import('../service')>('../service');
 const { buildFinalUrl } = await import('../url-builder');
 const { validateLink } = await import('../validator');
 

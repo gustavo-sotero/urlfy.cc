@@ -1,49 +1,59 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { markRedisCommandSuccess, redisHealth } from '../client';
 
-const realTelemetryModule = await import(
-  '../../../telemetry/src/index.ts?cache-anti-abuse-real-telemetry'
-);
+async function importFreshModule<T>(path: string): Promise<T> {
+  return (await import(`${path}?cache-anti-abuse-test-module`)) as T;
+}
+
+const realTelemetryModule = await importFreshModule<
+  typeof import('../../../telemetry/src/index.ts')
+>('../../../telemetry/src/index.ts');
+
+type TestRedisClient = Pick<
+  typeof import('../client').redis,
+  'del' | 'expire' | 'get' | 'incr' | 'send' | 'set' | 'setex'
+>;
 
 const expiryStore = new Map<string, number>();
 const valueStore = new Map<string, string>();
 
 const mockRedis = {
-  incr: mock(async (key: string) => {
+  incr: mock(async (key: string): Promise<number> => {
     const current = Number.parseInt(valueStore.get(key) || '0', 10);
     const next = current + 1;
     valueStore.set(key, String(next));
     return next;
   }),
-  expire: mock(async (key: string, ttl: number) => {
+  expire: mock(async (key: string, ttl: number): Promise<number> => {
     expiryStore.set(key, ttl);
     return 1;
   }),
-  get: mock(async (key: string) => {
+  get: mock(async (key: string): Promise<string | null> => {
     return valueStore.get(key) || null;
   }),
-  setex: mock(async (key: string, ttl: number, value: string) => {
+  setex: mock(
+    async (key: string, ttl: number, value: string): Promise<'OK'> => {
+      valueStore.set(key, value);
+      expiryStore.set(key, ttl);
+      return 'OK';
+    }
+  ),
+  set: mock(async (key: string, value: string): Promise<'OK'> => {
     valueStore.set(key, value);
-    expiryStore.set(key, ttl);
     return 'OK';
   }),
-  set: mock(async (key: string, value: string) => {
-    valueStore.set(key, value);
-    return 'OK';
-  }),
-  del: mock(async (key: string) => {
+  del: mock(async (key: string): Promise<number> => {
     const existed = valueStore.delete(key);
     expiryStore.delete(key);
     return existed ? 1 : 0;
   }),
-  send: mock(async (command: string, args: string[]) => {
+  send: mock(async (command: string, args: string[]): Promise<number> => {
     if (command.toUpperCase() === 'EXISTS') {
       return valueStore.has(args[0] || '') ? 1 : 0;
     }
 
     throw new Error(`Unsupported command: ${command}`);
   })
-};
+} satisfies TestRedisClient;
 
 const warnLog = mock(() => {});
 const errorLog = mock(() => {});
@@ -63,7 +73,10 @@ mock.module('@urlfy/telemetry', () => ({
   maskIpForLog: (ip: string) => `ip:${ip}`
 }));
 
-const { AntiAbuseService } = await import('../anti-abuse-service');
+const { markRedisCommandSuccess, redisHealth } = await import('../client');
+const { AntiAbuseService } = await importFreshModule<
+  typeof import('../anti-abuse-service')
+>('../anti-abuse-service');
 
 describe('AntiAbuseService', () => {
   let service: InstanceType<typeof AntiAbuseService>;

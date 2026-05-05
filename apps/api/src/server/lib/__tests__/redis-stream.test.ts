@@ -12,9 +12,13 @@ import {
   mock
 } from 'bun:test';
 
-const realCacheClientModule = await import(
-  '../../../../../../packages/cache/src/client.ts?api-redis-stream-real-cache-client'
-);
+async function importFreshModule<T>(path: string): Promise<T> {
+  return (await import(`${path}?api-redis-stream-test-module`)) as T;
+}
+
+const realCacheClientModule = await importFreshModule<
+  typeof import('@urlfy/cache/client')
+>('@urlfy/cache/client');
 
 // Mock telemetry
 const mockLogger = {
@@ -133,9 +137,9 @@ mock.module('@urlfy/cache/client', () => ({
 
 // Import the canonical stream module through a query-suffixed source path so
 // this test gets a fresh module instance after the cache client mock is set up.
-const { CONSUMER_GROUPS, RedisStream, STREAM_NAMES } = await import(
-  '../../../../../../packages/cache/src/stream.ts?api-redis-stream-test-module'
-);
+const { CONSUMER_GROUPS, RedisStream, STREAM_NAMES } = await importFreshModule<
+  typeof import('@urlfy/cache/stream')
+>('@urlfy/cache/stream');
 
 // Test stream names
 const TEST_STREAM = 'test:stream';

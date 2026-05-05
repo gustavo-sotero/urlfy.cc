@@ -1,6 +1,6 @@
+import { mock } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { mock } from 'bun:test';
 import { Window } from 'happy-dom';
 import React from 'react';
 
@@ -209,7 +209,8 @@ function mockNextImageModule(): void {
       quality?: number;
       [key: string]: unknown;
     }) {
-      const resolvedSrc = typeof src === 'object' && src !== null ? src.src : src;
+      const resolvedSrc =
+        typeof src === 'object' && src !== null ? src.src : src;
       return React.createElement('img', {
         src: resolvedSrc,
         alt,

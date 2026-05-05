@@ -9,13 +9,19 @@ import {
 } from 'bun:test';
 import type { CachedLink } from '@urlfy/contracts/redirect';
 
-const realTelemetryModule = await import(
-  '../../../telemetry/src/index.ts?redirect-domain-cache-service-real-telemetry'
-);
+async function importFreshModule<T>(path: string): Promise<T> {
+  return (await import(
+    `${path}?redirect-domain-cache-service-test-module`
+  )) as T;
+}
 
-const realCacheModule = await import(
-  '../../../../packages/cache/src/index.ts?redirect-domain-cache-service-real-cache'
-);
+const realTelemetryModule = await importFreshModule<
+  typeof import('../../../telemetry/src/index.ts')
+>('../../../telemetry/src/index.ts');
+
+const realCacheModule = await importFreshModule<
+  typeof import('../../../../packages/cache/src/index.ts')
+>('../../../../packages/cache/src/index.ts');
 
 mock.module('@urlfy/telemetry', () => ({
   ...realTelemetryModule,
@@ -174,9 +180,10 @@ mock.module('@urlfy/cache', () => ({
   }
 }));
 
-const { cacheService } = await import(
-  '../cache-service?redirect-domain-cache-service-test-module'
-);
+const { cacheService } =
+  await importFreshModule<typeof import('../cache-service')>(
+    '../cache-service'
+  );
 
 async function withTimeout<T>(
   promise: Promise<T>,
