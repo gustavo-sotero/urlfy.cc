@@ -3,8 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { StreamReadResult } from '../redis-stream';
 import { WorkerBase, type WorkerConfig } from '../worker-base';
 
+async function importFreshModule<T>(path: string): Promise<T> {
+  return (await import(`${path}?worker-base-test-real-redis-stream`)) as T;
+}
+
+const realRedisStreamModule =
+  await importFreshModule<typeof import('../redis-stream')>(
+    '../redis-stream.ts'
+  );
+
 // Mock RedisStream
 const mockRedisStream = {
+  ...realRedisStreamModule.RedisStream,
   createGroup: mock(() => Promise.resolve()),
   readGroup: mock(async (): Promise<StreamReadResult<{ test: string }>[]> => {
     // Yield to event loop to allow other promises (like stop()) to run
@@ -14,7 +24,7 @@ const mockRedisStream = {
   }),
   ack: mock(() => Promise.resolve(1)),
   add: mock(() => Promise.resolve('1-0')),
-  autoClaim: mock(() => Promise.resolve({ messages: [], nextId: '0-0' }))
+  autoClaim: mock(() => Promise.resolve({ messages: [], cursor: '0-0' }))
 };
 
 mock.module('../redis-stream', () => ({
