@@ -54,7 +54,19 @@ export const AdminLinksService = {
   ): Promise<void> {
     try {
       await db.transaction(async (tx) => {
-        const updatedLinks = await tx
+        const existingLinks = await tx
+          .select({ shortCode: links.shortCode })
+          .from(links)
+          .where(eq(links.id, linkId))
+          .limit(1);
+
+        const existingLink = existingLinks[0];
+
+        if (!existingLink) {
+          throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
+        }
+
+        await tx
           .update(links)
           .set({
             isBanned: true,
@@ -62,14 +74,7 @@ export const AdminLinksService = {
             bannedReason: reason,
             isActive: false
           })
-          .where(eq(links.id, linkId))
-          .returning({ shortCode: links.shortCode });
-
-        const updatedLink = updatedLinks[0];
-
-        if (!updatedLink) {
-          throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
-        }
+          .where(eq(links.id, linkId));
 
         const auditId = nanoid();
         await tx.insert(auditLog).values({
@@ -80,14 +85,14 @@ export const AdminLinksService = {
           entityId: linkId,
           metadata: {
             reason,
-            shortCode: updatedLink.shortCode
+            shortCode: existingLink.shortCode
           },
           ipAddress: ipAddress || null,
           userAgent: null
         });
 
         try {
-          const code = updatedLink.shortCode;
+          const code = existingLink.shortCode;
           await cacheService.invalidateLinkAndQR(code, 'ban');
         } catch (cacheError) {
           logger.warn('Failed to invalidate cache after ban', {
@@ -115,7 +120,19 @@ export const AdminLinksService = {
   ): Promise<void> {
     try {
       await db.transaction(async (tx) => {
-        const updatedLinks = await tx
+        const existingLinks = await tx
+          .select({ shortCode: links.shortCode })
+          .from(links)
+          .where(eq(links.id, linkId))
+          .limit(1);
+
+        const existingLink = existingLinks[0];
+
+        if (!existingLink) {
+          throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
+        }
+
+        await tx
           .update(links)
           .set({
             isBanned: false,
@@ -123,14 +140,7 @@ export const AdminLinksService = {
             bannedReason: null,
             isActive: true
           })
-          .where(eq(links.id, linkId))
-          .returning({ shortCode: links.shortCode });
-
-        const updatedLink = updatedLinks[0];
-
-        if (!updatedLink) {
-          throw new AppError(ErrorCode.LINK_NOT_FOUND, 'Link not found');
-        }
+          .where(eq(links.id, linkId));
 
         const auditId = nanoid();
         await tx.insert(auditLog).values({
@@ -140,14 +150,14 @@ export const AdminLinksService = {
           entityType: 'link',
           entityId: linkId,
           metadata: {
-            shortCode: updatedLink.shortCode
+            shortCode: existingLink.shortCode
           },
           ipAddress: ipAddress || null,
           userAgent: null
         });
 
         try {
-          const code = updatedLink.shortCode;
+          const code = existingLink.shortCode;
           await cacheService.invalidateLink(code);
         } catch (cacheError) {
           logger.warn('Failed to invalidate cache after unban', {

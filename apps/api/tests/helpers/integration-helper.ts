@@ -36,15 +36,13 @@ async function probeDatabaseConnection(): Promise<IntegrationAvailability> {
 
 async function probeRedisConnection(): Promise<IntegrationAvailability> {
   try {
-    const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
-    const redis = new Bun.RedisClient(redisUrl);
-    const pong = await redis.send('PING', []);
-    redis.close();
+    const { checkRedisHealth } = await import('@urlfy/cache');
+    const health = await checkRedisHealth();
 
-    if (pong !== 'PONG') {
+    if (health.status !== 'ok') {
       return {
         available: false,
-        reason: 'Redis PING failed'
+        reason: health.error || 'Redis PING failed'
       };
     }
 

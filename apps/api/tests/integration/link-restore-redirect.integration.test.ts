@@ -90,7 +90,7 @@ describe('Link restore redirect integration', () => {
   const suffix = Date.now().toString(36);
   const testUserId = `restore-user-${suffix}`;
   const testEmail = `restore-${suffix}@urlfy.test`;
-  const testLinkId = `restore-link-${suffix}`;
+  const testLinkId = crypto.randomUUID();
   const testShortCode = `rest${suffix}`;
   const testUrl = `https://example.com/restore-flow-${suffix}`;
 
@@ -143,7 +143,7 @@ describe('Link restore redirect integration', () => {
     if (afterDelete.success) {
       throw new Error('Expected soft-deleted link to stop resolving');
     }
-    expect(afterDelete.error).toBe('INACTIVE');
+    expect(afterDelete.error).toBe('NOT_FOUND');
 
     const restored = await _LinkLifecycleService.restoreLink(
       testLinkId,

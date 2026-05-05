@@ -5,7 +5,7 @@
 
 import {
   CanonicalRateLimiter,
-  getRedisClient,
+  type getRedisClient,
   type RateLimitResult
 } from '@urlfy/cache';
 import { maskIpForLog } from './ip';
@@ -19,7 +19,7 @@ export {
 export type { RateLimitResult };
 
 export class RateLimiter extends CanonicalRateLimiter {
-  constructor(redis: ReturnType<typeof getRedisClient> = getRedisClient()) {
+  constructor(redis?: ReturnType<typeof getRedisClient>) {
     super({
       redis,
       logger: createLogger('rate-limiter'),

@@ -20,6 +20,7 @@ import { auditLog } from '@urlfy/data/schema/audit';
 import { account as accountTable } from '@urlfy/data/schema/auth';
 import { eq } from 'drizzle-orm';
 import { validateEnv } from '@/lib/env';
+import { ErrorCode } from '@/server/lib/error-handler';
 import { AdminService } from '@/server/modules/admin';
 import type {
   AdminStatsResponseType,
@@ -36,6 +37,17 @@ process.env.ADMIN_GITHUB_ACCOUNT_ID = AUTHORIZED_GITHUB_ACCOUNT_ID;
 validateEnv();
 
 const databaseAvailable = await isDatabaseAvailable();
+const missingLinkId = '00000000-0000-4000-8000-000000000000';
+
+async function expectAppErrorCode(
+  promise: Promise<unknown>,
+  code: string
+): Promise<void> {
+  await expect(promise).rejects.toMatchObject({
+    name: 'AppError',
+    code
+  });
+}
 
 describe('Admin Module Integration Tests', () => {
   if (!databaseAvailable) {
@@ -302,14 +314,15 @@ describe('Admin Module Integration Tests', () => {
         bannedReason: 'Self-ban attempt'
       };
 
-      await expect(
+      await expectAppErrorCode(
         AdminService.updateUserStatus(
           adminUserId,
           updateData,
           adminUserId,
           '127.0.0.1'
-        )
-      ).rejects.toThrow('FORBIDDEN');
+        ),
+        ErrorCode.FORBIDDEN
+      );
     });
 
     test('should throw error for non-existent user', async () => {
@@ -317,13 +330,14 @@ describe('Admin Module Integration Tests', () => {
         linksQuota: 999
       };
 
-      await expect(
+      await expectAppErrorCode(
         AdminService.updateUserStatus(
           'non-existent-user-id',
           updateData,
           adminUserId
-        )
-      ).rejects.toThrow('USER_NOT_FOUND');
+        ),
+        ErrorCode.USER_NOT_FOUND
+      );
     });
   });
 
@@ -416,9 +430,10 @@ describe('Admin Module Integration Tests', () => {
     });
 
     test('should throw error for non-existent link', async () => {
-      await expect(
-        AdminService.banLink('non-existent-link-id', 'Test reason', adminUserId)
-      ).rejects.toThrow('LINK_NOT_FOUND');
+      await expectAppErrorCode(
+        AdminService.banLink(missingLinkId, 'Test reason', adminUserId),
+        ErrorCode.LINK_NOT_FOUND
+      );
     });
   });
 
@@ -454,9 +469,10 @@ describe('Admin Module Integration Tests', () => {
     });
 
     test('should throw error for non-existent link', async () => {
-      await expect(
-        AdminService.unbanLink('non-existent-link-id', adminUserId)
-      ).rejects.toThrow('LINK_NOT_FOUND');
+      await expectAppErrorCode(
+        AdminService.unbanLink(missingLinkId, adminUserId),
+        ErrorCode.LINK_NOT_FOUND
+      );
     });
   });
 

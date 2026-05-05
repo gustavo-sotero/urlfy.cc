@@ -1,5 +1,10 @@
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { resetEnvForTests, validateEnv } from '../../src/lib/env';
+import { afterEach, describe, expect, test } from 'bun:test';
+
+let envImportCounter = 0;
+
+async function importFreshModule<T>(modulePath: string, suffix: string) {
+  return (await import(`${modulePath}?${suffix}`)) as T;
+}
 
 const mutableEnv = process.env as Record<string, string | undefined>;
 const originalEnv = { ...process.env };
@@ -16,17 +21,12 @@ function restoreEnv() {
   }
 }
 
-beforeEach(() => {
-  resetEnvForTests();
-});
-
 afterEach(() => {
-  resetEnvForTests();
   restoreEnv();
 });
 
 describe('web env validation', () => {
-  test('rejects leaked build-time sentinel secrets at runtime', () => {
+  test('rejects leaked build-time sentinel secrets at runtime', async () => {
     mutableEnv.NODE_ENV = 'production';
     mutableEnv.DATABASE_URL =
       'postgresql://urlfy_test:urlfy_test_pass@localhost:5432/urlfy_test';
@@ -40,7 +40,11 @@ describe('web env validation', () => {
     mutableEnv.JWT_SECRET = 'ci-test-jwt-secret-minimum-32-characters';
     delete mutableEnv.SKIP_ENV_VALIDATION;
 
-    expect(() => validateEnv()).toThrow(
+    const envModule = await importFreshModule<
+      typeof import('../../src/lib/env')
+    >('../../src/lib/env.ts', `web-env-${envImportCounter++}`);
+
+    expect(() => envModule.validateEnv()).toThrow(
       'BETTER_AUTH_SECRET contains a build-time placeholder value'
     );
   });

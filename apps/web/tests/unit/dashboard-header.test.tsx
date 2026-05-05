@@ -8,6 +8,12 @@ import {
 } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
+let headerImportCounter = 0;
+
+async function importFreshModule<T>(modulePath: string, suffix: string) {
+  return (await import(`${modulePath}?${suffix}`)) as T;
+}
+
 beforeAll(() => {
   if (
     typeof window !== 'undefined' &&
@@ -198,7 +204,12 @@ describe('Dashboard Header', () => {
   });
 
   async function renderHeader() {
-    const { Header } = await import('../../src/components/layout/header');
+    const { Header } = await importFreshModule<
+      typeof import('../../src/components/layout/header')
+    >(
+      '../../src/components/layout/header.tsx',
+      `dashboard-header-${headerImportCounter++}`
+    );
 
     render(
       <Header

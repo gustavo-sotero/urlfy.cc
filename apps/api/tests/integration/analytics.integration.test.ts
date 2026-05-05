@@ -344,7 +344,7 @@ describe('Analytics Integration', () => {
         timestamp: new Date()
       };
 
-      const jobId = await RedisStream.add(STREAM_NAMES.analytics, {
+      const jobId = await RedisStream.add(STREAM_NAMES.analyticsClicks, {
         type: 'click',
         ...jobData
       });

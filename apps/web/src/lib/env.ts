@@ -239,8 +239,3 @@ export function getEnv(): Env {
   }
   return env;
 }
-
-export function resetEnvForTests(): void {
-  if (process.env.NODE_ENV !== 'test') return;
-  env = null;
-}

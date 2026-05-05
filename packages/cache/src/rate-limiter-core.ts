@@ -1,6 +1,8 @@
 import { createLogger } from '@urlfy/telemetry';
 import {
   canAttemptRedisCommand,
+  checkRedisHealth,
+  closeRedis,
   getRedisClient,
   markRedisCommandFailure,
   markRedisCommandSuccess,
@@ -114,16 +116,34 @@ return {0, count}
 
   private static readonly memoryFallback = new InMemoryRateLimiter();
 
-  private redis: ReturnType<typeof getRedisClient>;
+  private redisOverride?: ReturnType<typeof getRedisClient>;
   private logger: LoggerLike;
   private maskIpForLog: (ip: string) => string;
   private scriptSha: string | null = null;
 
   constructor(options: CanonicalRateLimiterOptions = {}) {
-    this.redis = options.redis ?? getRedisClient();
+    this.redisOverride = options.redis;
     this.logger =
       options.logger ?? (createLogger('rate-limiter') as unknown as LoggerLike);
     this.maskIpForLog = options.maskIpForLog ?? ((ip) => ip);
+  }
+
+  private getRedis() {
+    return this.redisOverride ?? getRedisClient();
+  }
+
+  private isRetryableConnectionError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return (
+      message.includes('Connection is closed') ||
+      message.includes('offline queue is disabled')
+    );
+  }
+
+  private async reconnectAndWarmRedis(): Promise<boolean> {
+    await closeRedis();
+    const health = await checkRedisHealth();
+    return health.status === 'ok';
   }
 
   private buildFallbackResult(
@@ -190,7 +210,7 @@ return {0, count}
 
     if (this.scriptSha) {
       try {
-        const result = await this.redis.send('EVALSHA', [
+        const result = await this.getRedis().send('EVALSHA', [
           this.scriptSha,
           '1',
           ...args
@@ -205,13 +225,13 @@ return {0, count}
       }
     }
 
-    const sha = (await this.redis.send('SCRIPT', [
+    const sha = (await this.getRedis().send('SCRIPT', [
       'LOAD',
       CanonicalRateLimiter.SLIDING_WINDOW_LUA
     ])) as string;
     this.scriptSha = sha;
 
-    const result = await this.redis.send('EVALSHA', [sha, '1', ...args]);
+    const result = await this.getRedis().send('EVALSHA', [sha, '1', ...args]);
     return result as [number, number];
   }
 
@@ -224,13 +244,9 @@ return {0, count}
     const now = Date.now();
     const windowStart = now - config.duration * 1000;
 
-    if (!canAttemptRedisCommand()) {
-      return this.buildFallbackResult(key, config, prefix, now, 'degraded');
-    }
-
-    try {
+    const evaluateWindow = async () => {
       const member = `${now}-${Math.random()}`;
-      const [allowed, count] = await this.evalSlidingWindow(
+      return this.evalSlidingWindow(
         redisKey,
         windowStart,
         now,
@@ -238,8 +254,9 @@ return {0, count}
         config.duration,
         member
       );
-      markRedisCommandSuccess();
+    };
 
+    const buildSuccessResult = (allowed: number, count: number) => {
       const remaining = Math.max(0, config.points - count);
 
       if (!allowed) {
@@ -256,11 +273,60 @@ return {0, count}
         resetTime: now + config.duration * 1000,
         retryAfter: allowed === 1 ? undefined : config.duration
       };
+    };
+
+    if (!canAttemptRedisCommand()) {
+      if (!config.failClosed || this.redisOverride) {
+        return this.buildFallbackResult(key, config, prefix, now, 'degraded');
+      }
+
+      const warmed = await this.reconnectAndWarmRedis();
+
+      if (!warmed) {
+        return this.buildFallbackResult(key, config, prefix, now, 'degraded');
+      }
+
+      try {
+        const [allowed, count] = await evaluateWindow();
+        markRedisCommandSuccess();
+        return buildSuccessResult(allowed, count);
+      } catch (error) {
+        markRedisCommandFailure(error);
+        return this.buildFallbackResult(key, config, prefix, now, 'degraded');
+      }
+    }
+
+    try {
+      const [allowed, count] = await evaluateWindow();
+      markRedisCommandSuccess();
+      return buildSuccessResult(allowed, count);
     } catch (error) {
-      markRedisCommandFailure(error);
+      let finalError: unknown = error;
+
+      if (!this.redisOverride && this.isRetryableConnectionError(finalError)) {
+        markRedisCommandFailure(finalError);
+        const warmed = await this.reconnectAndWarmRedis();
+
+        if (!warmed) {
+          return this.buildFallbackResult(key, config, prefix, now, 'error');
+        }
+
+        try {
+          const [allowed, count] = await evaluateWindow();
+          markRedisCommandSuccess();
+          return buildSuccessResult(allowed, count);
+        } catch (retryError) {
+          finalError = retryError;
+        }
+      }
+
+      markRedisCommandFailure(finalError);
       if (shouldLogRedisFailure()) {
         this.logger.error('Rate limiter Redis error', {
-          error: error instanceof Error ? error.message : String(error),
+          error:
+            finalError instanceof Error
+              ? finalError.message
+              : String(finalError),
           key,
           failClosed: config.failClosed ?? false
         });
@@ -297,7 +363,7 @@ return {0, count}
 
     try {
       const key = `blocked:${ip}`;
-      await this.redis.setex(key, ttl, '1');
+      await this.getRedis().setex(key, ttl, '1');
       markRedisCommandSuccess();
       this.logger.warn('IP blocked', { ip: this.maskIpForLog(ip), ttl });
     } catch (error) {
@@ -316,7 +382,7 @@ return {0, count}
 
     try {
       const key = `blocked:${ip}`;
-      const blocked = (await this.redis.send('EXISTS', [key])) as number;
+      const blocked = (await this.getRedis().send('EXISTS', [key])) as number;
       markRedisCommandSuccess();
       return blocked === 1;
     } catch (error) {
@@ -335,7 +401,7 @@ return {0, count}
     }
 
     try {
-      await this.redis.del(`${prefix}:${key}`);
+      await this.getRedis().del(`${prefix}:${key}`);
       markRedisCommandSuccess();
     } catch (error) {
       markRedisCommandFailure(error);
@@ -364,7 +430,7 @@ return {0, count}
       const now = Date.now();
       const windowStart = now - config.duration * 1000;
 
-      const count = await this.redis.zcount(redisKey, windowStart, now);
+      const count = await this.getRedis().zcount(redisKey, windowStart, now);
       markRedisCommandSuccess();
 
       return {

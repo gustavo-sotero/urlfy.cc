@@ -11,6 +11,7 @@ import {
   rateLimiter
 } from '@/server/lib/rate-limiter';
 import { createLogger } from '@/server/lib/telemetry';
+import { getTestUserFromHeaders } from './auth/helpers';
 import { buildErrorResponse, getOrCreateRequestId } from './error-response';
 
 const logger = createLogger('rate-limit-middleware');
@@ -23,6 +24,11 @@ function shouldBypassRateLimit(path: string): boolean {
  * Extract authentication token/API key or check for session cookie
  */
 function getAuthToken(request: Request): string | null {
+  const testUser = getTestUserFromHeaders(request.headers);
+  if (testUser) {
+    return `test-user:${testUser.id}`;
+  }
+
   // Bearer token
   const auth = request.headers.get('Authorization');
   if (auth?.startsWith('Bearer ')) {

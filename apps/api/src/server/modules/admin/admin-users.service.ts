@@ -26,6 +26,24 @@ import type {
 
 const logger = createLogger('admin-users-service');
 
+function parsePositiveInteger(
+  value: string | undefined,
+  fallback: number,
+  max?: number
+): number {
+  const parsed = Number.parseInt(value ?? '', 10);
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+
+  if (typeof max === 'number') {
+    return Math.min(max, parsed);
+  }
+
+  return parsed;
+}
+
 export const AdminUsersService = {
   /**
    * List users with pagination and filters
@@ -40,11 +58,8 @@ export const AdminUsersService = {
       hasMore: boolean;
     };
   }> {
-    const page = Math.max(1, Number.parseInt(query.page || '1', 10));
-    const limit = Math.min(
-      100,
-      Math.max(1, Number.parseInt(query.limit || '20', 10))
-    );
+    const page = parsePositiveInteger(query.page, 1);
+    const limit = parsePositiveInteger(query.limit, 20, 100);
     const offset = (page - 1) * limit;
 
     try {
