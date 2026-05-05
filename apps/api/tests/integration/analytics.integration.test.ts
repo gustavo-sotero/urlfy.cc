@@ -30,39 +30,37 @@ describe('Analytics Integration', () => {
     });
     return;
   }
-  let testLinkId: string;
-  let _testUserId: string;
+
+  const suffix = Date.now().toString(36);
+  const testLinkId = crypto.randomUUID();
+  const testShortCode = `analytics-${suffix}`;
 
   beforeAll(async () => {
-    // Cleanup antes de testes
     await db
       .delete(analyticsEvents)
+      .where(eq(analyticsEvents.linkId, testLinkId))
       .execute()
       .catch(() => {});
     await db
       .delete(linkClicksDaily)
+      .where(eq(linkClicksDaily.linkId, testLinkId))
       .execute()
       .catch(() => {});
     await db
       .delete(links)
+      .where(eq(links.id, testLinkId))
       .execute()
       .catch(() => {});
 
-    // Create a test link
-    const [newLink] = await db
-      .insert(links)
-      .values({
-        originalUrl: 'https://example.com',
-        shortCode: `test-${Date.now()}`,
-        redirectType: 301
-      })
-      .returning({ id: links.id });
-
-    testLinkId = newLink.id;
+    await db.insert(links).values({
+      id: testLinkId,
+      originalUrl: 'https://example.com',
+      shortCode: testShortCode,
+      redirectType: 301
+    });
   });
 
   afterAll(async () => {
-    // Cleanup after tests
     await db
       .delete(analyticsEvents)
       .where(eq(analyticsEvents.linkId, testLinkId))

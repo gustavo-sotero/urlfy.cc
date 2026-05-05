@@ -17,7 +17,7 @@
     "type-check": "bunx tsc --noEmit",
     "test": "bun test src/ tests/unit tests/integration tests/perf tests/security && RUN_AUTH_MIDDLEWARE_INFRA_TESTS=true bun test src/server/middleware/__tests__/auth.middleware.test.ts",
     "test:unit": "bun test src/ tests/unit/",
-    "test:integration": "bun test tests/integration/ && RUN_AUTH_MIDDLEWARE_INFRA_TESTS=true bun test src/server/middleware/__tests__/auth.middleware.test.ts",
+    "test:integration": "bun run scripts/run-integration-tests.ts",
     "test:security": "bun test tests/security/",
     "test:perf": "bun test tests/perf/"
   },
