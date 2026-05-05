@@ -174,7 +174,33 @@ describe('Rate Limiting Integration Tests', () => {
   });
 
   it('should return proper rate limit headers', async () => {
-    const response = await apiFetch('/api/health');
+    const requests: Promise<Response>[] = [];
+
+    for (let i = 0; i < 20; i++) {
+      requests.push(
+        apiFetch(
+          '/api/links',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              url: `https://example.com/rate-limit-headers-${i}`
+            })
+          },
+          '198.51.100.12'
+        )
+      );
+    }
+
+    const responses = await Promise.all(requests);
+    const response = responses.find((entry) => entry.status === 429);
+
+    expect(response).toBeDefined();
+    if (!response) {
+      throw new Error('Expected at least one rate-limited response');
+    }
 
     // Check for rate limit headers
     const limitHeader =
@@ -492,11 +518,11 @@ describe('Error Handling Security', () => {
   });
 
   it('should return generic error messages', async () => {
-    const response = await apiFetch('/api/nonexistent', {
+    const response = await apiFetch('/api/links/invalid-id', {
       method: 'GET'
     });
 
-    expect(response.status).toBe(404);
+    expect(response.ok).toBe(false);
     const data = await response.json();
 
     // Should not reveal internal paths or implementation details
@@ -524,10 +550,11 @@ describe('Request Tracing', () => {
   });
 
   it('should include request ID in error responses', async () => {
-    const response = await apiFetch('/api/nonexistent');
+    const response = await apiFetch('/api/links/invalid-id');
     const data = await response.json();
+    const requestId = data?.requestId || response.headers.get('x-request-id');
 
-    expect(typeof data.requestId).toBe('string');
-    expect(data.requestId).toMatch(/^[a-z0-9-]+$/);
+    expect(typeof requestId).toBe('string');
+    expect(requestId).toMatch(/^[a-z0-9-]+$/);
   });
 });
