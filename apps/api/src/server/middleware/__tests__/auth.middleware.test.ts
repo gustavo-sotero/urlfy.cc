@@ -23,8 +23,7 @@ const ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST =
   'auth-middleware-admin-github-account-id-00000000';
 process.env.ADMIN_GITHUB_ACCOUNT_ID = ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST;
 
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { db } from '@urlfy/data';
+import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
 import {
   account as accountTable,
   apiKey as apiKeyTable,
@@ -39,6 +38,7 @@ import { detectDatabaseAvailability } from '../../../../tests/helpers/integratio
 // Flag to track if infrastructure is available
 let infrastructureAvailable = false;
 let setupError: Error | null = null;
+let db: typeof import('@urlfy/data').db | null = null;
 
 let requireApiKey: typeof import('../api-key.guard').requireApiKey | null =
   null;
@@ -51,12 +51,49 @@ let requireAuth: typeof import('../auth/require-auth').requireAuth | null =
 
 const freshImportToken = `auth-middleware-integration-${Date.now()}`;
 
+async function importFreshModule<T>(modulePath: string, suffix: string) {
+  return (await import(`${modulePath}?${suffix}`)) as T;
+}
+
+function getDb() {
+  if (!db) throw new Error('Database module not initialized');
+  return db;
+}
+
 const databaseStatus = await detectDatabaseAvailability();
 
 try {
   if (!databaseStatus.available) {
     throw new Error(databaseStatus.reason || 'Database unavailable');
   }
+
+  const realEnvModule = await importFreshModule<typeof import('@/lib/env')>(
+    '../../../lib/env.ts',
+    `${freshImportToken}-env`
+  );
+  realEnvModule.validateEnv();
+
+  const realDataModule = await importFreshModule<typeof import('@urlfy/data')>(
+    '../../../../../../packages/data/src/index.ts',
+    `${freshImportToken}-data`
+  );
+  db = realDataModule.db;
+
+  mock.module('@/lib/env', () => realEnvModule);
+  mock.module('@urlfy/data', () => realDataModule);
+
+  const realRateLimiterModule = await importFreshModule<
+    typeof import('@/server/lib/rate-limiter')
+  >('../../lib/rate-limiter.ts', `${freshImportToken}-rate-limiter`);
+  const realAdminResolverModule = await importFreshModule<
+    typeof import('@/server/services/admin.resolver')
+  >('../../services/admin.resolver.ts', `${freshImportToken}-admin-resolver`);
+
+  mock.module('@/server/lib/rate-limiter', () => realRateLimiterModule);
+  mock.module(
+    '@/server/services/admin.resolver',
+    () => realAdminResolverModule
+  );
 
   const optionalAuthModule = await import(
     `../auth/optional-auth.ts?${freshImportToken}-optional`
@@ -126,6 +163,8 @@ describe('Auth Middleware', () => {
   // ═══════════════════════════════════════════════════════════════════
 
   beforeAll(async () => {
+    const database = getDb();
+
     testUser = {
       id: nanoid(),
       email: `test-middleware-${nanoid()}@urlfy.test`,
@@ -138,7 +177,7 @@ describe('Auth Middleware', () => {
       name: 'Admin User'
     };
 
-    await db.insert(userTable).values([
+    await database.insert(userTable).values([
       {
         id: testUser.id,
         email: testUser.email,
@@ -155,7 +194,7 @@ describe('Auth Middleware', () => {
       }
     ]);
 
-    await db.insert(accountTable).values({
+    await database.insert(accountTable).values({
       id: nanoid(),
       userId: adminUser.id,
       accountId: ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST,
@@ -174,7 +213,7 @@ describe('Auth Middleware', () => {
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
 
-    await db.insert(apiKeyTable).values({
+    await database.insert(apiKeyTable).values({
       id: nanoid(),
       userId: testUser.id,
       name: 'Test API Key',
@@ -193,13 +232,22 @@ describe('Auth Middleware', () => {
   });
 
   afterAll(async () => {
+    if (!db) {
+      mock.restore();
+      return;
+    }
+
+    const database = getDb();
+
     if (testUser?.id) {
-      await db.delete(userTable).where(eq(userTable.id, testUser.id));
+      await database.delete(userTable).where(eq(userTable.id, testUser.id));
     }
 
     if (adminUser?.id) {
-      await db.delete(userTable).where(eq(userTable.id, adminUser.id));
+      await database.delete(userTable).where(eq(userTable.id, adminUser.id));
     }
+
+    mock.restore();
   });
 
   // ═══════════════════════════════════════════════════════════════════
@@ -371,20 +419,22 @@ describe('Auth Middleware', () => {
         .join('');
 
       const expiredKeyId = nanoid();
-      await db.insert(apiKeyTable).values({
-        id: expiredKeyId,
-        userId: testUser.id,
-        name: 'Expired API Key',
-        keyHash,
-        prefix: expiredKey.slice(0, 15),
-        permissions: JSON.stringify({
-          links: { create: true, read: true, update: true, delete: true },
-          analytics: { read: true }
-        }),
-        rateLimit: true,
-        rateLimitMax: 1000,
-        expiresAt: new Date(Date.now() - 60_000)
-      });
+      await getDb()
+        .insert(apiKeyTable)
+        .values({
+          id: expiredKeyId,
+          userId: testUser.id,
+          name: 'Expired API Key',
+          keyHash,
+          prefix: expiredKey.slice(0, 15),
+          permissions: JSON.stringify({
+            links: { create: true, read: true, update: true, delete: true },
+            analytics: { read: true }
+          }),
+          rateLimit: true,
+          rateLimitMax: 1000,
+          expiresAt: new Date(Date.now() - 60_000)
+        });
 
       const app = createApp();
       const response = await app.handle(
@@ -411,20 +461,22 @@ describe('Auth Middleware', () => {
         .join('');
 
       const revokedKeyId = nanoid();
-      await db.insert(apiKeyTable).values({
-        id: revokedKeyId,
-        userId: testUser.id,
-        name: 'Revoked API Key',
-        keyHash,
-        prefix: revokedKey.slice(0, 15),
-        permissions: JSON.stringify({
-          links: { create: true, read: true, update: true, delete: true },
-          analytics: { read: true }
-        }),
-        rateLimit: true,
-        rateLimitMax: 1000,
-        revokedAt: new Date()
-      });
+      await getDb()
+        .insert(apiKeyTable)
+        .values({
+          id: revokedKeyId,
+          userId: testUser.id,
+          name: 'Revoked API Key',
+          keyHash,
+          prefix: revokedKey.slice(0, 15),
+          permissions: JSON.stringify({
+            links: { create: true, read: true, update: true, delete: true },
+            analytics: { read: true }
+          }),
+          rateLimit: true,
+          rateLimitMax: 1000,
+          revokedAt: new Date()
+        });
 
       const app = createApp();
       const response = await app.handle(
@@ -451,20 +503,22 @@ describe('Auth Middleware', () => {
         .join('');
 
       const deletedKeyId = nanoid();
-      await db.insert(apiKeyTable).values({
-        id: deletedKeyId,
-        userId: testUser.id,
-        name: 'Deleted API Key',
-        keyHash,
-        prefix: deletedKey.slice(0, 15),
-        permissions: JSON.stringify({
-          links: { create: true, read: true, update: true, delete: true },
-          analytics: { read: true }
-        }),
-        rateLimit: true,
-        rateLimitMax: 1000,
-        deletedAt: new Date()
-      });
+      await getDb()
+        .insert(apiKeyTable)
+        .values({
+          id: deletedKeyId,
+          userId: testUser.id,
+          name: 'Deleted API Key',
+          keyHash,
+          prefix: deletedKey.slice(0, 15),
+          permissions: JSON.stringify({
+            links: { create: true, read: true, update: true, delete: true },
+            analytics: { read: true }
+          }),
+          rateLimit: true,
+          rateLimitMax: 1000,
+          deletedAt: new Date()
+        });
 
       const app = createApp();
       const response = await app.handle(

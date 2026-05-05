@@ -20,9 +20,9 @@ const realRateLimiter = realRateLimiterModule.rateLimiter;
 
 // ─── Stable mock key fixtures ────────────────────────────────────────────────
 
-/** SHA-256 of 'urlfy_sk_testkey12345678' — pre-computed so no actual crypto. */
+/** Real SHA-256 of 'urlfy_sk_testkey12345678'. */
 const MOCK_KEY_HASH =
-  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  'aeb2ca2a849c5caaf554d02b86b69f3b317889faec20c305522f905271be9837';
 
 const MOCK_KEY_RECORD = {
   id: 'key-001',
@@ -108,39 +108,7 @@ mock.module('@/server/lib/telemetry', () => ({
   configureLogging: async () => {}
 }));
 
-// ─── crypto.subtle — compute real hash so header matches mock record ─────────
-
-// We override the key hash in the mock to match what the guard will compute
-// for our test header value. Since we can't easily pre-compute without running
-// the actual SHA-256, we monkey-patch crypto.subtle.digest to return the known
-// mock hash bytes.
-const mockHashBytes = Buffer.from(MOCK_KEY_HASH, 'hex');
-
-const originalDigest = globalThis.crypto?.subtle?.digest?.bind(
-  globalThis.crypto.subtle
-);
-if (globalThis.crypto?.subtle) {
-  Object.defineProperty(globalThis.crypto.subtle, 'digest', {
-    value: async (algorithm: string, _data: BufferSource) => {
-      if (algorithm === 'SHA-256') {
-        return mockHashBytes.buffer;
-      }
-      return originalDigest?.(algorithm, _data);
-    },
-    writable: true,
-    configurable: true
-  });
-}
-
 afterAll(() => {
-  // Restore original crypto.subtle.digest
-  if (originalDigest && globalThis.crypto?.subtle) {
-    Object.defineProperty(globalThis.crypto.subtle, 'digest', {
-      value: originalDigest,
-      writable: true,
-      configurable: true
-    });
-  }
   mock.restore();
 });
 
