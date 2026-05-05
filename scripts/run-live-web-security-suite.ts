@@ -66,6 +66,38 @@ async function waitForUrlfyHealth(
   throw new Error(`Timed out waiting for urlfy health at ${baseUrl}`);
 }
 
+async function warmWebRoute(
+  baseUrl: string,
+  routePath: string,
+  processes: Array<{ label: string; process: Bun.Subprocess }>
+): Promise<void> {
+  const deadline = Date.now() + 90_000;
+
+  while (Date.now() < deadline) {
+    for (const entry of processes) {
+      ensureStillRunning(entry.process, entry.label);
+    }
+
+    try {
+      const response = await fetch(`${baseUrl}${routePath}`, {
+        signal: AbortSignal.timeout(10_000)
+      });
+
+      if (response.ok || response.redirected) {
+        await response.text().catch(() => null);
+        console.log(`✅ Warmed web route at ${baseUrl}${routePath}`);
+        return;
+      }
+    } catch {
+      // keep polling until timeout
+    }
+
+    await Bun.sleep(1_000);
+  }
+
+  throw new Error(`Timed out warming web route at ${baseUrl}${routePath}`);
+}
+
 async function main(): Promise<void> {
   const apiEnv: NodeJS.ProcessEnv = {
     ...process.env,
@@ -108,6 +140,10 @@ async function main(): Promise<void> {
     ensureStillRunning(apiProcess, 'API server');
     ensureStillRunning(webProcess, 'web server');
     await waitForUrlfyHealth(WEB_URL, [
+      { label: 'API server', process: apiProcess },
+      { label: 'web server', process: webProcess }
+    ]);
+    await warmWebRoute(WEB_URL, '/', [
       { label: 'API server', process: apiProcess },
       { label: 'web server', process: webProcess }
     ]);
