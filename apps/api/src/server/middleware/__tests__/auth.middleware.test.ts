@@ -16,8 +16,11 @@
 
 // Set test environment before imports
 process.env.NODE_ENV = 'test';
-// Set admin GitHub account ID before any dynamic import triggers validateEnv()
-const ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST = `test-admin-mw-github-${Date.now()}`;
+// Reuse the configured admin account id because validateEnv() is cached across
+// Bun test files and earlier integration suites may have already locked it in.
+const ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST =
+  process.env.ADMIN_GITHUB_ACCOUNT_ID ||
+  'auth-middleware-admin-github-account-id-00000000';
 process.env.ADMIN_GITHUB_ACCOUNT_ID = ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST;
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
@@ -37,17 +40,16 @@ import { detectDatabaseAvailability } from '../../../../tests/helpers/integratio
 let infrastructureAvailable = false;
 let setupError: Error | null = null;
 
-let requireApiKey:
-  | typeof import('@/server/middleware/api-key.guard').requireApiKey
-  | null = null;
-let optionalAuth:
-  | typeof import('@/server/middleware/auth').optionalAuth
-  | null = null;
-let requireAdmin:
-  | typeof import('@/server/middleware/auth').requireAdmin
-  | null = null;
-let requireAuth: typeof import('@/server/middleware/auth').requireAuth | null =
+let requireApiKey: typeof import('../api-key.guard').requireApiKey | null =
   null;
+let optionalAuth: typeof import('../auth/optional-auth').optionalAuth | null =
+  null;
+let requireAdmin: typeof import('../auth/require-admin').requireAdmin | null =
+  null;
+let requireAuth: typeof import('../auth/require-auth').requireAuth | null =
+  null;
+
+const freshImportToken = `auth-middleware-integration-${Date.now()}`;
 
 const databaseStatus = await detectDatabaseAvailability();
 
@@ -56,12 +58,23 @@ try {
     throw new Error(databaseStatus.reason || 'Database unavailable');
   }
 
-  const middlewareModule = await import('@/server/middleware/auth');
-  const guardModule = await import('@/server/middleware/api-key.guard');
+  const optionalAuthModule = await import(
+    `../auth/optional-auth.ts?${freshImportToken}-optional`
+  );
+  const requireAdminModule = await import(
+    `../auth/require-admin.ts?${freshImportToken}-admin`
+  );
+  const requireAuthModule = await import(
+    `../auth/require-auth.ts?${freshImportToken}-require`
+  );
+  const guardModule = await import(
+    `../api-key.guard.ts?${freshImportToken}-api-key`
+  );
+
   requireApiKey = guardModule.requireApiKey;
-  optionalAuth = middlewareModule.optionalAuth;
-  requireAdmin = middlewareModule.requireAdmin;
-  requireAuth = middlewareModule.requireAuth;
+  optionalAuth = optionalAuthModule.optionalAuth;
+  requireAdmin = requireAdminModule.requireAdmin;
+  requireAuth = requireAuthModule.requireAuth;
   infrastructureAvailable = true;
 } catch (error) {
   setupError = error instanceof Error ? error : new Error(String(error));

@@ -10,11 +10,12 @@ import type {
 
 const realDataModule = await import('@urlfy/data');
 const realRedisModule = await import('@/server/lib/redis');
-const realAuthMiddlewareModule = await import('@/server/middleware/auth');
 const realOpenApiMergerModule = await import('@/server/lib/openapi-merger');
 const realUrlValidatorModule = await import(
   '@/server/modules/links/services/url-validator'
 );
+
+const mockRequireAdmin = new Elysia({ name: 'require-admin.mock' });
 
 type DependencyHealthResult = {
   status: 'ok' | 'error';
@@ -70,9 +71,8 @@ describe('healthController readiness', () => {
       ...realRedisModule,
       checkRedisHealth: checkRedisHealthMock
     }));
-    mock.module('@/server/middleware/auth', () => ({
-      ...realAuthMiddlewareModule,
-      requireAdmin: new Elysia({ name: 'require-admin.mock' })
+    mock.module('@/server/middleware/auth/require-admin', () => ({
+      requireAdmin: mockRequireAdmin
     }));
     mock.module('@/server/lib/openapi-merger', () => ({
       ...realOpenApiMergerModule,

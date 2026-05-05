@@ -2,6 +2,9 @@ process.env.NODE_ENV = 'test';
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 
+const realRateLimiterModule = await import('@/server/lib/rate-limiter');
+const realRateLimiter = realRateLimiterModule.rateLimiter;
+
 const isIPBlockedMock = mock(async () => false);
 const checkIPLimitMock = mock(async () => ({
   allowed: true,
@@ -43,6 +46,7 @@ describe('rateLimit middleware', () => {
       })
     }));
     mock.module('@/server/lib/rate-limiter', () => ({
+      ...realRateLimiterModule,
       RATE_LIMIT_CONFIGS: {
         'GET /api/health/ready': {
           guest: { points: 300, duration: 60 },
@@ -53,11 +57,15 @@ describe('rateLimit middleware', () => {
           auth: { points: 10, duration: 60 }
         }
       },
-      rateLimiter: {
-        isIPBlocked: isIPBlockedMock,
-        checkIPLimit: checkIPLimitMock,
-        checkTokenLimit: checkTokenLimitMock
-      }
+      rateLimiter: Object.assign(
+        Object.create(Object.getPrototypeOf(realRateLimiter)),
+        realRateLimiter,
+        {
+          isIPBlocked: isIPBlockedMock,
+          checkIPLimit: checkIPLimitMock,
+          checkTokenLimit: checkTokenLimitMock
+        }
+      )
     }));
   });
 

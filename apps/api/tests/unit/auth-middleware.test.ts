@@ -7,7 +7,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { describe, expect, mock, test } from 'bun:test';
+import { afterAll, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
 
 // ─── Mock logger ─────────────────────────────────────────────────────
@@ -27,6 +27,7 @@ mock.module('@/server/lib/telemetry', () => ({
 const getSessionMock = mock(async () => null);
 
 const _realAuthModule = await import('@/lib/auth');
+const realLogSanitizerModule = await import('@/server/lib/log-sanitizer');
 
 mock.module('@/lib/auth', () => ({
   ..._realAuthModule,
@@ -41,6 +42,7 @@ mock.module('@/lib/auth', () => ({
 
 // ─── Mock sanitizer ─────────────────────────────────────────────────
 mock.module('@/server/lib/log-sanitizer', () => ({
+  ...realLogSanitizerModule,
   sanitizeHeaders: () => ({})
 }));
 
@@ -247,4 +249,8 @@ describe('optionalAuth middleware', () => {
       })
     );
   });
+});
+
+afterAll(() => {
+  mock.restore();
 });
