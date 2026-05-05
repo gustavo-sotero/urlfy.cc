@@ -1,10 +1,21 @@
 import { afterAll, describe, expect, it, mock } from 'bun:test';
 
-const canonicalStreamModule = await import('@urlfy/cache');
+async function importFreshModule<T>(path: string): Promise<T> {
+  return (await import(`${path}?worker-redis-stream-shim-test-module`)) as T;
+}
 
-const { CONSUMER_GROUPS, RedisStream, STREAM_NAMES } = await import(
-  '@/server/lib/redis-stream'
-);
+const canonicalStreamModule = await importFreshModule<
+  typeof import('@urlfy/cache')
+>('../../../../../../packages/cache/src/index.ts');
+
+// Worker test files hoist mock.module('@urlfy/cache', ...) registrations.
+// Pin the shim to a fresh real module here so this contract test stays stable.
+mock.module('@urlfy/cache', () => canonicalStreamModule);
+
+const { CONSUMER_GROUPS, RedisStream, STREAM_NAMES } =
+  await importFreshModule<typeof import('@/server/lib/redis-stream')>(
+    '../redis-stream.ts'
+  );
 
 describe('worker redis-stream shim', () => {
   afterAll(() => {
