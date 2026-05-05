@@ -16,6 +16,8 @@
 
 // Set test environment before imports
 process.env.NODE_ENV = 'test';
+const RUN_AUTH_MIDDLEWARE_INFRA_TESTS =
+  process.env.RUN_AUTH_MIDDLEWARE_INFRA_TESTS === 'true';
 // Reuse the configured admin account id because validateEnv() is cached across
 // Bun test files and earlier integration suites may have already locked it in.
 const ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST =
@@ -60,64 +62,72 @@ function getDb() {
   return db;
 }
 
-const databaseStatus = await detectDatabaseAvailability();
+if (RUN_AUTH_MIDDLEWARE_INFRA_TESTS) {
+  const databaseStatus = await detectDatabaseAvailability();
 
-try {
-  if (!databaseStatus.available) {
-    throw new Error(databaseStatus.reason || 'Database unavailable');
+  try {
+    if (!databaseStatus.available) {
+      throw new Error(databaseStatus.reason || 'Database unavailable');
+    }
+
+    const realEnvModule = await importFreshModule<typeof import('@/lib/env')>(
+      '../../../lib/env.ts',
+      `${freshImportToken}-env`
+    );
+    realEnvModule.validateEnv();
+
+    const realDataModule = await importFreshModule<
+      typeof import('@urlfy/data')
+    >(
+      '../../../../../../packages/data/src/index.ts',
+      `${freshImportToken}-data`
+    );
+    db = realDataModule.db;
+
+    mock.module('@/lib/env', () => realEnvModule);
+    mock.module('@urlfy/data', () => realDataModule);
+
+    const realRateLimiterModule = await importFreshModule<
+      typeof import('@/server/lib/rate-limiter')
+    >('../../lib/rate-limiter.ts', `${freshImportToken}-rate-limiter`);
+    const realAdminResolverModule = await importFreshModule<
+      typeof import('@/server/services/admin.resolver')
+    >('../../services/admin.resolver.ts', `${freshImportToken}-admin-resolver`);
+
+    mock.module('@/server/lib/rate-limiter', () => realRateLimiterModule);
+    mock.module(
+      '@/server/services/admin.resolver',
+      () => realAdminResolverModule
+    );
+
+    const optionalAuthModule = await import(
+      `../auth/optional-auth.ts?${freshImportToken}-optional`
+    );
+    const requireAdminModule = await import(
+      `../auth/require-admin.ts?${freshImportToken}-admin`
+    );
+    const requireAuthModule = await import(
+      `../auth/require-auth.ts?${freshImportToken}-require`
+    );
+    const guardModule = await import(
+      `../api-key.guard.ts?${freshImportToken}-api-key`
+    );
+
+    requireApiKey = guardModule.requireApiKey;
+    optionalAuth = optionalAuthModule.optionalAuth;
+    requireAdmin = requireAdminModule.requireAdmin;
+    requireAuth = requireAuthModule.requireAuth;
+    infrastructureAvailable = true;
+  } catch (error) {
+    setupError = error instanceof Error ? error : new Error(String(error));
+    console.warn(
+      '⚠️  Auth Middleware tests skipped: Infrastructure not available',
+      setupError.message
+    );
   }
-
-  const realEnvModule = await importFreshModule<typeof import('@/lib/env')>(
-    '../../../lib/env.ts',
-    `${freshImportToken}-env`
-  );
-  realEnvModule.validateEnv();
-
-  const realDataModule = await importFreshModule<typeof import('@urlfy/data')>(
-    '../../../../../../packages/data/src/index.ts',
-    `${freshImportToken}-data`
-  );
-  db = realDataModule.db;
-
-  mock.module('@/lib/env', () => realEnvModule);
-  mock.module('@urlfy/data', () => realDataModule);
-
-  const realRateLimiterModule = await importFreshModule<
-    typeof import('@/server/lib/rate-limiter')
-  >('../../lib/rate-limiter.ts', `${freshImportToken}-rate-limiter`);
-  const realAdminResolverModule = await importFreshModule<
-    typeof import('@/server/services/admin.resolver')
-  >('../../services/admin.resolver.ts', `${freshImportToken}-admin-resolver`);
-
-  mock.module('@/server/lib/rate-limiter', () => realRateLimiterModule);
-  mock.module(
-    '@/server/services/admin.resolver',
-    () => realAdminResolverModule
-  );
-
-  const optionalAuthModule = await import(
-    `../auth/optional-auth.ts?${freshImportToken}-optional`
-  );
-  const requireAdminModule = await import(
-    `../auth/require-admin.ts?${freshImportToken}-admin`
-  );
-  const requireAuthModule = await import(
-    `../auth/require-auth.ts?${freshImportToken}-require`
-  );
-  const guardModule = await import(
-    `../api-key.guard.ts?${freshImportToken}-api-key`
-  );
-
-  requireApiKey = guardModule.requireApiKey;
-  optionalAuth = optionalAuthModule.optionalAuth;
-  requireAdmin = requireAdminModule.requireAdmin;
-  requireAuth = requireAuthModule.requireAuth;
-  infrastructureAvailable = true;
-} catch (error) {
-  setupError = error instanceof Error ? error : new Error(String(error));
-  console.warn(
-    '⚠️  Auth Middleware tests skipped: Infrastructure not available',
-    setupError.message
+} else {
+  setupError = new Error(
+    'set RUN_AUTH_MIDDLEWARE_INFRA_TESTS=true to run isolated infrastructure coverage'
   );
 }
 

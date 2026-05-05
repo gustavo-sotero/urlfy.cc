@@ -17,9 +17,12 @@ function loadEnvFile(envPath: string): void {
 
       const [key, ...valueParts] = trimmedLine.split('=');
       if (key && valueParts.length > 0) {
+        const normalizedKey = key.trim();
+        if (process.env[normalizedKey] !== undefined) continue;
+
         const value = valueParts.join('=').trim();
         const cleanValue = value.replace(/^["']|["']$/g, '');
-        process.env[key.trim()] = cleanValue;
+        process.env[normalizedKey] = cleanValue;
       }
     }
   } catch {
