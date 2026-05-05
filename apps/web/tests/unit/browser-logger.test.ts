@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test';
-import {
-  normalizeError,
-  reportActionError,
-  reportBrowserError
-} from '@/lib/browser-logger';
+import { normalizeError, reportBrowserError } from '@/lib/browser-logger';
 
 const originalFetch = global.fetch;
 const originalConsoleError = console.error;
@@ -56,18 +52,12 @@ describe('browser logger', () => {
     const fetchSpy = mock(async () => new Response(null, { status: 200 }));
     global.fetch = fetchSpy as unknown as typeof fetch;
 
-    Object.defineProperty(globalThis, 'window', {
-      value: {
-        location: {
-          href: 'https://urlfy.cc/dashboard/links/new?token=secret'
-        }
-      },
-      configurable: true
-    });
-
-    reportActionError(new Error('create failed'), {
-      action: 'create-link',
-      retryable: true
+    reportBrowserError(new Error('create failed'), {
+      url: 'https://urlfy.cc/dashboard/links/new?token=secret',
+      context: {
+        action: 'create-link',
+        retryable: true
+      }
     });
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);

@@ -375,12 +375,12 @@ describe('API Client - Base URL Resolution', () => {
       NEXT_PUBLIC_APP_URL: 'https://urlfy.cc'
     });
 
-    expect(resolveBaseUrl(env)).toBe('https://urlfy.cc');
-    expect(resolveApiBaseUrl(env)).toBe('http://api:3001');
+    expect(resolveBaseUrl(env, '')).toBe('https://urlfy.cc');
+    expect(resolveApiBaseUrl(env, '')).toBe('http://api:3001');
   });
 
   it('falls back to localhost defaults when env is absent', () => {
-    expect(resolveBaseUrl(createEnv())).toBe('http://localhost:3000');
-    expect(resolveApiBaseUrl(createEnv())).toBe('http://localhost:3001');
+    expect(resolveBaseUrl(createEnv(), '')).toBe('http://localhost:3000');
+    expect(resolveApiBaseUrl(createEnv(), '')).toBe('http://localhost:3001');
   });
 });

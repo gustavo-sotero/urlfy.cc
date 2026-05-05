@@ -198,7 +198,7 @@ describe('Dashboard Header', () => {
   });
 
   async function renderHeader() {
-    const { Header } = await import('@/components/layout/header');
+    const { Header } = await import('../../src/components/layout/header');
 
     render(
       <Header

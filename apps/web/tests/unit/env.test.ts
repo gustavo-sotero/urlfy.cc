@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, test } from 'bun:test';
-import { validateEnv } from '@/lib/env';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { resetEnvForTests, validateEnv } from '../../src/lib/env';
 
 const mutableEnv = process.env as Record<string, string | undefined>;
 const originalEnv = { ...process.env };
@@ -16,7 +16,12 @@ function restoreEnv() {
   }
 }
 
+beforeEach(() => {
+  resetEnvForTests();
+});
+
 afterEach(() => {
+  resetEnvForTests();
   restoreEnv();
 });
 

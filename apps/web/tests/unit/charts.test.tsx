@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 let isMobileValue = false;
@@ -104,7 +104,7 @@ describe('Dashboard charts', () => {
     isMobileValue = true;
     const { ClicksChart } = await import('@/components/charts/clicks-chart');
 
-    render(
+    const { container } = render(
       <ClicksChart
         data={[
           {
@@ -123,9 +123,14 @@ describe('Dashboard charts', () => {
       />
     );
 
-    expect(screen.getByRole('img').getAttribute('aria-label')).toBe(
-      'Clicks chart'
-    );
+    expect(
+      within(container).getByRole('img', { name: 'Clicks chart' })
+    ).toBeDefined();
+    expect(
+      within(container)
+        .getByRole('img', { name: 'Clicks chart' })
+        .getAttribute('aria-label')
+    ).toBe('Clicks chart');
     expect(
       (lineChartProps[0].data as Array<{ clicks: number }>).map(
         (item) => item.clicks
@@ -172,7 +177,7 @@ describe('Dashboard charts', () => {
     isMobileValue = true;
     const { DevicesChart } = await import('@/components/charts/devices-chart');
 
-    render(
+    const { container } = render(
       <DevicesChart
         data={[
           { type: 'desktop', clicks: 10, percentage: 50 },
@@ -182,9 +187,14 @@ describe('Dashboard charts', () => {
       />
     );
 
-    expect(screen.getByRole('img').getAttribute('aria-label')).toContain(
-      'Desktop: 10'
-    );
+    expect(
+      within(container).getByRole('img', { name: /Desktop: 10/ })
+    ).toBeDefined();
+    expect(
+      within(container)
+        .getByRole('img', { name: /Desktop: 10/ })
+        .getAttribute('aria-label')
+    ).toContain('Desktop: 10');
     expect(screen.getByText('Desktop')).toBeDefined();
     expect(screen.getByText('Mobile')).toBeDefined();
     expect(screen.getByText('Tablet')).toBeDefined();
