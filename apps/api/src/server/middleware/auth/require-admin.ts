@@ -1,3 +1,7 @@
+import {
+  ADMIN_SESSION_MAX_AGE_MS,
+  getAdminSessionAgeMs
+} from '@urlfy/auth-shared';
 import { Elysia } from 'elysia';
 import type { Session, User } from '@/lib/auth';
 import { createLogger } from '@/server/lib/telemetry';
@@ -6,14 +10,6 @@ import { buildErrorEnvelope, getOrCreateRequestId } from '../error-response';
 import { requireAuth } from './require-auth';
 
 const logger = createLogger('require-admin');
-
-/**
- * Maximum session age (in milliseconds) allowed for admin operations.
- * Sessions older than this require the user to re-authenticate before
- * performing privileged actions (short-lived elevation requirement).
- * Default: 4 hours.
- */
-const ADMIN_SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
 
 export const requireAdmin = new Elysia({ name: 'require-admin' })
   .use(requireAuth)
@@ -53,8 +49,7 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
       // Test auth bypasses this check (no real session object exists).
       if (!isTestAuth && session) {
         const adminSession = session as Session;
-        const sessionAgeMs =
-          Date.now() - new Date(adminSession.createdAt).getTime();
+        const sessionAgeMs = getAdminSessionAgeMs(adminSession.createdAt);
 
         if (sessionAgeMs > ADMIN_SESSION_MAX_AGE_MS) {
           logger.warn(

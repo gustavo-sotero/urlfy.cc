@@ -10,7 +10,7 @@ import type {
   DailyStats,
   TimeSeries
 } from '@/types/analytics.types';
-import { client } from './client';
+import { client, createClientWithHeaders } from './client';
 import { extractArrayData, handleEden } from './error';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -39,13 +39,15 @@ export interface AnalyticsOptions {
 
 export async function getDailyStats(
   linkId: string,
-  days = DEFAULT_ANALYTICS_DAYS
+  days = DEFAULT_ANALYTICS_DAYS,
+  headers?: HeadersInit
 ): Promise<DailyStats[]> {
+  const apiClient = headers ? createClientWithHeaders(headers) : client;
   const query = { days: days.toString() };
 
   // Handle "all" linkId for aggregate analytics
   if (linkId === 'all') {
-    const response = await client.api.analytics.all.daily.get({ query });
+    const response = await apiClient.api.analytics.all.daily.get({ query });
     const result = handleEden<
       TimeSeries[] | { data: TimeSeries[]; meta: unknown }
     >(response);
@@ -53,7 +55,9 @@ export async function getDailyStats(
     return timeSeries.map((ts) => ({ ...ts, linkId: 'all' }));
   }
 
-  const response = await client.api.analytics({ linkId }).daily.get({ query });
+  const response = await apiClient.api
+    .analytics({ linkId })
+    .daily.get({ query });
   const result = handleEden<
     TimeSeries[] | { data: TimeSeries[]; meta: unknown }
   >(response);
@@ -67,19 +71,21 @@ export async function getDailyStats(
 
 export async function getAnalyticsBreakdown(
   linkId: string,
-  options?: AnalyticsOptions
+  options?: AnalyticsOptions,
+  headers?: HeadersInit
 ): Promise<AnalyticsBreakdown> {
+  const apiClient = headers ? createClientWithHeaders(headers) : client;
   const queryParams = options?.days ? { days: options.days.toString() } : {};
 
   // Handle "all" linkId for aggregate analytics
   if (linkId === 'all') {
-    const response = await client.api.analytics.all.breakdown.get({
+    const response = await apiClient.api.analytics.all.breakdown.get({
       query: queryParams
     });
     return handleEden(response);
   }
 
-  const response = await client.api.analytics({ linkId }).breakdown.get({
+  const response = await apiClient.api.analytics({ linkId }).breakdown.get({
     query: queryParams
   });
   return handleEden(response);
@@ -91,19 +97,21 @@ export async function getAnalyticsBreakdown(
 
 export async function getAnalyticsSummary(
   linkId: string,
-  options?: AnalyticsOptions
+  options?: AnalyticsOptions,
+  headers?: HeadersInit
 ): Promise<AnalyticsSummary> {
+  const apiClient = headers ? createClientWithHeaders(headers) : client;
   const queryParams = options?.days ? { days: options.days.toString() } : {};
 
   // Handle "all" linkId for aggregate analytics
   if (linkId === 'all') {
-    const response = await client.api.analytics.all.summary.get({
+    const response = await apiClient.api.analytics.all.summary.get({
       query: queryParams
     });
     return handleEden(response);
   }
 
-  const response = await client.api.analytics({ linkId }).summary.get({
+  const response = await apiClient.api.analytics({ linkId }).summary.get({
     query: queryParams
   });
   return handleEden(response);

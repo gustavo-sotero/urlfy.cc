@@ -4,6 +4,11 @@
  * that don't require a runtime-specific auth instance.
  */
 
+export {
+  ADMIN_SESSION_MAX_AGE_MS,
+  getAdminSessionAgeMs,
+  isAdminSessionFresh
+} from './admin-session';
 export type { BuildPublicEmailVerificationUrlInput } from './auth-config';
 export {
   assertRuntimeAuthConfigSafe,

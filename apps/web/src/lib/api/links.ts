@@ -14,7 +14,7 @@ import type {
   PaginatedResponse,
   UpdateLinkInput
 } from '@/types/links.types';
-import { client } from './client';
+import { client, createClientWithHeaders } from './client';
 import {
   ApiClientError,
   extractErrorInfo,
@@ -43,10 +43,12 @@ export async function createLink(
 }
 
 export async function getLinks(
-  query?: ListLinksQuery
+  query?: ListLinksQuery,
+  headers?: HeadersInit
 ): Promise<PaginatedResponse<LinkResponse>> {
+  const apiClient = headers ? createClientWithHeaders(headers) : client;
   const apiQuery = query ? toQueryParams({ ...query }) : {};
-  const response = await client.api.links.get({ query: apiQuery });
+  const response = await apiClient.api.links.get({ query: apiQuery });
   return handleEden<PaginatedResponse<LinkResponse>>(response);
 }
 

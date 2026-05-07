@@ -289,7 +289,8 @@ export interface UsersQuery {
  * List users with pagination and filters
  */
 export async function getUsers(
-  query?: UsersQuery
+  query?: UsersQuery,
+  headers?: HeadersInit
 ): Promise<PaginatedResponse<UserResponse>> {
   const apiQuery = query
     ? toQueryParams({
@@ -301,7 +302,8 @@ export async function getUsers(
       })
     : {};
 
-  const response = await client.api.admin.users.get({ query: apiQuery });
+  const apiClient = headers ? createClientWithHeaders(headers) : client;
+  const response = await apiClient.api.admin.users.get({ query: apiQuery });
   return handleEden<PaginatedResponse<UserResponse>>(response);
 }
 
@@ -354,10 +356,12 @@ export interface AuditLogsQuery {
 }
 
 export async function getAuditLogs(
-  query?: AuditLogsQuery
+  query?: AuditLogsQuery,
+  headers?: HeadersInit
 ): Promise<PaginatedResponse<AuditLogEntry>> {
   const apiQuery = query ? toQueryParams({ ...query }) : {};
-  const response = await client.api.admin.audit.get({ query: apiQuery });
+  const apiClient = headers ? createClientWithHeaders(headers) : client;
+  const response = await apiClient.api.admin.audit.get({ query: apiQuery });
   return handleEden<PaginatedResponse<AuditLogEntry>>(response);
 }
 

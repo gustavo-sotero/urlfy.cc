@@ -1,5 +1,6 @@
 // src/app/(admin)/layout.tsx
 
+import { getAdminSessionAgeMs, isAdminSessionFresh } from '@urlfy/auth-shared';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AdminHeader } from '@/components/admin/layout/admin-header';
@@ -34,6 +35,24 @@ export default async function AdminLayout({
 
   // Derive client IP once using the canonical trust-aware helper
   const clientIp = getClientIpFromHeaders(requestHeaders);
+
+  if (!isAdminSessionFresh(session.session.createdAt)) {
+    void auditLogService.log({
+      userId,
+      action: 'admin_access_denied',
+      entityType: 'admin_panel',
+      entityId: 'session_expired',
+      metadata: {
+        reason: 'admin_session_expired',
+        sessionAgeMs: getAdminSessionAgeMs(session.session.createdAt),
+        userId
+      },
+      ipAddress: clientIp,
+      userAgent: requestHeaders.get('user-agent') ?? undefined
+    });
+
+    redirect('/login?callbackUrl=/admin&reauth=1');
+  }
 
   // ═══════════════════════════════════════════════════════════════════
   // GUARD 2: Admin authorization (derived from linked GitHub account)
