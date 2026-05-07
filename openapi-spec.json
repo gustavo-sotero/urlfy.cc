@@ -6121,55 +6121,125 @@
       },
       "internal.analytics.body": {
         "$id": "InternalAnalyticsEventBody",
-        "description": "Click event payload sent by redirect middleware",
-        "type": "object",
-        "required": [
-          "linkId",
-          "shortCode",
-          "ip",
-          "userAgent",
-          "timestamp"
-        ],
-        "properties": {
-          "linkId": {
-            "format": "uuid",
-            "type": "string"
+        "description": "Click event payload sent by trusted internal producers. Raw IP is accepted only for backward compatibility and is anonymized before it reaches Redis.",
+        "anyOf": [
+          {
+            "description": "Legacy click event payload sent by internal callers that still provide a raw IP. The API hashes and enriches it before publishing to Redis.",
+            "type": "object",
+            "required": [
+              "linkId",
+              "shortCode",
+              "userAgent",
+              "timestamp",
+              "ip"
+            ],
+            "properties": {
+              "linkId": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "shortCode": {
+                "minLength": 3,
+                "maxLength": 20,
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                "type": "string"
+              },
+              "userAgent": {
+                "type": "string"
+              },
+              "referer": {
+                "type": "string"
+              },
+              "utmSource": {
+                "type": "string"
+              },
+              "utmMedium": {
+                "type": "string"
+              },
+              "utmCampaign": {
+                "type": "string"
+              },
+              "utmContent": {
+                "type": "string"
+              },
+              "utmTerm": {
+                "type": "string"
+              },
+              "timestamp": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "ip": {
+                "type": "string"
+              }
+            }
           },
-          "shortCode": {
-            "minLength": 3,
-            "maxLength": 20,
-            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
-            "type": "string"
-          },
-          "ip": {
-            "type": "string"
-          },
-          "userAgent": {
-            "type": "string"
-          },
-          "referer": {
-            "type": "string"
-          },
-          "utmSource": {
-            "type": "string"
-          },
-          "utmMedium": {
-            "type": "string"
-          },
-          "utmCampaign": {
-            "type": "string"
-          },
-          "utmContent": {
-            "type": "string"
-          },
-          "utmTerm": {
-            "type": "string"
-          },
-          "timestamp": {
-            "format": "date-time",
-            "type": "string"
+          {
+            "description": "Anonymized click event payload sent by internal callers that already resolved visitorHash and GeoIP before Redis enqueue.",
+            "type": "object",
+            "required": [
+              "linkId",
+              "shortCode",
+              "userAgent",
+              "timestamp",
+              "visitorHash"
+            ],
+            "properties": {
+              "linkId": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "shortCode": {
+                "minLength": 3,
+                "maxLength": 20,
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                "type": "string"
+              },
+              "userAgent": {
+                "type": "string"
+              },
+              "referer": {
+                "type": "string"
+              },
+              "utmSource": {
+                "type": "string"
+              },
+              "utmMedium": {
+                "type": "string"
+              },
+              "utmCampaign": {
+                "type": "string"
+              },
+              "utmContent": {
+                "type": "string"
+              },
+              "utmTerm": {
+                "type": "string"
+              },
+              "timestamp": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "visitorHash": {
+                "minLength": 64,
+                "maxLength": 64,
+                "type": "string"
+              },
+              "country": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "latitude": {
+                "type": "string"
+              },
+              "longitude": {
+                "type": "string"
+              }
+            }
           }
-        }
+        ]
       },
       "internal.analytics.response": {
         "type": "object",
@@ -6782,74 +6852,47 @@
     "/api/health/ready": {
       "get": {
         "summary": "Readiness check",
-        "description": "Checks whether the API can serve traffic. Database is required; Redis degradation is reported without blocking readiness.",
+        "description": "Checks whether the API can serve traffic. Database is required; optional dependency degradation is folded into an aggregate public status.",
         "tags": [
           "Health"
         ],
         "security": [],
         "responses": {
           "200": {
-            "description": "Database is ready; Redis status is reported separately",
+            "description": "Database is ready; optional dependency issues are reflected only in the aggregate status",
             "content": {
               "application/json": {
                 "schema": {
-                  "description": "Database is ready; Redis status is reported separately",
+                  "description": "Database is ready; optional dependency issues are reflected only in the aggregate status",
                   "examples": [
                     {
                       "status": "ready",
-                      "degraded": false,
-                      "services": {
-                        "database": "ok",
-                        "redis": "ok"
-                      }
+                      "timestamp": "2026-01-06T12:00:00Z"
                     },
                     {
-                      "status": "ready",
-                      "degraded": true,
-                      "services": {
-                        "database": "ok",
-                        "redis": "error"
-                      }
+                      "status": "degraded",
+                      "timestamp": "2026-01-06T12:00:00Z"
                     }
                   ],
                   "type": "object",
                   "required": [
                     "status",
-                    "degraded",
-                    "services"
+                    "timestamp"
                   ],
                   "properties": {
                     "status": {
-                      "const": "ready",
-                      "type": "string"
+                      "type": "string",
+                      "enum": [
+                        "ready",
+                        "degraded"
+                      ]
                     },
-                    "degraded": {
-                      "description": "True when optional Redis-backed features are degraded but the API can still serve traffic",
+                    "timestamp": {
+                      "format": "date-time",
                       "examples": [
-                        false
+                        "2026-01-06T12:00:00Z"
                       ],
-                      "type": "boolean"
-                    },
-                    "services": {
-                      "type": "object",
-                      "required": [
-                        "database",
-                        "redis"
-                      ],
-                      "properties": {
-                        "database": {
-                          "examples": [
-                            "ok"
-                          ],
-                          "type": "string"
-                        },
-                        "redis": {
-                          "examples": [
-                            "ok"
-                          ],
-                          "type": "string"
-                        }
-                      }
+                      "type": "string"
                     }
                   }
                 }
@@ -6857,57 +6900,33 @@
             }
           },
           "503": {
-            "description": "One or more services unavailable",
+            "description": "A required dependency is unavailable",
             "content": {
               "application/json": {
                 "schema": {
-                  "description": "One or more services unavailable",
+                  "description": "A required dependency is unavailable",
                   "examples": [
                     {
                       "status": "not_ready",
-                      "services": {
-                        "database": "error",
-                        "redis": "ok"
-                      }
+                      "timestamp": "2026-01-06T12:00:00Z"
                     }
                   ],
                   "type": "object",
                   "required": [
                     "status",
-                    "degraded",
-                    "services"
+                    "timestamp"
                   ],
                   "properties": {
                     "status": {
                       "const": "not_ready",
                       "type": "string"
                     },
-                    "degraded": {
+                    "timestamp": {
+                      "format": "date-time",
                       "examples": [
-                        false
+                        "2026-01-06T12:00:00Z"
                       ],
-                      "type": "boolean"
-                    },
-                    "services": {
-                      "type": "object",
-                      "required": [
-                        "database",
-                        "redis"
-                      ],
-                      "properties": {
-                        "database": {
-                          "examples": [
-                            "error"
-                          ],
-                          "type": "string"
-                        },
-                        "redis": {
-                          "examples": [
-                            "ok"
-                          ],
-                          "type": "string"
-                        }
-                      }
+                      "type": "string"
                     }
                   }
                 }
@@ -7409,169 +7428,379 @@
           }
         ],
         "requestBody": {
-          "description": "Click event payload sent by redirect middleware",
+          "description": "Click event payload sent by trusted internal producers. Raw IP is accepted only for backward compatibility and is anonymized before it reaches Redis.",
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$id": "InternalAnalyticsEventBody",
-                "description": "Click event payload sent by redirect middleware",
-                "type": "object",
-                "required": [
-                  "linkId",
-                  "shortCode",
-                  "ip",
-                  "userAgent",
-                  "timestamp"
-                ],
-                "properties": {
-                  "linkId": {
-                    "format": "uuid",
-                    "type": "string"
+                "description": "Click event payload sent by trusted internal producers. Raw IP is accepted only for backward compatibility and is anonymized before it reaches Redis.",
+                "anyOf": [
+                  {
+                    "description": "Legacy click event payload sent by internal callers that still provide a raw IP. The API hashes and enriches it before publishing to Redis.",
+                    "type": "object",
+                    "required": [
+                      "linkId",
+                      "shortCode",
+                      "userAgent",
+                      "timestamp",
+                      "ip"
+                    ],
+                    "properties": {
+                      "linkId": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "shortCode": {
+                        "minLength": 3,
+                        "maxLength": 20,
+                        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                        "type": "string"
+                      },
+                      "userAgent": {
+                        "type": "string"
+                      },
+                      "referer": {
+                        "type": "string"
+                      },
+                      "utmSource": {
+                        "type": "string"
+                      },
+                      "utmMedium": {
+                        "type": "string"
+                      },
+                      "utmCampaign": {
+                        "type": "string"
+                      },
+                      "utmContent": {
+                        "type": "string"
+                      },
+                      "utmTerm": {
+                        "type": "string"
+                      },
+                      "timestamp": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "ip": {
+                        "type": "string"
+                      }
+                    }
                   },
-                  "shortCode": {
-                    "minLength": 3,
-                    "maxLength": 20,
-                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
-                    "type": "string"
-                  },
-                  "ip": {
-                    "type": "string"
-                  },
-                  "userAgent": {
-                    "type": "string"
-                  },
-                  "referer": {
-                    "type": "string"
-                  },
-                  "utmSource": {
-                    "type": "string"
-                  },
-                  "utmMedium": {
-                    "type": "string"
-                  },
-                  "utmCampaign": {
-                    "type": "string"
-                  },
-                  "utmContent": {
-                    "type": "string"
-                  },
-                  "utmTerm": {
-                    "type": "string"
-                  },
-                  "timestamp": {
-                    "format": "date-time",
-                    "type": "string"
+                  {
+                    "description": "Anonymized click event payload sent by internal callers that already resolved visitorHash and GeoIP before Redis enqueue.",
+                    "type": "object",
+                    "required": [
+                      "linkId",
+                      "shortCode",
+                      "userAgent",
+                      "timestamp",
+                      "visitorHash"
+                    ],
+                    "properties": {
+                      "linkId": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "shortCode": {
+                        "minLength": 3,
+                        "maxLength": 20,
+                        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                        "type": "string"
+                      },
+                      "userAgent": {
+                        "type": "string"
+                      },
+                      "referer": {
+                        "type": "string"
+                      },
+                      "utmSource": {
+                        "type": "string"
+                      },
+                      "utmMedium": {
+                        "type": "string"
+                      },
+                      "utmCampaign": {
+                        "type": "string"
+                      },
+                      "utmContent": {
+                        "type": "string"
+                      },
+                      "utmTerm": {
+                        "type": "string"
+                      },
+                      "timestamp": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "visitorHash": {
+                        "minLength": 64,
+                        "maxLength": 64,
+                        "type": "string"
+                      },
+                      "country": {
+                        "type": "string"
+                      },
+                      "city": {
+                        "type": "string"
+                      },
+                      "latitude": {
+                        "type": "string"
+                      },
+                      "longitude": {
+                        "type": "string"
+                      }
+                    }
                   }
-                }
+                ]
               }
             },
             "application/x-www-form-urlencoded": {
               "schema": {
                 "$id": "InternalAnalyticsEventBody",
-                "description": "Click event payload sent by redirect middleware",
-                "type": "object",
-                "required": [
-                  "linkId",
-                  "shortCode",
-                  "ip",
-                  "userAgent",
-                  "timestamp"
-                ],
-                "properties": {
-                  "linkId": {
-                    "format": "uuid",
-                    "type": "string"
+                "description": "Click event payload sent by trusted internal producers. Raw IP is accepted only for backward compatibility and is anonymized before it reaches Redis.",
+                "anyOf": [
+                  {
+                    "description": "Legacy click event payload sent by internal callers that still provide a raw IP. The API hashes and enriches it before publishing to Redis.",
+                    "type": "object",
+                    "required": [
+                      "linkId",
+                      "shortCode",
+                      "userAgent",
+                      "timestamp",
+                      "ip"
+                    ],
+                    "properties": {
+                      "linkId": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "shortCode": {
+                        "minLength": 3,
+                        "maxLength": 20,
+                        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                        "type": "string"
+                      },
+                      "userAgent": {
+                        "type": "string"
+                      },
+                      "referer": {
+                        "type": "string"
+                      },
+                      "utmSource": {
+                        "type": "string"
+                      },
+                      "utmMedium": {
+                        "type": "string"
+                      },
+                      "utmCampaign": {
+                        "type": "string"
+                      },
+                      "utmContent": {
+                        "type": "string"
+                      },
+                      "utmTerm": {
+                        "type": "string"
+                      },
+                      "timestamp": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "ip": {
+                        "type": "string"
+                      }
+                    }
                   },
-                  "shortCode": {
-                    "minLength": 3,
-                    "maxLength": 20,
-                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
-                    "type": "string"
-                  },
-                  "ip": {
-                    "type": "string"
-                  },
-                  "userAgent": {
-                    "type": "string"
-                  },
-                  "referer": {
-                    "type": "string"
-                  },
-                  "utmSource": {
-                    "type": "string"
-                  },
-                  "utmMedium": {
-                    "type": "string"
-                  },
-                  "utmCampaign": {
-                    "type": "string"
-                  },
-                  "utmContent": {
-                    "type": "string"
-                  },
-                  "utmTerm": {
-                    "type": "string"
-                  },
-                  "timestamp": {
-                    "format": "date-time",
-                    "type": "string"
+                  {
+                    "description": "Anonymized click event payload sent by internal callers that already resolved visitorHash and GeoIP before Redis enqueue.",
+                    "type": "object",
+                    "required": [
+                      "linkId",
+                      "shortCode",
+                      "userAgent",
+                      "timestamp",
+                      "visitorHash"
+                    ],
+                    "properties": {
+                      "linkId": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "shortCode": {
+                        "minLength": 3,
+                        "maxLength": 20,
+                        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                        "type": "string"
+                      },
+                      "userAgent": {
+                        "type": "string"
+                      },
+                      "referer": {
+                        "type": "string"
+                      },
+                      "utmSource": {
+                        "type": "string"
+                      },
+                      "utmMedium": {
+                        "type": "string"
+                      },
+                      "utmCampaign": {
+                        "type": "string"
+                      },
+                      "utmContent": {
+                        "type": "string"
+                      },
+                      "utmTerm": {
+                        "type": "string"
+                      },
+                      "timestamp": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "visitorHash": {
+                        "minLength": 64,
+                        "maxLength": 64,
+                        "type": "string"
+                      },
+                      "country": {
+                        "type": "string"
+                      },
+                      "city": {
+                        "type": "string"
+                      },
+                      "latitude": {
+                        "type": "string"
+                      },
+                      "longitude": {
+                        "type": "string"
+                      }
+                    }
                   }
-                }
+                ]
               }
             },
             "multipart/form-data": {
               "schema": {
                 "$id": "InternalAnalyticsEventBody",
-                "description": "Click event payload sent by redirect middleware",
-                "type": "object",
-                "required": [
-                  "linkId",
-                  "shortCode",
-                  "ip",
-                  "userAgent",
-                  "timestamp"
-                ],
-                "properties": {
-                  "linkId": {
-                    "format": "uuid",
-                    "type": "string"
+                "description": "Click event payload sent by trusted internal producers. Raw IP is accepted only for backward compatibility and is anonymized before it reaches Redis.",
+                "anyOf": [
+                  {
+                    "description": "Legacy click event payload sent by internal callers that still provide a raw IP. The API hashes and enriches it before publishing to Redis.",
+                    "type": "object",
+                    "required": [
+                      "linkId",
+                      "shortCode",
+                      "userAgent",
+                      "timestamp",
+                      "ip"
+                    ],
+                    "properties": {
+                      "linkId": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "shortCode": {
+                        "minLength": 3,
+                        "maxLength": 20,
+                        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                        "type": "string"
+                      },
+                      "userAgent": {
+                        "type": "string"
+                      },
+                      "referer": {
+                        "type": "string"
+                      },
+                      "utmSource": {
+                        "type": "string"
+                      },
+                      "utmMedium": {
+                        "type": "string"
+                      },
+                      "utmCampaign": {
+                        "type": "string"
+                      },
+                      "utmContent": {
+                        "type": "string"
+                      },
+                      "utmTerm": {
+                        "type": "string"
+                      },
+                      "timestamp": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "ip": {
+                        "type": "string"
+                      }
+                    }
                   },
-                  "shortCode": {
-                    "minLength": 3,
-                    "maxLength": 20,
-                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
-                    "type": "string"
-                  },
-                  "ip": {
-                    "type": "string"
-                  },
-                  "userAgent": {
-                    "type": "string"
-                  },
-                  "referer": {
-                    "type": "string"
-                  },
-                  "utmSource": {
-                    "type": "string"
-                  },
-                  "utmMedium": {
-                    "type": "string"
-                  },
-                  "utmCampaign": {
-                    "type": "string"
-                  },
-                  "utmContent": {
-                    "type": "string"
-                  },
-                  "utmTerm": {
-                    "type": "string"
-                  },
-                  "timestamp": {
-                    "format": "date-time",
-                    "type": "string"
+                  {
+                    "description": "Anonymized click event payload sent by internal callers that already resolved visitorHash and GeoIP before Redis enqueue.",
+                    "type": "object",
+                    "required": [
+                      "linkId",
+                      "shortCode",
+                      "userAgent",
+                      "timestamp",
+                      "visitorHash"
+                    ],
+                    "properties": {
+                      "linkId": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "shortCode": {
+                        "minLength": 3,
+                        "maxLength": 20,
+                        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{1,18}[a-zA-Z0-9]$",
+                        "type": "string"
+                      },
+                      "userAgent": {
+                        "type": "string"
+                      },
+                      "referer": {
+                        "type": "string"
+                      },
+                      "utmSource": {
+                        "type": "string"
+                      },
+                      "utmMedium": {
+                        "type": "string"
+                      },
+                      "utmCampaign": {
+                        "type": "string"
+                      },
+                      "utmContent": {
+                        "type": "string"
+                      },
+                      "utmTerm": {
+                        "type": "string"
+                      },
+                      "timestamp": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "visitorHash": {
+                        "minLength": 64,
+                        "maxLength": 64,
+                        "type": "string"
+                      },
+                      "country": {
+                        "type": "string"
+                      },
+                      "city": {
+                        "type": "string"
+                      },
+                      "latitude": {
+                        "type": "string"
+                      },
+                      "longitude": {
+                        "type": "string"
+                      }
+                    }
                   }
-                }
+                ]
               }
             }
           }

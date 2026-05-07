@@ -4,12 +4,22 @@ process.env.INTERNAL_API_SECRET =
   process.env.INTERNAL_API_SECRET ?? 'test-internal-api-secret-32chars';
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { hashVisitorForAnalytics } from '@urlfy/telemetry';
 import { Elysia } from 'elysia';
 
 const realAuthModule = await import('@/lib/auth');
 const realAdminResolverModule = await import(
   '@/server/services/admin.resolver'
 );
+const redisAddMock = mock(
+  async (..._args: [string, Record<string, unknown>, string?, number?]) => '1-0'
+);
+const lookupGeoIPMock = mock(async (_ip: string) => ({
+  country: 'BR',
+  city: 'Recife',
+  latitude: -8.0476,
+  longitude: -34.877
+}));
 
 interface MockSessionPayload {
   user: {
@@ -66,11 +76,15 @@ describe('internalController session route', () => {
 
     mock.module('@/server/lib/redis-stream', () => ({
       RedisStream: {
-        add: mock(async () => undefined)
+        add: redisAddMock
       },
       STREAM_NAMES: {
         analyticsClicks: 'analytics:clicks'
       }
+    }));
+
+    mock.module('@urlfy/geoip', () => ({
+      lookupGeoIP: lookupGeoIPMock
     }));
 
     getSessionMock.mockReset();
@@ -89,6 +103,15 @@ describe('internalController session route', () => {
     );
     resolveIsAdminMock.mockReset();
     resolveIsAdminMock.mockImplementation(async (_userId: string) => false);
+    redisAddMock.mockReset();
+    redisAddMock.mockImplementation(async () => '1-0');
+    lookupGeoIPMock.mockReset();
+    lookupGeoIPMock.mockImplementation(async () => ({
+      country: 'BR',
+      city: 'Recife',
+      latitude: -8.0476,
+      longitude: -34.877
+    }));
   });
 
   afterEach(() => {
@@ -164,5 +187,102 @@ describe('internalController session route', () => {
 
     expect(response.status).toBe(401);
     expect(await response.text()).toBe('');
+  });
+
+  test('enqueues anonymized analytics payload without persisting raw IPs', async () => {
+    const { internalController } = await importInternalController();
+    const app = new Elysia({ prefix: '/api' }).use(internalController);
+    const timestamp = '2026-05-07T12:00:00.000Z';
+
+    const response = await app.handle(
+      new Request('http://localhost/api/internal/analytics', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-internal-api': 'test-internal-api-secret-32chars'
+        },
+        body: JSON.stringify({
+          linkId: '550e8400-e29b-41d4-a716-446655440000',
+          shortCode: 'abc1234',
+          ip: '198.51.100.10',
+          userAgent: 'Mozilla/5.0',
+          referer: 'https://example.com',
+          timestamp
+        })
+      })
+    );
+
+    expect(response.status).toBe(202);
+    expect(redisAddMock).toHaveBeenCalledWith(
+      'analytics:clicks',
+      expect.objectContaining({
+        linkId: '550e8400-e29b-41d4-a716-446655440000',
+        shortCode: 'abc1234',
+        visitorHash: hashVisitorForAnalytics(
+          '198.51.100.10',
+          '550e8400-e29b-41d4-a716-446655440000',
+          new Date(timestamp)
+        ),
+        country: 'BR',
+        city: 'Recife',
+        latitude: '-8.0476',
+        longitude: '-34.877',
+        userAgent: 'Mozilla/5.0',
+        referer: 'https://example.com',
+        timestamp
+      }),
+      '*',
+      50000
+    );
+
+    const firstCall = redisAddMock.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    if (!firstCall) {
+      throw new Error('Expected analytics event to be enqueued');
+    }
+
+    const enqueuedPayload = firstCall[1];
+    expect('ip' in enqueuedPayload).toBe(false);
+  });
+
+  test('accepts pre-anonymized analytics payloads without recomputing visitor data', async () => {
+    const { internalController } = await importInternalController();
+    const app = new Elysia({ prefix: '/api' }).use(internalController);
+
+    const response = await app.handle(
+      new Request('http://localhost/api/internal/analytics', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-internal-api': 'test-internal-api-secret-32chars'
+        },
+        body: JSON.stringify({
+          linkId: '550e8400-e29b-41d4-a716-446655440000',
+          shortCode: 'abc1234',
+          visitorHash: 'a'.repeat(64),
+          country: 'US',
+          city: 'New York',
+          latitude: '40.7128',
+          longitude: '-74.0060',
+          userAgent: 'Mozilla/5.0',
+          timestamp: '2026-05-07T12:00:00.000Z'
+        })
+      })
+    );
+
+    expect(response.status).toBe(202);
+    expect(lookupGeoIPMock).not.toHaveBeenCalled();
+    expect(redisAddMock).toHaveBeenCalledWith(
+      'analytics:clicks',
+      expect.objectContaining({
+        visitorHash: 'a'.repeat(64),
+        country: 'US',
+        city: 'New York',
+        latitude: '40.7128',
+        longitude: '-74.0060'
+      }),
+      '*',
+      50000
+    );
   });
 });

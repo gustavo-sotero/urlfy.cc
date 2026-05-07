@@ -40,3 +40,4 @@ export {
   stampedeLocksAcquired,
   stampedeLocksWaited
 } from './metrics';
+export { hashVisitorForAnalytics } from './visitor-hash';

@@ -58,20 +58,14 @@ describe('Web readiness endpoint', () => {
     const response = await GET();
     const body = (await response.json()) as {
       status: string;
-      degraded: boolean;
-      services: {
-        api: { status: 'ok' | 'error'; error?: string };
-        redis: { status: 'ok' | 'error'; error?: string };
-        database: { status: 'ok' | 'error'; error?: string };
-      };
+      component: string;
+      timestamp: string;
     };
 
     expect(response.status).toBe(200);
     expect(body.status).toBe('ready');
-    expect(body.degraded).toBe(false);
-    expect(body.services.api.status).toBe('ok');
-    expect(body.services.redis.status).toBe('ok');
-    expect(body.services.database.status).toBe('ok');
+    expect(body.component).toBe('web');
+    expect(new Date(body.timestamp).getTime()).not.toBeNaN();
   });
 
   test('returns 503 when upstream API readiness fails', async () => {
@@ -87,20 +81,14 @@ describe('Web readiness endpoint', () => {
     const response = await GET();
     const body = (await response.json()) as {
       status: string;
-      degraded: boolean;
-      services: {
-        api: { status: 'ok' | 'error'; error?: string };
-        redis: { status: 'ok' | 'error'; error?: string };
-        database: { status: 'ok' | 'error'; error?: string };
-      };
+      component: string;
+      timestamp: string;
     };
 
     expect(response.status).toBe(503);
     expect(body.status).toBe('not_ready');
-    expect(body.degraded).toBe(false);
-    expect(body.services.api.status).toBe('error');
-    expect(body.services.api.error).toContain('upstream returned 503');
-    expect(body.services.redis.status).toBe('ok');
+    expect(body.component).toBe('web');
+    expect(new Date(body.timestamp).getTime()).not.toBeNaN();
   });
 
   test('returns 200 with degraded=true when Redis readiness fails', async () => {
@@ -122,20 +110,14 @@ describe('Web readiness endpoint', () => {
     const response = await GET();
     const body = (await response.json()) as {
       status: string;
-      degraded: boolean;
-      services: {
-        api: { status: 'ok' | 'error'; error?: string };
-        redis: { status: 'ok' | 'error'; error?: string };
-        database: { status: 'ok' | 'error'; error?: string };
-      };
+      component: string;
+      timestamp: string;
     };
 
     expect(response.status).toBe(200);
-    expect(body.status).toBe('ready');
-    expect(body.degraded).toBe(true);
-    expect(body.services.api.status).toBe('ok');
-    expect(body.services.redis.status).toBe('error');
-    expect(body.services.redis.error).toBe('redis connection refused');
+    expect(body.status).toBe('degraded');
+    expect(body.component).toBe('web');
+    expect(new Date(body.timestamp).getTime()).not.toBeNaN();
   });
 
   test('returns 503 when database readiness fails', async () => {
@@ -157,20 +139,13 @@ describe('Web readiness endpoint', () => {
     const response = await GET();
     const body = (await response.json()) as {
       status: string;
-      degraded: boolean;
-      services: {
-        api: { status: 'ok' | 'error'; error?: string };
-        redis: { status: 'ok' | 'error'; error?: string };
-        database: { status: 'ok' | 'error'; error?: string };
-      };
+      component: string;
+      timestamp: string;
     };
 
     expect(response.status).toBe(503);
     expect(body.status).toBe('not_ready');
-    expect(body.degraded).toBe(false);
-    expect(body.services.api.status).toBe('ok');
-    expect(body.services.redis.status).toBe('ok');
-    expect(body.services.database.status).toBe('error');
-    expect(body.services.database.error).toBe('connection refused');
+    expect(body.component).toBe('web');
+    expect(new Date(body.timestamp).getTime()).not.toBeNaN();
   });
 });

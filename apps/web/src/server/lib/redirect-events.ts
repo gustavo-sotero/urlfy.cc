@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import {
   drainPendingClicks,
   incrementPendingClicks,
@@ -6,35 +5,9 @@ import {
   STREAM_NAMES
 } from '@urlfy/cache';
 import { lookupGeoIP } from '@urlfy/geoip';
+import { hashVisitorForAnalytics } from '@urlfy/telemetry';
 import type { NextRequest } from 'next/server';
 import { getClientIp } from './ip';
-
-// ─── visitor hash ─────────────────────────────────────────────────────────────
-// Mirror the logic in apps/worker/src/server/lib/privacy.ts so that the hash
-// is computed at ingress (before Redis) rather than at the consumer (after Redis).
-// ISO week number calculation — same algorithm as privacy.ts.
-function getIsoWeekSalt(date: Date = new Date()): string {
-  const d = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
-  );
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(
-    ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
-  );
-  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-}
-
-function hashVisitorAtIngress(ip: string | null, linkId: string): string {
-  const salt = getIsoWeekSalt();
-  if (!ip || ip.trim() === '') {
-    return createHash('sha256')
-      .update(`anonymous:${linkId}:${salt}`)
-      .digest('hex');
-  }
-  return createHash('sha256').update(`${ip}:${linkId}:${salt}`).digest('hex');
-}
 
 // ─── public helpers ───────────────────────────────────────────────────────────
 
@@ -59,7 +32,7 @@ export async function enqueueRedirectAnalytics(
   const rawIp = getClientIp(request);
 
   // Hash immediately — raw IP must never be written to Redis.
-  const visitorHash = hashVisitorAtIngress(rawIp, linkId);
+  const visitorHash = hashVisitorForAnalytics(rawIp, linkId);
 
   // Resolve GeoIP at ingress so the stream payload never needs the raw IP.
   // lookupGeoIP uses an in-process MaxMind reader with Redis caching, so the

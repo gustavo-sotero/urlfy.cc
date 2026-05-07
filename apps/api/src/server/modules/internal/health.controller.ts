@@ -63,55 +63,49 @@ const healthSimple = new Elysia()
 
       const isDatabaseReady = dbHealth.status === 'ok';
       const isRedisDegraded = redisHealth.status !== 'ok';
+      const timestamp = new Date().toISOString();
 
       if (!isDatabaseReady) {
         set.status = 503;
+        return {
+          status: 'not_ready' as const,
+          timestamp
+        };
       }
 
       return {
-        status: isDatabaseReady ? ('ready' as const) : ('not_ready' as const),
-        degraded: isRedisDegraded,
-        services: {
-          database: dbHealth.status,
-          redis: redisHealth.status
-        }
+        status: isRedisDegraded ? ('degraded' as const) : ('ready' as const),
+        timestamp
       };
     },
     {
       detail: {
         summary: 'Readiness check',
         description:
-          'Checks whether the API can serve traffic. Database is required; Redis degradation is reported without blocking readiness.',
+          'Checks whether the API can serve traffic. Database is required; optional dependency degradation is folded into an aggregate public status.',
         tags: ['Health'],
         security: [] // Public endpoint - no authentication required
       },
       response: {
         200: t.Object(
           {
-            status: t.Literal('ready'),
-            degraded: t.Boolean({
-              description:
-                'True when optional Redis-backed features are degraded but the API can still serve traffic',
-              examples: [false]
-            }),
-            services: t.Object({
-              database: t.String({ examples: ['ok'] }),
-              redis: t.String({ examples: ['ok'] })
+            status: t.Union([t.Literal('ready'), t.Literal('degraded')]),
+            timestamp: t.String({
+              format: 'date-time',
+              examples: ['2026-01-06T12:00:00Z']
             })
           },
           {
             description:
-              'Database is ready; Redis status is reported separately',
+              'Database is ready; optional dependency issues are reflected only in the aggregate status',
             examples: [
               {
                 status: 'ready',
-                degraded: false,
-                services: { database: 'ok', redis: 'ok' }
+                timestamp: '2026-01-06T12:00:00Z'
               },
               {
-                status: 'ready',
-                degraded: true,
-                services: { database: 'ok', redis: 'error' }
+                status: 'degraded',
+                timestamp: '2026-01-06T12:00:00Z'
               }
             ]
           }
@@ -119,18 +113,17 @@ const healthSimple = new Elysia()
         503: t.Object(
           {
             status: t.Literal('not_ready'),
-            degraded: t.Boolean({ examples: [false] }),
-            services: t.Object({
-              database: t.String({ examples: ['error'] }),
-              redis: t.String({ examples: ['ok'] })
+            timestamp: t.String({
+              format: 'date-time',
+              examples: ['2026-01-06T12:00:00Z']
             })
           },
           {
-            description: 'One or more services unavailable',
+            description: 'A required dependency is unavailable',
             examples: [
               {
                 status: 'not_ready',
-                services: { database: 'error', redis: 'ok' }
+                timestamp: '2026-01-06T12:00:00Z'
               }
             ]
           }

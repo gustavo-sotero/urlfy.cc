@@ -11,6 +11,13 @@ import type {
   DailyStats
 } from '@/types/analytics.types';
 
+const ANALYTICS_CHART_REFRESH_MS = 30_000;
+const ANALYTICS_SUMMARY_REFRESH_MS = 5_000;
+
+type LiveQueryOptions<T> = Omit<UseQueryOptions<T>, 'queryKey' | 'queryFn'> & {
+  live?: boolean;
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // QUERY KEYS
 // ═══════════════════════════════════════════════════════════════════
@@ -33,36 +40,35 @@ export const analyticsKeys = {
 export function useDailyStats(
   linkId: string,
   days: number = 30,
-  options?: Omit<UseQueryOptions<DailyStats[]>, 'queryKey' | 'queryFn'>
+  options?: LiveQueryOptions<DailyStats[]>
 ) {
+  const { live = false, ...queryOptions } = options ?? {};
+
   return useQuery({
     queryKey: analyticsKeys.daily(linkId, days),
     queryFn: () => api.getDailyStats(linkId, days),
     // 30 s window lets SSR-hydrated data be reused for the first render
-    // while still keeping the chart reasonably fresh via background polling.
-    staleTime: 30_000,
-    refetchInterval: 30_000,
+    // while still avoiding an immediate post-hydration refetch.
+    staleTime: ANALYTICS_CHART_REFRESH_MS,
+    refetchInterval: live ? ANALYTICS_CHART_REFRESH_MS : false,
     refetchIntervalInBackground: false,
     enabled: !!linkId,
-    ...options
+    ...queryOptions
   });
 }
 
 export function useAnalyticsBreakdown(
   linkId: string,
-  options?: Omit<
-    UseQueryOptions<AnalyticsBreakdown>,
-    'queryKey' | 'queryFn'
-  > & {
+  options?: LiveQueryOptions<AnalyticsBreakdown> & {
     days?: number;
   }
 ) {
-  const { days = 30, ...queryOptions } = options || {};
+  const { days = 30, live = false, ...queryOptions } = options || {};
   return useQuery({
     queryKey: analyticsKeys.breakdown(linkId, days.toString()),
     queryFn: () => api.getAnalyticsBreakdown(linkId, { days }),
-    staleTime: 30_000,
-    refetchInterval: 30_000,
+    staleTime: ANALYTICS_CHART_REFRESH_MS,
+    refetchInterval: live ? ANALYTICS_CHART_REFRESH_MS : false,
     refetchIntervalInBackground: false,
     enabled: !!linkId,
     ...queryOptions
@@ -71,19 +77,18 @@ export function useAnalyticsBreakdown(
 
 export function useAnalyticsSummary(
   linkId: string,
-  options?: Omit<UseQueryOptions<AnalyticsSummary>, 'queryKey' | 'queryFn'> & {
+  options?: LiveQueryOptions<AnalyticsSummary> & {
     days?: number;
   }
 ) {
-  const { days = 30, ...queryOptions } = options || {};
+  const { days = 30, live = false, ...queryOptions } = options || {};
   return useQuery({
     queryKey: analyticsKeys.summary(linkId, days.toString()),
     queryFn: () => api.getAnalyticsSummary(linkId, { days }),
-    // Summary is a live counter — 5 s stale window keeps it snappy while still
-    // allowing SSR-hydrated data to be used on first render without an
-    // immediate re-fetch.
-    staleTime: 5_000,
-    refetchInterval: 5_000,
+    // Summary stays cache-friendly by default; callers that need a live
+    // counter must opt in with { live: true }.
+    staleTime: ANALYTICS_SUMMARY_REFRESH_MS,
+    refetchInterval: live ? ANALYTICS_SUMMARY_REFRESH_MS : false,
     refetchIntervalInBackground: false,
     enabled: !!linkId,
     ...queryOptions
@@ -91,10 +96,20 @@ export function useAnalyticsSummary(
 }
 
 // Combined hook for full analytics
-export function useLinkAnalytics(linkId: string, days: number = 30) {
-  const daily = useDailyStats(linkId, days);
-  const breakdown = useAnalyticsBreakdown(linkId);
-  const summary = useAnalyticsSummary(linkId);
+export function useLinkAnalytics(
+  linkId: string,
+  days: number = 30,
+  options?: {
+    live?: boolean;
+    liveSummary?: boolean;
+  }
+) {
+  const live = options?.live ?? false;
+  const liveSummary = options?.liveSummary ?? live;
+
+  const daily = useDailyStats(linkId, days, { live });
+  const breakdown = useAnalyticsBreakdown(linkId, { days, live });
+  const summary = useAnalyticsSummary(linkId, { days, live: liveSummary });
 
   return {
     daily,

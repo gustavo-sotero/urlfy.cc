@@ -40,25 +40,20 @@ describe('Health Endpoints (handler-level)', () => {
   });
 
   describe('GET /api/health/ready', () => {
-    test('should return readiness status with services', async () => {
+    test('should return aggregate readiness status', async () => {
       const response = await client.get<{
         status: string;
-        degraded: boolean;
-        services: {
-          database: string;
-          redis: string;
-        };
+        timestamp: string;
       }>('/api/health/ready');
 
       expect([200, 503]).toContain(response.status);
-      expect(['ready', 'not_ready']).toContain(response.body.status);
-      expect(typeof response.body.degraded).toBe('boolean');
-      expect(response.body.services).toBeDefined();
-      expect(response.body.services.database).toBeDefined();
-      expect(response.body.services.redis).toBeDefined();
+      expect(['ready', 'degraded', 'not_ready']).toContain(
+        response.body.status
+      );
+      expect(new Date(response.body.timestamp).getTime()).not.toBeNaN();
 
       if (response.status === 200) {
-        expect(response.body.status).toBe('ready');
+        expect(['ready', 'degraded']).toContain(response.body.status);
         return;
       }
 

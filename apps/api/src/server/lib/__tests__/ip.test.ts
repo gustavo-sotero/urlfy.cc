@@ -29,7 +29,19 @@ describe('getClientIp', () => {
     expect(getClientIp(request, { trustProxy: true })).toBe('198.51.100.10');
   });
 
-  it('prioritizes cf-connecting-ip over x-forwarded-for when TRUST_PROXY is true', () => {
+  it('ignores cf-connecting-ip in standard trusted-proxy mode', () => {
+    const request = new Request('http://localhost/contact', {
+      headers: {
+        'cf-connecting-ip': '198.51.100.77',
+        'x-real-ip': '198.51.100.55',
+        'x-forwarded-for': '198.51.100.10, 10.0.0.1'
+      }
+    });
+
+    expect(getClientIp(request, { trustProxy: true })).toBe('198.51.100.55');
+  });
+
+  it('uses cf-connecting-ip when cloudflare mode is enabled', () => {
     const request = new Request('http://localhost/contact', {
       headers: {
         'cf-connecting-ip': '198.51.100.77',
@@ -37,6 +49,11 @@ describe('getClientIp', () => {
       }
     });
 
-    expect(getClientIp(request, { trustProxy: true })).toBe('198.51.100.77');
+    expect(
+      getClientIp(request, {
+        trustProxy: true,
+        trustedProxyProvider: 'cloudflare'
+      })
+    ).toBe('198.51.100.77');
   });
 });

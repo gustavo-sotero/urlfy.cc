@@ -137,18 +137,12 @@ describe('healthController readiness', () => {
     );
     const body = (await response.json()) as {
       status: string;
-      degraded: boolean;
-      services: {
-        database: string;
-        redis: string;
-      };
+      timestamp: string;
     };
 
     expect(response.status).toBe(200);
     expect(body.status).toBe('ready');
-    expect(body.degraded).toBe(false);
-    expect(body.services.database).toBe('ok');
-    expect(body.services.redis).toBe('ok');
+    expect(new Date(body.timestamp).getTime()).not.toBeNaN();
   });
 
   test('returns ready but degraded when Redis is unavailable', async () => {
@@ -166,18 +160,12 @@ describe('healthController readiness', () => {
     );
     const body = (await response.json()) as {
       status: string;
-      degraded: boolean;
-      services: {
-        database: string;
-        redis: string;
-      };
+      timestamp: string;
     };
 
     expect(response.status).toBe(200);
-    expect(body.status).toBe('ready');
-    expect(body.degraded).toBe(true);
-    expect(body.services.database).toBe('ok');
-    expect(body.services.redis).toBe('error');
+    expect(body.status).toBe('degraded');
+    expect(new Date(body.timestamp).getTime()).not.toBeNaN();
   });
 
   test('returns not_ready when the database is unavailable', async () => {
@@ -195,18 +183,12 @@ describe('healthController readiness', () => {
     );
     const body = (await response.json()) as {
       status: string;
-      degraded: boolean;
-      services: {
-        database: string;
-        redis: string;
-      };
+      timestamp: string;
     };
 
     expect(response.status).toBe(503);
     expect(body.status).toBe('not_ready');
-    expect(body.degraded).toBe(false);
-    expect(body.services.database).toBe('error');
-    expect(body.services.redis).toBe('ok');
+    expect(new Date(body.timestamp).getTime()).not.toBeNaN();
   });
 
   test('reloads the banned-domain snapshot via the admin health route', async () => {

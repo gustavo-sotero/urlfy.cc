@@ -11,6 +11,7 @@ let trustProxyWarningLogged = false;
 export interface ClientIpResolutionOptions {
   nodeEnv?: string;
   trustProxy?: string | boolean;
+  trustedProxyProvider?: 'standard' | 'cloudflare';
 }
 
 interface TrustProxyConfigInput {
@@ -18,6 +19,10 @@ interface TrustProxyConfigInput {
   publicAppUrl?: string;
   trustProxy?: string | boolean;
 }
+
+type TrustedProxyProvider = NonNullable<
+  ClientIpResolutionOptions['trustedProxyProvider']
+>;
 
 function resolveTrustProxyValue(
   trustProxy?: ClientIpResolutionOptions['trustProxy']
@@ -35,6 +40,76 @@ function resolveTrustProxyValue(
 
 function resolveNodeEnv(nodeEnv?: string): string | undefined {
   return nodeEnv ?? process.env.NODE_ENV;
+}
+
+function resolveTrustedProxyProviderValue(
+  trustedProxyProvider?: ClientIpResolutionOptions['trustedProxyProvider']
+): TrustedProxyProvider {
+  if (trustedProxyProvider === 'cloudflare') {
+    return 'cloudflare';
+  }
+
+  return process.env.TRUST_PROXY_PROVIDER === 'cloudflare'
+    ? 'cloudflare'
+    : 'standard';
+}
+
+function normalizeTrustedIp(value: string | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || !isValidIp(trimmed)) {
+    return undefined;
+  }
+
+  return trimmed;
+}
+
+function resolveForwardedForIp(value: string | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const candidates = value
+    .split(',')
+    .map((candidate) => candidate.trim())
+    .filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (isValidIp(candidate)) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
+function resolveTrustedProxyHeaderIp(
+  headers: Headers,
+  options: ClientIpResolutionOptions
+): string | undefined {
+  if (!resolveTrustProxyValue(options.trustProxy)) {
+    return undefined;
+  }
+
+  if (
+    resolveTrustedProxyProviderValue(options.trustedProxyProvider) ===
+    'cloudflare'
+  ) {
+    const cfConnectingIp = normalizeTrustedIp(headers.get('cf-connecting-ip'));
+    if (cfConnectingIp) {
+      return cfConnectingIp;
+    }
+  }
+
+  const realIp = normalizeTrustedIp(headers.get('x-real-ip'));
+  if (realIp) {
+    return realIp;
+  }
+
+  return resolveForwardedForIp(headers.get('x-forwarded-for'));
 }
 
 function isLocalHostname(hostname: string): boolean {
@@ -116,9 +191,10 @@ export function assertTrustProxyConfig({
  * Extracts client IP from request headers in a secure, consistent manner
  *
  * Priority order:
- * 1. CF-Connecting-IP (Cloudflare) — only if TRUST_PROXY=true
+ * 1. CF-Connecting-IP (Cloudflare) — only if TRUST_PROXY=true and
+ *    TRUST_PROXY_PROVIDER=cloudflare
  * 2. X-Real-IP (Nginx/standard proxy) — only if TRUST_PROXY=true
- * 3. X-Forwarded-For (first IP in chain) — only if TRUST_PROXY=true
+ * 3. X-Forwarded-For (first valid IP in chain) — only if TRUST_PROXY=true
  * 4. request.ip (runtime-exposed)
  * 5. Fallback to 127.0.0.1 (development) or logged warning (production)
  *
@@ -132,27 +208,9 @@ export function getClientIp(
 ): string {
   const trustProxy = resolveTrustProxyValue(options.trustProxy);
 
-  if (trustProxy) {
-    const cfConnectingIp = request.headers.get('cf-connecting-ip');
-    if (cfConnectingIp) {
-      return cfConnectingIp.trim();
-    }
-  }
-
-  if (trustProxy) {
-    const realIp = request.headers.get('x-real-ip');
-    if (realIp) {
-      return realIp.trim();
-    }
-  }
-
-  const forwardedFor = request.headers.get('x-forwarded-for');
-
-  if (trustProxy && forwardedFor) {
-    const clientIP = forwardedFor.split(',')[0]?.trim();
-    if (clientIP) {
-      return clientIP;
-    }
+  const trustedHeaderIp = resolveTrustedProxyHeaderIp(request.headers, options);
+  if (trustedHeaderIp) {
+    return trustedHeaderIp;
   }
 
   if (!trustProxy) {
@@ -186,18 +244,9 @@ export function getClientIpFromHeaders(
 ): string {
   const trustProxy = resolveTrustProxyValue(options.trustProxy);
 
-  if (trustProxy) {
-    const cfConnectingIp = headers.get('cf-connecting-ip');
-    if (cfConnectingIp) return cfConnectingIp.trim();
-
-    const realIp = headers.get('x-real-ip');
-    if (realIp) return realIp.trim();
-
-    const forwardedFor = headers.get('x-forwarded-for');
-    if (forwardedFor) {
-      const clientIP = forwardedFor.split(',')[0]?.trim();
-      if (clientIP) return clientIP;
-    }
+  const trustedHeaderIp = resolveTrustedProxyHeaderIp(headers, options);
+  if (trustedHeaderIp) {
+    return trustedHeaderIp;
   }
 
   if (!trustProxy) {

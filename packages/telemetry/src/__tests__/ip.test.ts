@@ -19,6 +19,10 @@ import {
 } from '../ip';
 
 const TRUSTED_PROXY_OPTIONS = { trustProxy: true } as const;
+const CLOUDFLARE_PROXY_OPTIONS = {
+  trustProxy: true,
+  trustedProxyProvider: 'cloudflare'
+} as const;
 const UNTRUSTED_PROXY_OPTIONS = {
   nodeEnv: 'development',
   trustProxy: false
@@ -117,13 +121,22 @@ describe('getClientIpFromHeaders with TRUST_PROXY disabled', () => {
 // This path is used in production admin audit logging where the proxy is known.
 
 describe('getClientIpFromHeaders with TRUST_PROXY enabled', () => {
-  test('prefers cf-connecting-ip over x-forwarded-for', () => {
+  test('ignores cf-connecting-ip in standard trusted-proxy mode', () => {
     const h = makeHeaders({
       'cf-connecting-ip': '100.100.100.100',
       'x-forwarded-for': '1.2.3.4',
       'x-real-ip': '5.6.7.8'
     });
-    expect(getClientIpFromHeaders(h, TRUSTED_PROXY_OPTIONS)).toBe(
+    expect(getClientIpFromHeaders(h, TRUSTED_PROXY_OPTIONS)).toBe('5.6.7.8');
+  });
+
+  test('uses cf-connecting-ip when cloudflare mode is enabled', () => {
+    const h = makeHeaders({
+      'cf-connecting-ip': '100.100.100.100',
+      'x-forwarded-for': '1.2.3.4',
+      'x-real-ip': '5.6.7.8'
+    });
+    expect(getClientIpFromHeaders(h, CLOUDFLARE_PROXY_OPTIONS)).toBe(
       '100.100.100.100'
     );
   });
@@ -148,10 +161,20 @@ describe('getClientIpFromHeaders with TRUST_PROXY enabled', () => {
     );
   });
 
-  test('trims whitespace from header values', () => {
-    const h = makeHeaders({ 'cf-connecting-ip': '  150.160.170.180  ' });
+  test('trims whitespace from trusted header values', () => {
+    const h = makeHeaders({ 'x-real-ip': '  150.160.170.180  ' });
     expect(getClientIpFromHeaders(h, TRUSTED_PROXY_OPTIONS)).toBe(
       '150.160.170.180'
+    );
+  });
+
+  test('skips invalid forwarded entries until it finds a valid IP', () => {
+    const h = makeHeaders({
+      'x-forwarded-for': 'unknown, not-an-ip, 203.0.113.1, 10.0.0.1'
+    });
+
+    expect(getClientIpFromHeaders(h, TRUSTED_PROXY_OPTIONS)).toBe(
+      '203.0.113.1'
     );
   });
 
@@ -190,13 +213,22 @@ describe('getClientIp with TRUST_PROXY disabled', () => {
 // ── getClientIp (Request-based) — TRUST_PROXY enabled ────────────────────────
 
 describe('getClientIp with TRUST_PROXY enabled', () => {
-  test('prefers cf-connecting-ip over other headers', () => {
+  test('ignores cf-connecting-ip in standard trusted-proxy mode', () => {
     const req = makeRequest({
       'cf-connecting-ip': '1.1.1.1',
       'x-real-ip': '2.2.2.2',
       'x-forwarded-for': '3.3.3.3'
     });
-    expect(getClientIp(req, TRUSTED_PROXY_OPTIONS)).toBe('1.1.1.1');
+    expect(getClientIp(req, TRUSTED_PROXY_OPTIONS)).toBe('2.2.2.2');
+  });
+
+  test('uses cf-connecting-ip when cloudflare mode is enabled', () => {
+    const req = makeRequest({
+      'cf-connecting-ip': '1.1.1.1',
+      'x-real-ip': '2.2.2.2',
+      'x-forwarded-for': '3.3.3.3'
+    });
+    expect(getClientIp(req, CLOUDFLARE_PROXY_OPTIONS)).toBe('1.1.1.1');
   });
 
   test('falls back to x-real-ip when cf-connecting-ip absent', () => {
@@ -211,6 +243,14 @@ describe('getClientIp with TRUST_PROXY enabled', () => {
     const req = makeRequest({
       'x-forwarded-for': '203.0.113.5, 198.51.100.1, 10.0.0.5'
     });
+    expect(getClientIp(req, TRUSTED_PROXY_OPTIONS)).toBe('203.0.113.5');
+  });
+
+  test('skips invalid x-forwarded-for entries when TRUST_PROXY is true', () => {
+    const req = makeRequest({
+      'x-forwarded-for': 'unknown, not-an-ip, 203.0.113.5'
+    });
+
     expect(getClientIp(req, TRUSTED_PROXY_OPTIONS)).toBe('203.0.113.5');
   });
 });
