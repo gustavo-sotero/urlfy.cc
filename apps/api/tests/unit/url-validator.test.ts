@@ -70,6 +70,8 @@ describe('URL Validator Service', () => {
     it('should block reserved range (240.0.0.0/4) — RF-SSRF extended ranges', () => {
       expect(isPrivateIP('240.0.0.1')).toBe(true);
       expect(isPrivateIP('249.255.255.255')).toBe(true);
+      expect(isPrivateIP('250.1.2.3')).toBe(true);
+      expect(isPrivateIP('254.255.255.254')).toBe(true);
       // Broadcast (255.x) is a separate sub-range within 240/4
       expect(isPrivateIP('255.255.255.255')).toBe(true);
     });
@@ -81,8 +83,16 @@ describe('URL Validator Service', () => {
 
     it('should block IPv6 unique-local (fc00::/7) — RF-SSRF extended ranges', () => {
       expect(isPrivateIP('fc00::1')).toBe(true);
+      expect(isPrivateIP('fc01::1')).toBe(true);
       expect(isPrivateIP('fd00::1')).toBe(true);
       expect(isPrivateIP('fdff:ffff:ffff:ffff::1')).toBe(true);
+    });
+
+    it('should block the full IPv6 link-local range (fe80::/10)', () => {
+      expect(isPrivateIP('fe80::1')).toBe(true);
+      expect(isPrivateIP('fe90::1')).toBe(true);
+      expect(isPrivateIP('feaf::1')).toBe(true);
+      expect(isPrivateIP('fec0::1')).toBe(false);
     });
 
     it('should allow public IPs', () => {
@@ -156,6 +166,24 @@ describe('URL Validator Service', () => {
               result.error
             )
           ).toBe(true);
+        }
+      });
+
+      it('should block reserved IPv4 host literals before DNS lookup', async () => {
+        const result = await validateUrlSafe('http://250.1.2.3/path');
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.error).toBe('URL_INTERNAL_BLOCKED');
+        }
+      });
+
+      it('should block unique-local IPv6 host literals before DNS lookup', async () => {
+        const result = await validateUrlSafe('http://[fc01::1]/path');
+
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.error).toBe('URL_INTERNAL_BLOCKED');
         }
       });
     });

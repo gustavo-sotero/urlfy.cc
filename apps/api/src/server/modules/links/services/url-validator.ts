@@ -1,6 +1,7 @@
 // src/server/modules/links/services/url-validator.ts
 
 import { lookup } from 'node:dns/promises';
+import { BlockList, isIP } from 'node:net';
 import {
   ALIAS_PATH_SEGMENT_REGEX,
   ALIAS_REDIRECT_PATH_REGEX
@@ -20,29 +21,45 @@ interface BannedDomainRecord {
 
 export type BannedDomainsLoader = () => Promise<BannedDomainRecord[]>;
 
-// SSRF Protection: Private/reserved IP ranges
-// Covers: RFC 1918 private, loopback, link-local, CGNAT, benchmarking,
-// multicast, reserved (240/4), and IPv4-mapped IPv6.
-const PRIVATE_IP_RANGES = [
-  // IPv4
-  /^127\./, // Loopback (127.0.0.0/8)
-  /^10\./, // Class A private (10.0.0.0/8)
-  /^172\.(1[6-9]|2\d|3[0-1])\./, // Class B private (172.16.0.0/12)
-  /^192\.168\./, // Class C private (192.168.0.0/16)
-  /^169\.254\./, // Link-local (169.254.0.0/16)
-  /^0\./, // Current network (0.0.0.0/8)
-  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT (100.64.0.0/10)
-  /^198\.1[89]\./, // Benchmarking (198.18.0.0/15)
-  /^2(2[4-9]|3\d)\./, // Multicast (224.0.0.0/4)
-  /^24\d\./, // Reserved (240.0.0.0/4, approx)
-  /^255\./, // Broadcast (255.255.255.255)
-  // IPv6
-  /^::1$/, // Loopback
-  /^::ffff:/i, // IPv4-mapped IPv6 (::ffff:0:0/96)
-  /^fe80:/i, // Link-local
-  /^fc00:/i, // Unique local (fc00::/7)
-  /^fd/i // Unique local (fd00::/8)
-];
+function createSpecialUseIpBlockList(): BlockList {
+  const blockList = new BlockList();
+
+  const ipv4Subnets: Array<[string, number]> = [
+    ['0.0.0.0', 8],
+    ['10.0.0.0', 8],
+    ['100.64.0.0', 10],
+    ['127.0.0.0', 8],
+    ['169.254.0.0', 16],
+    ['172.16.0.0', 12],
+    ['192.168.0.0', 16],
+    ['198.18.0.0', 15],
+    ['224.0.0.0', 4],
+    ['240.0.0.0', 4]
+  ];
+
+  const ipv6Subnets: Array<[string, number]> = [
+    ['fe80::', 10],
+    ['fc00::', 7],
+    ['ff00::', 8],
+    ['2001:db8::', 32]
+  ];
+
+  for (const [network, prefix] of ipv4Subnets) {
+    blockList.addSubnet(network, prefix, 'ipv4');
+  }
+
+  for (const [network, prefix] of ipv6Subnets) {
+    blockList.addSubnet(network, prefix, 'ipv6');
+  }
+
+  blockList.addAddress('255.255.255.255', 'ipv4');
+  blockList.addAddress('::', 'ipv6');
+  blockList.addAddress('::1', 'ipv6');
+
+  return blockList;
+}
+
+const SPECIAL_USE_IP_BLOCK_LIST = createSpecialUseIpBlockList();
 
 const BLOCKED_HOSTNAMES = [
   'localhost',
@@ -160,8 +177,27 @@ async function loadBannedDomainsFromSource(): Promise<BannedDomainRecord[]> {
 }
 
 export function isPrivateIP(ip: string): boolean {
-  const normalized = ip.trim().replace(/^\[/, '').replace(/\]$/, '');
-  return PRIVATE_IP_RANGES.some((regex) => regex.test(normalized));
+  const normalized = ip
+    .trim()
+    .replace(/^\[/, '')
+    .replace(/\]$/, '')
+    .toLowerCase();
+
+  if (normalized === 'localhost') {
+    return true;
+  }
+
+  const family = isIP(normalized);
+
+  if (family === 4) {
+    return SPECIAL_USE_IP_BLOCK_LIST.check(normalized, 'ipv4');
+  }
+
+  if (family === 6) {
+    return SPECIAL_USE_IP_BLOCK_LIST.check(normalized, 'ipv6');
+  }
+
+  return false;
 }
 
 export function isBlockedHostname(hostname: string): boolean {
@@ -392,11 +428,12 @@ export class BannedDomainsCache {
       return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
     }
 
+    if (isPrivateIP(hostname)) {
+      logger.warn('Blocked private or reserved IP hostname', { hostname });
+      return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
+    }
+
     if (nodeEnv === 'test') {
-      if (isPrivateIP(hostname)) {
-        logger.warn('Blocked private IP hostname in test mode', { hostname });
-        return { valid: false, error: 'URL_INTERNAL_BLOCKED' };
-      }
       return { valid: true };
     }
 
