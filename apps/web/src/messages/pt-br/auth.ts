@@ -9,6 +9,8 @@ export const Auth = {
     loginButton: 'Entrar',
     signingIn: 'Entrando...',
     signInWithEmail: 'Entrar com Email',
+    reauthSubtitle:
+      'O acesso administrativo exige um novo login recente com GitHub.',
     noAccount: 'Não tem conta?',
     createFreeAccount: 'Criar conta grátis',
     placeholders: {

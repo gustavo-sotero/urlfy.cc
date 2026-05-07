@@ -267,6 +267,28 @@ describe('Links Endpoints (handler-level)', () => {
       expectUnauthorized(response);
       expect(response.body.error?.code).toBe('UNAUTHORIZED');
     });
+
+    test('should reject invalid page query values', async () => {
+      const response = await client.get('/api/links', {
+        query: { page: 'abc' },
+        headers: {
+          'x-test-user-id': 'links-query-user'
+        }
+      });
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+    });
+
+    test('should reject perPage values above the configured maximum', async () => {
+      const response = await client.get('/api/links', {
+        query: { perPage: '101' },
+        headers: {
+          'x-test-user-id': 'links-query-user'
+        }
+      });
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+    });
   });
 
   describe('POST /api/links/bulk (authenticated)', () => {

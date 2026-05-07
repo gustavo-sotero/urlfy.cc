@@ -183,6 +183,6 @@ END $$;
 -- ─────────────────────────────────────────────────────────────────
 -- 8. Drop the legacy table
 -- ─────────────────────────────────────────────────────────────────
-DROP TABLE "analytics_events_legacy";
+DROP TABLE IF EXISTS "analytics_events_legacy";
 
 COMMIT;

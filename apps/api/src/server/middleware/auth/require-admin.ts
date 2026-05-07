@@ -1,6 +1,7 @@
 import {
   ADMIN_SESSION_MAX_AGE_MS,
-  getAdminSessionAgeMs
+  getAdminSessionAgeMs,
+  hasRequiredAdminLoginMethod
 } from '@urlfy/auth-shared';
 import { Elysia } from 'elysia';
 import type { Session, User } from '@/lib/auth';
@@ -30,7 +31,7 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
         );
       }
 
-      const adminUser = user as User;
+      const adminUser = user as User & { lastLoginMethod?: string | null };
       const isAdmin = await resolveIsAdminByGitHubAccount(adminUser.id);
 
       if (!isAdmin) {
@@ -50,13 +51,21 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
       if (!isTestAuth && session) {
         const adminSession = session as Session;
         const sessionAgeMs = getAdminSessionAgeMs(adminSession.createdAt);
+        const usedGitHubReauth = hasRequiredAdminLoginMethod(
+          adminUser.lastLoginMethod
+        );
 
-        if (sessionAgeMs > ADMIN_SESSION_MAX_AGE_MS) {
+        if (sessionAgeMs > ADMIN_SESSION_MAX_AGE_MS || !usedGitHubReauth) {
           logger.warn(
-            'Admin access denied - session too old, re-authentication required',
+            'Admin access denied - GitHub re-authentication required',
             {
               userId: adminUser.id,
-              sessionAgeMs: Math.round(sessionAgeMs / 1000)
+              sessionAgeMs: Math.round(sessionAgeMs / 1000),
+              lastLoginMethod: adminUser.lastLoginMethod ?? null,
+              reason:
+                sessionAgeMs > ADMIN_SESSION_MAX_AGE_MS
+                  ? 'admin_session_expired'
+                  : 'last_login_method_mismatch'
             }
           );
           const requestId = getOrCreateRequestId(request);
@@ -65,7 +74,7 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
             403,
             buildErrorEnvelope(
               'ADMIN_SESSION_EXPIRED',
-              'Admin session expired. Please sign in again to continue.',
+              'Admin access requires a recent GitHub sign-in. Please continue with GitHub again.',
               requestId
             )
           );

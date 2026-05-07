@@ -315,8 +315,8 @@ export interface ApiKeysWithIdRolloverRoutes {
 export interface ApiLinksRoutes {
   (params: { id: string }): ApiLinksWithIdRoutes;
   get(options?: { query?: {
-                  page?: string;
-                  perPage?: string;
+                  page?: number;
+                  perPage?: number;
                   cursor?: string;
                   search?: string;
                   tags?: string;
@@ -488,8 +488,8 @@ export interface ApiV1Routes {
 export interface ApiV1LinksRoutes {
   (params: { id: string }): ApiV1LinksWithIdRoutes;
   get(options?: { query?: {
-                  page?: string;
-                  perPage?: string;
+                  page?: number;
+                  perPage?: number;
                   cursor?: string;
                   search?: string;
                   tags?: string;

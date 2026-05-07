@@ -66,8 +66,8 @@ export type UpdateLinkInputSchema = {
 };
 
 export type ListLinksQuerySchema = {
-  page?: string;
-  perPage?: string;
+  page?: number;
+  perPage?: number;
   cursor?: string;
   search?: string;
   tags?: string;

@@ -216,8 +216,8 @@ const listOperations = new Elysia({ name: 'V1Links.List' })
     '/',
     async ({ query, apiKey }) => {
       const result = await LinkService.listUserLinks(apiKey?.userId, {
-        page: query.page ? Number.parseInt(query.page, 10) : 1,
-        perPage: query.perPage ? Number.parseInt(query.perPage, 10) : 20,
+        page: query.page ?? 1,
+        perPage: query.perPage ?? 20,
         cursor: query.cursor,
         sortBy: query.sortBy ?? 'createdAt',
         sortOrder: query.sortOrder ?? 'desc',

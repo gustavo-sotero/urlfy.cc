@@ -14,6 +14,7 @@ import {
   ALIAS_REGEX
 } from '@urlfy/contracts/alias-policy';
 import { Elysia, type Static, t } from 'elysia';
+import { PAGINATION_LIMITS } from '@/server/config/limits';
 
 // ═══════════════════════════════════════════════════════════════════
 // LINK CREATE
@@ -128,8 +129,19 @@ export type LinkBulkCreateBodyType = Static<typeof LinkBulkCreateBody>;
 // ═══════════════════════════════════════════════════════════════════
 
 export const LinkListQuery = t.Object({
-  page: t.Optional(t.String()),
-  perPage: t.Optional(t.String()),
+  page: t.Optional(
+    t.Integer({
+      minimum: 1,
+      description: 'Offset page number (legacy pagination mode)'
+    })
+  ),
+  perPage: t.Optional(
+    t.Integer({
+      minimum: 1,
+      maximum: PAGINATION_LIMITS.MAX_PER_PAGE,
+      description: 'Items per page when using offset pagination'
+    })
+  ),
   /** Opaque keyset cursor (preferred over page/perPage for large datasets). */
   cursor: t.Optional(
     t.String({ description: 'Opaque cursor for keyset pagination' })

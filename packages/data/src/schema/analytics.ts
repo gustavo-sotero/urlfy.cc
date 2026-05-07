@@ -35,8 +35,8 @@ export const analyticsEvents = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
 
     // Idempotency key: Redis stream message ID persisted to prevent duplicate
-    // inserts on worker retry. A unique constraint is created on this column so
-    // ON CONFLICT DO NOTHING is reliable across batch and sequential paths.
+    // inserts on worker retry. The partitioned parent requires unique indexes
+    // to include the partition key, so createdAt participates in the guard.
     streamMessageId: varchar('stream_message_id', { length: 128 }),
 
     // Link reference
@@ -80,9 +80,10 @@ export const analyticsEvents = pgTable(
       .defaultNow()
   },
   (table) => ({
-    // Unique constraint for idempotent inserts (ON CONFLICT DO NOTHING on retry)
+    // Unique constraint for idempotent inserts on the partitioned parent.
     idxStreamMessageId: uniqueIndex('idx_analytics_stream_message_id').on(
-      table.streamMessageId
+      table.streamMessageId,
+      table.createdAt
     ),
 
     // Primary index for link queries

@@ -1,5 +1,5 @@
 import type { BetterAuthOptions } from 'better-auth';
-import { openAPI, twoFactor } from 'better-auth/plugins';
+import { lastLoginMethod, openAPI, twoFactor } from 'better-auth/plugins';
 
 const BUILD_TIME_SENTINELS = new Set([
   'build-time-placeholder-secret-32chars',
@@ -343,6 +343,17 @@ export function getPlugins(options: { disableOpenAPI?: boolean } = {}) {
   // derives admin authority exclusively from the API-side GitHub allowlist
   // resolver. Re-enabling the plugin would remount legacy role-based
   // /api/auth/admin/* endpoints, creating a second admin source of truth.
+
+  plugins.push(
+    lastLoginMethod({
+      storeInDatabase: true,
+      schema: {
+        user: {
+          lastLoginMethod: 'last_login_method'
+        }
+      }
+    })
+  );
 
   if (!options.disableOpenAPI) {
     plugins.push(openAPI({ path: '/api/auth/reference' }));

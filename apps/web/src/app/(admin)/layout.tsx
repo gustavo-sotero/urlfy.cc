@@ -1,6 +1,10 @@
 // src/app/(admin)/layout.tsx
 
-import { getAdminSessionAgeMs, isAdminSessionFresh } from '@urlfy/auth-shared';
+import {
+  getAdminSessionAgeMs,
+  hasRequiredAdminLoginMethod,
+  isAdminSessionFresh
+} from '@urlfy/auth-shared';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AdminHeader } from '@/components/admin/layout/admin-header';
@@ -32,6 +36,7 @@ export default async function AdminLayout({
   const { user } = session;
   const userId = user.id;
   const userEmail = user.email;
+  const adminReauthUrl = '/login?callbackUrl=/admin&reauth=github';
 
   // Derive client IP once using the canonical trust-aware helper
   const clientIp = getClientIpFromHeaders(requestHeaders);
@@ -51,7 +56,7 @@ export default async function AdminLayout({
       userAgent: requestHeaders.get('user-agent') ?? undefined
     });
 
-    redirect('/login?callbackUrl=/admin&reauth=1');
+    redirect(adminReauthUrl);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -72,6 +77,24 @@ export default async function AdminLayout({
     });
 
     redirect('/dashboard');
+  }
+
+  if (!hasRequiredAdminLoginMethod(user.lastLoginMethod)) {
+    void auditLogService.log({
+      userId,
+      action: 'admin_access_denied',
+      entityType: 'admin_panel',
+      entityId: 'github_reauth_required',
+      metadata: {
+        reason: 'admin_github_reauth_required',
+        lastLoginMethod: user.lastLoginMethod ?? null,
+        userId
+      },
+      ipAddress: clientIp,
+      userAgent: requestHeaders.get('user-agent') ?? undefined
+    });
+
+    redirect(adminReauthUrl);
   }
 
   // ═══════════════════════════════════════════════════════════════════

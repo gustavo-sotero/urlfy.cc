@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  ADMIN_ELEVATION_LOGIN_METHOD,
   ADMIN_SESSION_MAX_AGE_MS,
   getAdminSessionAgeMs,
+  hasRequiredAdminLoginMethod,
+  isAdminSessionElevated,
   isAdminSessionFresh
 } from '../admin-session';
 
@@ -25,5 +28,46 @@ describe('admin session helpers', () => {
 
     expect(getAdminSessionAgeMs(createdAt, now)).toBe(9_000_000);
     expect(getAdminSessionAgeMs(createdAt.toISOString(), now)).toBe(9_000_000);
+  });
+
+  it('requires GitHub as the last login method for admin elevation', () => {
+    expect(hasRequiredAdminLoginMethod(ADMIN_ELEVATION_LOGIN_METHOD)).toBe(
+      true
+    );
+    expect(hasRequiredAdminLoginMethod('email')).toBe(false);
+    expect(hasRequiredAdminLoginMethod(null)).toBe(false);
+  });
+
+  it('requires both a fresh session and GitHub reauthentication', () => {
+    const freshCreatedAt = new Date(
+      now.getTime() - (ADMIN_SESSION_MAX_AGE_MS - 1)
+    );
+    const staleCreatedAt = new Date(
+      now.getTime() - (ADMIN_SESSION_MAX_AGE_MS + 1)
+    );
+
+    expect(
+      isAdminSessionElevated({
+        createdAt: freshCreatedAt,
+        lastLoginMethod: ADMIN_ELEVATION_LOGIN_METHOD,
+        now
+      })
+    ).toBe(true);
+
+    expect(
+      isAdminSessionElevated({
+        createdAt: freshCreatedAt,
+        lastLoginMethod: 'email',
+        now
+      })
+    ).toBe(false);
+
+    expect(
+      isAdminSessionElevated({
+        createdAt: staleCreatedAt,
+        lastLoginMethod: ADMIN_ELEVATION_LOGIN_METHOD,
+        now
+      })
+    ).toBe(false);
   });
 });

@@ -423,8 +423,8 @@ export const protectedLinksController = new Elysia()
     async function listUserLinks({ query, user }) {
       const userId = requireUserId(user);
       const result = await LinkService.listUserLinks(userId, {
-        page: query.page ? parseInt(query.page, 10) : 1,
-        perPage: query.perPage ? parseInt(query.perPage, 10) : 20,
+        page: query.page ?? 1,
+        perPage: query.perPage ?? 20,
         cursor: query.cursor,
         search: query.search,
         tags: query.tags ? query.tags.split(',') : undefined,

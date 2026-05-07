@@ -1276,10 +1276,38 @@
         "type": "object",
         "properties": {
           "page": {
-            "type": "string"
+            "minimum": 1,
+            "description": "Offset page number (legacy pagination mode)",
+            "anyOf": [
+              {
+                "format": "integer",
+                "default": 0,
+                "type": "string"
+              },
+              {
+                "minimum": 1,
+                "description": "Offset page number (legacy pagination mode)",
+                "type": "integer"
+              }
+            ]
           },
           "perPage": {
-            "type": "string"
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Items per page when using offset pagination",
+            "anyOf": [
+              {
+                "format": "integer",
+                "default": 0,
+                "type": "string"
+              },
+              {
+                "minimum": 1,
+                "maximum": 100,
+                "description": "Items per page when using offset pagination",
+                "type": "integer"
+              }
+            ]
           },
           "cursor": {
             "description": "Opaque cursor for keyset pagination",
@@ -6521,6 +6549,10 @@
             "default": false,
             "readOnly": true
           },
+          "lastLoginMethod": {
+            "type": "string",
+            "readOnly": true
+          },
           "role": {
             "type": "string",
             "default": "user",
@@ -10528,7 +10560,20 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "minimum": 1,
+              "description": "Offset page number (legacy pagination mode)",
+              "anyOf": [
+                {
+                  "format": "integer",
+                  "default": 0,
+                  "type": "string"
+                },
+                {
+                  "minimum": 1,
+                  "description": "Offset page number (legacy pagination mode)",
+                  "type": "integer"
+                }
+              ]
             }
           },
           {
@@ -10536,7 +10581,22 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Items per page when using offset pagination",
+              "anyOf": [
+                {
+                  "format": "integer",
+                  "default": 0,
+                  "type": "string"
+                },
+                {
+                  "minimum": 1,
+                  "maximum": 100,
+                  "description": "Items per page when using offset pagination",
+                  "type": "integer"
+                }
+              ]
             }
           },
           {
@@ -17434,7 +17494,20 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "minimum": 1,
+              "description": "Offset page number (legacy pagination mode)",
+              "anyOf": [
+                {
+                  "format": "integer",
+                  "default": 0,
+                  "type": "string"
+                },
+                {
+                  "minimum": 1,
+                  "description": "Offset page number (legacy pagination mode)",
+                  "type": "integer"
+                }
+              ]
             }
           },
           {
@@ -17442,7 +17515,22 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Items per page when using offset pagination",
+              "anyOf": [
+                {
+                  "format": "integer",
+                  "default": 0,
+                  "type": "string"
+                },
+                {
+                  "minimum": 1,
+                  "maximum": 100,
+                  "description": "Items per page when using offset pagination",
+                  "type": "integer"
+                }
+              ]
             }
           },
           {

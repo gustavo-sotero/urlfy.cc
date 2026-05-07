@@ -31,6 +31,7 @@ export interface AuthUserRecord {
   bannedAt: Date | null;
   bannedReason: string | null;
   deletedAt: Date | null;
+  lastLoginMethod?: string | null;
   locale: string | null;
 }
 
@@ -73,6 +74,7 @@ export interface PublicUser {
   linksQuota: number;
   linksCount: number;
   createdAt: Date;
+  lastLoginMethod?: string | null;
 }
 
 /**

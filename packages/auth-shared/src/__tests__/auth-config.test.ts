@@ -139,14 +139,14 @@ describe('getAuthBaseUrl — dynamic host resolution', () => {
 // ─── getPlugins — count and conditional flags ────────────────────────────────
 
 describe('getPlugins — plugin set', () => {
-  it('returns 2 plugins by default (twoFactor + openAPI)', () => {
+  it('returns 3 plugins by default (twoFactor + lastLoginMethod + openAPI)', () => {
     const plugins = getPlugins();
-    expect(plugins).toHaveLength(2);
+    expect(plugins).toHaveLength(3);
   });
 
-  it('returns 1 plugin when disableOpenAPI=true', () => {
+  it('returns 2 plugins when disableOpenAPI=true', () => {
     const plugins = getPlugins({ disableOpenAPI: true });
-    expect(plugins).toHaveLength(1);
+    expect(plugins).toHaveLength(2);
   });
 
   it('defaults disableOpenAPI to false when no options are passed', () => {
@@ -157,8 +157,7 @@ describe('getPlugins — plugin set', () => {
 
   it('twoFactor plugin is always present (first in list)', () => {
     const plugins = getPlugins({ disableOpenAPI: true });
-    expect(plugins).toHaveLength(1);
-    // twoFactor is the only remaining plugin — verify it is an object
+    expect(plugins).toHaveLength(2);
     expect(typeof plugins[0]).toBe('object');
   });
 
@@ -168,7 +167,7 @@ describe('getPlugins — plugin set', () => {
    * preserving the retired admin-plugin toggle.
    */
   it('runtime convention uses getPlugins() without a legacy admin toggle', () => {
-    expect(getPlugins()).toHaveLength(2);
+    expect(getPlugins()).toHaveLength(3);
   });
 });
 

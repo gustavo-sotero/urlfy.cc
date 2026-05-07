@@ -9,7 +9,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { twoFactorClient } from 'better-auth/client/plugins';
+import {
+  lastLoginMethodClient,
+  twoFactorClient
+} from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 
 export const authClient = createAuthClient({
@@ -19,7 +22,7 @@ export const authClient = createAuthClient({
   fetchOptions: {
     credentials: 'include' // Required for cookies to be sent with requests
   },
-  plugins: [twoFactorClient()]
+  plugins: [twoFactorClient(), lastLoginMethodClient()]
 });
 
 // ═══════════════════════════════════════════════════════════════════

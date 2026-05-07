@@ -5,8 +5,11 @@
  */
 
 export {
+  ADMIN_ELEVATION_LOGIN_METHOD,
   ADMIN_SESSION_MAX_AGE_MS,
   getAdminSessionAgeMs,
+  hasRequiredAdminLoginMethod,
+  isAdminSessionElevated,
   isAdminSessionFresh
 } from './admin-session';
 export type { BuildPublicEmailVerificationUrlInput } from './auth-config';

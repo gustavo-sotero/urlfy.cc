@@ -31,6 +31,7 @@ export const user = pgTable(
     bannedAt: timestamp('banned_at'),
     bannedReason: text('banned_reason'),
     deletedAt: timestamp('deleted_at'),
+    lastLoginMethod: text('last_login_method'),
     locale: text('locale').default('en')
   },
   (table) => [

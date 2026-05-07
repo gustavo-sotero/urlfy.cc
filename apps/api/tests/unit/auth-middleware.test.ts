@@ -7,7 +7,8 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { afterAll, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { ADMIN_SESSION_MAX_AGE_MS } from '@urlfy/auth-shared';
 import { Elysia } from 'elysia';
 
 // ─── Mock logger ─────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ mock.module('@/server/lib/telemetry', () => ({
 
 // ─── Mock auth module (session resolution) ───────────────────────────
 const getSessionMock = mock(async () => null);
+const resolveIsAdminByGitHubAccountMock = mock(async () => false);
 
 const _realAuthModule = await import('@/lib/auth');
 const realLogSanitizerModule = await import('@/server/lib/log-sanitizer');
@@ -44,6 +46,10 @@ mock.module('@/lib/auth', () => ({
 mock.module('@/server/lib/log-sanitizer', () => ({
   ...realLogSanitizerModule,
   sanitizeHeaders: () => ({})
+}));
+
+mock.module('@/server/services/admin.resolver', () => ({
+  resolveIsAdminByGitHubAccount: resolveIsAdminByGitHubAccountMock
 }));
 
 // ─── Helper: build a test app with the middleware under test ────────
@@ -71,6 +77,22 @@ async function buildOptionalAuthApp() {
       data: { userId: user?.id ?? null, isAuthenticated }
     }));
 }
+
+async function buildRequireAdminApp() {
+  const { requireAdmin } = await import(
+    '../../src/server/middleware/auth/require-admin.ts?auth-middleware-test=admin'
+  );
+
+  return new Elysia().use(requireAdmin).get('/admin', ({ user, isAdmin }) => ({
+    success: true,
+    data: { userId: user?.id ?? null, isAdmin }
+  }));
+}
+
+beforeEach(() => {
+  getSessionMock.mockReset();
+  resolveIsAdminByGitHubAccountMock.mockReset();
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // requireAuth
@@ -248,6 +270,95 @@ describe('optionalAuth middleware', () => {
         error: 'Connection refused'
       })
     );
+  });
+});
+
+describe('requireAdmin middleware', () => {
+  test('returns 200 for an allowlisted admin with recent GitHub sign-in', async () => {
+    resolveIsAdminByGitHubAccountMock.mockResolvedValueOnce(true);
+    getSessionMock.mockResolvedValueOnce({
+      user: {
+        id: 'admin-1',
+        email: 'admin@test.com',
+        role: 'user',
+        bannedAt: null,
+        deletedAt: null,
+        twoFactorEnabled: false,
+        lastLoginMethod: 'github'
+      },
+      session: {
+        id: 's-admin-1',
+        token: 't-admin-1',
+        createdAt: new Date(),
+        userId: 'admin-1'
+      }
+    });
+
+    const app = await buildRequireAdminApp();
+    const res = await app.handle(new Request('http://localhost/admin'));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data).toEqual({ userId: 'admin-1', isAdmin: true });
+  });
+
+  test('returns 403 when the admin session was not reauthenticated with GitHub', async () => {
+    resolveIsAdminByGitHubAccountMock.mockResolvedValueOnce(true);
+    getSessionMock.mockResolvedValueOnce({
+      user: {
+        id: 'admin-2',
+        email: 'admin@test.com',
+        role: 'user',
+        bannedAt: null,
+        deletedAt: null,
+        twoFactorEnabled: false,
+        lastLoginMethod: 'email'
+      },
+      session: {
+        id: 's-admin-2',
+        token: 't-admin-2',
+        createdAt: new Date(),
+        userId: 'admin-2'
+      }
+    });
+
+    const app = await buildRequireAdminApp();
+    const res = await app.handle(new Request('http://localhost/admin'));
+
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('ADMIN_SESSION_EXPIRED');
+  });
+
+  test('returns 403 when the admin session is stale even after GitHub sign-in', async () => {
+    resolveIsAdminByGitHubAccountMock.mockResolvedValueOnce(true);
+    getSessionMock.mockResolvedValueOnce({
+      user: {
+        id: 'admin-3',
+        email: 'admin@test.com',
+        role: 'user',
+        bannedAt: null,
+        deletedAt: null,
+        twoFactorEnabled: false,
+        lastLoginMethod: 'github'
+      },
+      session: {
+        id: 's-admin-3',
+        token: 't-admin-3',
+        createdAt: new Date(Date.now() - (ADMIN_SESSION_MAX_AGE_MS + 1_000)),
+        userId: 'admin-3'
+      }
+    });
+
+    const app = await buildRequireAdminApp();
+    const res = await app.handle(new Request('http://localhost/admin'));
+
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('ADMIN_SESSION_EXPIRED');
   });
 });
 
