@@ -38,7 +38,9 @@ export function useDailyStats(
   return useQuery({
     queryKey: analyticsKeys.daily(linkId, days),
     queryFn: () => api.getDailyStats(linkId, days),
-    staleTime: 0, // always stale — refetchOnWindowFocus fires on tab return
+    // 30 s window lets SSR-hydrated data be reused for the first render
+    // while still keeping the chart reasonably fresh via background polling.
+    staleTime: 30_000,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
     enabled: !!linkId,
@@ -59,7 +61,7 @@ export function useAnalyticsBreakdown(
   return useQuery({
     queryKey: analyticsKeys.breakdown(linkId, days.toString()),
     queryFn: () => api.getAnalyticsBreakdown(linkId, { days }),
-    staleTime: 0, // always stale — refetchOnWindowFocus fires on tab return
+    staleTime: 30_000,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
     enabled: !!linkId,
@@ -77,7 +79,10 @@ export function useAnalyticsSummary(
   return useQuery({
     queryKey: analyticsKeys.summary(linkId, days.toString()),
     queryFn: () => api.getAnalyticsSummary(linkId, { days }),
-    staleTime: 0, // always stale — refetchOnWindowFocus fires on tab return
+    // Summary is a live counter — 5 s stale window keeps it snappy while still
+    // allowing SSR-hydrated data to be used on first render without an
+    // immediate re-fetch.
+    staleTime: 5_000,
     refetchInterval: 5_000,
     refetchIntervalInBackground: false,
     enabled: !!linkId,

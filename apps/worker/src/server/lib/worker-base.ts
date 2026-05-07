@@ -7,6 +7,14 @@ import { RedisStream, type StreamMessage } from './redis-stream';
 import type { Logger } from './telemetry';
 import { createLogger } from './telemetry';
 
+/**
+ * Maximum number of entries retained in any dead-letter stream.
+ * Beyond this cap Redis silently evicts the oldest entries, so DLQ streams
+ * never grow without bound. 10 000 entries is more than enough to diagnose
+ * and replay a failure burst before the on-call team can react.
+ */
+const DLQ_MAXLEN = 10_000;
+
 export interface WorkerConfig {
   /** Stream name to consume from */
   stream: string;
@@ -50,7 +58,6 @@ export abstract class WorkerBase<T = Record<string, string>> {
   protected readonly logger: Logger;
   protected running = false;
   protected gcRunning = false;
-  private shutdownPromise: Promise<void> | null = null;
 
   constructor(config: WorkerConfig) {
     this.config = {
@@ -433,7 +440,12 @@ export abstract class WorkerBase<T = Record<string, string>> {
         data: JSON.stringify(message.data)
       };
 
-      await RedisStream.add(this.config.deadLetterStream, dlqPayload);
+      await RedisStream.add(
+        this.config.deadLetterStream,
+        dlqPayload,
+        '*',
+        DLQ_MAXLEN
+      );
 
       // Acknowledge the original message to remove from PEL
       await this.acknowledgeMessage(message.id);
@@ -452,26 +464,18 @@ export abstract class WorkerBase<T = Record<string, string>> {
   }
 
   /**
-   * Graceful shutdown handler
+   * Graceful shutdown handler — intentionally a no-op.
+   *
+   * Signal registration and process.exit() are the sole responsibility of the
+   * worker entrypoint (apps/worker/src/index.ts).  If WorkerBase registered its
+   * own handlers every worker instance would compete to call process.exit(),
+   * creating a race condition where only the first to finish would run cleanup
+   * for the others.  Use worker.stop() directly from the entrypoint instead.
+   *
+   * @deprecated Call stop() from the entrypoint signal handler instead.
    */
   private setupGracefulShutdown(): void {
-    const shutdown = async (signal: string) => {
-      if (this.shutdownPromise) {
-        // Already shutting down
-        await this.shutdownPromise;
-        return;
-      }
-
-      this.logger.info(`[WorkerBase] Received ${signal}, shutting down...`);
-
-      this.shutdownPromise = this.stop();
-      await this.shutdownPromise;
-
-      process.exit(0);
-    };
-
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT', () => shutdown('SIGINT'));
+    // intentionally empty — signal ownership belongs to the entrypoint
   }
 
   /**

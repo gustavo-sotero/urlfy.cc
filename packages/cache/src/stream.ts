@@ -55,18 +55,29 @@ export namespace RedisStream {
    * @param stream Stream name
    * @param payload Message payload (will be flattened to key-value pairs)
    * @param id Message ID (default: * for auto-generation)
+   * @param maxLen When provided, appends `MAXLEN ~ maxLen` to the XADD command
+   *               so the stream is trimmed to approximately that length. Uses
+   *               the `~` (approximate) trimming strategy to avoid expensive
+   *               O(n) full-trimming on every write.
    * @returns Generated message ID
    */
   export async function add(
     stream: string,
     payload: Record<string, unknown>,
-    id = '*'
+    id = '*',
+    maxLen?: number
   ): Promise<string> {
     ensureRedisAvailable('XADD');
 
     try {
-      // Flatten payload to array format: [key1, value1, key2, value2, ...]
-      const args: string[] = [stream, id];
+      // Build XADD args: [stream, [MAXLEN ~ n,] id, key1, val1, ...]
+      const args: string[] = [stream];
+
+      if (maxLen !== undefined && maxLen > 0) {
+        args.push('MAXLEN', '~', String(maxLen));
+      }
+
+      args.push(id);
 
       for (const [key, value] of Object.entries(payload)) {
         args.push(key);

@@ -199,6 +199,7 @@ export const LinkForm = {
     creating: 'Creating...',
     successMessage: 'Link created successfully!',
     createAnother: 'Create another link',
+    shortUrlLabel: 'Your shortened URL',
     invalidUrl: 'Invalid URL',
     freeNoSignup: 'Free and no sign-up required'
   }

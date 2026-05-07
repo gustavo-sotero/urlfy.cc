@@ -84,7 +84,13 @@ export default async function AdminLayout({
         <AdminHeader />
 
         {/* Page Content */}
-        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 p-6 overflow-y-auto"
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

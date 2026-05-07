@@ -57,6 +57,7 @@ export function LinkForm() {
             readOnly
             className="min-w-0 font-mono"
             data-testid="short-url"
+            aria-label={t('shortUrlLabel')}
           />
           <CopyButton
             text={result.shortUrl}
@@ -90,6 +91,7 @@ export function LinkForm() {
           {...form.register('url')}
           type="url"
           placeholder={t('placeholder')}
+          aria-label={t('placeholder')}
           className="h-12"
           disabled={createLink.isPending}
           aria-invalid={!!form.formState.errors.url}

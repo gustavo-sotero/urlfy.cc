@@ -51,8 +51,7 @@ export function useLinks(
   return useQuery({
     queryKey: linkKeys.list(filters),
     queryFn: () => api.getLinks(filters),
-    staleTime: 0, // always stale so refetchOnWindowFocus fires immediately on tab return
-    refetchInterval: 5_000, // poll every 5s so click counters feel live while the page stays open
+    staleTime: 30_000, // 30 s — fresh enough for list views without constant refetching
     refetchIntervalInBackground: false,
     ...options
   });
@@ -65,8 +64,7 @@ export function useLink(
   return useQuery({
     queryKey: linkKeys.detail(id),
     queryFn: () => api.getLink(id),
-    staleTime: 0, // always stale so refetchOnWindowFocus fires immediately on tab return
-    refetchInterval: 5_000, // poll every 5s so detail page shows live clicksCount
+    staleTime: 30_000, // 30 s — callers that need live counters should opt in to refetchInterval
     refetchIntervalInBackground: false,
     enabled: !!id,
     ...options
@@ -118,8 +116,7 @@ export function useDashboardSummary(
   return useQuery({
     queryKey: linkKeys.summary(),
     queryFn: () => api.getDashboardSummary(),
-    staleTime: 0, // always stale so refetchOnWindowFocus fires immediately on tab return
-    refetchInterval: 5_000, // poll every 5s for real-time totals
+    staleTime: 30_000, // 30 s — opt in to polling at call site if live totals are needed
     refetchIntervalInBackground: false,
     ...options
   });

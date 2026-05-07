@@ -200,6 +200,7 @@ export const LinkForm = {
     successMessage: 'Link criado com sucesso!',
     createAnother: 'Criar outro link',
     invalidUrl: 'URL inválida',
-    freeNoSignup: 'Gratuito e sem necessidade de cadastro'
+    freeNoSignup: 'Gratuito e sem necessidade de cadastro',
+    shortUrlLabel: 'Sua URL encurtada'
   }
 } as const;

@@ -42,54 +42,38 @@ export const auditController = new Elysia({ prefix: '/admin/audit' })
       );
       const offset = (page - 1) * limit;
 
-      const { logs: allLogs } = await auditLogService.getRecent({
-        action: query.action ? (query.action as AuditAction) : undefined,
-        limit: 10000,
-        offset: 0
-      });
-
-      let filteredLogs = allLogs;
-
-      if (query.entityType) {
-        filteredLogs = filteredLogs.filter(
-          (log) => log.entityType === query.entityType
-        );
-      }
-
-      const sortBy = query.sortBy || 'createdAt';
+      const sortBy = ((): 'createdAt' | 'action' | 'userId' => {
+        const s = query.sortBy;
+        if (s === 'action' || s === 'userId') return s;
+        return 'createdAt';
+      })();
       const sortOrder =
         query.sortOrder?.toLowerCase() === 'asc' ? 'asc' : 'desc';
 
-      filteredLogs.sort((a, b) => {
-        let aVal: string | Date;
-        let bVal: string | Date;
+      const fromDate = query.from ? new Date(query.from) : undefined;
+      const toDate = query.to ? new Date(query.to) : undefined;
 
-        if (sortBy === 'createdAt') {
-          aVal = a.createdAt;
-          bVal = b.createdAt;
-        } else if (sortBy === 'action') {
-          aVal = a.action;
-          bVal = b.action;
-        } else if (sortBy === 'userId') {
-          aVal = a.userId ?? '';
-          bVal = b.userId ?? '';
-        } else {
-          return 0;
-        }
-
-        if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
-        return 0;
+      const { logs, total } = await auditLogService.getRecent({
+        action: query.action ? (query.action as AuditAction) : undefined,
+        entityType: query.entityType,
+        userId: query.userId,
+        from: fromDate,
+        to: toDate,
+        sortBy,
+        sortOrder,
+        limit,
+        offset
       });
-
-      const total = filteredLogs.length;
-      const logs = filteredLogs.slice(offset, offset + limit);
 
       logger.info('Audit logs retrieved', {
         userId: user?.id,
         count: logs.length,
         total,
-        filters: { action: query.action, entityType: query.entityType }
+        filters: {
+          action: query.action,
+          entityType: query.entityType,
+          userId: query.userId
+        }
       });
 
       return {

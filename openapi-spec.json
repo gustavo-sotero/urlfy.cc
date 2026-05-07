@@ -4592,8 +4592,20 @@
             "description": "Filter by entity type",
             "type": "string"
           },
+          "userId": {
+            "description": "Filter by user ID",
+            "type": "string"
+          },
+          "from": {
+            "description": "ISO date lower bound (inclusive)",
+            "type": "string"
+          },
+          "to": {
+            "description": "ISO date upper bound (exclusive)",
+            "type": "string"
+          },
           "sortBy": {
-            "description": "Field to sort by",
+            "description": "Field to sort by: createdAt | action | userId",
             "type": "string"
           },
           "sortOrder": {
@@ -16319,11 +16331,38 @@
             }
           },
           {
+            "name": "userId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Filter by user ID",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "ISO date lower bound (inclusive)",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "ISO date upper bound (exclusive)",
+              "type": "string"
+            }
+          },
+          {
             "name": "sortBy",
             "in": "query",
             "required": false,
             "schema": {
-              "description": "Field to sort by",
+              "description": "Field to sort by: createdAt | action | userId",
               "type": "string"
             }
           },

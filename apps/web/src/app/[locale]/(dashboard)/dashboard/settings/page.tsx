@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { authClient } from '@/lib/auth.client';
 import { useSessionContext } from '@/lib/session-provider';
 
@@ -143,37 +142,6 @@ export default function SettingsPage() {
                 <TwoFactorSetup onSuccess={() => window.location.reload()} />
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/60 bg-card/90">
-        <CardHeader>
-          <CardTitle>{t('preferences.title')}</CardTitle>
-          <CardDescription>{t('preferences.description')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <Label htmlFor="email-notifications">
-                {t('preferences.emailNotifications')}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {t('preferences.emailNotificationsDescription')}
-              </p>
-            </div>
-            <Switch id="email-notifications" />
-          </div>
-          <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <Label htmlFor="analytics-reports">
-                {t('preferences.weeklyReports')}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {t('preferences.weeklyReportsDescription')}
-              </p>
-            </div>
-            <Switch id="analytics-reports" />
           </div>
         </CardContent>
       </Card>

@@ -1,8 +1,11 @@
 import { checkDatabaseHealth } from '@urlfy/data';
+import { createLogger } from '@urlfy/telemetry';
 import { checkRedisHealth } from '@/server/lib/cache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const logger = createLogger('health:ready');
 
 const API_HEALTH_TIMEOUT_MS = 3_000;
 
@@ -46,17 +49,29 @@ export async function GET(): Promise<Response> {
   const isReady = apiHealth.status === 'ok' && dbHealth.status === 'ok';
   const isDegraded = redisHealth.status !== 'ok';
 
+  // Log internal dependency details server-side for observability;
+  // do NOT include them in the response body — callers (load balancers,
+  // uptime monitors, public clients) must not see raw error messages or
+  // internal topology information.
+  if (!isReady || isDegraded) {
+    logger.warn('[health/ready] degraded or not ready', {
+      api: apiHealth,
+      redis: redisHealth,
+      database: dbHealth
+    });
+  }
+
+  const overallStatus = !isReady
+    ? 'not_ready'
+    : isDegraded
+      ? 'degraded'
+      : 'ready';
+
   return Response.json(
     {
-      status: isReady ? 'ready' : 'not_ready',
-      degraded: isDegraded,
+      status: overallStatus,
       component: 'web',
-      timestamp: new Date().toISOString(),
-      services: {
-        api: apiHealth,
-        redis: redisHealth,
-        database: dbHealth
-      }
+      timestamp: new Date().toISOString()
     },
     {
       status: isReady ? 200 : 503

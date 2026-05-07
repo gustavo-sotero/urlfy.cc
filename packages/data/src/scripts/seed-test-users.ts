@@ -5,6 +5,14 @@
  * Creates deterministic test users for the GitHub allowlist admin model.
  *
  * Usage: bun run src/scripts/seed-test-users.ts
+ *
+ * Required guards (fail-fast if not met):
+ *   NODE_ENV must be "test" or "development"
+ *   ALLOW_TEST_SEEDING=1 must be set explicitly
+ *
+ * The script will also refuse to run when the DATABASE_URL looks like a
+ * shared / production host (anything that does NOT contain "localhost",
+ * "127.0.0.1", "::1", or "test" in the hostname).
  * ═════════════════════════════════════════════════════════════════════
  */
 
@@ -12,8 +20,56 @@ import { eq, or } from 'drizzle-orm';
 import { db } from '../index';
 import { account, twoFactor, user } from '../schema/auth';
 
-const AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID =
-  process.env.ADMIN_GITHUB_ACCOUNT_ID ||
+// ─── safety guards ──────────────────────────────────────────────────────────
+
+function assertSafeEnvironment(): void {
+  const nodeEnv = process.env.NODE_ENV;
+  if (nodeEnv !== 'test' && nodeEnv !== 'development') {
+    console.error(
+      `❌ Refusing to seed: NODE_ENV is "${nodeEnv}". Only "test" or "development" are allowed.`
+    );
+    process.exit(1);
+  }
+
+  if (process.env.ALLOW_TEST_SEEDING !== '1') {
+    console.error(
+      '❌ Refusing to seed: ALLOW_TEST_SEEDING=1 is required to prevent accidental seeding.'
+    );
+    process.exit(1);
+  }
+
+  const dbUrl = process.env.DATABASE_URL ?? '';
+  if (dbUrl) {
+    let hostname = '';
+    try {
+      hostname = new URL(dbUrl).hostname.toLowerCase();
+    } catch {
+      // Unparseable URL — let the DB client surface the error later
+    }
+
+    const isSafeHost =
+      !hostname ||
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname.includes('test') ||
+      hostname.endsWith('.local');
+
+    if (!isSafeHost) {
+      console.error(
+        `❌ Refusing to seed: DATABASE_URL points to "${hostname}" which does not look like a local/test host.`
+      );
+      process.exit(1);
+    }
+  }
+}
+
+assertSafeEnvironment();
+
+// ─── admin GitHub account ID ─────────────────────────────────────────────────
+// Use a fixed fake ID so the seeded admin user is never linked to the real
+// configured ADMIN_GITHUB_ACCOUNT_ID from production secrets.
+const SEEDED_ADMIN_GITHUB_ACCOUNT_ID =
   'local-dev-test-admin-github-account-id-00000000';
 
 type TestAccountSeed = {
@@ -74,7 +130,7 @@ const TEST_USERS: readonly TestUserSeed[] = [
         passwordProtected: true
       },
       {
-        accountId: AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID,
+        accountId: SEEDED_ADMIN_GITHUB_ACCOUNT_ID,
         providerId: 'github'
       }
     ]
@@ -211,7 +267,7 @@ async function replaceTwoFactor(testUser: TestUserSeed) {
 async function seedTestUsers() {
   console.log('🌱 Seeding test users...\n');
   console.log(
-    `Using ADMIN_GITHUB_ACCOUNT_ID=${AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID}\n`
+    `Using ADMIN_GITHUB_ACCOUNT_ID=${SEEDED_ADMIN_GITHUB_ACCOUNT_ID}\n`
   );
 
   for (const testUser of TEST_USERS) {
@@ -239,7 +295,7 @@ async function seedTestUsers() {
         `   - Authorized Admin: ${testUser.accounts.some(
           (entry) =>
             entry.providerId === 'github' &&
-            entry.accountId === AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID
+            entry.accountId === SEEDED_ADMIN_GITHUB_ACCOUNT_ID
         )}`
       );
       console.log(
@@ -261,7 +317,7 @@ async function seedTestUsers() {
   console.log('Authorized Admin (linked GitHub allowlist):');
   console.log(`  EMAIL: ${TEST_USERS[1].email}`);
   console.log(`  PASSWORD: ${TEST_USERS[1].password}`);
-  console.log(`  GITHUB ACCOUNT ID: ${AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID}\n`);
+  console.log(`  GITHUB ACCOUNT ID: ${SEEDED_ADMIN_GITHUB_ACCOUNT_ID}\n`);
   console.log('Unauthorized GitHub-linked User:');
   console.log(`  EMAIL: ${TEST_USERS[2].email}`);
   console.log(`  PASSWORD: ${TEST_USERS[2].password}\n`);
@@ -275,7 +331,7 @@ async function seedTestUsers() {
   console.log(`export TEST_ADMIN_EMAIL="${TEST_USERS[1].email}"`);
   console.log(`export TEST_ADMIN_PASSWORD="${TEST_USERS[1].password}"`);
   console.log(
-    `export TEST_ADMIN_GITHUB_ACCOUNT_ID="${AUTHORIZED_ADMIN_GITHUB_ACCOUNT_ID}"`
+    `export TEST_ADMIN_GITHUB_ACCOUNT_ID="${SEEDED_ADMIN_GITHUB_ACCOUNT_ID}"`
   );
   console.log(`export TEST_ADMIN_NO_2FA_EMAIL="${TEST_USERS[1].email}"`);
   console.log(`export TEST_ADMIN_NO_2FA_PASSWORD="${TEST_USERS[1].password}"`);

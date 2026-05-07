@@ -13,9 +13,7 @@ import { db } from '@urlfy/data';
 import { analyticsEvents, links } from '@urlfy/data/schema';
 import { eq, sql } from 'drizzle-orm';
 import { CACHE_KEYS } from '@/server/lib/cache-keys';
-import { lookupGeoIP } from '@/server/lib/geoip';
 import { recordMetric } from '@/server/lib/metrics';
-import { hashVisitor } from '@/server/lib/privacy';
 import { getRedisClient } from '@/server/lib/redis';
 import type { StreamMessage } from '@/server/lib/redis-stream';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';
@@ -25,12 +23,26 @@ import { parseUserAgent } from '@/server/services/useragent.service';
 import type { EnrichedClickEvent } from '@/types/analytics.types';
 
 /**
- * Stream message shape for click events
+ * Stream message shape for click events.
+ *
+ * IMPORTANT: Raw IP is intentionally absent from this payload.
+ * IP anonymization (visitorHash) and GeoIP resolution happen at the producer
+ * (apps/web/src/server/lib/redirect-events.ts) before the event is written to
+ * Redis so that DLQ payloads never contain raw IP addresses.
  */
 interface ClickEventStream {
   linkId: string;
   shortCode: string;
-  ip: string;
+  /** SHA-256(ip:linkId:weeklySalt) — computed at ingress, never raw IP. */
+  visitorHash: string;
+  /** ISO-3166-1 alpha-2 country code resolved at ingress, may be empty. */
+  country: string;
+  /** City name resolved at ingress, may be empty. */
+  city: string;
+  /** Latitude * 1000 as string, may be empty. */
+  latitude: string;
+  /** Longitude * 1000 as string, may be empty. */
+  longitude: string;
   userAgent: string;
   referer?: string;
   utmSource?: string;
@@ -60,15 +72,28 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
   }
 
   /**
-   * Process a single click event (used by fallback sequential path)
+   * Process a single click event (used by fallback sequential path).
+   * Uses ON CONFLICT DO NOTHING on stream_message_id so retries are safe.
    */
   protected async processMessage(
-    _id: string,
+    id: string,
     payload: ClickEventStream
   ): Promise<void> {
-    const enriched = await this.enrichClickEvent(payload);
+    const enriched = await this.enrichClickEvent(id, payload);
 
-    await db.insert(analyticsEvents).values(this.mapEnrichedToRow(enriched));
+    const inserted = await db
+      .insert(analyticsEvents)
+      .values(this.mapEnrichedToRow(enriched, id))
+      .onConflictDoNothing()
+      .returning({ id: analyticsEvents.id });
+
+    // Only update counters for events that were actually inserted (not duplicates).
+    if (inserted.length === 0) {
+      this.logger.debug('[AnalyticsClickWorker] Duplicate event skipped', {
+        streamMessageId: id
+      });
+      return;
+    }
 
     await db
       .update(links)
@@ -106,11 +131,13 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
   /**
    * Batch-optimized message processing.
    * - Enriches all events in parallel
-   * - Bulk INSERTs analytics rows (1 query)
-   * - Single UPDATE per unique link
-   * - Single cache increment per unique link
+   * - Bulk INSERTs with ON CONFLICT DO NOTHING on stream_message_id (idempotent)
+   * - Counts per unique link only for rows actually inserted (not duplicates)
+   * - Single UPDATE per unique link; single cache increment per unique link
    *
-   * Falls back to sequential processing if bulk operation fails.
+   * If the bulk insert fails the messages are returned as failed so WorkerBase
+   * can retry them individually via the sequential path, which also uses
+   * ON CONFLICT DO NOTHING and is therefore safe to retry.
    */
   protected override async processMessages(
     messages: StreamMessage<ClickEventStream>[]
@@ -131,7 +158,7 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
     const enrichResults = await Promise.allSettled(
       messages.map(async (msg) => ({
         message: msg,
-        enriched: await this.enrichClickEvent(msg.data)
+        enriched: await this.enrichClickEvent(msg.id, msg.data)
       }))
     );
 
@@ -161,20 +188,43 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
     }
 
     try {
-      // Step 2: Bulk INSERT all analytics events in a single query
-      await db
+      // Step 2: Bulk INSERT with ON CONFLICT DO NOTHING — safe to retry.
+      // The RETURNING clause gives us which rows were actually new so we can
+      // avoid double-counting clicks for already-processed events.
+      const insertedRows = await db
         .insert(analyticsEvents)
         .values(
-          enrichedEvents.map(({ enriched }) => this.mapEnrichedToRow(enriched))
-        );
+          enrichedEvents.map(({ enriched, message }) =>
+            this.mapEnrichedToRow(enriched, message.id)
+          )
+        )
+        .onConflictDoNothing()
+        .returning({
+          id: analyticsEvents.id,
+          linkId: analyticsEvents.linkId,
+          streamMessageId: analyticsEvents.streamMessageId
+        });
 
-      // Step 3: Group by linkId for batched link updates
+      // Build a set of newly-inserted stream message IDs for accurate counting.
+      const insertedStreamIds = new Set(
+        insertedRows.map((r) => r.streamMessageId).filter(Boolean)
+      );
+
+      // Step 3: Group by linkId for batched link updates.
+      // Only count events that were actually inserted (not conflicted duplicates).
       const linkClickCounts = new Map<
         string,
         { count: number; lastClickedAt: Date; shortCode?: string }
       >();
 
-      for (const { enriched } of enrichedEvents) {
+      for (const { enriched, message } of enrichedEvents) {
+        if (!insertedStreamIds.has(message.id)) {
+          this.logger.debug('[AnalyticsClickWorker] Duplicate event skipped', {
+            streamMessageId: message.id
+          });
+          continue;
+        }
+
         const timestamp =
           typeof enriched.timestamp === 'string'
             ? new Date(enriched.timestamp)
@@ -195,47 +245,49 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
         }
       }
 
-      // Step 4: Single UPDATE per unique link (N queries instead of batchSize)
-      await Promise.all(
-        Array.from(linkClickCounts.entries()).map(
-          ([linkId, { count, lastClickedAt }]) =>
-            db
-              .update(links)
-              .set({
-                clicksCount: sql`${links.clicksCount} + ${count}`,
-                lastClickedAt
-              })
-              .where(eq(links.id, linkId))
-        )
-      );
+      // Step 4: Single UPDATE per unique link (only for newly-inserted events)
+      if (linkClickCounts.size > 0) {
+        await Promise.all(
+          Array.from(linkClickCounts.entries()).map(
+            ([linkId, { count, lastClickedAt }]) =>
+              db
+                .update(links)
+                .set({
+                  clicksCount: sql`${links.clicksCount} + ${count}`,
+                  lastClickedAt
+                })
+                .where(eq(links.id, linkId))
+          )
+        );
 
-      // Step 5: Single cache increment per unique link
-      await Promise.all(
-        Array.from(linkClickCounts.entries()).map(
-          ([linkId, { count, shortCode }]) =>
-            Promise.all([
-              shortCode
-                ? cacheService.incrementClicksCount(shortCode, count)
-                : Promise.resolve(null),
-              drainPendingClicks(linkId, count)
-            ])
-        )
-      );
+        // Step 5: Single cache increment per unique link
+        await Promise.all(
+          Array.from(linkClickCounts.entries()).map(
+            ([linkId, { count, shortCode }]) =>
+              Promise.all([
+                shortCode
+                  ? cacheService.incrementClicksCount(shortCode, count)
+                  : Promise.resolve(null),
+                drainPendingClicks(linkId, count)
+              ])
+          )
+        );
 
-      // Step 6: Invalidate analytics cache for affected links (fire-and-forget)
-      for (const linkId of linkClickCounts.keys()) {
-        this.invalidateAnalyticsCache(linkId).catch((err) => {
-          this.logger.warn(
-            '[AnalyticsClickWorker] Failed to invalidate analytics cache',
-            {
-              linkId,
-              error: err instanceof Error ? err.message : String(err)
-            }
-          );
-        });
+        // Step 6: Invalidate analytics cache for affected links (fire-and-forget)
+        for (const linkId of linkClickCounts.keys()) {
+          this.invalidateAnalyticsCache(linkId).catch((err) => {
+            this.logger.warn(
+              '[AnalyticsClickWorker] Failed to invalidate analytics cache',
+              {
+                linkId,
+                error: err instanceof Error ? err.message : String(err)
+              }
+            );
+          });
+        }
       }
 
-      // All enriched events processed successfully
+      // All enriched events are considered processed (duplicates silently skipped)
       for (const { message } of enrichedEvents) {
         processedIds.push(message.id);
       }
@@ -248,32 +300,41 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
       recordMetric('analytics_batch_processed', enrichedEvents.length, {
         duration: String(duration),
         botCount: String(botCount),
-        uniqueLinks: String(linkClickCounts.size)
+        uniqueLinks: String(linkClickCounts.size),
+        newEvents: String(insertedStreamIds.size)
       });
 
       this.logger.debug('[AnalyticsClickWorker] Batch processed', {
         total: enrichedEvents.length,
+        newInserts: insertedStreamIds.size,
         uniqueLinks: linkClickCounts.size,
         duration
       });
     } catch (error) {
-      // If bulk operation fails, fall back to sequential processing
+      // Bulk insert failed — return all enriched events as failed so WorkerBase
+      // retries them individually via the idempotent sequential path.
       this.logger.warn(
-        '[AnalyticsClickWorker] Batch insert failed, falling back to sequential',
+        '[AnalyticsClickWorker] Batch insert failed, deferring to sequential retry',
         { error: error instanceof Error ? error.message : String(error) }
       );
-
-      return super.processMessages(messages);
+      for (const { message } of enrichedEvents) {
+        failedMessages.push(message);
+      }
     }
 
     return { processedIds, failedMessages };
   }
 
   /**
-   * Map enriched event to analytics_events row values
+   * Map enriched event to analytics_events row values.
+   * streamMessageId comes from the Redis stream message ID for deduplication.
    */
-  private mapEnrichedToRow(enriched: EnrichedClickEvent) {
+  private mapEnrichedToRow(
+    enriched: EnrichedClickEvent,
+    streamMessageId: string
+  ) {
     return {
+      streamMessageId,
       linkId: enriched.linkId,
       visitorHash: enriched.visitorHash,
       country: enriched.country ?? undefined,
@@ -307,18 +368,15 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
   }
 
   /**
-   * Enrich click event with GeoIP and User-Agent data
+   * Enrich click event with User-Agent data.
+   * visitorHash and geo data are pre-computed at the producer (ingress) and
+   * carried in the stream payload — no raw IP is required here.
    */
   private async enrichClickEvent(
+    streamMessageId: string,
     event: ClickEventStream
   ): Promise<EnrichedClickEvent> {
-    // Hash IP for privacy (LGPD/GDPR compliant)
-    const visitorHash = hashVisitor(event.ip, event.userAgent);
-
-    // Resolve GeoIP
-    const geoData = await lookupGeoIP(event.ip);
-
-    // Parse User-Agent
+    // Parse User-Agent for browser/OS/device classification
     const uaData = parseUserAgent(event.userAgent);
 
     // Extract referrer domain
@@ -326,17 +384,25 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
       ? this.extractDomain(event.referer)
       : undefined;
 
+    // Parse geo coordinates from stringified stream fields
+    const latitude =
+      event.latitude && event.latitude !== '' ? Number(event.latitude) : null;
+    const longitude =
+      event.longitude && event.longitude !== ''
+        ? Number(event.longitude)
+        : null;
+
     return {
       linkId: event.linkId,
       shortCode: event.shortCode,
-      requestId: '', // Not needed for storage
-      ip: event.ip,
+      requestId: streamMessageId,
+      ip: '', // Raw IP intentionally absent — anonymized at ingress
       userAgent: event.userAgent,
-      visitorHash,
-      country: geoData?.country ?? null,
-      city: geoData?.city ?? null,
-      latitude: geoData?.latitude ?? null,
-      longitude: geoData?.longitude ?? null,
+      visitorHash: event.visitorHash,
+      country: event.country || null,
+      city: event.city || null,
+      latitude,
+      longitude,
       browser: uaData.browser,
       browserVersion: uaData.browserVersion,
       os: uaData.os,

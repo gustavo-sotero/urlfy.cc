@@ -29,21 +29,25 @@ import { useBanUser, useUnbanUser, useUsers } from '@/lib/hooks/use-admin';
 
 export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  // committedSearch is what actually drives the query; it only updates on
+  // explicit submit (button click or Enter) so we don't fire a new request
+  // on every keystroke.
+  const [committedSearch, setCommittedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [banTarget, setBanTarget] = useState<UserResponse | null>(null);
 
   const { data, isLoading, isError, error, refetch } = useUsers({
     page,
     limit: 20,
-    search: searchQuery || undefined
+    search: committedSearch || undefined
   });
 
   const banUser = useBanUser();
   const unbanUser = useUnbanUser();
 
   const handleSearch = () => {
+    setCommittedSearch(searchQuery);
     setPage(1);
-    refetch();
   };
 
   const confirmBan = async () => {

@@ -34,12 +34,17 @@ export const analyticsEvents = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
 
+    // Idempotency key: Redis stream message ID persisted to prevent duplicate
+    // inserts on worker retry. A unique constraint is created on this column so
+    // ON CONFLICT DO NOTHING is reliable across batch and sequential paths.
+    streamMessageId: varchar('stream_message_id', { length: 128 }),
+
     // Link reference
     linkId: uuid('link_id')
       .notNull()
       .references(() => links.id, { onDelete: 'cascade' }),
 
-    // Visitor identification (LGPD: hashed IP + salt)
+    // Visitor identification (LGPD: hashed IP + linkId + weeklySalt)
     visitorHash: varchar('visitor_hash', { length: 64 }).notNull(),
 
     // Geo data (from GeoLite2 offline, auto-downloaded)
@@ -75,6 +80,11 @@ export const analyticsEvents = pgTable(
       .defaultNow()
   },
   (table) => ({
+    // Unique constraint for idempotent inserts (ON CONFLICT DO NOTHING on retry)
+    idxStreamMessageId: uniqueIndex('idx_analytics_stream_message_id').on(
+      table.streamMessageId
+    ),
+
     // Primary index for link queries
     idxLinkId: index('idx_analytics_link_id').on(table.linkId),
 

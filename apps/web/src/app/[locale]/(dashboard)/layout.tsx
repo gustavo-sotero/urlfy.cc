@@ -49,7 +49,8 @@ export default async function DashboardLayout({
         <div className="flex min-w-0 flex-1 flex-col">
           <Header user={user} />
           <main
-            id="dashboard-content"
+            id="main-content"
+            tabIndex={-1}
             className="min-w-0 flex-1 overflow-x-clip"
             data-dashboard-main="content"
           >

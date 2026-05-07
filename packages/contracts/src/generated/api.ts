@@ -485,6 +485,9 @@ export interface AuditLogsQuery {
   limit?: string;
   action?: string;
   entityType?: string;
+  userId?: string;
+  from?: string;
+  to?: string;
   sortBy?: string;
   sortOrder?: string;
 }

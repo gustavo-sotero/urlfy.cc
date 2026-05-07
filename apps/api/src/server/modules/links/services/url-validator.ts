@@ -20,7 +20,9 @@ interface BannedDomainRecord {
 
 export type BannedDomainsLoader = () => Promise<BannedDomainRecord[]>;
 
-// SSRF Protection: Private IP ranges (RFC 1918, loopback, link-local)
+// SSRF Protection: Private/reserved IP ranges
+// Covers: RFC 1918 private, loopback, link-local, CGNAT, benchmarking,
+// multicast, reserved (240/4), and IPv4-mapped IPv6.
 const PRIVATE_IP_RANGES = [
   // IPv4
   /^127\./, // Loopback (127.0.0.0/8)
@@ -29,8 +31,14 @@ const PRIVATE_IP_RANGES = [
   /^192\.168\./, // Class C private (192.168.0.0/16)
   /^169\.254\./, // Link-local (169.254.0.0/16)
   /^0\./, // Current network (0.0.0.0/8)
+  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT (100.64.0.0/10)
+  /^198\.1[89]\./, // Benchmarking (198.18.0.0/15)
+  /^2(2[4-9]|3\d)\./, // Multicast (224.0.0.0/4)
+  /^24\d\./, // Reserved (240.0.0.0/4, approx)
+  /^255\./, // Broadcast (255.255.255.255)
   // IPv6
   /^::1$/, // Loopback
+  /^::ffff:/i, // IPv4-mapped IPv6 (::ffff:0:0/96)
   /^fe80:/i, // Link-local
   /^fc00:/i, // Unique local (fc00::/7)
   /^fd/i // Unique local (fd00::/8)

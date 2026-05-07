@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { db } from '../index';
 import {
@@ -125,25 +125,51 @@ export class AuditLogService {
     limit?: number;
     offset?: number;
     action?: AuditAction;
+    entityType?: string;
+    userId?: string;
+    from?: Date;
+    to?: Date;
+    sortBy?: 'createdAt' | 'action' | 'userId';
+    sortOrder?: 'asc' | 'desc';
   }): Promise<{ logs: SerializedAuditLog[]; total: number }> {
-    const limit = options?.limit || 100;
-    const offset = options?.offset || 0;
+    const limit = options?.limit ?? 100;
+    const offset = options?.offset ?? 0;
+    const sortOrder = options?.sortOrder === 'asc' ? 'asc' : 'desc';
+    const sortBy = options?.sortBy ?? 'createdAt';
 
-    const query = db.select().from(auditLog);
+    const conditions = [];
+    if (options?.action) conditions.push(eq(auditLog.action, options.action));
+    if (options?.entityType)
+      conditions.push(eq(auditLog.entityType, options.entityType));
+    if (options?.userId) conditions.push(eq(auditLog.userId, options.userId));
+    if (options?.from) conditions.push(gte(auditLog.createdAt, options.from));
+    if (options?.to) conditions.push(lt(auditLog.createdAt, options.to));
 
-    if (options?.action) {
-      query.where(eq(auditLog.action, options.action));
-    }
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const logs = await query
-      .orderBy(desc(auditLog.createdAt))
-      .limit(limit)
-      .offset(offset);
+    const orderExpr = (() => {
+      const col =
+        sortBy === 'action'
+          ? auditLog.action
+          : sortBy === 'userId'
+            ? auditLog.userId
+            : auditLog.createdAt;
+      return sortOrder === 'asc' ? asc(col) : desc(col);
+    })();
 
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(auditLog)
-      .where(options?.action ? eq(auditLog.action, options.action) : undefined);
+    const [logs, [{ count }]] = await Promise.all([
+      db
+        .select()
+        .from(auditLog)
+        .where(where)
+        .orderBy(orderExpr)
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(auditLog)
+        .where(where)
+    ]);
 
     return {
       logs: this.serializeMany(logs),

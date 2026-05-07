@@ -16,7 +16,7 @@ import {
   twoFactor,
   user
 } from '@urlfy/data/schema/auth';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, or } from 'drizzle-orm';
 import { recordMetric } from '@/server/lib/metrics';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { WorkerBase } from '@/server/lib/worker-base';
@@ -98,16 +98,6 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         return;
       }
 
-      if (request.status === 'completed') {
-        this.logger.info(
-          '[DeletionWorker] Deletion request already completed',
-          {
-            requestId
-          }
-        );
-        return;
-      }
-
       const effectiveUserId =
         request.userId ?? request.userIdSnapshot ?? userId;
 
@@ -121,11 +111,34 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         throw new DeferredDeletionError(); // Will be re-queued
       }
 
-      // 3. Mark as processing
-      await db
+      // 3. Atomically claim the request: transition pending → processing.
+      // The WHERE clause restricts the update to claimable states so that two
+      // concurrent worker instances cannot both execute the same deletion.
+      // If the update returns no rows the request is in a terminal state
+      // (completed/failed) — skip without error so this worker ACKs harmlessly.
+      const claimed = await db
         .update(dataDeletionRequest)
         .set({ status: 'processing' })
-        .where(eq(dataDeletionRequest.id, requestId));
+        .where(
+          and(
+            eq(dataDeletionRequest.id, requestId),
+            or(
+              eq(dataDeletionRequest.status, 'pending'),
+              // Allow re-claim of stale 'processing' records (lease recovery
+              // for workers that crashed after claiming but before completing).
+              eq(dataDeletionRequest.status, 'processing')
+            )
+          )
+        )
+        .returning({ id: dataDeletionRequest.id });
+
+      if (claimed.length === 0) {
+        this.logger.info(
+          '[DeletionWorker] Deletion request in terminal state, skipping',
+          { requestId, currentStatus: request.status }
+        );
+        return;
+      }
 
       // 4. Capture user data snapshot for audit (before deletion)
       if (request.dataExported === 'no') {
@@ -153,19 +166,13 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         }
       }
 
-      // 5. Mark deletion as completed BEFORE deleting the user row so that
-      //    (a) the status update can still reach the record and
-      //    (b) the completion audit log is emitted while the user row still exists.
-      await db
-        .update(dataDeletionRequest)
-        .set({
-          status: 'completed',
-          completedAt: new Date()
-        })
-        .where(eq(dataDeletionRequest.id, requestId));
+      // 5. Delete user data (user row deleted last — cascades handle the rest).
+      //    This must complete successfully before the request is marked completed
+      //    so that a crash/retry here does not lose data silently.
+      await this.deleteUserData(effectiveUserId);
 
-      // 6. Completion audit log — emit while the user row still exists so the
-      //    audit entry retains the originating principal before the FK is nulled.
+      // 6. Completion audit log — effectiveUserId is captured above as a string
+      //    snapshot so this audit entry does not require the user row to exist.
       await auditLogService.log({
         action: 'system' as const,
         entityType: 'user',
@@ -180,8 +187,16 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         ipAddress: '127.0.0.1'
       });
 
-      // 7. Delete user data (user row deleted last — cascades handle the rest)
-      await this.deleteUserData(effectiveUserId);
+      // 7. Mark deletion as completed AFTER the user data has been erased and
+      //    the audit log has been written. If the process crashes between steps
+      //    5 and 7 the worker will retry; deleteUserData must be idempotent.
+      await db
+        .update(dataDeletionRequest)
+        .set({
+          status: 'completed',
+          completedAt: new Date()
+        })
+        .where(eq(dataDeletionRequest.id, requestId));
 
       const duration = Date.now() - startTime;
 

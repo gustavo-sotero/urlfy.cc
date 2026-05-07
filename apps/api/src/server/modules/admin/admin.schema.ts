@@ -16,7 +16,14 @@ export const AuditLogQuery = t.Object({
   limit: t.Optional(t.String()),
   action: t.Optional(t.String({ description: 'Filter by action type' })),
   entityType: t.Optional(t.String({ description: 'Filter by entity type' })),
-  sortBy: t.Optional(t.String({ description: 'Field to sort by' })),
+  userId: t.Optional(t.String({ description: 'Filter by user ID' })),
+  from: t.Optional(
+    t.String({ description: 'ISO date lower bound (inclusive)' })
+  ),
+  to: t.Optional(t.String({ description: 'ISO date upper bound (exclusive)' })),
+  sortBy: t.Optional(
+    t.String({ description: 'Field to sort by: createdAt | action | userId' })
+  ),
   sortOrder: t.Optional(t.String({ description: '"asc" or "desc"' }))
 });
 export type AuditLogQueryType = Static<typeof AuditLogQuery>;

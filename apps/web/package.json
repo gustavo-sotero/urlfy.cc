@@ -21,6 +21,7 @@
     "@urlfy/contracts": "workspace:*",
     "@urlfy/data": "workspace:*",
     "@urlfy/email": "workspace:*",
+    "@urlfy/geoip": "workspace:*",
     "@urlfy/redirect-domain": "workspace:*",
     "@urlfy/telemetry": "workspace:*",
     "@elysiajs/eden": "^1.4.9",

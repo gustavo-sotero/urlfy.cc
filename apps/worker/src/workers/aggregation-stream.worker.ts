@@ -105,16 +105,29 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
       const nextDate = new Date(dateObj);
       nextDate.setDate(nextDate.getDate() + 1);
 
-      // Parse linkIds if provided
+      // Parse linkIds if provided.
+      // A malformed JSON payload is a DLQ-worthy error — we must NOT silently
+      // fall back to "process all links" which could trigger an unbounded
+      // full-table scan and cause cascading load in production.
       let linksToProcess: string[] = [];
       if (linkIdsStr && linkIdsStr.trim() !== '') {
+        let parsed: unknown;
         try {
-          linksToProcess = JSON.parse(linkIdsStr);
-        } catch {
-          this.logger.warn(
-            '[AggregationWorker] Failed to parse linkIds, processing all'
+          parsed = JSON.parse(linkIdsStr);
+        } catch (e) {
+          throw new Error(
+            `[AggregationWorker] Malformed linkIds JSON in stream payload (messageId=${id}): ${String(e)}`
           );
         }
+        if (
+          !Array.isArray(parsed) ||
+          parsed.some((v) => typeof v !== 'string')
+        ) {
+          throw new Error(
+            `[AggregationWorker] linkIds must be a JSON array of strings; got: ${typeof parsed}`
+          );
+        }
+        linksToProcess = parsed as string[];
       }
 
       // If no specific links, find all links with clicks on this date
@@ -168,6 +181,12 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
         this.logger.warn(
           `[AggregationWorker] ${failedLinkIds.length} link(s) failed aggregation`,
           { date, failedLinkIds }
+        );
+        // Throw so the message is NOT acknowledged — WorkerBase will retry it
+        // and eventually route to DLQ. Partial success must not be silently
+        // committed as if the full aggregation completed.
+        throw new Error(
+          `Aggregation partially failed for ${failedLinkIds.length} link(s) on ${date}: ${failedLinkIds.join(', ')}`
         );
       }
 
@@ -277,9 +296,32 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
       });
 
     // ── 3. Upsert breakdowns in parallel ────────────────────────
+    // Helper that runs a batch of upserts with allSettled and re-throws
+    // a combined error if any individual write failed.  Using allSettled (rather
+    // than Promise.all) lets the maximum number of rows succeed before we fail,
+    // which reduces re-work on retry.
+    async function settledOrThrow(
+      label: string,
+      promises: Promise<unknown>[]
+    ): Promise<void> {
+      if (promises.length === 0) return;
+      const results = await Promise.allSettled(promises);
+      const failures = results.filter(
+        (r): r is PromiseRejectedResult => r.status === 'rejected'
+      );
+      if (failures.length > 0) {
+        const reasons = failures.map((f) =>
+          f.reason instanceof Error ? f.reason.message : String(f.reason)
+        );
+        throw new Error(
+          `${label}: ${failures.length}/${promises.length} upserts failed — ${reasons.join('; ')}`
+        );
+      }
+    }
+
     await Promise.all([
-      // Country breakdown — all rows in parallel
-      Promise.allSettled(
+      settledOrThrow(
+        'country breakdown',
         countryBreakdown
           .filter(
             (
@@ -308,8 +350,8 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
           )
       ),
 
-      // Device breakdown — all rows in parallel
-      Promise.allSettled(
+      settledOrThrow(
+        'device breakdown',
         deviceBreakdown
           .filter(
             (
@@ -338,8 +380,8 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
           )
       ),
 
-      // Browser breakdown — all rows in parallel
-      Promise.allSettled(
+      settledOrThrow(
+        'browser breakdown',
         browserBreakdown
           .filter(
             (

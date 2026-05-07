@@ -4,11 +4,14 @@
  *
  * IP derivation uses the canonical trust-aware helper.
  * Rate limiting uses the shared distributed (Redis) limiter.
+ * Origin gate: only accepts requests that originate from the same site
+ * (Sec-Fetch-Site: same-origin | same-site, or a matching Origin header).
  */
 
 import { MONITOR_LOG_RATE_LIMIT_CONFIG } from '@urlfy/contracts';
 import { type NextRequest, NextResponse } from 'next/server';
 import type { BrowserLogPayload } from '@/lib/browser-log-contract';
+import { getEnv } from '@/lib/env';
 import { getClientIp } from '@/server/lib/ip';
 import { rateLimiter } from '@/server/lib/rate-limiter';
 import { createLogger } from '@/server/lib/telemetry';
@@ -16,6 +19,43 @@ import { createLogger } from '@/server/lib/telemetry';
 const logger = createLogger('client-error-monitor');
 
 const MAX_BODY_SIZE = 10 * 1024; // 10 KB
+
+// ═══════════════════════════════════════════════════════════════════
+// ORIGIN GATE
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Verify the request originated from the same site.
+ * Accepts:
+ *  - Sec-Fetch-Site: same-origin or same-site (browser cross-origin policy)
+ *  - Origin header that matches the app's configured origin
+ * Rejects cross-origin requests from third-party sites.
+ */
+function isAllowedOrigin(request: NextRequest): boolean {
+  // Sec-Fetch-Site is injected by browsers for same-site requests; its
+  // presence with a non-"cross-site" value is sufficient for acceptance.
+  const secFetchSite = request.headers.get('sec-fetch-site');
+  if (secFetchSite === 'same-origin' || secFetchSite === 'same-site') {
+    return true;
+  }
+
+  // For environments without Sec-Fetch-Site (e.g. non-browser clients or
+  // older browsers), fall back to checking the Origin header.
+  const origin = request.headers.get('origin');
+  if (!origin) {
+    // No Origin header: likely a same-origin request (Origin is omitted for
+    // same-origin non-navigation requests in most browsers).
+    return true;
+  }
+
+  try {
+    const requestOrigin = new URL(origin).origin;
+    const appOrigin = new URL(getEnv().NEXT_PUBLIC_APP_URL).origin;
+    return requestOrigin === appOrigin;
+  } catch {
+    return false;
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPERS
@@ -72,6 +112,20 @@ function sanitizeContext(
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // Origin gate: reject requests from cross-site origins.
+    if (!isAllowedOrigin(request)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Cross-origin requests are not allowed'
+          }
+        },
+        { status: 403 }
+      );
+    }
+
     // Body size check
     const contentLength = request.headers.get('content-length');
     if (contentLength && Number.parseInt(contentLength, 10) > MAX_BODY_SIZE) {
