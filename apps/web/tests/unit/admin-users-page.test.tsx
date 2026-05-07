@@ -156,11 +156,11 @@ describe('AdminUsersPage', () => {
   });
 
   it('shows derived admin access and no promotion or demotion controls', async () => {
-    const { default: AdminUsersPage } = await import(
-      '@/app/(admin)/admin/users/page'
+    const { AdminUsersPageClient } = await import(
+      '@/app/(admin)/admin/users/_client'
     );
 
-    const markup = renderToStaticMarkup(<AdminUsersPage />);
+    const markup = renderToStaticMarkup(<AdminUsersPageClient />);
 
     expect(markup).toContain('Autorizado');
     expect(markup).toContain('Banir usuário');
