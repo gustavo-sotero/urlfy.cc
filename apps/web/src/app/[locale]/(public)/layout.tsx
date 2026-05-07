@@ -11,8 +11,8 @@ import { headers } from 'next/headers';
 import type { ReactNode } from 'react';
 import { Footer } from '@/components/layout/footer';
 import { Navbar } from '@/components/layout/navbar';
-import { AppQueryProviders } from '@/lib/providers';
 import { getServerSession } from '@/lib/server-session';
+import { StaticSessionProvider } from '@/lib/session-provider';
 
 interface PublicLayoutProps {
   children: ReactNode;
@@ -25,7 +25,7 @@ export default async function PublicLayout({ children }: PublicLayoutProps) {
   });
 
   return (
-    <AppQueryProviders initialSession={session}>
+    <StaticSessionProvider initialData={session}>
       <div className="flex min-h-screen flex-col">
         <Navbar />
         <main id="main-content" tabIndex={-1} className="flex-1">
@@ -33,6 +33,6 @@ export default async function PublicLayout({ children }: PublicLayoutProps) {
         </main>
         <Footer />
       </div>
-    </AppQueryProviders>
+    </StaticSessionProvider>
   );
 }

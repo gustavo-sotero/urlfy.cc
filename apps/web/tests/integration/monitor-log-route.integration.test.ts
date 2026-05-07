@@ -41,6 +41,12 @@ mock.module('@/server/lib/rate-limiter', () => ({
   MONITOR_LOG_RATE_LIMIT_CONFIG: {}
 }));
 
+mock.module('@/lib/env', () => ({
+  getEnv: () => ({
+    NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
+  })
+}));
+
 // ─── Route import (after all mocks are in place) ─────────────────────
 // Dynamic import is intentional so Bun resolves modules with the mocks
 // already registered in the module cache.
@@ -172,6 +178,43 @@ describe('monitor log route', () => {
     // Must use what getClientIp returned, not the raw header value
     expect(calledWithIp).toBe('10.0.0.1');
     expect(calledWithIp).not.toBe('9.9.9.9');
+  });
+
+  test('returns 403 before rate limiting when Sec-Fetch-Site is cross-site', async () => {
+    const response = await POST(
+      new Request('http://localhost/ops/monitor/log', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'sec-fetch-site': 'cross-site',
+          origin: 'https://evil.example'
+        },
+        body: JSON.stringify({ error: 'test', url: 'https://urlfy.cc/' })
+      }) as never
+    );
+
+    expect(response.status).toBe(403);
+    expect(checkIPLimitMock).not.toHaveBeenCalled();
+
+    const body = await response.json();
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('FORBIDDEN');
+  });
+
+  test('accepts requests with a matching Origin when Sec-Fetch-Site is absent', async () => {
+    const response = await POST(
+      new Request('http://localhost/ops/monitor/log', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: 'http://localhost:3000'
+        },
+        body: JSON.stringify({ error: 'test', url: 'https://urlfy.cc/' })
+      }) as never
+    );
+
+    expect(response.status).toBe(200);
+    expect(checkIPLimitMock).toHaveBeenCalledTimes(1);
   });
 
   // ─────────────────────────────────────────────────────────────────

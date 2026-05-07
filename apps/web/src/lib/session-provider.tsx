@@ -49,6 +49,8 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 
 export const SESSION_QUERY_KEY = ['session'] as const;
 
+const noopRefetch = async (): Promise<void> => {};
+
 async function fetchSessionData(): Promise<SessionData | null> {
   const { authClient } = await import('./auth.client');
   const result = await authClient.getSession();
@@ -67,6 +69,21 @@ async function fetchSessionData(): Promise<SessionData | null> {
 interface SessionProviderProps {
   children: ReactNode;
   initialData?: SessionData | null;
+}
+
+function buildSessionContextValue(
+  data: SessionData | null,
+  isPending: boolean,
+  error: Error | null,
+  refetch: () => Promise<void>
+): SessionContextValue {
+  return {
+    data,
+    isPending,
+    error,
+    refetch,
+    isAuthenticated: !!data?.user
+  };
 }
 
 export function SessionProvider({
@@ -90,16 +107,27 @@ export function SessionProvider({
   const data = sessionData ?? null;
 
   const value = useMemo<SessionContextValue>(
-    () => ({
-      data,
-      isPending,
-      error: error ?? null,
-      refetch: async () => {
+    () =>
+      buildSessionContextValue(data, isPending, error ?? null, async () => {
         await refetch();
-      },
-      isAuthenticated: !!data?.user
-    }),
+      }),
     [data, isPending, error, refetch]
+  );
+
+  return (
+    <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
+  );
+}
+
+export function StaticSessionProvider({
+  children,
+  initialData = null
+}: SessionProviderProps) {
+  const data = initialData ?? null;
+
+  const value = useMemo<SessionContextValue>(
+    () => buildSessionContextValue(data, false, null, noopRefetch),
+    [data]
   );
 
   return (

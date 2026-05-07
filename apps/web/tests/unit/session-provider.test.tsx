@@ -62,6 +62,37 @@ describe('SessionProvider', () => {
     getSessionMock.mockClear();
   });
 
+  it('StaticSessionProvider exposes hydrated session data without QueryClientProvider', async () => {
+    const { StaticSessionProvider } = await import('@/lib/session-provider');
+
+    render(
+      <StaticSessionProvider
+        initialData={{
+          user: {
+            id: 'user-1',
+            name: 'Admin User',
+            email: 'admin@example.com',
+            image: null,
+            isAdmin: true,
+            twoFactorEnabled: true,
+            emailVerified: true,
+            lastLoginMethod: 'github'
+          },
+          session: {
+            id: 'session-1',
+            createdAt: '2026-05-07T00:00:00.000Z'
+          }
+        }}
+      >
+        <SessionProbe />
+      </StaticSessionProvider>
+    );
+
+    expect(screen.getByTestId('pending').textContent).toBe('false');
+    expect(screen.getByTestId('email').textContent).toBe('admin@example.com');
+    expect(getSessionMock).not.toHaveBeenCalled();
+  });
+
   it('uses hydrated initial data without triggering an immediate session fetch', async () => {
     const { SessionProvider } = await import('@/lib/session-provider');
 

@@ -39,6 +39,14 @@ export function AppQueryProviders({
   children: ReactNode;
   initialSession?: SessionData | null;
 }) {
+  return (
+    <QueryProviders>
+      <SessionProvider initialData={initialSession}>{children}</SessionProvider>
+    </QueryProviders>
+  );
+}
+
+export function QueryProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -53,8 +61,6 @@ export function AppQueryProviders({
   );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <SessionProvider initialData={initialSession}>{children}</SessionProvider>
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 }

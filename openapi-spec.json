@@ -253,16 +253,19 @@
             ],
             "properties": {
               "code": {
-                "examples": [
+                "type": "string",
+                "enum": [
                   "VALIDATION_ERROR",
-                  "INVALID_IDEMPOTENCY_KEY"
-                ],
-                "type": "string"
+                  "INVALID_URL",
+                  "INVALID_INPUT",
+                  "SHORTENER_NOT_ALLOWED",
+                  "URL_TOO_LONG"
+                ]
               },
               "message": {
                 "examples": [
                   "Invalid input data",
-                  "Idempotency key is invalid"
+                  "URL format is invalid"
                 ],
                 "type": "string"
               },
@@ -311,8 +314,10 @@
                 "type": "string",
                 "enum": [
                   "UNAUTHORIZED",
+                  "PASSWORD_REQUIRED",
                   "INVALID_PASSWORD",
-                  "PASSWORD_REQUIRED"
+                  "INVALID_CREDENTIALS",
+                  "SESSION_EXPIRED"
                 ]
               },
               "message": {
@@ -411,14 +416,15 @@
                 "enum": [
                   "FORBIDDEN",
                   "EMAIL_VERIFICATION_REQUIRED",
-                  "2FA_REQUIRED",
-                  "QUOTA_EXCEEDED"
+                  "ADMIN_REQUIRED",
+                  "ADMIN_SESSION_EXPIRED",
+                  "INSUFFICIENT_PERMISSIONS"
                 ]
               },
               "message": {
                 "examples": [
                   "Access denied",
-                  "Email verification required"
+                  "Admin access requires a recent GitHub sign-in"
                 ],
                 "type": "string"
               }
@@ -465,7 +471,7 @@
                   "NOT_FOUND",
                   "LINK_NOT_FOUND",
                   "USER_NOT_FOUND",
-                  "SESSION_NOT_FOUND"
+                  "RESOURCE_NOT_FOUND"
                 ]
               },
               "message": {
@@ -489,7 +495,7 @@
           {
             "success": false,
             "error": {
-              "code": "CONFLICT",
+              "code": "ALIAS_TAKEN",
               "message": "Custom alias already in use"
             }
           }
@@ -515,8 +521,6 @@
               "code": {
                 "type": "string",
                 "enum": [
-                  "REQUEST_ALREADY_EXISTS",
-                  "CONFLICT",
                   "ALIAS_TAKEN",
                   "SLUG_RESERVED",
                   "DUPLICATE_ENTRY"
@@ -524,8 +528,8 @@
               },
               "message": {
                 "examples": [
-                  "A deletion request already exists",
-                  "Resource conflict"
+                  "Custom alias already in use",
+                  "Duplicate entry"
                 ],
                 "type": "string"
               },
@@ -568,8 +572,12 @@
             ],
             "properties": {
               "code": {
-                "const": "LINK_EXPIRED",
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "LINK_EXPIRED",
+                  "LINK_DELETED",
+                  "MAX_CLICKS_REACHED"
+                ]
               },
               "message": {
                 "examples": [
@@ -665,19 +673,15 @@
                 "type": "string",
                 "enum": [
                   "URL_MALICIOUS",
-                  "VALIDATION_ERROR",
-                  "INVALID_URL",
-                  "SHORTENER_BLOCKED",
                   "URL_BLOCKED",
-                  "URL_INTERNAL_BLOCKED",
-                  "URL_RESOLUTION_FAILED"
+                  "IDEMPOTENCY_CONFLICT"
                 ]
               },
               "message": {
                 "examples": [
                   "URL detected as malicious",
-                  "Invalid URL format",
-                  "URLs from other shorteners are not allowed"
+                  "URL detected as potentially malicious",
+                  "URL is blocked by policy"
                 ],
                 "type": "string"
               }
@@ -774,8 +778,11 @@
             ],
             "properties": {
               "code": {
-                "const": "LINK_BANNED",
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "LINK_BANNED",
+                  "CONTENT_BANNED"
+                ]
               },
               "message": {
                 "examples": [
@@ -822,8 +829,12 @@
             ],
             "properties": {
               "code": {
-                "const": "INTERNAL_ERROR",
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "INTERNAL_ERROR",
+                  "DATABASE_ERROR",
+                  "CACHE_ERROR"
+                ]
               },
               "message": {
                 "examples": [

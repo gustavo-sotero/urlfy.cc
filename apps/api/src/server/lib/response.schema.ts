@@ -16,6 +16,83 @@
  */
 
 import { Elysia, type TSchema, t } from 'elysia';
+import { ErrorCode } from './error-handler';
+
+const FRAMEWORK_NOT_FOUND = 'NOT_FOUND' as const;
+
+const STATUS_ERROR_CODES = {
+  400: [
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.INVALID_URL,
+    ErrorCode.INVALID_INPUT,
+    ErrorCode.SHORTENER_NOT_ALLOWED,
+    ErrorCode.URL_TOO_LONG
+  ],
+  401: [
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.PASSWORD_REQUIRED,
+    ErrorCode.INVALID_PASSWORD,
+    ErrorCode.INVALID_CREDENTIALS,
+    ErrorCode.SESSION_EXPIRED
+  ],
+  402: [ErrorCode.QUOTA_EXCEEDED],
+  403: [
+    ErrorCode.FORBIDDEN,
+    ErrorCode.EMAIL_VERIFICATION_REQUIRED,
+    ErrorCode.ADMIN_REQUIRED,
+    ErrorCode.ADMIN_SESSION_EXPIRED,
+    ErrorCode.INSUFFICIENT_PERMISSIONS
+  ],
+  404: [
+    FRAMEWORK_NOT_FOUND,
+    ErrorCode.LINK_NOT_FOUND,
+    ErrorCode.USER_NOT_FOUND,
+    ErrorCode.RESOURCE_NOT_FOUND
+  ],
+  409: [
+    ErrorCode.ALIAS_TAKEN,
+    ErrorCode.SLUG_RESERVED,
+    ErrorCode.DUPLICATE_ENTRY
+  ],
+  410: [
+    ErrorCode.LINK_EXPIRED,
+    ErrorCode.LINK_DELETED,
+    ErrorCode.MAX_CLICKS_REACHED
+  ],
+  421: [ErrorCode.REDIRECT_LOOP],
+  422: [
+    ErrorCode.URL_MALICIOUS,
+    ErrorCode.URL_BLOCKED,
+    ErrorCode.IDEMPOTENCY_CONFLICT
+  ],
+  429: [ErrorCode.RATE_LIMITED],
+  451: [ErrorCode.LINK_BANNED, ErrorCode.CONTENT_BANNED],
+  500: [
+    ErrorCode.INTERNAL_ERROR,
+    ErrorCode.DATABASE_ERROR,
+    ErrorCode.CACHE_ERROR
+  ],
+  503: [ErrorCode.SERVICE_UNAVAILABLE, ErrorCode.DATABASE_UNAVAILABLE]
+} as const;
+
+function uniqueErrorCodes(codes: readonly string[]): string[] {
+  return [...new Set(codes)];
+}
+
+function errorCodeSchema(codes: readonly string[]): TSchema {
+  const uniqueCodes = uniqueErrorCodes(codes);
+  const literals = uniqueCodes.map((code) => t.Literal(code));
+
+  if (literals.length === 1) {
+    return literals[0];
+  }
+
+  return t.Union(literals as unknown as [TSchema, TSchema, ...TSchema[]]);
+}
+
+const documentedErrorCodes = uniqueErrorCodes(
+  Object.values(STATUS_ERROR_CODES).flatMap((codes) => [...codes])
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // ERROR CODES ENUM (Single Source of Truth)
@@ -25,42 +102,10 @@ import { Elysia, type TSchema, t } from 'elysia';
  * All possible error codes used in the API.
  */
 export const ErrorCodes = t.Union(
-  [
-    t.Literal('VALIDATION_ERROR'),
-    t.Literal('UNAUTHORIZED'),
-    t.Literal('PASSWORD_REQUIRED'),
-    t.Literal('INVALID_PASSWORD'),
-    t.Literal('FORBIDDEN'),
-    t.Literal('NOT_FOUND'),
-    t.Literal('LINK_NOT_FOUND'),
-    t.Literal('USER_NOT_FOUND'),
-    t.Literal('SESSION_NOT_FOUND'),
-    t.Literal('LINK_EXPIRED'),
-    t.Literal('REDIRECT_LOOP'),
-    t.Literal('URL_MALICIOUS'),
-    t.Literal('INVALID_URL'),
-    t.Literal('SHORTENER_BLOCKED'),
-    t.Literal('URL_INTERNAL_BLOCKED'),
-    t.Literal('URL_RESOLUTION_FAILED'),
-    t.Literal('RATE_LIMITED'),
-    t.Literal('LINK_BANNED'),
-    t.Literal('QUOTA_EXCEEDED'),
-    t.Literal('INTERNAL_ERROR'),
-    t.Literal('REQUEST_ALREADY_EXISTS'),
-    t.Literal('CONFLICT'),
-    t.Literal('EMAIL_VERIFICATION_REQUIRED'),
-    t.Literal('INVALID_IDEMPOTENCY_KEY'),
-    t.Literal('EXPORT_FAILED'),
-    t.Literal('DELETION_FAILED'),
-    t.Literal('NO_DATA'),
-    t.Literal('INVALID_DAYS_RANGE'),
-    t.Literal('2FA_REQUIRED'),
-    t.Literal('ALIAS_TAKEN'),
-    t.Literal('SLUG_RESERVED'),
-    t.Literal('DUPLICATE_ENTRY'),
-    t.Literal('URL_BLOCKED'),
-    t.Literal('SERVICE_UNAVAILABLE'),
-    t.Literal('DATABASE_UNAVAILABLE')
+  documentedErrorCodes.map((code) => t.Literal(code)) as unknown as [
+    TSchema,
+    TSchema,
+    ...TSchema[]
   ],
   { description: 'Standard API error codes' }
 );
@@ -335,11 +380,9 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.String({
-          examples: ['VALIDATION_ERROR', 'INVALID_IDEMPOTENCY_KEY']
-        }),
+        code: errorCodeSchema(STATUS_ERROR_CODES[400]),
         message: t.String({
-          examples: ['Invalid input data', 'Idempotency key is invalid']
+          examples: ['Invalid input data', 'URL format is invalid']
         }),
         details: t.Optional(t.Unknown())
       }),
@@ -361,11 +404,7 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Union([
-          t.Literal('UNAUTHORIZED'),
-          t.Literal('INVALID_PASSWORD'),
-          t.Literal('PASSWORD_REQUIRED')
-        ]),
+        code: errorCodeSchema(STATUS_ERROR_CODES[401]),
         message: t.String({
           examples: ['Authentication required', 'Invalid password']
         })
@@ -388,14 +427,12 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Union([
-          t.Literal('FORBIDDEN'),
-          t.Literal('EMAIL_VERIFICATION_REQUIRED'),
-          t.Literal('2FA_REQUIRED'),
-          t.Literal('QUOTA_EXCEEDED')
-        ]),
+        code: errorCodeSchema(STATUS_ERROR_CODES[403]),
         message: t.String({
-          examples: ['Access denied', 'Email verification required']
+          examples: [
+            'Access denied',
+            'Admin access requires a recent GitHub sign-in'
+          ]
         })
       }),
       requestId: t.Optional(t.String())
@@ -419,12 +456,7 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Union([
-          t.Literal('NOT_FOUND'),
-          t.Literal('LINK_NOT_FOUND'),
-          t.Literal('USER_NOT_FOUND'),
-          t.Literal('SESSION_NOT_FOUND')
-        ]),
+        code: errorCodeSchema(STATUS_ERROR_CODES[404]),
         message: t.String({ examples: ['Link not found', 'User not found'] })
       }),
       requestId: t.Optional(t.String())
@@ -444,7 +476,7 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Literal('QUOTA_EXCEEDED'),
+        code: errorCodeSchema(STATUS_ERROR_CODES[402]),
         message: t.String({
           examples: [
             'You have reached your link quota. Upgrade your plan to create more links.'
@@ -472,15 +504,9 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Union([
-          t.Literal('REQUEST_ALREADY_EXISTS'),
-          t.Literal('CONFLICT'),
-          t.Literal('ALIAS_TAKEN'),
-          t.Literal('SLUG_RESERVED'),
-          t.Literal('DUPLICATE_ENTRY')
-        ]),
+        code: errorCodeSchema(STATUS_ERROR_CODES[409]),
         message: t.String({
-          examples: ['A deletion request already exists', 'Resource conflict']
+          examples: ['Custom alias already in use', 'Duplicate entry']
         }),
         details: t.Optional(t.Unknown())
       }),
@@ -491,7 +517,10 @@ export const CommonErrors = {
       examples: [
         {
           success: false,
-          error: { code: 'CONFLICT', message: 'Custom alias already in use' }
+          error: {
+            code: 'ALIAS_TAKEN',
+            message: 'Custom alias already in use'
+          }
         }
       ]
     }
@@ -501,7 +530,7 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Literal('LINK_EXPIRED'),
+        code: errorCodeSchema(STATUS_ERROR_CODES[410]),
         message: t.String({ examples: ['This link has expired'] })
       }),
       requestId: t.Optional(t.String())
@@ -524,7 +553,7 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Literal('REDIRECT_LOOP'),
+        code: errorCodeSchema(STATUS_ERROR_CODES[421]),
         message: t.String({
           examples: ['Self-shortener redirect loop detected']
         })
@@ -549,20 +578,12 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Union([
-          t.Literal('URL_MALICIOUS'),
-          t.Literal('VALIDATION_ERROR'),
-          t.Literal('INVALID_URL'),
-          t.Literal('SHORTENER_BLOCKED'),
-          t.Literal('URL_BLOCKED'),
-          t.Literal('URL_INTERNAL_BLOCKED'),
-          t.Literal('URL_RESOLUTION_FAILED')
-        ]),
+        code: errorCodeSchema(STATUS_ERROR_CODES[422]),
         message: t.String({
           examples: [
             'URL detected as malicious',
-            'Invalid URL format',
-            'URLs from other shorteners are not allowed'
+            'URL detected as potentially malicious',
+            'URL is blocked by policy'
           ]
         })
       }),
@@ -586,7 +607,7 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Literal('RATE_LIMITED'),
+        code: errorCodeSchema(STATUS_ERROR_CODES[429]),
         message: t.String({
           examples: ['Too many requests, please try again later']
         }),
@@ -618,7 +639,7 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Literal('LINK_BANNED'),
+        code: errorCodeSchema(STATUS_ERROR_CODES[451]),
         message: t.String({
           examples: ['This link has been banned for violating terms of service']
         })
@@ -644,7 +665,7 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Literal('INTERNAL_ERROR'),
+        code: errorCodeSchema(STATUS_ERROR_CODES[500]),
         message: t.String({ examples: ['Internal server error'] })
       }),
       requestId: t.Optional(t.String())
@@ -668,10 +689,7 @@ export const CommonErrors = {
     {
       success: t.Literal(false, { default: false }),
       error: t.Object({
-        code: t.Union([
-          t.Literal('SERVICE_UNAVAILABLE'),
-          t.Literal('DATABASE_UNAVAILABLE')
-        ]),
+        code: errorCodeSchema(STATUS_ERROR_CODES[503]),
         message: t.String({ examples: ['Service temporarily unavailable'] })
       }),
       requestId: t.Optional(t.String())

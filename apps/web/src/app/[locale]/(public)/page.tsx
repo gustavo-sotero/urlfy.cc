@@ -24,6 +24,7 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
+import { QueryProviders } from '@/lib/providers';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('Hero');
@@ -76,7 +77,9 @@ export default async function LandingPage(): Promise<JSX.Element> {
             {/* Link Form */}
             <HeroAuthBanner />
             <div className="mx-auto max-w-2xl">
-              <LinkForm />
+              <QueryProviders>
+                <LinkForm />
+              </QueryProviders>
             </div>
 
             <p className="text-sm text-muted-foreground">
