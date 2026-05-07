@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test';
 
-const validateEnv = mock(() => ({ NODE_ENV: 'test' }));
+const validateEnv = mock(
+  (() =>
+    ({ NODE_ENV: 'test' }) as ReturnType<
+      typeof import('../../src/lib/env').validateEnv
+    >) as typeof import('../../src/lib/env').validateEnv
+);
 const initTelemetry = mock(() => {});
 const configureLogging = mock(async () => {});
 const checkDatabaseHealth = mock(async () => ({

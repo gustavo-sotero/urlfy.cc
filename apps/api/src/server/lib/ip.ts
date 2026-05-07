@@ -1,6 +1,6 @@
 ﻿/**
  * Client IP Extraction Utilities
- * Re-exports from canonical @urlfy/telemetry package.
+ * Re-exports from the canonical @urlfy/telemetry IP module.
  * This shim preserves the `@/server/lib/ip` import alias.
  */
 export {
@@ -8,4 +8,4 @@ export {
   isPrivateIp,
   isValidIp,
   maskIpForLog
-} from '@urlfy/telemetry';
+} from '@urlfy/telemetry/ip';

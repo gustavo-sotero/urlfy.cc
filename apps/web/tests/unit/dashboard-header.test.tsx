@@ -33,8 +33,8 @@ beforeAll(() => {
 
 const pushMock = mock(() => {});
 const signOutMock = mock(async () => {});
-const setQueryDataMock = mock(() => {});
-const invalidateQueriesMock = mock(async () => {});
+const setQueryDataMock = mock((..._args: unknown[]) => {});
+const invalidateQueriesMock = mock(async (..._args: unknown[]) => {});
 const redirectMock = mock(
   (_args: { href: string; locale: string }) => undefined
 );
