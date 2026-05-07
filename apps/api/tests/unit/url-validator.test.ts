@@ -49,6 +49,42 @@ describe('URL Validator Service', () => {
       expect(isPrivateIP('fe80::1')).toBe(true);
     });
 
+    it('should block CGNAT range (100.64.0.0/10) — RF-SSRF extended ranges', () => {
+      expect(isPrivateIP('100.64.0.1')).toBe(true);
+      expect(isPrivateIP('100.100.0.1')).toBe(true);
+      expect(isPrivateIP('100.127.255.255')).toBe(true);
+      // Edge: just outside CGNAT
+      expect(isPrivateIP('100.63.255.255')).toBe(false);
+    });
+
+    it('should block benchmarking range (198.18.0.0/15) — RF-SSRF extended ranges', () => {
+      expect(isPrivateIP('198.18.0.1')).toBe(true);
+      expect(isPrivateIP('198.19.255.255')).toBe(true);
+    });
+
+    it('should block multicast range (224.0.0.0/4) — RF-SSRF extended ranges', () => {
+      expect(isPrivateIP('224.0.0.1')).toBe(true);
+      expect(isPrivateIP('239.255.255.255')).toBe(true);
+    });
+
+    it('should block reserved range (240.0.0.0/4) — RF-SSRF extended ranges', () => {
+      expect(isPrivateIP('240.0.0.1')).toBe(true);
+      expect(isPrivateIP('249.255.255.255')).toBe(true);
+      // Broadcast (255.x) is a separate sub-range within 240/4
+      expect(isPrivateIP('255.255.255.255')).toBe(true);
+    });
+
+    it('should block IPv4-mapped IPv6 addresses — RF-SSRF extended ranges', () => {
+      expect(isPrivateIP('::ffff:192.168.1.1')).toBe(true);
+      expect(isPrivateIP('::ffff:10.0.0.1')).toBe(true);
+    });
+
+    it('should block IPv6 unique-local (fc00::/7) — RF-SSRF extended ranges', () => {
+      expect(isPrivateIP('fc00::1')).toBe(true);
+      expect(isPrivateIP('fd00::1')).toBe(true);
+      expect(isPrivateIP('fdff:ffff:ffff:ffff::1')).toBe(true);
+    });
+
     it('should allow public IPs', () => {
       expect(isPrivateIP('8.8.8.8')).toBe(false);
       expect(isPrivateIP('1.1.1.1')).toBe(false);
