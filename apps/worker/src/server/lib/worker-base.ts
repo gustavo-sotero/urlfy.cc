@@ -87,6 +87,10 @@ export abstract class WorkerBase<T = Record<string, string>> {
     payload: T
   ): Promise<void> | void;
 
+  protected getRedisStream(): typeof RedisStream {
+    return RedisStream;
+  }
+
   protected getInitializationRetryMs(): number {
     return WorkerBase.DEFAULT_INITIALIZATION_RETRY_MS;
   }
@@ -104,8 +108,10 @@ export abstract class WorkerBase<T = Record<string, string>> {
    * Initialize consumer group (idempotent)
    */
   async initialize(): Promise<void> {
+    const redisStream = this.getRedisStream();
+
     try {
-      await RedisStream.createGroup(
+      await redisStream.createGroup(
         this.config.stream,
         this.config.group,
         '$',
@@ -173,7 +179,8 @@ export abstract class WorkerBase<T = Record<string, string>> {
     // Main processing loop
     while (this.running) {
       try {
-        const results = await RedisStream.readGroup<T>(
+        const redisStream = this.getRedisStream();
+        const results = await redisStream.readGroup<T>(
           this.config.group,
           this.config.consumer,
           [this.config.stream],
@@ -223,7 +230,7 @@ export abstract class WorkerBase<T = Record<string, string>> {
     // Acknowledge successfully processed messages
     if (processedIds.length > 0) {
       try {
-        const acked = await RedisStream.ack(
+        const acked = await this.getRedisStream().ack(
           this.config.stream,
           this.config.group,
           processedIds
@@ -313,7 +320,9 @@ export abstract class WorkerBase<T = Record<string, string>> {
   }
 
   private async acknowledgeMessage(messageId: string): Promise<void> {
-    await RedisStream.ack(this.config.stream, this.config.group, [messageId]);
+    await this.getRedisStream().ack(this.config.stream, this.config.group, [
+      messageId
+    ]);
   }
 
   private async handleFailedMessage(message: StreamMessage<T>): Promise<void> {
@@ -346,7 +355,7 @@ export abstract class WorkerBase<T = Record<string, string>> {
       await Bun.sleep(backoffMs);
     }
 
-    await RedisStream.add(
+    await this.getRedisStream().add(
       this.config.stream,
       this.buildRetryPayload(message, retryCount)
     );
@@ -386,7 +395,7 @@ export abstract class WorkerBase<T = Record<string, string>> {
 
         do {
           const { messages, cursor: nextCursor } =
-            await RedisStream.autoClaim<T>(
+            await this.getRedisStream().autoClaim<T>(
               this.config.stream,
               this.config.group,
               this.config.consumer,
@@ -440,7 +449,7 @@ export abstract class WorkerBase<T = Record<string, string>> {
         data: JSON.stringify(message.data)
       };
 
-      await RedisStream.add(
+      await this.getRedisStream().add(
         this.config.deadLetterStream,
         dlqPayload,
         '*',

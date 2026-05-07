@@ -11,6 +11,7 @@ const realRedisStreamModule =
   await importFreshModule<typeof import('../redis-stream')>(
     '../redis-stream.ts'
   );
+type RedisStreamNamespace = typeof realRedisStreamModule.RedisStream;
 
 // Mock RedisStream
 const mockRedisStream = {
@@ -27,10 +28,6 @@ const mockRedisStream = {
   autoClaim: mock(() => Promise.resolve({ messages: [], cursor: '0-0' }))
 };
 
-mock.module('../redis-stream', () => ({
-  RedisStream: mockRedisStream
-}));
-
 // Mock telemetry
 mock.module('../telemetry', () => ({
   createLogger: () => ({
@@ -45,6 +42,10 @@ mock.module('../telemetry', () => ({
 // Test worker implementation
 class TestWorker extends WorkerBase<{ test: string }> {
   processedMessages: Array<{ id: string; payload: { test: string } }> = [];
+
+  protected override getRedisStream(): RedisStreamNamespace {
+    return mockRedisStream as RedisStreamNamespace;
+  }
 
   protected override getInitializationRetryMs(): number {
     return 0;
@@ -260,7 +261,17 @@ describe('WorkerBase', () => {
 
       expect(mockRedisStream.add).toHaveBeenCalledWith(
         TEST_CONFIG.deadLetterStream,
-        expect.objectContaining({ originalId: '3-0', retryCount: 3 })
+        expect.objectContaining({
+          originalStream: TEST_CONFIG.stream,
+          originalId: '3-0',
+          retryCount: TEST_CONFIG.maxRetries,
+          data: JSON.stringify({
+            test: 'fail',
+            retryCount: TEST_CONFIG.maxRetries
+          })
+        }),
+        '*',
+        10000
       );
       expect(mockRedisStream.ack).toHaveBeenCalledWith(
         TEST_CONFIG.stream,

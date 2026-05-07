@@ -1,4 +1,5 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { AuditLogService } from '@/server/services/audit.service';
 
 type ActionRow = { action: string; count: number };
 type EntityRow = { entityType: string; count: number };
@@ -8,15 +9,13 @@ const dbMock = {
   select: mock()
 };
 
-mock.module('@urlfy/data', () => ({
-  db: dbMock,
-  getDatabase: mock(() => dbMock),
-  getSqlConnection: mock(() => ({})),
-  checkDatabaseHealth: mock(() => Promise.resolve({ status: 'ok' })),
-  closeDatabase: mock(() => Promise.resolve())
-}));
+class TestAuditLogService extends AuditLogService {
+  protected override getDb(): typeof import('@urlfy/data')['db'] {
+    return dbMock as unknown as typeof import('@urlfy/data')['db'];
+  }
+}
 
-import { auditLogService } from '@/server/services/audit.service';
+const auditLogService = new TestAuditLogService();
 
 function mockSummaryQuerySequence(params: {
   totalLogs: number;
@@ -70,10 +69,6 @@ function mockSummaryQuerySequence(params: {
 describe('AuditLogService.getSummary SQL aggregation mapping', () => {
   beforeEach(() => {
     dbMock.select.mockReset();
-  });
-
-  afterAll(() => {
-    mock.restore();
   });
 
   test('maps SQL aggregation rows to the existing summary contract', async () => {

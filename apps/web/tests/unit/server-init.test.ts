@@ -3,29 +3,26 @@ import { afterEach, describe, expect, mock, test } from 'bun:test';
 const validateEnv = mock(() => ({ NODE_ENV: 'test' }));
 const initTelemetry = mock(() => {});
 const configureLogging = mock(async () => {});
+const checkDatabaseHealth = mock(async () => ({
+  status: 'ok' as const,
+  latencyMs: 1
+}));
+const logger = {
+  debug: mock(() => {}),
+  info: mock(() => {}),
+  warn: mock(() => {}),
+  error: mock(() => {})
+};
+const createLogger = mock(() => logger);
 const originalWindow = globalThis.window;
+const SERVER_INIT_PATH = '../../src/server/init.ts';
+let serverInitImportCounter = 0;
 
-mock.module('@/lib/env', () => ({
-  validateEnv
-}));
-
-mock.module('@urlfy/telemetry', () => ({
-  configureLogging,
-  initTelemetry,
-  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
-    fn().catch(() => {});
-  },
-  // Include createLogger so the mock is a superset of all callsite expectations.
-  // Without it, Bun caches a "missing binding" for createLogger that affects
-  // subsequent test files even when they provide a complete mock.
-  createLogger: () => ({
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {}
-  }),
-  shutdownTelemetry: async () => {}
-}));
+async function importFreshServerInit() {
+  return import(
+    `${SERVER_INIT_PATH}?test=${serverInitImportCounter++}`
+  ) as Promise<typeof import('@/server/init')>;
+}
 
 const mutableEnv = process.env as Record<string, string | undefined>;
 const originalNextPhase = process.env.NEXT_PHASE;
@@ -34,24 +31,35 @@ afterEach(() => {
   validateEnv.mockClear();
   initTelemetry.mockClear();
   configureLogging.mockClear();
+  checkDatabaseHealth.mockClear();
+  createLogger.mockClear();
+  logger.debug.mockClear();
+  logger.info.mockClear();
+  logger.warn.mockClear();
+  logger.error.mockClear();
   mutableEnv.NEXT_PHASE = originalNextPhase;
   globalThis.window = originalWindow;
-  // Do NOT call mock.restore() here — it wipes all module mocks globally and
-  // corrupts the module registry for test files that run after this one.
 });
 
 describe('server init', () => {
   test('validates env before telemetry startup', async () => {
     delete mutableEnv.NEXT_PHASE;
-    // The web test bootstrap installs happy-dom. Remove `window` so the
-    // server-only init path behaves like the real Node.js runtime.
-    // biome-ignore lint/suspicious/noExplicitAny: test bootstrap mutation
-    delete (globalThis as any).window;
+    globalThis.window = {} as typeof globalThis.window;
 
-    await import('@/server/init');
+    const { initializeWebServer } = await importFreshServerInit();
+
+    await initializeWebServer({
+      validateEnv,
+      initTelemetry,
+      configureLogging,
+      createLogger,
+      checkDatabaseHealth
+    });
 
     expect(validateEnv).toHaveBeenCalledTimes(1);
     expect(initTelemetry).toHaveBeenCalledTimes(1);
     expect(configureLogging).toHaveBeenCalledTimes(1);
+    expect(createLogger).toHaveBeenCalledWith('web-init');
+    expect(checkDatabaseHealth).toHaveBeenCalledTimes(1);
   });
 });

@@ -8,6 +8,8 @@ import {
 } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
+const reactQueryModule = await import('@tanstack/react-query');
+
 let headerImportCounter = 0;
 
 async function importFreshModule<T>(modulePath: string, suffix: string) {
@@ -36,6 +38,25 @@ const invalidateQueriesMock = mock(async () => {});
 const redirectMock = mock(
   (_args: { href: string; locale: string }) => undefined
 );
+const queryClient = new reactQueryModule.QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false
+    }
+  }
+});
+const realSetQueryData = queryClient.setQueryData.bind(queryClient);
+const realInvalidateQueries = queryClient.invalidateQueries.bind(queryClient);
+
+queryClient.setQueryData = ((...args) => {
+  setQueryDataMock(...args);
+  return realSetQueryData(...args);
+}) as typeof queryClient.setQueryData;
+
+queryClient.invalidateQueries = (async (...args) => {
+  invalidateQueriesMock(...args);
+  return realInvalidateQueries(...args);
+}) as typeof queryClient.invalidateQueries;
 
 mock.module('next/navigation', () => ({
   redirect: () => {},
@@ -45,13 +66,6 @@ mock.module('next/navigation', () => ({
   usePathname: () => '/dashboard/links',
   useRouter: () => ({ push: pushMock }),
   useParams: () => ({ id: 'link-1' })
-}));
-
-mock.module('@tanstack/react-query', () => ({
-  useQueryClient: () => ({
-    setQueryData: setQueryDataMock,
-    invalidateQueries: invalidateQueriesMock
-  })
 }));
 
 mock.module('@/lib/session-provider', () => ({
@@ -196,6 +210,7 @@ mock.module('@/lib/auth.client', () => ({
 describe('Dashboard Header', () => {
   afterEach(() => {
     cleanup();
+    queryClient.clear();
     pushMock.mockClear();
     signOutMock.mockClear();
     setQueryDataMock.mockClear();
@@ -212,13 +227,15 @@ describe('Dashboard Header', () => {
     );
 
     render(
-      <Header
-        user={{
-          name: 'Test User',
-          email: 'test@example.com',
-          image: null
-        }}
-      />
+      <reactQueryModule.QueryClientProvider client={queryClient}>
+        <Header
+          user={{
+            name: 'Test User',
+            email: 'test@example.com',
+            image: null
+          }}
+        />
+      </reactQueryModule.QueryClientProvider>
     );
   }
 

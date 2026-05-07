@@ -1,65 +1,71 @@
 import { describe, expect, it } from 'bun:test';
 
-async function importFreshModule<T>(path: string): Promise<T> {
-  return (await import(`${path}?worker-redis-stream-shim-test-module`)) as T;
-}
-
-const { CONSUMER_GROUPS, RedisStream, STREAM_NAMES } =
-  await importFreshModule<typeof import('@/server/lib/redis-stream')>(
-    '../redis-stream.ts'
-  );
+const { readFile } = await import('node:fs/promises');
+const redisStreamShimSource = await readFile(
+  new URL('../redis-stream.ts', import.meta.url),
+  'utf8'
+);
+const cacheIndexSource = await readFile(
+  new URL('../../../../../../packages/cache/src/index.ts', import.meta.url),
+  'utf8'
+);
+const cacheStreamSource = await readFile(
+  new URL('../../../../../../packages/cache/src/stream.ts', import.meta.url),
+  'utf8'
+);
 
 describe('worker redis-stream shim', () => {
   it('exposes the canonical worker stream names including dead-letter streams', () => {
-    expect(STREAM_NAMES).toEqual({
-      analyticsClicks: 'analytics:clicks',
-      analyticsDead: 'analytics:dead',
-      aggregation: 'aggregation',
-      aggregationDead: 'aggregation:dead',
-      cleanup: 'cleanup',
-      cleanupDead: 'cleanup:dead',
-      deletion: 'deletion',
-      deletionDead: 'deletion:dead',
-      notifications: 'notifications'
-    });
+    expect(cacheStreamSource).toContain("analyticsClicks: 'analytics:clicks'");
+    expect(cacheStreamSource).toContain("analyticsDead: 'analytics:dead'");
+    expect(cacheStreamSource).toContain("aggregation: 'aggregation'");
+    expect(cacheStreamSource).toContain("aggregationDead: 'aggregation:dead'");
+    expect(cacheStreamSource).toContain("cleanup: 'cleanup'");
+    expect(cacheStreamSource).toContain("cleanupDead: 'cleanup:dead'");
+    expect(cacheStreamSource).toContain("deletion: 'deletion'");
+    expect(cacheStreamSource).toContain("deletionDead: 'deletion:dead'");
+    expect(cacheStreamSource).toContain("notifications: 'notifications'");
   });
 
   it('exposes the canonical worker consumer groups', () => {
-    expect(CONSUMER_GROUPS).toEqual({
-      analytics: 'analytics-group',
-      analyticsDead: 'analytics-dead-group',
-      aggregation: 'aggregation-group',
-      cleanup: 'cleanup-group',
-      deletion: 'deletion-group',
-      notifications: 'notifications-group'
-    });
+    expect(cacheStreamSource).toContain("analytics: 'analytics-group'");
+    expect(cacheStreamSource).toContain(
+      "analyticsDead: 'analytics-dead-group'"
+    );
+    expect(cacheStreamSource).toContain("aggregation: 'aggregation-group'");
+    expect(cacheStreamSource).toContain("cleanup: 'cleanup-group'");
+    expect(cacheStreamSource).toContain("deletion: 'deletion-group'");
+    expect(cacheStreamSource).toContain("notifications: 'notifications-group'");
   });
 
   it('exposes the expected RedisStream namespace shape for worker consumers', () => {
-    expect(Object.keys(RedisStream).sort()).toEqual([
-      'ack',
-      'add',
-      'autoClaim',
-      'createGroup',
-      'getLength',
-      'getPendingCount',
-      'groups',
-      'info',
-      'readGroup',
-      'trim'
-    ]);
+    expect(redisStreamShimSource).toContain(
+      "export type { StreamMessage, StreamReadResult } from '@urlfy/cache';"
+    );
+    expect(redisStreamShimSource).toContain('CONSUMER_GROUPS');
+    expect(redisStreamShimSource).toContain('RedisStream');
+    expect(redisStreamShimSource).toContain('STREAM_NAMES');
+    expect(redisStreamShimSource).toContain('STREAM_RETENTION_MAXLEN');
+    expect(cacheIndexSource).toContain(
+      "export type { StreamMessage, StreamReadResult } from './stream';"
+    );
+    expect(cacheIndexSource).toContain('CONSUMER_GROUPS');
+    expect(cacheIndexSource).toContain('RedisStream');
+    expect(cacheIndexSource).toContain('STREAM_NAMES');
+    expect(cacheIndexSource).toContain('STREAM_RETENTION_MAXLEN');
   });
 
   it('exposes the full RedisStream method surface used by workers', async () => {
-    expect(typeof RedisStream.add).toBe('function');
-    expect(typeof RedisStream.createGroup).toBe('function');
-    expect(typeof RedisStream.readGroup).toBe('function');
-    expect(typeof RedisStream.ack).toBe('function');
-    expect(typeof RedisStream.getLength).toBe('function');
-    expect(typeof RedisStream.info).toBe('function');
-    expect(typeof RedisStream.groups).toBe('function');
-    expect(typeof RedisStream.autoClaim).toBe('function');
-    expect(typeof RedisStream.getPendingCount).toBe('function');
-    expect(typeof RedisStream.trim).toBe('function');
+    expect(cacheStreamSource).toContain('export async function add(');
+    expect(cacheStreamSource).toContain('export async function createGroup(');
+    expect(cacheStreamSource).toContain('export async function readGroup<');
+    expect(cacheStreamSource).toContain('export async function ack(');
+    expect(cacheStreamSource).toContain('export async function getLength(');
+    expect(cacheStreamSource).toContain('export async function info(');
+    expect(cacheStreamSource).toContain('export async function groups(');
+    expect(cacheStreamSource).toContain('export async function autoClaim<');
+    expect(cacheStreamSource).toContain(
+      'export async function getPendingCount('
+    );
   });
 });

@@ -15,6 +15,10 @@ export type SerializedAuditLog = Omit<AuditLogType, 'createdAt'> & {
 };
 
 export class AuditLogService {
+  protected getDb() {
+    return db;
+  }
+
   private serialize(log: AuditLogType): SerializedAuditLog {
     return {
       ...log,
@@ -35,7 +39,9 @@ export class AuditLogService {
     ipAddress?: string;
     userAgent?: string;
   }): Promise<AuditLogType> {
-    const [log] = await db
+    const database = this.getDb();
+
+    const [log] = await database
       .insert(auditLog)
       .values({
         id: nanoid(),
@@ -61,8 +67,9 @@ export class AuditLogService {
   ): Promise<{ logs: SerializedAuditLog[]; total: number }> {
     const limit = options?.limit || 50;
     const offset = options?.offset || 0;
+    const database = this.getDb();
 
-    const logs = await db
+    const logs = await database
       .select()
       .from(auditLog)
       .where(eq(auditLog.userId, userId))
@@ -70,7 +77,7 @@ export class AuditLogService {
       .limit(limit)
       .offset(offset);
 
-    const [{ count }] = await db
+    const [{ count }] = await database
       .select({ count: sql<number>`count(*)::int` })
       .from(auditLog)
       .where(eq(auditLog.userId, userId));
@@ -91,8 +98,9 @@ export class AuditLogService {
   ): Promise<{ logs: SerializedAuditLog[]; total: number }> {
     const limit = options?.limit || 50;
     const offset = options?.offset || 0;
+    const database = this.getDb();
 
-    const logs = await db
+    const logs = await database
       .select()
       .from(auditLog)
       .where(
@@ -105,7 +113,7 @@ export class AuditLogService {
       .limit(limit)
       .offset(offset);
 
-    const [{ count }] = await db
+    const [{ count }] = await database
       .select({ count: sql<number>`count(*)::int` })
       .from(auditLog)
       .where(
@@ -136,6 +144,7 @@ export class AuditLogService {
     const offset = options?.offset ?? 0;
     const sortOrder = options?.sortOrder === 'asc' ? 'asc' : 'desc';
     const sortBy = options?.sortBy ?? 'createdAt';
+    const database = this.getDb();
 
     const conditions = [];
     if (options?.action) conditions.push(eq(auditLog.action, options.action));
@@ -158,14 +167,14 @@ export class AuditLogService {
     })();
 
     const [logs, [{ count }]] = await Promise.all([
-      db
+      database
         .select()
         .from(auditLog)
         .where(where)
         .orderBy(orderExpr)
         .limit(limit)
         .offset(offset),
-      db
+      database
         .select({ count: sql<number>`count(*)::int` })
         .from(auditLog)
         .where(where)
@@ -178,7 +187,7 @@ export class AuditLogService {
   }
 
   async getById(id: string): Promise<SerializedAuditLog | null> {
-    const log = await db
+    const log = await this.getDb()
       .select()
       .from(auditLog)
       .where(eq(auditLog.id, id))
@@ -194,26 +203,28 @@ export class AuditLogService {
     entityTypeCounts: Record<string, number>;
     topUsers: Array<{ userId: string; count: number }>;
   }> {
+    const database = this.getDb();
+
     const [totalResult, actionRows, entityRows, userRows] = await Promise.all([
-      db
+      database
         .select({ count: sql<number>`count(*)::int` })
         .from(auditLog)
         .then((r) => r[0]),
-      db
+      database
         .select({
           action: auditLog.action,
           count: sql<number>`count(*)::int`
         })
         .from(auditLog)
         .groupBy(auditLog.action),
-      db
+      database
         .select({
           entityType: auditLog.entityType,
           count: sql<number>`count(*)::int`
         })
         .from(auditLog)
         .groupBy(auditLog.entityType),
-      db
+      database
         .select({
           userId: sql<string>`coalesce(${auditLog.userId}, 'system')`,
           count: sql<number>`count(*)::int`

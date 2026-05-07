@@ -22,29 +22,69 @@ import {
 } from '@urlfy/telemetry';
 import { validateEnv } from '@/lib/env';
 
-// Only initialize in server environment, skip during build phase
-if (
-  typeof window === 'undefined' &&
-  process.env.NEXT_PHASE !== 'phase-production-build'
-) {
-  validateEnv();
-  initTelemetry();
-  await configureLogging();
+type WebServerInitLogger = ReturnType<typeof createLogger>;
+
+interface WebServerInitDeps {
+  validateEnv: typeof validateEnv;
+  initTelemetry: typeof initTelemetry;
+  configureLogging: typeof configureLogging;
+  createLogger: (name: string) => WebServerInitLogger;
+  checkDatabaseHealth: typeof checkDatabaseHealth;
+}
+
+interface WebServerInitRuntime {
+  hasWindow: boolean;
+  nextPhase?: string;
+}
+
+const defaultWebServerInitDeps: WebServerInitDeps = {
+  validateEnv,
+  initTelemetry,
+  configureLogging,
+  createLogger,
+  checkDatabaseHealth
+};
+
+export function shouldInitializeWebServer({
+  hasWindow,
+  nextPhase
+}: WebServerInitRuntime): boolean {
+  return !hasWindow && nextPhase !== 'phase-production-build';
+}
+
+export async function initializeWebServer(
+  deps: WebServerInitDeps = defaultWebServerInitDeps
+): Promise<void> {
+  deps.validateEnv();
+  deps.initTelemetry();
+  await deps.configureLogging();
 
   // Non-fatal DB probe — surface misconfiguration early.
   // Redirect will still work on cache hits even if DB is temporarily unreachable.
-  const logger = createLogger('web-init');
-  checkDatabaseHealth()
+  const logger = deps.createLogger('web-init');
+  deps
+    .checkDatabaseHealth()
     .then((result) => {
       if (result.status === 'ok') {
         logger.info(`Database probe OK (${result.latencyMs}ms)`);
-      } else {
-        logger.error(`Database probe failed: ${result.error}`);
+        return;
       }
+
+      logger.error(`Database probe failed: ${result.error}`);
     })
     .catch((err: unknown) => {
       logger.error(
         `Database probe exception: ${err instanceof Error ? err.message : String(err)}`
       );
     });
+}
+
+// Only initialize in server environment, skip during build phase
+if (
+  shouldInitializeWebServer({
+    hasWindow: typeof window !== 'undefined',
+    nextPhase: process.env.NEXT_PHASE
+  })
+) {
+  await initializeWebServer();
 }

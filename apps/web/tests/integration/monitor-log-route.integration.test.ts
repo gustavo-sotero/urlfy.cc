@@ -42,6 +42,9 @@ mock.module('@/server/lib/rate-limiter', () => ({
 }));
 
 mock.module('@/lib/env', () => ({
+  validateEnv: () => ({
+    NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
+  }),
   getEnv: () => ({
     NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
   })

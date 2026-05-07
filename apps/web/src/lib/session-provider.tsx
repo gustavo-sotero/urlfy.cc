@@ -69,6 +69,7 @@ async function fetchSessionData(): Promise<SessionData | null> {
 interface SessionProviderProps {
   children: ReactNode;
   initialData?: SessionData | null;
+  fetchSession?: () => Promise<SessionData | null>;
 }
 
 function buildSessionContextValue(
@@ -88,7 +89,8 @@ function buildSessionContextValue(
 
 export function SessionProvider({
   children,
-  initialData = null
+  initialData = null,
+  fetchSession = fetchSessionData
 }: SessionProviderProps) {
   const {
     data: sessionData,
@@ -97,7 +99,7 @@ export function SessionProvider({
     refetch
   } = useQuery({
     queryKey: SESSION_QUERY_KEY,
-    queryFn: fetchSessionData,
+    queryFn: fetchSession,
     initialData,
     staleTime: 5 * 60 * 1000, // 5 minutes — re-validate session periodically
     refetchOnWindowFocus: true,

@@ -6,12 +6,52 @@ type MockAdminSession = {
     id: string;
     email: string;
     isAdmin: boolean;
+    lastLoginMethod: string | null;
   };
   session: {
     id: string;
     userId: string;
+    createdAt: string;
   };
 };
+
+const ADMIN_LAYOUT_PATH = '../../src/app/(admin)/layout.tsx';
+let adminLayoutImportCounter = 0;
+
+async function importFreshAdminLayout() {
+  return import(
+    `${ADMIN_LAYOUT_PATH}?test=${adminLayoutImportCounter++}`
+  ) as Promise<{
+    default: typeof import('@/app/(admin)/layout').default;
+  }>;
+}
+
+function createMockSession(
+  overrides?: Partial<{
+    user: Partial<MockAdminSession['user']>;
+    session: Partial<MockAdminSession['session']>;
+  }>
+): MockAdminSession {
+  const userOverrides = overrides?.user ?? {};
+  const sessionOverrides = overrides?.session ?? {};
+  const userId = userOverrides.id ?? 'admin-1';
+
+  return {
+    user: {
+      id: userId,
+      email: 'admin@example.com',
+      isAdmin: true,
+      lastLoginMethod: 'github',
+      ...userOverrides
+    },
+    session: {
+      id: 'session-admin-1',
+      userId,
+      createdAt: new Date().toISOString(),
+      ...sessionOverrides
+    }
+  };
+}
 
 const headersMock = mock(
   async () =>
@@ -25,17 +65,7 @@ const redirectMock = mock((href: string) => {
 });
 const auditLogMock = mock(async () => undefined);
 const fetchMock = mock(
-  async (): Promise<MockAdminSession | null> => ({
-    user: {
-      id: 'admin-1',
-      email: 'admin@example.com',
-      isAdmin: true
-    },
-    session: {
-      id: 'session-admin-1',
-      userId: 'admin-1'
-    }
-  })
+  async (): Promise<MockAdminSession | null> => createMockSession()
 );
 const originalFetch = global.fetch;
 const originalApiInternalUrl = process.env.API_INTERNAL_URL;
@@ -92,17 +122,7 @@ describe('AdminLayout', () => {
     auditLogMock.mockClear();
     fetchMock.mockReset();
     fetchMock.mockImplementation(
-      async (): Promise<MockAdminSession | null> => ({
-        user: {
-          id: 'admin-1',
-          email: 'admin@example.com',
-          isAdmin: true
-        },
-        session: {
-          id: 'session-admin-1',
-          userId: 'admin-1'
-        }
-      })
+      async (): Promise<MockAdminSession | null> => createMockSession()
     );
   });
 
@@ -111,7 +131,7 @@ describe('AdminLayout', () => {
     process.env.API_INTERNAL_URL = 'http://api:3001';
     process.env.INTERNAL_API_SECRET = 'test-internal-api-secret';
 
-    const { default: AdminLayout } = await import('@/app/(admin)/layout');
+    const { default: AdminLayout } = await importFreshAdminLayout();
 
     const element = await AdminLayout({
       children: <div>Admin content</div>
@@ -136,7 +156,7 @@ describe('AdminLayout', () => {
     process.env.INTERNAL_API_SECRET = 'test-internal-api-secret';
     headersMock.mockResolvedValueOnce(new Headers());
 
-    const { default: AdminLayout } = await import('@/app/(admin)/layout');
+    const { default: AdminLayout } = await importFreshAdminLayout();
 
     await expect(
       AdminLayout({
@@ -151,23 +171,24 @@ describe('AdminLayout', () => {
 
   it('redirects authenticated non-admin users to the dashboard', async () => {
     fetchMock.mockImplementation(
-      async (): Promise<MockAdminSession | null> => ({
-        user: {
-          id: 'user-2',
-          email: 'user@example.com',
-          isAdmin: false
-        },
-        session: {
-          id: 'session-user-2',
-          userId: 'user-2'
-        }
-      })
+      async (): Promise<MockAdminSession | null> =>
+        createMockSession({
+          user: {
+            id: 'user-2',
+            email: 'user@example.com',
+            isAdmin: false
+          },
+          session: {
+            id: 'session-user-2',
+            userId: 'user-2'
+          }
+        })
     );
     global.fetch = createJsonFetchStub();
     process.env.API_INTERNAL_URL = 'http://api:3001';
     process.env.INTERNAL_API_SECRET = 'test-internal-api-secret';
 
-    const { default: AdminLayout } = await import('@/app/(admin)/layout');
+    const { default: AdminLayout } = await importFreshAdminLayout();
 
     await expect(
       AdminLayout({
