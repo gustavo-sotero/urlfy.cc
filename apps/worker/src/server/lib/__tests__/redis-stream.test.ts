@@ -45,7 +45,8 @@ describe('worker redis-stream shim', () => {
       'getPendingCount',
       'groups',
       'info',
-      'readGroup'
+      'readGroup',
+      'trim'
     ]);
   });
 
@@ -59,5 +60,6 @@ describe('worker redis-stream shim', () => {
     expect(typeof RedisStream.groups).toBe('function');
     expect(typeof RedisStream.autoClaim).toBe('function');
     expect(typeof RedisStream.getPendingCount).toBe('function');
+    expect(typeof RedisStream.trim).toBe('function');
   });
 });

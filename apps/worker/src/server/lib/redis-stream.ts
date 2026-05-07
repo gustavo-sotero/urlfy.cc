@@ -7,5 +7,6 @@ export type { StreamMessage, StreamReadResult } from '@urlfy/cache';
 export {
   CONSUMER_GROUPS,
   RedisStream,
-  STREAM_NAMES
+  STREAM_NAMES,
+  STREAM_RETENTION_MAXLEN
 } from '@urlfy/cache';

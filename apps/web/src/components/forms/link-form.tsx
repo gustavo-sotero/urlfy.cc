@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { AccessibleFormField } from '@/components/forms/accessible-form-field';
 import { CopyButton } from '@/components/shared/copy-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,21 +88,19 @@ export function LinkForm() {
       className="flex flex-col gap-4 sm:flex-row"
     >
       <div className="min-w-0 flex-1">
-        <Input
-          {...form.register('url')}
-          type="url"
-          placeholder={t('placeholder')}
-          aria-label={t('placeholder')}
-          className="h-12"
-          disabled={createLink.isPending}
-          aria-invalid={!!form.formState.errors.url}
-          aria-describedby={form.formState.errors.url ? 'url-error' : undefined}
-        />
-        {form.formState.errors.url && (
-          <p id="url-error" className="mt-1 text-sm text-destructive">
-            {form.formState.errors.url.message}
-          </p>
-        )}
+        <AccessibleFormField
+          id="guest-url"
+          label={t('label')}
+          error={form.formState.errors.url?.message}
+        >
+          <Input
+            {...form.register('url')}
+            type="url"
+            placeholder={t('placeholder')}
+            className="h-12"
+            disabled={createLink.isPending}
+          />
+        </AccessibleFormField>
       </div>
       <Button
         type="submit"

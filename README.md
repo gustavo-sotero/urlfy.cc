@@ -181,7 +181,7 @@ Admin authority is derived from `ADMIN_GITHUB_ACCOUNT_ID` (linked GitHub account
 
 `NEXT_PUBLIC_APP_URL` is the single source of truth for the public OAuth origin. Both Google and GitHub callback URLs are derived from it at startup — no separate callback env var is needed.
 
-In containerized deployments, keep `NEXT_PUBLIC_APP_URL` aligned across the web build arg, the web runtime env, and `BETTER_AUTH_URL` so the rendered site origin and the emitted OAuth callback origin never drift. When the web and API containers sit behind nginx or Traefik, set `TRUST_PROXY=true` on both services so shared auth and telemetry code trust the forwarded host, scheme, and client IP.
+In containerized deployments, keep `NEXT_PUBLIC_APP_URL` aligned across the web build arg, the web runtime env, and `BETTER_AUTH_URL` so the rendered site origin and the emitted OAuth callback origin never drift. When the web and API containers sit behind nginx or Traefik, set `TRUST_PROXY=true` and `TRUST_PROXY_HOPS=1` on both services so shared auth and telemetry code trust the forwarded host, scheme, and client IP from the trusted ingress hop only. Increase `TRUST_PROXY_HOPS` only when you have multiple trusted proxies in front of the app and the outer edge rewrites forwarding headers.
 
 **Google Cloud Console** — register both authorised redirect URIs:
 

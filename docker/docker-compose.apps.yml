@@ -68,6 +68,7 @@ services:
       # the correct public host/scheme from X-Forwarded-* headers and generates
       # OAuth callback URLs that match the registered provider redirect URIs.
       - TRUST_PROXY=true
+      - TRUST_PROXY_HOPS=1
       # OAuth social providers (optional; both vars required to enable a provider)
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
@@ -130,6 +131,7 @@ services:
       # Required when running behind nginx ingress: keeps proxy-derived
       # host/scheme/IP handling consistent for shared auth and telemetry code.
       - TRUST_PROXY=true
+      - TRUST_PROXY_HOPS=1
       - TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-}

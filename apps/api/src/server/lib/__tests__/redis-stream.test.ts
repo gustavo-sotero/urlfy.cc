@@ -92,6 +92,8 @@ const mockRedis = {
       case 'XAUTOCLAIM':
         // Format: [cursor, [messages]]
         return ['0-0', [['1678900000000-0', ['test', 'claimed']]]];
+      case 'XTRIM':
+        return 1;
       case 'DEL':
         return 1;
       default:
@@ -171,6 +173,7 @@ describe('RedisStream', () => {
     canAttemptRedisCommandMock.mockImplementation(() => true);
     markRedisCommandFailureMock.mockClear();
     markRedisCommandSuccessMock.mockClear();
+    mockRedis.send.mockClear();
   });
 
   describe('add()', () => {
@@ -203,6 +206,20 @@ describe('RedisStream', () => {
       await expect(
         RedisStream.add(TEST_STREAM, { key1: 'value1' })
       ).rejects.toThrow('Redis unavailable for XADD');
+    });
+
+    it('should apply the default MAXLEN policy for known streams', async () => {
+      await RedisStream.add(STREAM_NAMES.analyticsClicks, { key1: 'value1' });
+
+      expect(mockRedis.send).toHaveBeenCalledWith('XADD', [
+        STREAM_NAMES.analyticsClicks,
+        'MAXLEN',
+        '~',
+        '50000',
+        '*',
+        'key1',
+        'value1'
+      ]);
     });
   });
 
@@ -293,6 +310,20 @@ describe('RedisStream', () => {
 
       expect(typeof length).toBe('number');
       expect(length).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('trim()', () => {
+    it('should trim a known stream using its default retention policy', async () => {
+      const trimmed = await RedisStream.trim(STREAM_NAMES.cleanup);
+
+      expect(trimmed).toBe(1);
+      expect(mockRedis.send).toHaveBeenCalledWith('XTRIM', [
+        STREAM_NAMES.cleanup,
+        'MAXLEN',
+        '~',
+        '1000'
+      ]);
     });
   });
 

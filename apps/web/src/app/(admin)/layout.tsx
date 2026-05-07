@@ -117,7 +117,7 @@ export default async function AdminLayout({
   // RENDER
   // ═══════════════════════════════════════════════════════════════════
   return (
-    <AppQueryProviders>
+    <AppQueryProviders initialSession={session}>
       <div className="flex min-h-screen">
         {/* Desktop Sidebar */}
         <AdminSidebar className="w-64 hidden md:block" />

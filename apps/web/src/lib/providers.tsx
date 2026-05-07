@@ -6,7 +6,7 @@ import { ThemeProvider } from 'next-themes';
 import { type ReactNode, useState } from 'react';
 import { Toaster } from 'sonner';
 import { AnnouncerProvider } from '@/components/ui/announcer';
-import { SessionProvider } from './session-provider';
+import { type SessionData, SessionProvider } from './session-provider';
 
 export function RootProviders({
   children,
@@ -32,7 +32,13 @@ export function RootProviders({
   );
 }
 
-export function AppQueryProviders({ children }: { children: ReactNode }) {
+export function AppQueryProviders({
+  children,
+  initialSession = null
+}: {
+  children: ReactNode;
+  initialSession?: SessionData | null;
+}) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -48,7 +54,7 @@ export function AppQueryProviders({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>{children}</SessionProvider>
+      <SessionProvider initialData={initialSession}>{children}</SessionProvider>
     </QueryClientProvider>
   );
 }

@@ -44,7 +44,7 @@ export default async function DashboardLayout({
   const isEmailVerified: boolean = sessionUser.emailVerified ?? false;
 
   return (
-    <AppQueryProviders>
+    <AppQueryProviders initialSession={authenticatedSession}>
       <div
         className="min-h-svh bg-muted/20"
         data-dashboard-shell="authenticated"

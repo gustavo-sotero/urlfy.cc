@@ -2,20 +2,29 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 const updateUserMock = mock(async () => undefined);
-const useSessionContextMock = mock(() => ({
-  data: {
-    user: {
-      name: 'Admin User',
-      email: 'admin@example.com',
-      twoFactorEnabled: true,
-      isAdmin: true
-    }
+const headersMock = mock(async () => new Headers());
+const getServerSessionMock = mock(async () => ({
+  user: {
+    name: 'Admin User',
+    email: 'admin@example.com',
+    twoFactorEnabled: true,
+    isAdmin: true
   },
-  isPending: false
+  session: {
+    id: 'session-1'
+  }
+}));
+
+mock.module('next/headers', () => ({
+  headers: headersMock
 }));
 
 mock.module('next-intl', () => ({
   useTranslations: () => (key: string) => key
+}));
+
+mock.module('@/lib/server-session', () => ({
+  getServerSession: getServerSessionMock
 }));
 
 mock.module('@/lib/auth.client', () => ({
@@ -43,13 +52,6 @@ mock.module('@/lib/auth.client', () => ({
   }
 }));
 
-mock.module('@/lib/session-provider', () => ({
-  SESSION_QUERY_KEY: ['session'],
-  SessionProvider: ({ children }: { children: React.ReactNode }) => children,
-  useAuthState: () => ({ isAuthenticated: true, isPending: false }),
-  useSessionContext: useSessionContextMock
-}));
-
 mock.module('@/components/dashboard/settings/api-keys-manager', () => ({
   ApiKeysManager: () => <div data-testid="api-keys-manager" />
 }));
@@ -68,17 +70,18 @@ mock.module('@/components/settings/two-factor-setup', () => ({
 
 describe('SettingsPage', () => {
   beforeEach(() => {
-    useSessionContextMock.mockReset();
-    useSessionContextMock.mockReturnValue({
-      data: {
-        user: {
-          name: 'Admin User',
-          email: 'admin@example.com',
-          twoFactorEnabled: true,
-          isAdmin: true
-        }
+    headersMock.mockClear();
+    getServerSessionMock.mockReset();
+    getServerSessionMock.mockResolvedValue({
+      user: {
+        name: 'Admin User',
+        email: 'admin@example.com',
+        twoFactorEnabled: true,
+        isAdmin: true
       },
-      isPending: false
+      session: {
+        id: 'session-1'
+      }
     });
   });
 
@@ -87,7 +90,7 @@ describe('SettingsPage', () => {
       '@/app/[locale]/(dashboard)/dashboard/settings/page'
     );
 
-    const markup = renderToStaticMarkup(<SettingsPage />);
+    const markup = renderToStaticMarkup(await SettingsPage());
 
     expect(markup).toContain('data-testid="backup-codes"');
     expect(markup).toContain('data-testid="disable-two-factor"');
@@ -95,23 +98,23 @@ describe('SettingsPage', () => {
   });
 
   it('shows the 2FA setup flow when 2FA is disabled, regardless of admin status', async () => {
-    useSessionContextMock.mockReturnValue({
-      data: {
-        user: {
-          name: 'Admin User',
-          email: 'admin@example.com',
-          twoFactorEnabled: false,
-          isAdmin: true
-        }
+    getServerSessionMock.mockResolvedValue({
+      user: {
+        name: 'Admin User',
+        email: 'admin@example.com',
+        twoFactorEnabled: false,
+        isAdmin: true
       },
-      isPending: false
+      session: {
+        id: 'session-1'
+      }
     });
 
     const { default: SettingsPage } = await import(
       '@/app/[locale]/(dashboard)/dashboard/settings/page'
     );
 
-    const markup = renderToStaticMarkup(<SettingsPage />);
+    const markup = renderToStaticMarkup(await SettingsPage());
 
     expect(markup).toContain('data-testid="two-factor-setup"');
     expect(markup).not.toContain('data-testid="disable-two-factor"');

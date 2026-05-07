@@ -10,6 +10,7 @@ const secureEnv = {
   DATABASE_URL: 'postgresql://urlfy:password@localhost:5432/urlfy',
   NEXT_PUBLIC_APP_URL: 'https://urlfy.cc',
   TRUST_PROXY: 'true',
+  TRUST_PROXY_HOPS: '1',
   BETTER_AUTH_SECRET: 'better-auth-ci-value-minimum-32-chars',
   AUTH_SECRET: 'auth-ci-value-minimum-32-characters-long',
   JWT_SECRET: 'jwt-ci-value-minimum-32-characters-long',
@@ -103,5 +104,13 @@ describe('check-test-secrets guard', () => {
     expectExitCode(result, 1);
     expect(result.stderr).toContain('TRUST_PROXY / NEXT_PUBLIC_APP_URL');
     expect(result.stderr).toContain('TRUST_PROXY must be true');
+  });
+
+  test('fails when TRUST_PROXY_HOPS is invalid', async () => {
+    const result = await runCheck({ TRUST_PROXY_HOPS: '0' });
+
+    expectExitCode(result, 1);
+    expect(result.stderr).toContain('TRUST_PROXY_HOPS');
+    expect(result.stderr).toContain('positive integer');
   });
 });

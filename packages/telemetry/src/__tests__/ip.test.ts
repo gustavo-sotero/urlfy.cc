@@ -23,6 +23,10 @@ const CLOUDFLARE_PROXY_OPTIONS = {
   trustProxy: true,
   trustedProxyProvider: 'cloudflare'
 } as const;
+const MULTI_HOP_PROXY_OPTIONS = {
+  trustProxy: true,
+  trustedProxyHops: 2
+} as const;
 const UNTRUSTED_PROXY_OPTIONS = {
   nodeEnv: 'development',
   trustProxy: false
@@ -151,12 +155,22 @@ describe('getClientIpFromHeaders with TRUST_PROXY enabled', () => {
     );
   });
 
-  test('falls back to x-forwarded-for first IP when only that header is present', () => {
+  test('uses the first untrusted IP from the trusted end of x-forwarded-for by default', () => {
     const h = makeHeaders({
       'x-forwarded-for': '203.0.113.1, 198.51.100.2, 10.0.0.1'
     });
-    // Only the leftmost (client-originated) IP should be used
+    // With one trusted ingress hop, the immediate upstream value is accepted.
     expect(getClientIpFromHeaders(h, TRUSTED_PROXY_OPTIONS)).toBe(
+      '198.51.100.2'
+    );
+  });
+
+  test('returns the original client IP when two trusted proxy hops are configured', () => {
+    const h = makeHeaders({
+      'x-forwarded-for': '203.0.113.1, 198.51.100.2, 10.0.0.1'
+    });
+
+    expect(getClientIpFromHeaders(h, MULTI_HOP_PROXY_OPTIONS)).toBe(
       '203.0.113.1'
     );
   });
@@ -176,6 +190,17 @@ describe('getClientIpFromHeaders with TRUST_PROXY enabled', () => {
     expect(getClientIpFromHeaders(h, TRUSTED_PROXY_OPTIONS)).toBe(
       '203.0.113.1'
     );
+  });
+
+  test('throws for invalid trusted proxy hop configuration when proxy trust is enabled', () => {
+    expect(() =>
+      assertTrustProxyConfig({
+        nodeEnv: 'production',
+        publicAppUrl: 'https://urlfy.cc',
+        trustProxy: 'true',
+        trustedProxyHops: '0'
+      })
+    ).toThrow('TRUST_PROXY_HOPS must be a positive integer');
   });
 
   test('returns 127.0.0.1 in development when no headers are present', () => {
@@ -239,11 +264,18 @@ describe('getClientIp with TRUST_PROXY enabled', () => {
     expect(getClientIp(req, TRUSTED_PROXY_OPTIONS)).toBe('50.60.70.80');
   });
 
-  test('uses first IP from x-forwarded-for chain', () => {
+  test('uses the first untrusted IP from x-forwarded-for chain by default', () => {
     const req = makeRequest({
       'x-forwarded-for': '203.0.113.5, 198.51.100.1, 10.0.0.5'
     });
-    expect(getClientIp(req, TRUSTED_PROXY_OPTIONS)).toBe('203.0.113.5');
+    expect(getClientIp(req, TRUSTED_PROXY_OPTIONS)).toBe('198.51.100.1');
+  });
+
+  test('uses the original client IP when enough trusted proxy hops are configured', () => {
+    const req = makeRequest({
+      'x-forwarded-for': '203.0.113.5, 198.51.100.1, 10.0.0.5'
+    });
+    expect(getClientIp(req, MULTI_HOP_PROXY_OPTIONS)).toBe('203.0.113.5');
   });
 
   test('skips invalid x-forwarded-for entries when TRUST_PROXY is true', () => {
@@ -281,7 +313,8 @@ describe('assertTrustProxyConfig', () => {
       assertTrustProxyConfig({
         nodeEnv: 'production',
         publicAppUrl: 'https://urlfy.cc',
-        trustProxy: 'true'
+        trustProxy: 'true',
+        trustedProxyHops: '1'
       })
     ).not.toThrow();
   });

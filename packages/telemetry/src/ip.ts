@@ -11,6 +11,7 @@ let trustProxyWarningLogged = false;
 export interface ClientIpResolutionOptions {
   nodeEnv?: string;
   trustProxy?: string | boolean;
+  trustedProxyHops?: string | number;
   trustedProxyProvider?: 'standard' | 'cloudflare';
 }
 
@@ -18,11 +19,14 @@ interface TrustProxyConfigInput {
   nodeEnv?: string;
   publicAppUrl?: string;
   trustProxy?: string | boolean;
+  trustedProxyHops?: string | number;
 }
 
 type TrustedProxyProvider = NonNullable<
   ClientIpResolutionOptions['trustedProxyProvider']
 >;
+
+const DEFAULT_TRUSTED_PROXY_HOPS = 1;
 
 function resolveTrustProxyValue(
   trustProxy?: ClientIpResolutionOptions['trustProxy']
@@ -54,6 +58,36 @@ function resolveTrustedProxyProviderValue(
     : 'standard';
 }
 
+function parseTrustedProxyHops(
+  value: ClientIpResolutionOptions['trustedProxyHops']
+): number | undefined {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value >= 1 ? value : undefined;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(trimmed, 10);
+    return Number.isInteger(parsed) && parsed >= 1 ? parsed : undefined;
+  }
+
+  return undefined;
+}
+
+function resolveTrustedProxyHopsValue(
+  trustedProxyHops?: ClientIpResolutionOptions['trustedProxyHops']
+): number {
+  return (
+    parseTrustedProxyHops(trustedProxyHops) ??
+    parseTrustedProxyHops(process.env.TRUST_PROXY_HOPS) ??
+    DEFAULT_TRUSTED_PROXY_HOPS
+  );
+}
+
 function normalizeTrustedIp(value: string | null): string | undefined {
   if (!value) {
     return undefined;
@@ -67,7 +101,10 @@ function normalizeTrustedIp(value: string | null): string | undefined {
   return trimmed;
 }
 
-function resolveForwardedForIp(value: string | null): string | undefined {
+function resolveForwardedForIp(
+  value: string | null,
+  trustedProxyHops: number
+): string | undefined {
   if (!value) {
     return undefined;
   }
@@ -77,13 +114,20 @@ function resolveForwardedForIp(value: string | null): string | undefined {
     .map((candidate) => candidate.trim())
     .filter(Boolean);
 
-  for (const candidate of candidates) {
-    if (isValidIp(candidate)) {
-      return candidate;
-    }
+  const validCandidates = candidates.filter((candidate) =>
+    isValidIp(candidate)
+  );
+
+  if (validCandidates.length === 0) {
+    return undefined;
   }
 
-  return undefined;
+  const candidateIndex = Math.max(
+    0,
+    validCandidates.length - trustedProxyHops - 1
+  );
+
+  return validCandidates[candidateIndex];
 }
 
 function resolveTrustedProxyHeaderIp(
@@ -109,7 +153,10 @@ function resolveTrustedProxyHeaderIp(
     return realIp;
   }
 
-  return resolveForwardedForIp(headers.get('x-forwarded-for'));
+  return resolveForwardedForIp(
+    headers.get('x-forwarded-for'),
+    resolveTrustedProxyHopsValue(options.trustedProxyHops)
+  );
 }
 
 function isLocalHostname(hostname: string): boolean {
@@ -152,8 +199,30 @@ function warnWhenProxyHeadersAreIgnored(headers: Headers): void {
 export function assertTrustProxyConfig({
   nodeEnv,
   publicAppUrl,
-  trustProxy
+  trustProxy,
+  trustedProxyHops
 }: TrustProxyConfigInput): void {
+  if (
+    trustProxy === true ||
+    trustProxy === 'true' ||
+    (trustProxy === undefined && process.env.TRUST_PROXY === 'true')
+  ) {
+    const parsedTrustedProxyHops = parseTrustedProxyHops(
+      trustedProxyHops ?? process.env.TRUST_PROXY_HOPS
+    );
+
+    if (
+      trustedProxyHops !== undefined ||
+      process.env.TRUST_PROXY_HOPS !== undefined
+    ) {
+      if (parsedTrustedProxyHops === undefined) {
+        throw new Error(
+          'TRUST_PROXY_HOPS must be a positive integer when TRUST_PROXY is enabled.'
+        );
+      }
+    }
+  }
+
   if (nodeEnv !== 'production') {
     return;
   }
@@ -194,7 +263,8 @@ export function assertTrustProxyConfig({
  * 1. CF-Connecting-IP (Cloudflare) — only if TRUST_PROXY=true and
  *    TRUST_PROXY_PROVIDER=cloudflare
  * 2. X-Real-IP (Nginx/standard proxy) — only if TRUST_PROXY=true
- * 3. X-Forwarded-For (first valid IP in chain) — only if TRUST_PROXY=true
+ * 3. X-Forwarded-For (first untrusted IP from the trusted end of the chain)
+ *    — only if TRUST_PROXY=true; controlled by TRUST_PROXY_HOPS
  * 4. request.ip (runtime-exposed)
  * 5. Fallback to 127.0.0.1 (development) or logged warning (production)
  *

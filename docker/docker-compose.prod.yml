@@ -78,6 +78,7 @@ services:
       # headers and generates OAuth callback URLs that match the registered
       # provider redirect URIs.
       - TRUST_PROXY=true
+      - TRUST_PROXY_HOPS=1
       # OAuth (optional)
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
@@ -153,6 +154,7 @@ services:
       # Required when running behind Traefik/Dokploy reverse proxy: keeps
       # proxy-derived host/scheme/IP handling consistent for web runtime code.
       - TRUST_PROXY=true
+      - TRUST_PROXY_HOPS=1
       # Redis (needed for web-level rate limiting)
       - REDIS_URL=${REDIS_URL}
       - REDIS_HOST=${REDIS_HOST:-}

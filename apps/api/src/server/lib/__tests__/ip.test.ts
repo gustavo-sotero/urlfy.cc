@@ -19,14 +19,26 @@ describe('getClientIp', () => {
     ).toBe('127.0.0.1');
   });
 
-  it('uses first x-forwarded-for IP when TRUST_PROXY is true', () => {
+  it('uses the first untrusted x-forwarded-for IP when TRUST_PROXY is true', () => {
     const request = new Request('http://localhost/contact', {
       headers: {
         'x-forwarded-for': '198.51.100.10, 10.0.0.1, 10.0.0.2'
       }
     });
 
-    expect(getClientIp(request, { trustProxy: true })).toBe('198.51.100.10');
+    expect(getClientIp(request, { trustProxy: true })).toBe('10.0.0.1');
+  });
+
+  it('can recover the original client IP when TRUST_PROXY_HOPS is configured', () => {
+    const request = new Request('http://localhost/contact', {
+      headers: {
+        'x-forwarded-for': '198.51.100.10, 10.0.0.1, 10.0.0.2'
+      }
+    });
+
+    expect(
+      getClientIp(request, { trustProxy: true, trustedProxyHops: 2 })
+    ).toBe('198.51.100.10');
   });
 
   it('ignores cf-connecting-ip in standard trusted-proxy mode', () => {

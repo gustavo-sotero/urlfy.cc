@@ -60,7 +60,8 @@ export type { StreamMessage, StreamReadResult } from './stream';
 export {
   CONSUMER_GROUPS,
   RedisStream,
-  STREAM_NAMES
+  STREAM_NAMES,
+  STREAM_RETENTION_MAXLEN
 } from './stream';
 
 // Types

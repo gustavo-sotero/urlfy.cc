@@ -26,6 +26,17 @@ function ensureRedisAvailable(command: string): void {
   }
 }
 
+function resolveStreamRetentionMaxLen(
+  stream: string,
+  maxLen?: number
+): number | undefined {
+  if (maxLen !== undefined) {
+    return maxLen > 0 ? maxLen : undefined;
+  }
+
+  return STREAM_RETENTION_MAXLEN_LOOKUP[stream];
+}
+
 /**
  * Parsed stream message structure
  */
@@ -72,9 +83,10 @@ export namespace RedisStream {
     try {
       // Build XADD args: [stream, [MAXLEN ~ n,] id, key1, val1, ...]
       const args: string[] = [stream];
+      const resolvedMaxLen = resolveStreamRetentionMaxLen(stream, maxLen);
 
-      if (maxLen !== undefined && maxLen > 0) {
-        args.push('MAXLEN', '~', String(maxLen));
+      if (resolvedMaxLen !== undefined) {
+        args.push('MAXLEN', '~', String(resolvedMaxLen));
       }
 
       args.push(id);
@@ -368,6 +380,44 @@ export namespace RedisStream {
   }
 
   /**
+   * Trim a stream to its configured or explicit retention window (XTRIM).
+   * Returns the number of entries removed.
+   */
+  export async function trim(
+    stream: string,
+    maxLen?: number,
+    approximate = true
+  ): Promise<number> {
+    ensureRedisAvailable('XTRIM');
+
+    const resolvedMaxLen = resolveStreamRetentionMaxLen(stream, maxLen);
+
+    if (resolvedMaxLen === undefined) {
+      return 0;
+    }
+
+    try {
+      const result = await getRedis().send('XTRIM', [
+        stream,
+        'MAXLEN',
+        approximate ? '~' : '=',
+        String(resolvedMaxLen)
+      ]);
+      markRedisCommandSuccess();
+      return Number(result);
+    } catch (error) {
+      markRedisCommandFailure(error);
+      logger.error(`[RedisStream] Failed to trim stream`, {
+        error: error instanceof Error ? error.message : String(error),
+        stream,
+        maxLen: resolvedMaxLen,
+        approximate
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Get pending message count for a group (XPENDING)
    * @param stream Stream name
    * @param group Group name
@@ -505,6 +555,27 @@ export const STREAM_NAMES = {
   deletionDead: 'deletion:dead',
   notifications: 'notifications'
 } as const;
+
+/**
+ * Default retention policy per stream.
+ * Hot analytics traffic keeps a larger rolling window; operational queues and
+ * dead-letter streams stay intentionally smaller to avoid silent growth.
+ */
+export const STREAM_RETENTION_MAXLEN = {
+  [STREAM_NAMES.analyticsClicks]: 50_000,
+  [STREAM_NAMES.analyticsDead]: 10_000,
+  [STREAM_NAMES.aggregation]: 2_000,
+  [STREAM_NAMES.aggregationDead]: 2_000,
+  [STREAM_NAMES.cleanup]: 1_000,
+  [STREAM_NAMES.cleanupDead]: 1_000,
+  [STREAM_NAMES.deletion]: 5_000,
+  [STREAM_NAMES.deletionDead]: 5_000,
+  [STREAM_NAMES.notifications]: 5_000
+} as const;
+
+const STREAM_RETENTION_MAXLEN_LOOKUP: Record<string, number> = {
+  ...STREAM_RETENTION_MAXLEN
+};
 
 /**
  * Consumer group names

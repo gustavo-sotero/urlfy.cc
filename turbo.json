@@ -34,6 +34,7 @@
         "GEOIP_MMDB_URL",
         "TRUSTED_ORIGINS",
         "TRUST_PROXY",
+        "TRUST_PROXY_HOPS",
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
         "GITHUB_CLIENT_ID",
@@ -75,6 +76,7 @@
         "GEOIP_MMDB_URL",
         "TRUSTED_ORIGINS",
         "TRUST_PROXY",
+        "TRUST_PROXY_HOPS",
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
         "GITHUB_CLIENT_ID",
@@ -123,7 +125,8 @@
         "NEXT_PUBLIC_APP_URL",
         "NODE_ENV",
         "SKIP_ENV_VALIDATION",
-        "ADMIN_GITHUB_ACCOUNT_ID"
+        "ADMIN_GITHUB_ACCOUNT_ID",
+        "TRUST_PROXY_HOPS"
       ]
     },
     "test:integration": {
@@ -143,7 +146,8 @@
         "NODE_ENV",
         "SKIP_ENV_VALIDATION",
         "USE_REAL_REDIS",
-        "ADMIN_GITHUB_ACCOUNT_ID"
+        "ADMIN_GITHUB_ACCOUNT_ID",
+        "TRUST_PROXY_HOPS"
       ]
     },
     "test:security": {
@@ -162,7 +166,8 @@
         "NEXT_PUBLIC_APP_URL",
         "NODE_ENV",
         "SKIP_ENV_VALIDATION",
-        "ADMIN_GITHUB_ACCOUNT_ID"
+        "ADMIN_GITHUB_ACCOUNT_ID",
+        "TRUST_PROXY_HOPS"
       ]
     },
     "test:perf": {

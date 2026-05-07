@@ -23,7 +23,7 @@ type AuthClientSessionData = NonNullable<
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
 
-interface SessionData {
+export interface SessionData {
   user: AuthClientSessionData['user'];
   session: AuthClientSessionData['session'];
 }
@@ -66,9 +66,13 @@ async function fetchSessionData(): Promise<SessionData | null> {
 
 interface SessionProviderProps {
   children: ReactNode;
+  initialData?: SessionData | null;
 }
 
-export function SessionProvider({ children }: SessionProviderProps) {
+export function SessionProvider({
+  children,
+  initialData = null
+}: SessionProviderProps) {
   const {
     data: sessionData,
     isPending,
@@ -77,6 +81,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   } = useQuery({
     queryKey: SESSION_QUERY_KEY,
     queryFn: fetchSessionData,
+    initialData,
     staleTime: 5 * 60 * 1000, // 5 minutes — re-validate session periodically
     refetchOnWindowFocus: true,
     retry: false

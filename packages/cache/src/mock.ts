@@ -335,17 +335,23 @@ export function createInMemoryRedisClient(): RedisClient {
           // Find where fields start (skip MAXLEN options if present)
           let pos = 0;
           const streamKey = args[pos++];
+          let maxLen: number | undefined;
           // Skip MAXLEN
           if (args[pos]?.toUpperCase() === 'MAXLEN') {
             pos++; // skip MAXLEN
             if (args[pos] === '~') pos++; // skip ~
+            maxLen = Number(args[pos]);
             pos++; // skip count
           }
           const msgId = args[pos] === '*' ? generateStreamId() : args[pos];
           pos++;
           const fields = args.slice(pos);
           const entry: StreamEntry = { id: msgId, fields };
-          getStream(streamKey).push(entry);
+          const streamEntries = getStream(streamKey);
+          streamEntries.push(entry);
+          if (maxLen && maxLen > 0 && streamEntries.length > maxLen) {
+            streamEntries.splice(0, streamEntries.length - maxLen);
+          }
           return msgId;
         }
         case 'XGROUP': {
@@ -505,6 +511,30 @@ export function createInMemoryRedisClient(): RedisClient {
             return [id, p2.entry.fields];
           });
           return ['0-0', msgs];
+        }
+        case 'XTRIM': {
+          const [streamKey, mode, operator, threshold] = args;
+          if (mode?.toUpperCase() !== 'MAXLEN') {
+            return 0;
+          }
+
+          const maxLen = Number(threshold);
+          if (!Number.isFinite(maxLen) || maxLen < 0) {
+            return 0;
+          }
+
+          const streamEntries = getStream(streamKey);
+          const originalLength = streamEntries.length;
+
+          if (streamEntries.length > maxLen) {
+            streamEntries.splice(0, streamEntries.length - maxLen);
+          }
+
+          if (operator === '=' || operator === '~') {
+            return Math.max(0, originalLength - streamEntries.length);
+          }
+
+          return 0;
         }
         default:
           return null;

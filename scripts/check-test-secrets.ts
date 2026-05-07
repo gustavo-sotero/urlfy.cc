@@ -118,6 +118,21 @@ const configToCheck: ConfigCheck[] = [
       value === 'true' || value === 'false'
         ? null
         : 'must be either "true" or "false"'
+  },
+  {
+    name: 'TRUST_PROXY_HOPS',
+    value: process.env.TRUST_PROXY_HOPS,
+    required: false,
+    validate: (value) => {
+      if (!value.trim()) {
+        return 'must not be empty when set';
+      }
+
+      const parsed = Number.parseInt(value, 10);
+      return Number.isInteger(parsed) && parsed >= 1
+        ? null
+        : 'must be a positive integer';
+    }
   }
 ];
 
@@ -183,7 +198,8 @@ try {
   assertTrustProxyConfig({
     nodeEnv: process.env.NODE_ENV,
     publicAppUrl: process.env.NEXT_PUBLIC_APP_URL,
-    trustProxy: process.env.TRUST_PROXY
+    trustProxy: process.env.TRUST_PROXY,
+    trustedProxyHops: process.env.TRUST_PROXY_HOPS
   });
 
   if (process.env.NEXT_PUBLIC_APP_URL) {

@@ -88,7 +88,8 @@ const envSchema = z.object({
   TRUSTED_ORIGINS: z.string().optional(),
 
   // Proxy Configuration
-  TRUST_PROXY: z.string().default('false')
+  TRUST_PROXY: z.string().default('false'),
+  TRUST_PROXY_HOPS: z.string().default('1')
 });
 
 type Env = z.infer<typeof envSchema>;
@@ -187,7 +188,8 @@ export function validateEnv(): Env {
       assertTrustProxyConfig({
         nodeEnv: env.NODE_ENV,
         publicAppUrl: env.NEXT_PUBLIC_APP_URL,
-        trustProxy: env.TRUST_PROXY
+        trustProxy: env.TRUST_PROXY,
+        trustedProxyHops: env.TRUST_PROXY_HOPS
       });
     }
 
