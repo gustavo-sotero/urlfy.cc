@@ -7,6 +7,7 @@ import { VerificationWarning } from '@/components/dashboard/verification-warning
 import { Header } from '@/components/layout/header';
 import { Sidebar } from '@/components/layout/sidebar';
 import { redirect } from '@/i18n/routing';
+import { AppQueryProviders } from '@/lib/providers';
 import { getServerSession } from '@/lib/server-session';
 
 interface DashboardLayoutProps {
@@ -43,26 +44,31 @@ export default async function DashboardLayout({
   const isEmailVerified: boolean = sessionUser.emailVerified ?? false;
 
   return (
-    <div className="min-h-svh bg-muted/20" data-dashboard-shell="authenticated">
-      <div className="flex min-h-svh">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Header user={user} />
-          <main
-            id="main-content"
-            tabIndex={-1}
-            className="min-w-0 flex-1 overflow-x-clip"
-            data-dashboard-main="content"
-          >
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 pt-4 sm:px-6 md:gap-8 md:pb-10 lg:px-8">
-              {!isEmailVerified && (
-                <VerificationWarning email={sessionUser.email} />
-              )}
-              {children}
-            </div>
-          </main>
+    <AppQueryProviders>
+      <div
+        className="min-h-svh bg-muted/20"
+        data-dashboard-shell="authenticated"
+      >
+        <div className="flex min-h-svh">
+          <Sidebar />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <Header user={user} />
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className="min-w-0 flex-1 overflow-x-clip"
+              data-dashboard-main="content"
+            >
+              <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 pt-4 sm:px-6 md:gap-8 md:pb-10 lg:px-8">
+                {!isEmailVerified && (
+                  <VerificationWarning email={sessionUser.email} />
+                )}
+                {children}
+              </div>
+            </main>
+          </div>
         </div>
       </div>
-    </div>
+    </AppQueryProviders>
   );
 }

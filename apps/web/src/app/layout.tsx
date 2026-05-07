@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { headers } from 'next/headers';
 import { SkipLink } from '@/components/layout/skip-link';
 import { CspNonceProvider } from '@/components/providers/csp-nonce-provider';
-import { Providers } from '@/lib/providers';
+import { RootProviders } from '@/lib/providers';
 import './globals.css';
 
 const geistSans = Geist({
@@ -44,9 +44,9 @@ export default async function RootLayout({
       >
         <SkipLink label={skipLinkLabel} />
         <CspNonceProvider nonce={nonce}>
-          <Providers nonce={nonce}>
+          <RootProviders nonce={nonce}>
             <div>{children}</div>
-          </Providers>
+          </RootProviders>
         </CspNonceProvider>
       </body>
     </html>

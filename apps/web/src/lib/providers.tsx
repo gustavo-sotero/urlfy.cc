@@ -8,13 +8,31 @@ import { Toaster } from 'sonner';
 import { AnnouncerProvider } from '@/components/ui/announcer';
 import { SessionProvider } from './session-provider';
 
-export function Providers({
+export function RootProviders({
   children,
   nonce
 }: {
   children: ReactNode;
   nonce?: string;
 }) {
+  return (
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      forcedTheme="dark"
+      enableSystem={false}
+      disableTransitionOnChange
+      nonce={nonce}
+    >
+      <AnnouncerProvider>
+        <Toaster position="top-right" richColors />
+        {children}
+      </AnnouncerProvider>
+    </ThemeProvider>
+  );
+}
+
+export function AppQueryProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -30,21 +48,7 @@ export function Providers({
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="dark"
-        forcedTheme="dark"
-        enableSystem={false}
-        disableTransitionOnChange
-        nonce={nonce}
-      >
-        <SessionProvider>
-          <AnnouncerProvider>
-            <Toaster position="top-right" richColors />
-            {children}
-          </AnnouncerProvider>
-        </SessionProvider>
-      </ThemeProvider>
+      <SessionProvider>{children}</SessionProvider>
     </QueryClientProvider>
   );
 }

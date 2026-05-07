@@ -10,6 +10,7 @@
 import type { ReactNode } from 'react';
 import { Footer } from '@/components/layout/footer';
 import { Navbar } from '@/components/layout/navbar';
+import { AppQueryProviders } from '@/lib/providers';
 
 interface PublicLayoutProps {
   children: ReactNode;
@@ -17,12 +18,14 @@ interface PublicLayoutProps {
 
 export default function PublicLayout({ children }: PublicLayoutProps) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      <main id="main-content" tabIndex={-1} className="flex-1">
-        {children}
-      </main>
-      <Footer />
-    </div>
+    <AppQueryProviders>
+      <div className="flex min-h-screen flex-col">
+        <Navbar />
+        <main id="main-content" tabIndex={-1} className="flex-1">
+          {children}
+        </main>
+        <Footer />
+      </div>
+    </AppQueryProviders>
   );
 }

@@ -9,6 +9,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AdminHeader } from '@/components/admin/layout/admin-header';
 import { AdminSidebar } from '@/components/admin/layout/admin-sidebar';
+import { AppQueryProviders } from '@/lib/providers';
 import { getServerSession } from '@/lib/server-session';
 import { getClientIpFromHeaders } from '@/server/lib/ip';
 import { auditLogService } from '@/server/services/audit.service';
@@ -116,24 +117,26 @@ export default async function AdminLayout({
   // RENDER
   // ═══════════════════════════════════════════════════════════════════
   return (
-    <div className="flex min-h-screen">
-      {/* Desktop Sidebar */}
-      <AdminSidebar className="w-64 hidden md:block" />
+    <AppQueryProviders>
+      <div className="flex min-h-screen">
+        {/* Desktop Sidebar */}
+        <AdminSidebar className="w-64 hidden md:block" />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Mobile Header with Menu */}
-        <AdminHeader />
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Mobile Header with Menu */}
+          <AdminHeader />
 
-        {/* Page Content */}
-        <main
-          id="main-content"
-          tabIndex={-1}
-          className="flex-1 p-6 overflow-y-auto"
-        >
-          {children}
-        </main>
+          {/* Page Content */}
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="flex-1 p-6 overflow-y-auto"
+          >
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </AppQueryProviders>
   );
 }
