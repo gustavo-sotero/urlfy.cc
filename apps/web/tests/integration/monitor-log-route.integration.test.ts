@@ -47,9 +47,17 @@ mock.module('@/lib/env', () => ({
   })
 }));
 
-// ─── Route import (after all mocks are in place) ─────────────────────
-// Dynamic import is intentional so Bun resolves modules with the mocks
-// already registered in the module cache.
+const MONITOR_ROUTE_PATH = '../../src/app/ops/monitor/log/route.ts';
+let monitorRouteImportCounter = 0;
+
+async function importFreshMonitorRoute() {
+  return import(
+    `${MONITOR_ROUTE_PATH}?test=${monitorRouteImportCounter++}`
+  ) as Promise<{
+    POST: typeof import('../../src/app/ops/monitor/log/route').POST;
+  }>;
+}
+
 let POST: (req: unknown) => Promise<Response>;
 
 // ═══════════════════════════════════════════════════════════════════
@@ -62,12 +70,8 @@ describe('monitor log route', () => {
       remaining: 99,
       resetAt: Date.now() + 60_000
     }));
-    // Import lazily so the first import picks up all registered mocks.
-    // On subsequent tests Bun returns the cached (already-mocked) module.
-    if (!POST) {
-      const mod = await import('@/app/ops/monitor/log/route');
-      POST = mod.POST as typeof POST;
-    }
+    const mod = await importFreshMonitorRoute();
+    POST = mod.POST as typeof POST;
   });
 
   afterEach(() => {

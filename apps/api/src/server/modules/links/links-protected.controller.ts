@@ -458,6 +458,7 @@ export const protectedLinksController = new Elysia()
       },
       response: {
         200: PaginatedResponse(t.Ref('links.response')),
+        400: ErrorRef(400),
         401: ErrorRef(401),
         500: ErrorRef(500)
       }

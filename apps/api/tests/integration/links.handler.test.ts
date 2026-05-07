@@ -289,6 +289,23 @@ describe('Links Endpoints (handler-level)', () => {
 
       expect(response.status).toBeGreaterThanOrEqual(400);
     });
+
+    test('should reject invalid pagination cursors', async () => {
+      const response = await client.get<{
+        success: boolean;
+        error?: { code: string; message: string };
+      }>('/api/links', {
+        query: { cursor: 'not-a-valid-cursor' },
+        headers: {
+          'x-test-user-id': 'links-query-user'
+        }
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error?.code).toBe('VALIDATION_ERROR');
+      expect(response.body.error?.message).toBe('Invalid pagination cursor');
+    });
   });
 
   describe('POST /api/links/bulk (authenticated)', () => {

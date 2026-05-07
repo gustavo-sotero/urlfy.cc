@@ -14,7 +14,18 @@ const checkDatabaseHealthMock = mock(async () => ({
   latencyMs: 2
 }));
 
+const READY_ROUTE_PATH = '../../src/app/ops/health/ready/route.ts';
+let readyRouteImportCounter = 0;
+
 const originalFetch = global.fetch;
+
+async function importFreshReadyRoute() {
+  return import(
+    `${READY_ROUTE_PATH}?test=${readyRouteImportCounter++}`
+  ) as Promise<{
+    GET: typeof import('../../src/app/ops/health/ready/route').GET;
+  }>;
+}
 
 describe('Web readiness endpoint', () => {
   beforeAll(() => {
@@ -54,7 +65,7 @@ describe('Web readiness endpoint', () => {
         })
     ) as unknown as typeof fetch;
 
-    const { GET } = await import('@/app/ops/health/ready/route');
+    const { GET } = await importFreshReadyRoute();
     const response = await GET();
     const body = (await response.json()) as {
       status: string;
@@ -77,7 +88,7 @@ describe('Web readiness endpoint', () => {
         })
     ) as unknown as typeof fetch;
 
-    const { GET } = await import('@/app/ops/health/ready/route');
+    const { GET } = await importFreshReadyRoute();
     const response = await GET();
     const body = (await response.json()) as {
       status: string;
@@ -106,7 +117,7 @@ describe('Web readiness endpoint', () => {
         })
     ) as unknown as typeof fetch;
 
-    const { GET } = await import('@/app/ops/health/ready/route');
+    const { GET } = await importFreshReadyRoute();
     const response = await GET();
     const body = (await response.json()) as {
       status: string;
@@ -135,7 +146,7 @@ describe('Web readiness endpoint', () => {
         })
     ) as unknown as typeof fetch;
 
-    const { GET } = await import('@/app/ops/health/ready/route');
+    const { GET } = await importFreshReadyRoute();
     const response = await GET();
     const body = (await response.json()) as {
       status: string;

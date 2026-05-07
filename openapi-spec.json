@@ -10776,6 +10776,26 @@
               }
             }
           },
+          "400": {
+            "description": "Bad Request - Invalid input or validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "URL is required"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
+                  "$ref": "response.error.400"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Unauthorized - Authentication required or invalid credentials",
             "content": {
@@ -17751,6 +17771,26 @@
                       "$id": "#/components/schemas/response.pagination"
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid input or validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "URL is required"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
+                  "$ref": "response.error.400"
                 }
               }
             }

@@ -252,6 +252,7 @@ const listOperations = new Elysia({ name: 'V1Links.List' })
           description: 'Paginated list of user links',
           exampleItem: LINK_RESPONSE_EXAMPLE
         }),
+        400: ErrorRef(400),
         401: ErrorRef(401),
         403: ErrorRef(403),
         429: ErrorRef(429),

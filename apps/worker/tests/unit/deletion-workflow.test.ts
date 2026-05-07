@@ -7,13 +7,13 @@
  *
  * Validates:
  * 1. Normal happy-path: request transitions pending → processing → completed,
- *    audit log is written, and all user data is deleted in the correct order.
+ *    user data is deleted before terminal completion, and audits happen in the correct order.
  * 2. Deadline not yet reached: worker throws and does NOT mark request as failed.
  * 3. Request not found: worker exits silently without throwing.
  * 4. DB failure during processMessage: request status is updated to 'failed'
  *    with the error message.
- * 5. Status completion and audit log happen BEFORE the user row is deleted,
- *    verifying correct operation ordering (Phase 7 requirement).
+ * 5. Claim happens BEFORE user deletion and terminal completion happens AFTER
+ *    the real delete, verifying correct operation ordering.
  * 6. Retry safety: if the worker crashes mid-way (after partial deletes),
  *    calling processMessage again marks the already-completed request and
  *    does not double-audit.
@@ -60,20 +60,91 @@ const state = {
 };
 
 // ─── DB mock ───────────────────────────────────────────────────────────────
+function getCurrentRequest() {
+  return state.dbSelectResult[0] as
+    | (ReturnType<typeof makePendingRequest> & {
+        status?: string;
+        completedAt?: Date | null;
+        failureReason?: string | null;
+      })
+    | undefined;
+}
+
 function makeUpdater() {
   return {
-    set: mock((values: Record<string, unknown>) => ({
-      where: mock(async () => {
-        // Track status transitions via the .set() argument (plain object, always inspectable)
-        const status = values?.status;
-        if (status === 'completed') opOrder.push('status:completed');
-        else if (status === 'processing') opOrder.push('status:processing');
-        else if (status === 'failed') opOrder.push('status:failed');
-        else opOrder.push('update:unknown');
-        if (state.failOnUpdate) throw new Error('DB update failed');
-        return [];
-      })
-    }))
+    set: mock((values: Record<string, unknown>) => {
+      const status = values?.status;
+
+      if (status === 'processing') {
+        return {
+          where: mock(() => {
+            const claimPromise = Promise.resolve([]) as Promise<unknown[]> & {
+              returning: (fields?: unknown) => Promise<Array<{ id: string }>>;
+            };
+
+            claimPromise.returning = mock(async () => {
+              if (state.failOnUpdate) throw new Error('DB update failed');
+
+              const currentRequest = getCurrentRequest();
+              const currentStatus = currentRequest?.status;
+              const isClaimable =
+                currentStatus === 'pending' || currentStatus === 'processing';
+
+              if (!isClaimable) {
+                return [];
+              }
+
+              opOrder.push('status:processing');
+
+              if (currentRequest) {
+                currentRequest.status = 'processing';
+              }
+
+              return [{ id: currentRequest?.id ?? REQUEST_ID }];
+            });
+
+            return claimPromise;
+          })
+        };
+      }
+
+      return {
+        where: mock(async () => {
+          if (state.failOnUpdate) throw new Error('DB update failed');
+
+          if (status === 'completed') {
+            opOrder.push('status:completed');
+
+            const currentRequest = getCurrentRequest();
+            if (currentRequest) {
+              currentRequest.status = 'completed';
+              currentRequest.completedAt =
+                values.completedAt instanceof Date ? values.completedAt : null;
+            }
+
+            return [];
+          }
+
+          if (status === 'failed') {
+            opOrder.push('status:failed');
+
+            const currentRequest = getCurrentRequest();
+            if (currentRequest) {
+              currentRequest.status = 'failed';
+              currentRequest.failureReason =
+                typeof values.failureReason === 'string'
+                  ? values.failureReason
+                  : null;
+            }
+
+            return [];
+          }
+
+          opOrder.push('update:unknown');
+          return [];
+        })
+      };
+    })
   };
 }
 
@@ -396,36 +467,51 @@ describe('DeletionWorker.processMessage', () => {
   });
 
   // ── 1. Happy-path ordering ────────────────────────────────────────────────
-  test('happy-path: status completion and audit log happen before user deletion', async () => {
+  test('happy-path: request is claimed before deletion and completed after real deletion', async () => {
     const worker = makeWorker();
     await worker.runProcess('msg-001', {
       requestId: REQUEST_ID,
       userId: USER_ID
     });
 
-    // Status must be marked completed before user row deletion
+    const processingIdx = opOrder.indexOf('status:processing');
     const completedIdx = opOrder.indexOf('status:completed');
     const userDeleteIdx = opOrder.indexOf('delete:user');
 
+    expect(processingIdx).toBeGreaterThanOrEqual(0);
     expect(completedIdx).toBeGreaterThanOrEqual(0);
     expect(userDeleteIdx).toBeGreaterThanOrEqual(0);
-    expect(completedIdx).toBeLessThan(userDeleteIdx);
+    expect(processingIdx).toBeLessThan(userDeleteIdx);
+    expect(userDeleteIdx).toBeLessThan(completedIdx);
   });
 
   // ── 2. Audit log before user deletion ────────────────────────────────────
-  test('audit log is written before user row is deleted', async () => {
+  test('snapshot audit happens before deletion and completion audit happens after deletion', async () => {
     const worker = makeWorker();
     await worker.runProcess('msg-002', {
       requestId: REQUEST_ID,
       userId: USER_ID
     });
 
+    const firstAuditIdx = opOrder.indexOf('audit:log');
     const lastAuditIdx = opOrder.lastIndexOf('audit:log');
     const userDeleteIdx = opOrder.indexOf('delete:user');
 
+    expect(auditLogs).toHaveLength(2);
+    expect(
+      (auditLogs[0] as { metadata?: { operation?: string } }).metadata
+        ?.operation
+    ).toBe('user_data_snapshot');
+    expect(
+      (auditLogs[1] as { metadata?: { operation?: string } }).metadata
+        ?.operation
+    ).toBe('user_data_deleted');
+
+    expect(firstAuditIdx).toBeGreaterThanOrEqual(0);
     expect(lastAuditIdx).toBeGreaterThanOrEqual(0);
     expect(userDeleteIdx).toBeGreaterThanOrEqual(0);
-    expect(lastAuditIdx).toBeLessThan(userDeleteIdx);
+    expect(firstAuditIdx).toBeLessThan(userDeleteIdx);
+    expect(lastAuditIdx).toBeGreaterThan(userDeleteIdx);
   });
 
   // ── 3. twoFactor is explicitly deleted ───────────────────────────────────

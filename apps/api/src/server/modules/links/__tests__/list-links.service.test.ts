@@ -110,4 +110,20 @@ describe('listUserLinks', () => {
     expect(result.data[0]?.id).toBe('deleted-link');
     expect(result.data[0]?.shortUrl).toBe('https://urlfy.cc/gone123');
   });
+
+  it('rejects invalid keyset cursors instead of falling back to offset pagination', async () => {
+    selectCount = 0;
+
+    await expect(
+      listUserLinks('user-1', {
+        cursor: 'not-a-valid-cursor',
+        perPage: 20
+      })
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Invalid pagination cursor'
+    });
+
+    expect(selectCount).toBe(0);
+  });
 });
