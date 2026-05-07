@@ -516,7 +516,10 @@
                 "type": "string",
                 "enum": [
                   "REQUEST_ALREADY_EXISTS",
-                  "CONFLICT"
+                  "CONFLICT",
+                  "ALIAS_TAKEN",
+                  "SLUG_RESERVED",
+                  "DUPLICATE_ENTRY"
                 ]
               },
               "message": {
@@ -664,7 +667,10 @@
                   "URL_MALICIOUS",
                   "VALIDATION_ERROR",
                   "INVALID_URL",
-                  "SHORTENER_BLOCKED"
+                  "SHORTENER_BLOCKED",
+                  "URL_BLOCKED",
+                  "URL_INTERNAL_BLOCKED",
+                  "URL_RESOLUTION_FAILED"
                 ]
               },
               "message": {
@@ -832,6 +838,57 @@
           }
         },
         "$id": "#/components/schemas/response.error.500"
+      },
+      "response.error.503": {
+        "description": "Service Unavailable - Dependent service is down",
+        "examples": [
+          {
+            "success": false,
+            "error": {
+              "code": "SERVICE_UNAVAILABLE",
+              "message": "Service temporarily unavailable"
+            },
+            "requestId": "req_abc123xyz"
+          }
+        ],
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "success": {
+            "default": false,
+            "const": false,
+            "type": "boolean"
+          },
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "SERVICE_UNAVAILABLE",
+                  "DATABASE_UNAVAILABLE"
+                ]
+              },
+              "message": {
+                "examples": [
+                  "Service temporarily unavailable"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "$id": "#/components/schemas/response.error.503"
       },
       "links.create": {
         "type": "object",
@@ -10203,6 +10260,26 @@
                     }
                   ],
                   "$ref": "response.error.500"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable - Dependent service is down",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "success": false,
+                      "error": {
+                        "code": "SERVICE_UNAVAILABLE",
+                        "message": "Service temporarily unavailable"
+                      },
+                      "requestId": "req_abc123xyz"
+                    }
+                  ],
+                  "$ref": "response.error.503"
                 }
               }
             }

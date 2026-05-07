@@ -15,6 +15,7 @@ import {
   sql
 } from 'drizzle-orm';
 import { PAGINATION_LIMITS } from '@/server/config/limits';
+import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { sanitizeSearchQuery, sanitizeTags } from '@/server/lib/sanitize';
 import { applyPendingClicksToEntities } from '@/server/services/realtime-clicks.service';
 import type {
@@ -272,7 +273,9 @@ export async function listUserLinks(
         }
       };
     }
-    // Invalid cursor — fall through to offset pagination
+    // Invalid cursor — reject with 400 rather than silently falling through to
+    // offset pagination, which would return unexpected results for the caller.
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Invalid pagination cursor');
   }
 
   // ── Offset path (legacy / backward-compat) ───────────────────

@@ -2,16 +2,45 @@
 'use client';
 
 import { BarChart2, MousePointer, TrendingUp, Users } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import {
   ChartSkeleton,
   StatsGridSkeleton
 } from '@/components/charts/analytics-skeleton';
-import { ClicksChart } from '@/components/charts/clicks-chart';
-import { CountriesChart } from '@/components/charts/countries-chart';
-import { DevicesChart } from '@/components/charts/devices-chart';
-import { ReferrersChart } from '@/components/charts/referrers-chart';
+
+// Lazy-load chart components so recharts is excluded from the initial JS bundle
+// and pulled in only when the analytics page is actually rendered.
+const ClicksChart = dynamic(
+  () =>
+    import('@/components/charts/clicks-chart').then((m) => ({
+      default: m.ClicksChart
+    })),
+  { ssr: false, loading: () => <ChartSkeleton /> }
+);
+const CountriesChart = dynamic(
+  () =>
+    import('@/components/charts/countries-chart').then((m) => ({
+      default: m.CountriesChart
+    })),
+  { ssr: false, loading: () => <ChartSkeleton /> }
+);
+const DevicesChart = dynamic(
+  () =>
+    import('@/components/charts/devices-chart').then((m) => ({
+      default: m.DevicesChart
+    })),
+  { ssr: false, loading: () => <ChartSkeleton /> }
+);
+const ReferrersChart = dynamic(
+  () =>
+    import('@/components/charts/referrers-chart').then((m) => ({
+      default: m.ReferrersChart
+    })),
+  { ssr: false, loading: () => <ChartSkeleton /> }
+);
+
 import { QueryError } from '@/components/query-error';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {

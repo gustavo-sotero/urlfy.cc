@@ -24,11 +24,39 @@ export class PartitionManager {
   private readonly lookaheadMonths = 3; // Create future partitions: 3 months
 
   /**
+   * Verifies that the analytics_events parent table is a declaratively
+   * partitioned table (PARTITION BY RANGE).  Throws if the topology is
+   * wrong so callers get an actionable error instead of silently operating
+   * on a plain heap table.
+   */
+  async verifyPartitionedTopology(): Promise<void> {
+    const result = await db.execute(sql`
+      SELECT relkind
+      FROM   pg_class
+      WHERE  relname = 'analytics_events'
+        AND  relnamespace = 'public'::regnamespace
+    `);
+    const rows = Array.isArray(result) ? result : [];
+    const relkind = rows[0]?.relkind;
+
+    if (relkind !== 'p') {
+      throw new Error(
+        `analytics_events is not a partitioned table (pg_class.relkind=${JSON.stringify(relkind)}). ` +
+          'Run migration 0002_analytics_events_partitioning.sql before starting the partition manager.'
+      );
+    }
+  }
+
+  /**
    * Runs complete partition maintenance
    */
   async runMaintenance(): Promise<void> {
     try {
       logger.info('[PartitionManager] Starting partition maintenance...');
+
+      // Verify the parent table has the expected partitioned topology before
+      // attempting to CREATE/DROP child partitions.
+      await this.verifyPartitionedTopology();
 
       // List existing partitions
       const existing = await this.listPartitions();

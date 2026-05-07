@@ -7,6 +7,14 @@ import { requireAuth } from './require-auth';
 
 const logger = createLogger('require-admin');
 
+/**
+ * Maximum session age (in milliseconds) allowed for admin operations.
+ * Sessions older than this require the user to re-authenticate before
+ * performing privileged actions (short-lived elevation requirement).
+ * Default: 4 hours.
+ */
+const ADMIN_SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
+
 export const requireAdmin = new Elysia({ name: 'require-admin' })
   .use(requireAuth)
   .onBeforeHandle(
@@ -39,6 +47,34 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
           403,
           buildErrorEnvelope('FORBIDDEN', 'Admin access required', requestId)
         );
+      }
+
+      // Require a recently-created session for admin operations.
+      // Test auth bypasses this check (no real session object exists).
+      if (!isTestAuth && session) {
+        const adminSession = session as Session;
+        const sessionAgeMs =
+          Date.now() - new Date(adminSession.createdAt).getTime();
+
+        if (sessionAgeMs > ADMIN_SESSION_MAX_AGE_MS) {
+          logger.warn(
+            'Admin access denied - session too old, re-authentication required',
+            {
+              userId: adminUser.id,
+              sessionAgeMs: Math.round(sessionAgeMs / 1000)
+            }
+          );
+          const requestId = getOrCreateRequestId(request);
+          set.headers['x-request-id'] = requestId;
+          return status(
+            403,
+            buildErrorEnvelope(
+              'ADMIN_SESSION_EXPIRED',
+              'Admin session expired. Please sign in again to continue.',
+              requestId
+            )
+          );
+        }
       }
 
       logger.debug('Admin access granted', { userId: adminUser.id });

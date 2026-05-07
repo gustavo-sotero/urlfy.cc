@@ -145,7 +145,8 @@ const edenClientPrefixes = [
   '/api/analytics',
   '/api/keys',
   '/api/links',
-  '/api/me'
+  '/api/me',
+  '/api/v1'
 ] as const;
 const httpMethodOrder: HttpMethod[] = ['get', 'post', 'put', 'patch', 'delete'];
 

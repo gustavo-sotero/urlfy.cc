@@ -300,7 +300,8 @@ export const createLinkController = new Elysia()
         409: ErrorRef(409),
         422: ErrorRef(422),
         429: ErrorRef(429),
-        500: ErrorRef(500)
+        500: ErrorRef(500),
+        503: ErrorRef(503)
       }
     }
   );

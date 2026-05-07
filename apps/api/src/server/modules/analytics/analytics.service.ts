@@ -126,7 +126,7 @@ export const AnalyticsService = {
               linkId
             }
           );
-          return 0;
+          throw error;
         }
       },
       linkId
@@ -334,7 +334,7 @@ export const AnalyticsService = {
             error: error instanceof Error ? error.message : String(error),
             linkId
           });
-          return [];
+          throw error;
         }
       },
       linkId
@@ -431,7 +431,7 @@ export const AnalyticsService = {
             error: error instanceof Error ? error.message : String(error),
             linkId
           });
-          return [];
+          throw error;
         }
       },
       linkId
@@ -529,7 +529,7 @@ export const AnalyticsService = {
             error: error instanceof Error ? error.message : String(error),
             linkId
           });
-          return [];
+          throw error;
         }
       },
       linkId
@@ -593,7 +593,7 @@ export const AnalyticsService = {
             error: error instanceof Error ? error.message : String(error),
             linkId
           });
-          return [];
+          throw error;
         }
       },
       linkId

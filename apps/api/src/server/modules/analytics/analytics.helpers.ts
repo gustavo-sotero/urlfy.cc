@@ -48,6 +48,11 @@ export interface ReferrerBreakdownItem {
  * Cache wrapper for analytics queries
  * Implements cache-aside pattern with automatic JSON serialization.
  *
+ * Redis failures are isolated so a Redis outage does not block the DB
+ * query.  Fetcher errors (e.g. DB failures) are **not** caught here;
+ * they propagate to the caller so no stale or empty fallback value is
+ * ever written to the cache.
+ *
  * When {@link linkId} is provided the cache key is also tracked in a
  * per-link Redis Set (`analytics:keys:{linkId}`) so that the analytics
  * worker can invalidate deterministically without SCAN.
@@ -58,46 +63,48 @@ export async function withCache<T>(
   fetcher: () => Promise<T>,
   linkId?: string
 ): Promise<T> {
+  // Attempt to read from cache; Redis errors are non-fatal.
+  let cached: string | null = null;
   try {
-    // Try to get from cache
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      logger.debug('Analytics cache hit', { cacheKey });
-      return JSON.parse(cached) as T;
-    }
-
-    logger.debug('Analytics cache miss', { cacheKey });
-
-    // Fetch fresh data
-    const data = await fetcher();
-
-    // Store in cache and track the key for deterministic invalidation
-    const warnHandler = (err: unknown) => {
-      logger.warn('Failed to cache analytics data', {
-        cacheKey,
-        error: err instanceof Error ? (err as Error).message : String(err)
-      });
-    };
-
-    redis.set(cacheKey, JSON.stringify(data), 'EX', ttl).catch(warnHandler);
-
-    if (linkId) {
-      const trackingKey = CACHE_KEYS.ANALYTICS_KEYS_SET(linkId);
-      redis.send('SADD', [trackingKey, cacheKey]).catch(warnHandler);
-      redis
-        .expire(trackingKey, CACHE_TTL.ANALYTICS_KEYS_SET)
-        .catch(warnHandler);
-    }
-
-    return data;
-  } catch (error) {
-    // If Redis fails, fall back to direct fetch
-    logger.warn('Analytics cache error, falling back to direct fetch', {
+    cached = await redis.get(cacheKey);
+  } catch (redisError) {
+    logger.warn('Analytics cache read error, skipping cache', {
       cacheKey,
-      error: error instanceof Error ? error.message : String(error)
+      error:
+        redisError instanceof Error ? redisError.message : String(redisError)
     });
-    return fetcher();
   }
+
+  if (cached) {
+    logger.debug('Analytics cache hit', { cacheKey });
+    return JSON.parse(cached) as T;
+  }
+
+  logger.debug('Analytics cache miss', { cacheKey });
+
+  // Fetch fresh data — any DB / fetcher error propagates to the caller.
+  // We intentionally do NOT catch here so that error fallbacks are never
+  // written to Redis and served as authoritative data on the next request.
+  const data = await fetcher();
+
+  // Store in cache and track the key for deterministic invalidation.
+  // Write failures are non-fatal (fire-and-forget).
+  const warnHandler = (err: unknown) => {
+    logger.warn('Failed to cache analytics data', {
+      cacheKey,
+      error: err instanceof Error ? (err as Error).message : String(err)
+    });
+  };
+
+  redis.set(cacheKey, JSON.stringify(data), 'EX', ttl).catch(warnHandler);
+
+  if (linkId) {
+    const trackingKey = CACHE_KEYS.ANALYTICS_KEYS_SET(linkId);
+    redis.send('SADD', [trackingKey, cacheKey]).catch(warnHandler);
+    redis.expire(trackingKey, CACHE_TTL.ANALYTICS_KEYS_SET).catch(warnHandler);
+  }
+
+  return data;
 }
 
 // ═══════════════════════════════════════════════════════════════════

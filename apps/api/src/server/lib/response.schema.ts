@@ -54,7 +54,13 @@ export const ErrorCodes = t.Union(
     t.Literal('DELETION_FAILED'),
     t.Literal('NO_DATA'),
     t.Literal('INVALID_DAYS_RANGE'),
-    t.Literal('2FA_REQUIRED')
+    t.Literal('2FA_REQUIRED'),
+    t.Literal('ALIAS_TAKEN'),
+    t.Literal('SLUG_RESERVED'),
+    t.Literal('DUPLICATE_ENTRY'),
+    t.Literal('URL_BLOCKED'),
+    t.Literal('SERVICE_UNAVAILABLE'),
+    t.Literal('DATABASE_UNAVAILABLE')
   ],
   { description: 'Standard API error codes' }
 );
@@ -176,6 +182,14 @@ export const ERROR_EXAMPLES = {
   500: {
     success: false,
     error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
+    requestId: 'req_abc123xyz'
+  },
+  503: {
+    success: false,
+    error: {
+      code: 'SERVICE_UNAVAILABLE',
+      message: 'Service temporarily unavailable'
+    },
     requestId: 'req_abc123xyz'
   }
 } as const;
@@ -460,7 +474,10 @@ export const CommonErrors = {
       error: t.Object({
         code: t.Union([
           t.Literal('REQUEST_ALREADY_EXISTS'),
-          t.Literal('CONFLICT')
+          t.Literal('CONFLICT'),
+          t.Literal('ALIAS_TAKEN'),
+          t.Literal('SLUG_RESERVED'),
+          t.Literal('DUPLICATE_ENTRY')
         ]),
         message: t.String({
           examples: ['A deletion request already exists', 'Resource conflict']
@@ -536,7 +553,10 @@ export const CommonErrors = {
           t.Literal('URL_MALICIOUS'),
           t.Literal('VALIDATION_ERROR'),
           t.Literal('INVALID_URL'),
-          t.Literal('SHORTENER_BLOCKED')
+          t.Literal('SHORTENER_BLOCKED'),
+          t.Literal('URL_BLOCKED'),
+          t.Literal('URL_INTERNAL_BLOCKED'),
+          t.Literal('URL_RESOLUTION_FAILED')
         ]),
         message: t.String({
           examples: [
@@ -642,6 +662,33 @@ export const CommonErrors = {
         }
       ]
     }
+  ),
+
+  503: t.Object(
+    {
+      success: t.Literal(false, { default: false }),
+      error: t.Object({
+        code: t.Union([
+          t.Literal('SERVICE_UNAVAILABLE'),
+          t.Literal('DATABASE_UNAVAILABLE')
+        ]),
+        message: t.String({ examples: ['Service temporarily unavailable'] })
+      }),
+      requestId: t.Optional(t.String())
+    },
+    {
+      description: 'Service Unavailable - Dependent service is down',
+      examples: [
+        {
+          success: false,
+          error: {
+            code: 'SERVICE_UNAVAILABLE',
+            message: 'Service temporarily unavailable'
+          },
+          requestId: 'req_abc123xyz'
+        }
+      ]
+    }
   )
 } as const;
 
@@ -664,5 +711,6 @@ export const ResponseModels = new Elysia({ name: 'response.models' }).model({
   'response.error.422': CommonErrors[422],
   'response.error.429': CommonErrors[429],
   'response.error.451': CommonErrors[451],
-  'response.error.500': CommonErrors[500]
+  'response.error.500': CommonErrors[500],
+  'response.error.503': CommonErrors[503]
 });
