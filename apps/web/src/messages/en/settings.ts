@@ -42,13 +42,7 @@ export const Settings = {
   preferences: {
     title: 'Preferences',
     description: 'Customize your experience',
-    language: 'Language',
-    notifications: 'Notifications',
-    emailNotifications: 'Email Notifications',
-    emailNotificationsDescription:
-      'Receive notifications about your links via email',
-    weeklyReports: 'Weekly Reports',
-    weeklyReportsDescription: 'Receive analytics reports every week'
+    language: 'Language'
   },
 
   dangerZone: {

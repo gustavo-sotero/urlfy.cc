@@ -19,6 +19,26 @@ let readyRouteImportCounter = 0;
 
 const originalFetch = global.fetch;
 
+function expectMinimalPublicReadiness(
+  body: Record<string, unknown>,
+  expectedStatus: 'ready' | 'degraded' | 'not_ready'
+) {
+  expect(body).toEqual({
+    status: expectedStatus,
+    component: 'web',
+    timestamp: expect.any(String)
+  });
+  expect(Object.keys(body).sort()).toEqual([
+    'component',
+    'status',
+    'timestamp'
+  ]);
+  expect(body).not.toHaveProperty('api');
+  expect(body).not.toHaveProperty('redis');
+  expect(body).not.toHaveProperty('database');
+  expect(body).not.toHaveProperty('error');
+}
+
 async function importFreshReadyRoute() {
   return import(
     `${READY_ROUTE_PATH}?test=${readyRouteImportCounter++}`
@@ -74,12 +94,11 @@ describe('Web readiness endpoint', () => {
     };
 
     expect(response.status).toBe(200);
-    expect(body.status).toBe('ready');
-    expect(body.component).toBe('web');
+    expectMinimalPublicReadiness(body, 'ready');
     expect(new Date(body.timestamp).getTime()).not.toBeNaN();
   });
 
-  test('returns 503 when upstream API readiness fails', async () => {
+  test('returns 503 when upstream API readiness fails without exposing dependency details', async () => {
     global.fetch = mock(
       async () =>
         new Response(JSON.stringify({ status: 'not_ready' }), {
@@ -97,12 +116,11 @@ describe('Web readiness endpoint', () => {
     };
 
     expect(response.status).toBe(503);
-    expect(body.status).toBe('not_ready');
-    expect(body.component).toBe('web');
+    expectMinimalPublicReadiness(body, 'not_ready');
     expect(new Date(body.timestamp).getTime()).not.toBeNaN();
   });
 
-  test('returns 200 with degraded=true when Redis readiness fails', async () => {
+  test('returns 200 with degraded status when Redis readiness fails without exposing dependency details', async () => {
     checkRedisHealthMock.mockImplementation(async () => ({
       status: 'error',
       latencyMs: 2,
@@ -126,12 +144,11 @@ describe('Web readiness endpoint', () => {
     };
 
     expect(response.status).toBe(200);
-    expect(body.status).toBe('degraded');
-    expect(body.component).toBe('web');
+    expectMinimalPublicReadiness(body, 'degraded');
     expect(new Date(body.timestamp).getTime()).not.toBeNaN();
   });
 
-  test('returns 503 when database readiness fails', async () => {
+  test('returns 503 when database readiness fails without exposing dependency details', async () => {
     checkDatabaseHealthMock.mockImplementation(async () => ({
       status: 'error',
       latencyMs: 5,
@@ -155,8 +172,7 @@ describe('Web readiness endpoint', () => {
     };
 
     expect(response.status).toBe(503);
-    expect(body.status).toBe('not_ready');
-    expect(body.component).toBe('web');
+    expectMinimalPublicReadiness(body, 'not_ready');
     expect(new Date(body.timestamp).getTime()).not.toBeNaN();
   });
 });
