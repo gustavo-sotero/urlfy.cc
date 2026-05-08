@@ -29,7 +29,7 @@ const MAX_BODY_SIZE = 10 * 1024; // 10 KB
  * Accepts:
  *  - Sec-Fetch-Site: same-origin or same-site (browser cross-origin policy)
  *  - Origin header that matches the app's configured origin
- * Rejects cross-origin requests from third-party sites.
+ * Rejects requests that provide no same-site signal at all.
  */
 function isAllowedOrigin(request: NextRequest): boolean {
   // Sec-Fetch-Site is injected by browsers for same-site requests; its
@@ -39,13 +39,12 @@ function isAllowedOrigin(request: NextRequest): boolean {
     return true;
   }
 
-  // For environments without Sec-Fetch-Site (e.g. non-browser clients or
-  // older browsers), fall back to checking the Origin header.
+  // For environments without Sec-Fetch-Site, fall back to checking the
+  // Origin header. Browser POST requests should include Origin even when the
+  // request is same-origin, so an absent Origin here is treated as suspicious.
   const origin = request.headers.get('origin');
   if (!origin) {
-    // No Origin header: likely a same-origin request (Origin is omitted for
-    // same-origin non-navigation requests in most browsers).
-    return true;
+    return false;
   }
 
   try {

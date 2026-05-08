@@ -13,6 +13,13 @@
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 
+function sameOriginHeaders(overrides: Record<string, string> = {}) {
+  return {
+    origin: 'http://localhost:3000',
+    ...overrides
+  };
+}
+
 // ─── Mock logger ─────────────────────────────────────────────────────
 const errorLog = mock(() => {});
 const originalTrustProxy = process.env.TRUST_PROXY;
@@ -96,6 +103,7 @@ describe('monitor log route', () => {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
+          ...sameOriginHeaders(),
           'x-forwarded-for': '203.0.113.10',
           'user-agent': 'test-agent'
         },
@@ -154,7 +162,10 @@ describe('monitor log route', () => {
     const response = await POST(
       new Request('http://localhost/ops/monitor/log', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          ...sameOriginHeaders()
+        },
         body: JSON.stringify({ error: 'test', url: 'https://urlfy.cc/' })
       }) as never
     );
@@ -171,6 +182,7 @@ describe('monitor log route', () => {
     const request = {
       headers: new Headers({
         'content-type': 'application/json',
+        ...sameOriginHeaders(),
         // Attempt to spoof a different IP via the header
         'x-forwarded-for': '9.9.9.9'
       }),
@@ -195,6 +207,25 @@ describe('monitor log route', () => {
           'content-type': 'application/json',
           'sec-fetch-site': 'cross-site',
           origin: 'https://evil.example'
+        },
+        body: JSON.stringify({ error: 'test', url: 'https://urlfy.cc/' })
+      }) as never
+    );
+
+    expect(response.status).toBe(403);
+    expect(checkIPLimitMock).not.toHaveBeenCalled();
+
+    const body = await response.json();
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('FORBIDDEN');
+  });
+
+  test('returns 403 when both Sec-Fetch-Site and Origin are absent', async () => {
+    const response = await POST(
+      new Request('http://localhost/ops/monitor/log', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json'
         },
         body: JSON.stringify({ error: 'test', url: 'https://urlfy.cc/' })
       }) as never
@@ -234,6 +265,7 @@ describe('monitor log route', () => {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
+          ...sameOriginHeaders(),
           'content-length': String(11 * 1024)
         },
         body: JSON.stringify({ error: 'test', url: 'https://urlfy.cc/' })
@@ -250,7 +282,10 @@ describe('monitor log route', () => {
     const response = await POST(
       new Request('http://localhost/ops/monitor/log', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          ...sameOriginHeaders()
+        },
         body: JSON.stringify({ url: 'https://urlfy.cc/' })
       }) as never
     );
@@ -265,7 +300,10 @@ describe('monitor log route', () => {
     const response = await POST(
       new Request('http://localhost/ops/monitor/log', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          ...sameOriginHeaders()
+        },
         body: JSON.stringify({ error: 'something broke' })
       }) as never
     );
