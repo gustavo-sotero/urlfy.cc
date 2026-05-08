@@ -16,64 +16,14 @@
  */
 
 import { Elysia, type TSchema, t } from 'elysia';
-import { ErrorCode } from './error-handler';
+import { ERROR_CODES_BY_STATUS } from './error-handler';
 
 const FRAMEWORK_NOT_FOUND = 'NOT_FOUND' as const;
 
-const STATUS_ERROR_CODES = {
-  400: [
-    ErrorCode.VALIDATION_ERROR,
-    ErrorCode.INVALID_URL,
-    ErrorCode.INVALID_INPUT,
-    ErrorCode.SHORTENER_NOT_ALLOWED,
-    ErrorCode.URL_TOO_LONG
-  ],
-  401: [
-    ErrorCode.UNAUTHORIZED,
-    ErrorCode.PASSWORD_REQUIRED,
-    ErrorCode.INVALID_PASSWORD,
-    ErrorCode.INVALID_CREDENTIALS,
-    ErrorCode.SESSION_EXPIRED
-  ],
-  402: [ErrorCode.QUOTA_EXCEEDED],
-  403: [
-    ErrorCode.FORBIDDEN,
-    ErrorCode.EMAIL_VERIFICATION_REQUIRED,
-    ErrorCode.ADMIN_REQUIRED,
-    ErrorCode.ADMIN_SESSION_EXPIRED,
-    ErrorCode.INSUFFICIENT_PERMISSIONS
-  ],
-  404: [
-    FRAMEWORK_NOT_FOUND,
-    ErrorCode.LINK_NOT_FOUND,
-    ErrorCode.USER_NOT_FOUND,
-    ErrorCode.RESOURCE_NOT_FOUND
-  ],
-  409: [
-    ErrorCode.ALIAS_TAKEN,
-    ErrorCode.SLUG_RESERVED,
-    ErrorCode.DUPLICATE_ENTRY
-  ],
-  410: [
-    ErrorCode.LINK_EXPIRED,
-    ErrorCode.LINK_DELETED,
-    ErrorCode.MAX_CLICKS_REACHED
-  ],
-  421: [ErrorCode.REDIRECT_LOOP],
-  422: [
-    ErrorCode.URL_MALICIOUS,
-    ErrorCode.URL_BLOCKED,
-    ErrorCode.IDEMPOTENCY_CONFLICT
-  ],
-  429: [ErrorCode.RATE_LIMITED],
-  451: [ErrorCode.LINK_BANNED, ErrorCode.CONTENT_BANNED],
-  500: [
-    ErrorCode.INTERNAL_ERROR,
-    ErrorCode.DATABASE_ERROR,
-    ErrorCode.CACHE_ERROR
-  ],
-  503: [ErrorCode.SERVICE_UNAVAILABLE, ErrorCode.DATABASE_UNAVAILABLE]
-} as const;
+const STATUS_ERROR_CODES: Record<number, readonly string[]> = {
+  ...ERROR_CODES_BY_STATUS,
+  404: [FRAMEWORK_NOT_FOUND, ...ERROR_CODES_BY_STATUS[404]]
+};
 
 function uniqueErrorCodes(codes: readonly string[]): string[] {
   return [...new Set(codes)];

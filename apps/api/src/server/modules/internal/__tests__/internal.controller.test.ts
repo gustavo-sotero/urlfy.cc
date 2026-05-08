@@ -4,7 +4,6 @@ process.env.INTERNAL_API_SECRET =
   process.env.INTERNAL_API_SECRET ?? 'test-internal-api-secret-32chars';
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { hashVisitorForAnalytics } from '@urlfy/telemetry';
 import { Elysia } from 'elysia';
 
 const realAuthModule = await import('@/lib/auth');
@@ -189,10 +188,9 @@ describe('internalController session route', () => {
     expect(await response.text()).toBe('');
   });
 
-  test('enqueues anonymized analytics payload without persisting raw IPs', async () => {
+  test('rejects legacy analytics payloads that still include a raw ip', async () => {
     const { internalController } = await importInternalController();
     const app = new Elysia({ prefix: '/api' }).use(internalController);
-    const timestamp = '2026-05-07T12:00:00.000Z';
 
     const response = await app.handle(
       new Request('http://localhost/api/internal/analytics', {
@@ -207,42 +205,14 @@ describe('internalController session route', () => {
           ip: '198.51.100.10',
           userAgent: 'Mozilla/5.0',
           referer: 'https://example.com',
-          timestamp
+          timestamp: '2026-05-07T12:00:00.000Z'
         })
       })
     );
 
-    expect(response.status).toBe(202);
-    expect(redisAddMock).toHaveBeenCalledWith(
-      'analytics:clicks',
-      expect.objectContaining({
-        linkId: '550e8400-e29b-41d4-a716-446655440000',
-        shortCode: 'abc1234',
-        visitorHash: hashVisitorForAnalytics(
-          '198.51.100.10',
-          '550e8400-e29b-41d4-a716-446655440000',
-          new Date(timestamp)
-        ),
-        country: 'BR',
-        city: 'Recife',
-        latitude: '-8.0476',
-        longitude: '-34.877',
-        userAgent: 'Mozilla/5.0',
-        referer: 'https://example.com',
-        timestamp
-      }),
-      '*',
-      50000
-    );
-
-    const firstCall = redisAddMock.mock.calls[0];
-    expect(firstCall).toBeDefined();
-    if (!firstCall) {
-      throw new Error('Expected analytics event to be enqueued');
-    }
-
-    const enqueuedPayload = firstCall[1];
-    expect('ip' in enqueuedPayload).toBe(false);
+    expect(response.status).toBe(422);
+    expect(redisAddMock).not.toHaveBeenCalled();
+    expect(lookupGeoIPMock).not.toHaveBeenCalled();
   });
 
   test('accepts pre-anonymized analytics payloads without recomputing visitor data', async () => {

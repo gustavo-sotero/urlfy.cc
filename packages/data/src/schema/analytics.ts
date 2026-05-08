@@ -7,6 +7,7 @@ import {
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -32,7 +33,7 @@ export const deviceTypeEnum = pgEnum('device_type', [
 export const analyticsEvents = pgTable(
   'analytics_events',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').defaultRandom().notNull(),
 
     // Idempotency key: Redis stream message ID persisted to prevent duplicate
     // inserts on worker retry. The partitioned parent requires unique indexes
@@ -80,6 +81,14 @@ export const analyticsEvents = pgTable(
       .defaultNow()
   },
   (table) => ({
+    // Partitioned parent tables in PostgreSQL require the partition key to be
+    // part of the primary key. Keep the Drizzle schema aligned with the manual
+    // partitioning migration so future schema generation does not drift.
+    pkAnalyticsEvents: primaryKey({
+      name: 'analytics_events_pkey',
+      columns: [table.id, table.createdAt]
+    }),
+
     // Unique constraint for idempotent inserts on the partitioned parent.
     idxStreamMessageId: uniqueIndex('idx_analytics_stream_message_id').on(
       table.streamMessageId,

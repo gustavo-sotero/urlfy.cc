@@ -101,10 +101,25 @@ export const ErrorCode = {
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
 
+export type ErrorStatusCode =
+  | 400
+  | 401
+  | 402
+  | 403
+  | 404
+  | 409
+  | 410
+  | 421
+  | 422
+  | 429
+  | 451
+  | 500
+  | 503;
+
 /**
  * Mapping of error codes to HTTP status codes
  */
-const ERROR_STATUS_MAP: Record<ErrorCodeType, number> = {
+export const ERROR_STATUS_MAP = {
   // 400
   [ErrorCode.VALIDATION_ERROR]: 400,
   [ErrorCode.INVALID_URL]: 400,
@@ -155,7 +170,35 @@ const ERROR_STATUS_MAP: Record<ErrorCodeType, number> = {
   // 503
   [ErrorCode.SERVICE_UNAVAILABLE]: 503,
   [ErrorCode.DATABASE_UNAVAILABLE]: 503
-};
+} as const satisfies Record<ErrorCodeType, ErrorStatusCode>;
+
+function buildErrorCodesByStatus(): Record<ErrorStatusCode, ErrorCodeType[]> {
+  const codesByStatus: Record<ErrorStatusCode, ErrorCodeType[]> = {
+    400: [],
+    401: [],
+    402: [],
+    403: [],
+    404: [],
+    409: [],
+    410: [],
+    421: [],
+    422: [],
+    429: [],
+    451: [],
+    500: [],
+    503: []
+  };
+
+  for (const [code, status] of Object.entries(ERROR_STATUS_MAP) as Array<
+    [ErrorCodeType, ErrorStatusCode]
+  >) {
+    codesByStatus[status].push(code);
+  }
+
+  return codesByStatus;
+}
+
+export const ERROR_CODES_BY_STATUS = buildErrorCodesByStatus();
 
 /**
  * Custom application error with code and message

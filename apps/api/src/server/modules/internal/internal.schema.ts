@@ -30,18 +30,7 @@ const InternalAnalyticsEventBodyBase = {
   timestamp: t.String({ format: 'date-time' })
 } as const;
 
-const LegacyInternalAnalyticsEventBody = t.Object(
-  {
-    ...InternalAnalyticsEventBodyBase,
-    ip: t.String()
-  },
-  {
-    description:
-      'Legacy click event payload sent by internal callers that still provide a raw IP. The API hashes and enriches it before publishing to Redis.'
-  }
-);
-
-const ModernInternalAnalyticsEventBody = t.Object(
+export const InternalAnalyticsEventBody = t.Object(
   {
     ...InternalAnalyticsEventBodyBase,
     visitorHash: t.String({ minLength: 64, maxLength: 64 }),
@@ -51,18 +40,10 @@ const ModernInternalAnalyticsEventBody = t.Object(
     longitude: t.Optional(t.String())
   },
   {
-    description:
-      'Anonymized click event payload sent by internal callers that already resolved visitorHash and GeoIP before Redis enqueue.'
-  }
-);
-
-// Request body schema for analytics ingestion
-export const InternalAnalyticsEventBody = t.Union(
-  [LegacyInternalAnalyticsEventBody, ModernInternalAnalyticsEventBody],
-  {
     $id: 'InternalAnalyticsEventBody',
+    additionalProperties: false,
     description:
-      'Click event payload sent by trusted internal producers. Raw IP is accepted only for backward compatibility and is anonymized before it reaches Redis.'
+      'Anonymized click event payload sent by trusted internal callers after resolving visitorHash and GeoIP before Redis enqueue.'
   }
 );
 

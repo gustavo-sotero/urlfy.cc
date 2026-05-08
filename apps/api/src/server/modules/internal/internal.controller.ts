@@ -9,8 +9,6 @@
  */
 
 import { timingSafeEqual } from 'node:crypto';
-import { lookupGeoIP } from '@urlfy/geoip';
-import { hashVisitorForAnalytics } from '@urlfy/telemetry';
 import { Elysia, t } from 'elysia';
 import { auth } from '@/lib/auth';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
@@ -23,69 +21,7 @@ import {
   InternalSessionResponse
 } from './internal.schema';
 
-type LegacyAnalyticsBody = {
-  ip: string;
-  linkId: string;
-  shortCode: string;
-  userAgent: string;
-  referer?: string;
-  utmSource?: string;
-  utmMedium?: string;
-  utmCampaign?: string;
-  utmContent?: string;
-  utmTerm?: string;
-  timestamp: string;
-};
-
-type ModernAnalyticsBody = {
-  visitorHash: string;
-  country?: string;
-  city?: string;
-  latitude?: string;
-  longitude?: string;
-  linkId: string;
-  shortCode: string;
-  userAgent: string;
-  referer?: string;
-  utmSource?: string;
-  utmMedium?: string;
-  utmCampaign?: string;
-  utmContent?: string;
-  utmTerm?: string;
-  timestamp: string;
-};
-
-function isLegacyAnalyticsBody(
-  body: LegacyAnalyticsBody | ModernAnalyticsBody
-): body is LegacyAnalyticsBody {
-  return 'ip' in body;
-}
-
-async function normalizeAnalyticsPayload(
-  body: LegacyAnalyticsBody | ModernAnalyticsBody
-) {
-  if (!isLegacyAnalyticsBody(body)) {
-    return {
-      visitorHash: body.visitorHash,
-      country: body.country ?? '',
-      city: body.city ?? '',
-      latitude: body.latitude ?? '',
-      longitude: body.longitude ?? ''
-    };
-  }
-
-  const eventDate = new Date(body.timestamp);
-  const visitorHash = hashVisitorForAnalytics(body.ip, body.linkId, eventDate);
-  const geo = await lookupGeoIP(body.ip).catch(() => null);
-
-  return {
-    visitorHash,
-    country: geo?.country ?? '',
-    city: geo?.city ?? '',
-    latitude: geo?.latitude != null ? String(geo.latitude) : '',
-    longitude: geo?.longitude != null ? String(geo.longitude) : ''
-  };
-}
+type InternalAnalyticsBody = typeof InternalAnalyticsEventBody.static;
 
 /**
  * Verify internal API request
@@ -171,19 +107,18 @@ export const internalController = new Elysia({ prefix: '/internal' })
         );
       }
 
-      const analyticsBody = body as LegacyAnalyticsBody | ModernAnalyticsBody;
-      const normalizedPayload = await normalizeAnalyticsPayload(analyticsBody);
+      const analyticsBody = body as InternalAnalyticsBody;
 
       await RedisStream.add(
         STREAM_NAMES.analyticsClicks,
         {
           linkId: analyticsBody.linkId,
           shortCode: analyticsBody.shortCode,
-          visitorHash: normalizedPayload.visitorHash,
-          country: normalizedPayload.country,
-          city: normalizedPayload.city,
-          latitude: normalizedPayload.latitude,
-          longitude: normalizedPayload.longitude,
+          visitorHash: analyticsBody.visitorHash,
+          country: analyticsBody.country ?? '',
+          city: analyticsBody.city ?? '',
+          latitude: analyticsBody.latitude ?? '',
+          longitude: analyticsBody.longitude ?? '',
           userAgent: analyticsBody.userAgent,
           referer: analyticsBody.referer ?? '',
           utmSource: analyticsBody.utmSource ?? '',
