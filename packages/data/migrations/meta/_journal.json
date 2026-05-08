@@ -8,6 +8,27 @@
       "when": 1777739993751,
       "tag": "0000_young_silver_fox",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778115647000,
+      "tag": "0001_analytics_stream_message_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778180519000,
+      "tag": "0002_analytics_events_partitioning",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778180519001,
+      "tag": "0003_user_last_login_method",
+      "breakpoints": true
     }
   ]
 }

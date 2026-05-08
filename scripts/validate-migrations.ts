@@ -23,7 +23,16 @@ const MIGRATIONS_DIR = join(
   'data',
   'migrations'
 );
+const JOURNAL_PATH = join(MIGRATIONS_DIR, 'meta', '_journal.json');
 const STRICT = process.argv.includes('--strict');
+
+interface JournalEntry {
+  idx: number;
+  version: string;
+  when: number;
+  tag: string;
+  breakpoints: boolean;
+}
 
 interface Warning {
   file: string;
@@ -96,6 +105,115 @@ const DANGEROUS_PATTERNS: Array<{
   }
 ];
 
+function pushMetadataError(warnings: Warning[], message: string, sql = 'meta') {
+  warnings.push({
+    file: 'meta/_journal.json',
+    line: 1,
+    severity: 'error',
+    message,
+    sql
+  });
+}
+
+async function readJournalEntries(
+  warnings: Warning[]
+): Promise<JournalEntry[] | null> {
+  try {
+    const journalContent = await readFile(JOURNAL_PATH, 'utf-8');
+    const parsed = JSON.parse(journalContent) as {
+      entries?: JournalEntry[];
+    };
+
+    if (!Array.isArray(parsed.entries)) {
+      pushMetadataError(
+        warnings,
+        'Journal entries are missing or malformed — Drizzle migrate() relies on meta/_journal.json to discover SQL files'
+      );
+      return null;
+    }
+
+    return parsed.entries;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    pushMetadataError(warnings, `Failed to read migration journal: ${reason}`);
+    return null;
+  }
+}
+
+function validateJournalCoverage(
+  sqlFiles: string[],
+  journalEntries: JournalEntry[],
+  warnings: Warning[]
+) {
+  const sqlTags = sqlFiles.map((file) => file.replace(/\.sql$/, ''));
+  const sqlTagSet = new Set(sqlTags);
+  const journalTags = journalEntries.map((entry) => entry.tag);
+  const journalTagSet = new Set(journalTags);
+
+  const missingJournalEntries = sqlTags.filter(
+    (tag) => !journalTagSet.has(tag)
+  );
+  for (const tag of missingJournalEntries) {
+    pushMetadataError(
+      warnings,
+      `Migration SQL file ${tag}.sql is missing from meta/_journal.json — runtime migrate() will never execute it`,
+      `${tag}.sql`
+    );
+  }
+
+  const orphanedJournalEntries = journalTags.filter(
+    (tag) => !sqlTagSet.has(tag)
+  );
+  for (const tag of orphanedJournalEntries) {
+    pushMetadataError(
+      warnings,
+      `Journal entry ${tag} has no matching SQL file in packages/data/migrations/`,
+      tag
+    );
+  }
+
+  const duplicateTags = journalTags.filter(
+    (tag, index) => journalTags.indexOf(tag) !== index
+  );
+  for (const tag of new Set(duplicateTags)) {
+    pushMetadataError(
+      warnings,
+      `Journal entry ${tag} is duplicated — migration ordering becomes ambiguous`,
+      tag
+    );
+  }
+
+  let lastWhen = Number.NEGATIVE_INFINITY;
+  for (const [index, entry] of journalEntries.entries()) {
+    if (entry.idx !== index) {
+      pushMetadataError(
+        warnings,
+        `Journal idx mismatch for ${entry.tag}: expected ${index}, found ${entry.idx}`,
+        entry.tag
+      );
+    }
+
+    if (!Number.isFinite(entry.when)) {
+      pushMetadataError(
+        warnings,
+        `Journal entry ${entry.tag} has a non-numeric "when" value`,
+        entry.tag
+      );
+      continue;
+    }
+
+    if (entry.when <= lastWhen) {
+      pushMetadataError(
+        warnings,
+        `Journal timestamps must be strictly increasing. ${entry.tag} (${entry.when}) is not greater than the previous entry (${lastWhen})`,
+        entry.tag
+      );
+    }
+
+    lastWhen = entry.when;
+  }
+}
+
 async function validateMigrations(): Promise<void> {
   console.log('🔍 Validating migration files...\n');
 
@@ -111,6 +229,11 @@ async function validateMigrations(): Promise<void> {
   console.log(`Found ${files.length} migration file(s)\n`);
 
   const warnings: Warning[] = [];
+  const journalEntries = await readJournalEntries(warnings);
+
+  if (journalEntries) {
+    validateJournalCoverage(files, journalEntries, warnings);
+  }
 
   for (const file of files) {
     const content = await readFile(join(MIGRATIONS_DIR, file), 'utf-8');
