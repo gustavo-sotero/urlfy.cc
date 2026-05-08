@@ -53,6 +53,13 @@ interface ClickEventStream {
   timestamp: string;
 }
 
+interface LinkClickCount {
+  linkId: string;
+  count: number;
+  lastClickedAt: Date;
+  shortCode?: string;
+}
+
 /**
  * Analytics Worker implementation
  */
@@ -81,47 +88,48 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
   ): Promise<void> {
     const enriched = await this.enrichClickEvent(id, payload);
 
-    const inserted = await db
-      .insert(analyticsEvents)
-      .values(this.mapEnrichedToRow(enriched, id))
-      .onConflictDoNothing()
-      .returning({ id: analyticsEvents.id });
+    const timestamp =
+      typeof enriched.timestamp === 'string'
+        ? new Date(enriched.timestamp)
+        : enriched.timestamp;
 
-    // Only update counters for events that were actually inserted (not duplicates).
-    if (inserted.length === 0) {
+    const linkClickCounts = await db.transaction(async (tx) => {
+      const inserted = await tx
+        .insert(analyticsEvents)
+        .values(this.mapEnrichedToRow(enriched, id))
+        .onConflictDoNothing()
+        .returning({ id: analyticsEvents.id });
+
+      if (inserted.length === 0) {
+        return [] as LinkClickCount[];
+      }
+
+      await tx
+        .update(links)
+        .set({
+          clicksCount: sql`${links.clicksCount} + 1`,
+          lastClickedAt: timestamp
+        })
+        .where(eq(links.id, enriched.linkId));
+
+      return [
+        {
+          linkId: enriched.linkId,
+          count: 1,
+          lastClickedAt: timestamp,
+          shortCode: enriched.shortCode || undefined
+        }
+      ] satisfies LinkClickCount[];
+    });
+
+    if (linkClickCounts.length === 0) {
       this.logger.debug('[AnalyticsClickWorker] Duplicate event skipped', {
         streamMessageId: id
       });
       return;
     }
 
-    await db
-      .update(links)
-      .set({
-        clicksCount: sql`${links.clicksCount} + 1`,
-        lastClickedAt:
-          typeof enriched.timestamp === 'string'
-            ? new Date(enriched.timestamp)
-            : enriched.timestamp
-      })
-      .where(eq(links.id, enriched.linkId));
-
-    await Promise.all([
-      enriched.shortCode
-        ? cacheService.incrementClicksCount(enriched.shortCode)
-        : Promise.resolve(null),
-      drainPendingClicks(enriched.linkId)
-    ]);
-
-    this.invalidateAnalyticsCache(enriched.linkId).catch((err) => {
-      this.logger.warn(
-        '[AnalyticsClickWorker] Failed to invalidate analytics cache',
-        {
-          linkId: enriched.linkId,
-          error: err instanceof Error ? err.message : String(err)
-        }
-      );
-    });
+    await this.runPostCommitEffects(linkClickCounts);
 
     recordMetric('analytics_job_processed', 1, {
       isBot: enriched.isBot ? 'true' : 'false'
@@ -188,104 +196,58 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
     }
 
     try {
-      // Step 2: Bulk INSERT with ON CONFLICT DO NOTHING — safe to retry.
-      // The RETURNING clause gives us which rows were actually new so we can
-      // avoid double-counting clicks for already-processed events.
-      const insertedRows = await db
-        .insert(analyticsEvents)
-        .values(
-          enrichedEvents.map(({ enriched, message }) =>
-            this.mapEnrichedToRow(enriched, message.id)
-          )
-        )
-        .onConflictDoNothing()
-        .returning({
-          id: analyticsEvents.id,
-          linkId: analyticsEvents.linkId,
-          streamMessageId: analyticsEvents.streamMessageId
-        });
+      const { insertedStreamIds, linkClickCounts } = await db.transaction(
+        async (tx) => {
+          // Step 2: Bulk INSERT with ON CONFLICT DO NOTHING — safe to retry.
+          // The RETURNING clause gives us which rows were actually new so we can
+          // avoid double-counting clicks for already-processed events.
+          const insertedRows = await tx
+            .insert(analyticsEvents)
+            .values(
+              enrichedEvents.map(({ enriched, message }) =>
+                this.mapEnrichedToRow(enriched, message.id)
+              )
+            )
+            .onConflictDoNothing()
+            .returning({
+              id: analyticsEvents.id,
+              linkId: analyticsEvents.linkId,
+              streamMessageId: analyticsEvents.streamMessageId
+            });
 
-      // Build a set of newly-inserted stream message IDs for accurate counting.
-      const insertedStreamIds = new Set(
-        insertedRows.map((r) => r.streamMessageId).filter(Boolean)
+          // Build a set of newly-inserted stream message IDs for accurate counting.
+          const insertedStreamIds = new Set(
+            insertedRows
+              .map((r) => r.streamMessageId)
+              .filter((value): value is string => Boolean(value))
+          );
+
+          // Step 3: Group by linkId for batched link updates.
+          // Only count events that were actually inserted (not conflicted duplicates).
+          const linkClickCounts = this.buildLinkClickCounts(
+            enrichedEvents,
+            insertedStreamIds
+          );
+
+          // Step 4: Single UPDATE per unique link (only for newly-inserted events)
+          for (const { linkId, count, lastClickedAt } of linkClickCounts) {
+            await tx
+              .update(links)
+              .set({
+                clicksCount: sql`${links.clicksCount} + ${count}`,
+                lastClickedAt
+              })
+              .where(eq(links.id, linkId));
+          }
+
+          return {
+            insertedStreamIds,
+            linkClickCounts
+          };
+        }
       );
 
-      // Step 3: Group by linkId for batched link updates.
-      // Only count events that were actually inserted (not conflicted duplicates).
-      const linkClickCounts = new Map<
-        string,
-        { count: number; lastClickedAt: Date; shortCode?: string }
-      >();
-
-      for (const { enriched, message } of enrichedEvents) {
-        if (!insertedStreamIds.has(message.id)) {
-          this.logger.debug('[AnalyticsClickWorker] Duplicate event skipped', {
-            streamMessageId: message.id
-          });
-          continue;
-        }
-
-        const timestamp =
-          typeof enriched.timestamp === 'string'
-            ? new Date(enriched.timestamp)
-            : enriched.timestamp;
-        const existing = linkClickCounts.get(enriched.linkId);
-
-        if (existing) {
-          existing.count++;
-          if (timestamp > existing.lastClickedAt) {
-            existing.lastClickedAt = timestamp;
-          }
-        } else {
-          linkClickCounts.set(enriched.linkId, {
-            count: 1,
-            lastClickedAt: timestamp,
-            shortCode: enriched.shortCode || undefined
-          });
-        }
-      }
-
-      // Step 4: Single UPDATE per unique link (only for newly-inserted events)
-      if (linkClickCounts.size > 0) {
-        await Promise.all(
-          Array.from(linkClickCounts.entries()).map(
-            ([linkId, { count, lastClickedAt }]) =>
-              db
-                .update(links)
-                .set({
-                  clicksCount: sql`${links.clicksCount} + ${count}`,
-                  lastClickedAt
-                })
-                .where(eq(links.id, linkId))
-          )
-        );
-
-        // Step 5: Single cache increment per unique link
-        await Promise.all(
-          Array.from(linkClickCounts.entries()).map(
-            ([linkId, { count, shortCode }]) =>
-              Promise.all([
-                shortCode
-                  ? cacheService.incrementClicksCount(shortCode, count)
-                  : Promise.resolve(null),
-                drainPendingClicks(linkId, count)
-              ])
-          )
-        );
-
-        // Step 6: Invalidate analytics cache for affected links (fire-and-forget)
-        for (const linkId of linkClickCounts.keys()) {
-          this.invalidateAnalyticsCache(linkId).catch((err) => {
-            this.logger.warn(
-              '[AnalyticsClickWorker] Failed to invalidate analytics cache',
-              {
-                linkId,
-                error: err instanceof Error ? err.message : String(err)
-              }
-            );
-          });
-        }
-      }
+      await this.runPostCommitEffects(linkClickCounts);
 
       // All enriched events are considered processed (duplicates silently skipped)
       for (const { message } of enrichedEvents) {
@@ -300,21 +262,21 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
       recordMetric('analytics_batch_processed', enrichedEvents.length, {
         duration: String(duration),
         botCount: String(botCount),
-        uniqueLinks: String(linkClickCounts.size),
+        uniqueLinks: String(linkClickCounts.length),
         newEvents: String(insertedStreamIds.size)
       });
 
       this.logger.debug('[AnalyticsClickWorker] Batch processed', {
         total: enrichedEvents.length,
         newInserts: insertedStreamIds.size,
-        uniqueLinks: linkClickCounts.size,
+        uniqueLinks: linkClickCounts.length,
         duration
       });
     } catch (error) {
-      // Bulk insert failed — return all enriched events as failed so WorkerBase
-      // retries them individually via the idempotent sequential path.
+      // The mandatory DB stage failed before commit — return all enriched
+      // events as failed so WorkerBase retries them individually.
       this.logger.warn(
-        '[AnalyticsClickWorker] Batch insert failed, deferring to sequential retry',
+        '[AnalyticsClickWorker] Batch persistence failed, deferring to sequential retry',
         { error: error instanceof Error ? error.message : String(error) }
       );
       for (const { message } of enrichedEvents) {
@@ -419,6 +381,106 @@ class AnalyticsClickWorker extends WorkerBase<ClickEventStream> {
       isBot: uaData.isBot,
       timestamp: new Date(event.timestamp)
     };
+  }
+
+  private buildLinkClickCounts(
+    enrichedEvents: Array<{
+      message: StreamMessage<ClickEventStream>;
+      enriched: EnrichedClickEvent;
+    }>,
+    insertedStreamIds: Set<string>
+  ): LinkClickCount[] {
+    const linkClickCounts = new Map<string, LinkClickCount>();
+
+    for (const { enriched, message } of enrichedEvents) {
+      if (!insertedStreamIds.has(message.id)) {
+        this.logger.debug('[AnalyticsClickWorker] Duplicate event skipped', {
+          streamMessageId: message.id
+        });
+        continue;
+      }
+
+      const timestamp =
+        typeof enriched.timestamp === 'string'
+          ? new Date(enriched.timestamp)
+          : enriched.timestamp;
+      const existing = linkClickCounts.get(enriched.linkId);
+
+      if (existing) {
+        existing.count++;
+        if (timestamp > existing.lastClickedAt) {
+          existing.lastClickedAt = timestamp;
+        }
+        continue;
+      }
+
+      linkClickCounts.set(enriched.linkId, {
+        linkId: enriched.linkId,
+        count: 1,
+        lastClickedAt: timestamp,
+        shortCode: enriched.shortCode || undefined
+      });
+    }
+
+    return Array.from(linkClickCounts.values());
+  }
+
+  private async runPostCommitEffects(
+    linkClickCounts: LinkClickCount[]
+  ): Promise<void> {
+    const results = await Promise.allSettled(
+      linkClickCounts.map(async ({ linkId, count, shortCode }) => {
+        const sideEffects = await Promise.allSettled([
+          shortCode
+            ? cacheService.incrementClicksCount(shortCode, count)
+            : Promise.resolve(null),
+          drainPendingClicks(linkId, count),
+          this.invalidateAnalyticsCache(linkId)
+        ]);
+
+        const failures = sideEffects.filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === 'rejected'
+        );
+
+        if (failures.length === 0) {
+          return;
+        }
+
+        this.logger.warn(
+          '[AnalyticsClickWorker] Post-commit reconciliation partially failed',
+          {
+            linkId,
+            failureCount: failures.length,
+            errors: failures.map((failure) =>
+              failure.reason instanceof Error
+                ? failure.reason.message
+                : String(failure.reason)
+            )
+          }
+        );
+      })
+    );
+
+    const unexpectedFailures = results.filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected'
+    );
+
+    if (unexpectedFailures.length === 0) {
+      return;
+    }
+
+    this.logger.warn(
+      '[AnalyticsClickWorker] Post-commit reconciliation worker task crashed',
+      {
+        failureCount: unexpectedFailures.length,
+        errors: unexpectedFailures.map((failure) =>
+          failure.reason instanceof Error
+            ? failure.reason.message
+            : String(failure.reason)
+        )
+      }
+    );
   }
 
   /**
