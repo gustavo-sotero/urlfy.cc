@@ -28,11 +28,15 @@ function normalizeInternalApiOrigin(raw: string): string {
 export function resolveInternalApiOrigin(
   env: NodeJS.ProcessEnv = process.env
 ): string {
-  const raw =
-    readOptionalUrl(env.API_INTERNAL_URL) ||
-    (env.NODE_ENV === 'development'
+  const developmentOverride =
+    env.NODE_ENV === 'development'
       ? readOptionalUrl(env.DEV_API_PROXY_TARGET)
-      : undefined) ||
+      : undefined;
+  const configuredInternalUrl = readOptionalUrl(env.API_INTERNAL_URL);
+
+  const raw =
+    developmentOverride ||
+    configuredInternalUrl ||
     (env.NODE_ENV === 'development'
       ? DEFAULT_DEV_INTERNAL_API_ORIGIN
       : DEFAULT_INTERNAL_API_ORIGIN);

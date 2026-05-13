@@ -334,7 +334,7 @@ export function assertTrustProxyConfig({
  * 3. X-Forwarded-For (first untrusted IP from the trusted end of the chain)
  *    — only if TRUST_PROXY=true; controlled by TRUST_PROXY_HOPS
  * 4. request.ip (runtime-exposed)
- * 5. Fallback to 127.0.0.1 (development) or logged warning (production)
+ * 5. Fallback to 127.0.0.1 (non-production) or logged warning (production)
  *
  * @param request - Standard Request or NextRequest object
  * @param options - Optional explicit config override for trust-proxy resolution
@@ -345,6 +345,7 @@ export function getClientIp(
   options: ClientIpResolutionOptions = {}
 ): string {
   const trustProxy = resolveTrustProxyValue(options.trustProxy);
+  const resolvedNodeEnv = resolveNodeEnv(options.nodeEnv);
   const requestIp = (request as Request & { ip?: string }).ip;
 
   const trustedHeaderIp = resolveTrustedProxyHeaderIp(request.headers, {
@@ -363,7 +364,7 @@ export function getClientIp(
     return requestIp;
   }
 
-  if (resolveNodeEnv(options.nodeEnv) === 'development') {
+  if (resolvedNodeEnv !== 'production') {
     return '127.0.0.1';
   }
 

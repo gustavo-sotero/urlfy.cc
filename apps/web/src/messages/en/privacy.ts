@@ -44,7 +44,8 @@ export const Privacy = {
       sub3Intro: 'We use cookies to:',
       sub3Items: {
         i1: 'Keep your session active (essential cookies)',
-        i2: 'Protect against CSRF (security cookies)'
+        i2: 'Protect against CSRF (security cookies)',
+        i3: 'Store your consent preferences'
       }
     },
     s3: {

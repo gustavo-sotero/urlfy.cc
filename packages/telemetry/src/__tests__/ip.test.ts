@@ -233,6 +233,38 @@ describe('getClientIp with TRUST_PROXY disabled', () => {
     const req = makeRequest({ 'x-real-ip': '11.22.33.44' });
     expect(getClientIp(req, UNTRUSTED_PROXY_OPTIONS)).toBe('127.0.0.1');
   });
+
+  test('does not log a missing-client-ip warning outside production', () => {
+    const stderr = captureStderrWrites();
+
+    try {
+      const req = makeRequest({});
+
+      expect(getClientIp(req, { trustProxy: false, nodeEnv: 'test' })).toBe(
+        '127.0.0.1'
+      );
+      expect(stderr.messages.join('')).toBe('');
+    } finally {
+      stderr.restore();
+    }
+  });
+
+  test('logs a missing-client-ip warning in production', () => {
+    const stderr = captureStderrWrites();
+
+    try {
+      const req = makeRequest({});
+
+      expect(
+        getClientIp(req, { trustProxy: false, nodeEnv: 'production' })
+      ).toBe('127.0.0.1');
+      expect(stderr.messages.join('')).toContain(
+        'Unable to determine client IP'
+      );
+    } finally {
+      stderr.restore();
+    }
+  });
 });
 
 // ── getClientIp (Request-based) — TRUST_PROXY enabled ────────────────────────

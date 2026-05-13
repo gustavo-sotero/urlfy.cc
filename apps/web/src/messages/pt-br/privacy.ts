@@ -45,7 +45,8 @@ export const Privacy = {
       sub3Intro: 'Utilizamos cookies para:',
       sub3Items: {
         i1: 'Manter sua sessão ativa (cookies essenciais)',
-        i2: 'Proteger contra CSRF (cookies de segurança)'
+        i2: 'Proteger contra CSRF (cookies de segurança)',
+        i3: 'Armazenar suas preferências de consentimento'
       }
     },
     s3: {

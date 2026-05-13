@@ -110,6 +110,20 @@ describe('getServerSession', () => {
     expect(session).toBeNull();
   });
 
+  it('returns null when the internal session endpoint responds with 404', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response('not found', { status: 404, statusText: 'Not Found' })
+    );
+
+    const { getServerSession } = await import('@/lib/server-session');
+
+    const session = await getServerSession({
+      headers: new Headers({ cookie: 'urlfy.session_token=abc123' })
+    });
+
+    expect(session).toBeNull();
+  });
+
   it('throws on upstream auth API failures instead of downgrading to logged out', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response('upstream failure', {
@@ -131,6 +145,40 @@ describe('getServerSession', () => {
 
   it('uses DEV_API_PROXY_TARGET as the internal API origin in local development', async () => {
     delete mutableEnv.API_INTERNAL_URL;
+    mutableEnv.DEV_API_PROXY_TARGET = 'http://127.0.0.1:3001/';
+    mutableEnv.NODE_ENV = 'development';
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: { id: 'user-1', email: 'test@example.com' },
+          session: { id: 'session-1', userId: 'user-1' }
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      )
+    );
+
+    const { getServerSession } = await import('@/lib/server-session');
+
+    await getServerSession({
+      headers: new Headers({ cookie: 'urlfy.session_token=abc123' })
+    });
+
+    const [requestUrl] = fetchMock.mock.calls[0] as unknown as [
+      URL,
+      RequestInit
+    ];
+
+    expect(requestUrl.toString()).toBe(
+      'http://127.0.0.1:3001/api/internal/session'
+    );
+  });
+
+  it('prefers DEV_API_PROXY_TARGET over API_INTERNAL_URL in local development', async () => {
+    mutableEnv.API_INTERNAL_URL = 'http://localhost:3000';
     mutableEnv.DEV_API_PROXY_TARGET = 'http://127.0.0.1:3001/';
     mutableEnv.NODE_ENV = 'development';
 

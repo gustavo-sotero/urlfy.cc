@@ -60,7 +60,9 @@ export async function getServerSession({
     }
   );
 
-  if (response.status === 401) {
+  // Treat stale sessions and route-mismatch windows as anonymous instead of
+  // crashing SSR pages. Other upstream failures should still surface.
+  if (response.status === 401 || response.status === 404) {
     return null;
   }
 
