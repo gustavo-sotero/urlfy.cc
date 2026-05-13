@@ -1,17 +1,38 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
+const mutableEnv = process.env as Record<string, string | undefined>;
 const originalApiInternalUrl = process.env.API_INTERNAL_URL;
+const originalDevApiProxyTarget = process.env.DEV_API_PROXY_TARGET;
+const originalNodeEnv = process.env.NODE_ENV;
 const fetchMock = mock(async () => new Response(null, { status: 200 }));
 
 describe('getServerSession', () => {
   beforeEach(() => {
     global.fetch = fetchMock as unknown as typeof fetch;
-    fetchMock.mockClear();
-    process.env.API_INTERNAL_URL = 'http://api:3001';
+    fetchMock.mockReset();
+    mutableEnv.API_INTERNAL_URL = 'http://api:3001';
+    delete mutableEnv.DEV_API_PROXY_TARGET;
+    mutableEnv.NODE_ENV = 'test';
   });
 
   afterEach(() => {
-    process.env.API_INTERNAL_URL = originalApiInternalUrl;
+    if (originalApiInternalUrl === undefined) {
+      delete mutableEnv.API_INTERNAL_URL;
+    } else {
+      mutableEnv.API_INTERNAL_URL = originalApiInternalUrl;
+    }
+
+    if (originalDevApiProxyTarget === undefined) {
+      delete mutableEnv.DEV_API_PROXY_TARGET;
+    } else {
+      mutableEnv.DEV_API_PROXY_TARGET = originalDevApiProxyTarget;
+    }
+
+    if (originalNodeEnv === undefined) {
+      delete mutableEnv.NODE_ENV;
+    } else {
+      mutableEnv.NODE_ENV = originalNodeEnv;
+    }
   });
 
   it('forwards cookies to the internal auth API and bypasses cookie cache', async () => {
@@ -105,6 +126,40 @@ describe('getServerSession', () => {
       })
     ).rejects.toThrow(
       'Failed to retrieve auth session from internal API: 503 Service Unavailable'
+    );
+  });
+
+  it('uses DEV_API_PROXY_TARGET as the internal API origin in local development', async () => {
+    delete mutableEnv.API_INTERNAL_URL;
+    mutableEnv.DEV_API_PROXY_TARGET = 'http://127.0.0.1:3001/';
+    mutableEnv.NODE_ENV = 'development';
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: { id: 'user-1', email: 'test@example.com' },
+          session: { id: 'session-1', userId: 'user-1' }
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      )
+    );
+
+    const { getServerSession } = await import('@/lib/server-session');
+
+    await getServerSession({
+      headers: new Headers({ cookie: 'urlfy.session_token=abc123' })
+    });
+
+    const [requestUrl] = fetchMock.mock.calls[0] as unknown as [
+      URL,
+      RequestInit
+    ];
+
+    expect(requestUrl.toString()).toBe(
+      'http://127.0.0.1:3001/api/internal/session'
     );
   });
 

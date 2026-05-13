@@ -1,5 +1,6 @@
 import { checkDatabaseHealth } from '@urlfy/data';
 import { createLogger } from '@urlfy/telemetry';
+import { resolveInternalApiOrigin } from '@/lib/api/internal-url';
 import { checkRedisHealth } from '@/server/lib/cache';
 
 export const runtime = 'nodejs';
@@ -9,10 +10,6 @@ const logger = createLogger('health:ready');
 
 const API_HEALTH_TIMEOUT_MS = 3_000;
 
-function getApiInternalUrl(): string {
-  return process.env.API_INTERNAL_URL || 'http://localhost:3001';
-}
-
 async function checkApiHealth(): Promise<{
   status: 'ok' | 'error';
   error?: string;
@@ -21,10 +18,13 @@ async function checkApiHealth(): Promise<{
   const timeout = setTimeout(() => controller.abort(), API_HEALTH_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${getApiInternalUrl()}/api/health/ready`, {
-      cache: 'no-store',
-      signal: controller.signal
-    });
+    const response = await fetch(
+      `${resolveInternalApiOrigin()}/api/health/ready`,
+      {
+        cache: 'no-store',
+        signal: controller.signal
+      }
+    );
 
     return response.ok
       ? { status: 'ok' }

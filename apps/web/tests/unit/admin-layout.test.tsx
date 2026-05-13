@@ -12,6 +12,8 @@ type MockAdminSession = {
     id: string;
     userId: string;
     createdAt: string;
+    adminElevationProvider?: string | null;
+    adminElevationExpiresAt?: string | null;
   };
 };
 
@@ -48,6 +50,10 @@ function createMockSession(
       id: 'session-admin-1',
       userId,
       createdAt: new Date().toISOString(),
+      adminElevationProvider: 'github',
+      adminElevationExpiresAt: new Date(
+        Date.now() + 30 * 60 * 1000
+      ).toISOString(),
       ...sessionOverrides
     }
   };
@@ -180,7 +186,9 @@ describe('AdminLayout', () => {
           },
           session: {
             id: 'session-user-2',
-            userId: 'user-2'
+            userId: 'user-2',
+            adminElevationProvider: null,
+            adminElevationExpiresAt: null
           }
         })
     );
@@ -203,6 +211,44 @@ describe('AdminLayout', () => {
         userId: 'user-2',
         metadata: expect.objectContaining({
           reason: 'not_authorized_admin_account'
+        })
+      })
+    );
+  });
+
+  it('redirects admin users without a valid elevation claim to GitHub reauth', async () => {
+    fetchMock.mockImplementation(
+      async (): Promise<MockAdminSession | null> =>
+        createMockSession({
+          session: {
+            adminElevationProvider: null,
+            adminElevationExpiresAt: null
+          }
+        })
+    );
+    global.fetch = createJsonFetchStub();
+    process.env.API_INTERNAL_URL = 'http://api:3001';
+    process.env.INTERNAL_API_SECRET = 'test-internal-api-secret';
+
+    const { default: AdminLayout } = await importFreshAdminLayout();
+
+    await expect(
+      AdminLayout({
+        children: <div>Admin content</div>
+      })
+    ).rejects.toThrow('REDIRECT:/login?callbackUrl=/admin&reauth=github');
+
+    expect(redirectMock).toHaveBeenCalledWith(
+      '/login?callbackUrl=/admin&reauth=github'
+    );
+    expect(auditLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'admin_access_denied',
+        userId: 'admin-1',
+        metadata: expect.objectContaining({
+          reason: 'admin_elevation_missing_or_expired',
+          elevationProvider: null,
+          elevationExpiresAt: null
         })
       })
     );

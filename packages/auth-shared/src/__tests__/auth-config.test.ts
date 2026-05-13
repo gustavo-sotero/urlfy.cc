@@ -25,6 +25,10 @@ import {
   getSocialProviderCallbackUrl
 } from '../auth-config';
 
+async function readSourceFile(relativePath: string): Promise<string> {
+  return Bun.file(new URL(relativePath, import.meta.url)).text();
+}
+
 // ─── Env isolation ───────────────────────────────────────────────────────────
 
 const originalEnv = { ...process.env };
@@ -105,6 +109,28 @@ describe('baseAuthConfig — structural shape', () => {
     expect(baseAuthConfig.session?.expiresIn).toBe(60 * 60 * 24 * 7);
   });
 
+  it('exposes admin elevation claims on the shared session shape', () => {
+    expect(baseAuthConfig.session?.additionalFields).toEqual(
+      expect.objectContaining({
+        adminElevatedAt: expect.objectContaining({
+          type: 'date',
+          input: false,
+          required: false
+        }),
+        adminElevationExpiresAt: expect.objectContaining({
+          type: 'date',
+          input: false,
+          required: false
+        }),
+        adminElevationProvider: expect.objectContaining({
+          type: 'string',
+          input: false,
+          required: false
+        })
+      })
+    );
+  });
+
   it('uses dynamic baseURL host validation with localhost fallback', () => {
     expect(baseAuthConfig.baseURL).toEqual(
       expect.objectContaining({
@@ -168,6 +194,13 @@ describe('getPlugins — plugin set', () => {
    */
   it('runtime convention uses getPlugins() without a legacy admin toggle', () => {
     expect(getPlugins()).toHaveLength(3);
+  });
+
+  it('lets Drizzle map lastLoginMethod through the camelCase schema key', async () => {
+    const source = await readSourceFile('../auth-config.ts');
+
+    expect(source).toContain('customResolveMethod');
+    expect(source).not.toContain("lastLoginMethod: 'last_login_method'");
   });
 });
 

@@ -8,7 +8,8 @@ import {
   hasRequiredAdminLoginMethod,
   isAdminElevationClaimValid,
   isAdminSessionElevated,
-  isAdminSessionFresh
+  isAdminSessionFresh,
+  resolveAuthLoginMethod
 } from '../admin-session';
 
 describe('admin session helpers', () => {
@@ -39,6 +40,33 @@ describe('admin session helpers', () => {
     );
     expect(hasRequiredAdminLoginMethod('email')).toBe(false);
     expect(hasRequiredAdminLoginMethod(null)).toBe(false);
+  });
+
+  it('resolves the provider id from Better Auth callback routes', () => {
+    expect(
+      resolveAuthLoginMethod({
+        path: '/callback/github',
+        params: { id: 'github' }
+      })
+    ).toBe('github');
+
+    expect(
+      resolveAuthLoginMethod({
+        path: '/oauth2/callback/github',
+        params: { providerId: 'github' }
+      })
+    ).toBe('github');
+  });
+
+  it('resolves built-in non-social login methods from Better Auth paths', () => {
+    expect(resolveAuthLoginMethod({ path: '/sign-in/email' })).toBe('email');
+    expect(resolveAuthLoginMethod({ path: '/magic-link/verify/token' })).toBe(
+      'magic-link'
+    );
+    expect(
+      resolveAuthLoginMethod({ path: '/passkey/verify-authentication' })
+    ).toBe('passkey');
+    expect(resolveAuthLoginMethod({ path: '/sign-out' })).toBeNull();
   });
 
   it('requires both a fresh session and GitHub reauthentication', () => {

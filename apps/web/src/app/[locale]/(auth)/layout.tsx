@@ -8,6 +8,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import {
+  ADMIN_ELEVATION_LOGIN_METHOD,
+  ADMIN_ELEVATION_REQUEST_HEADER
+} from '@urlfy/auth-shared/admin-session';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -25,13 +29,19 @@ export default async function AuthLayout({
   params
 }: AuthLayoutProps) {
   const { locale } = await params;
+  const requestHeaders = await headers();
   const session = await getServerSession({
-    headers: await headers(),
+    headers: requestHeaders,
     disableCookieCache: true
   });
+  const isAdminGitHubReauthRequest =
+    requestHeaders.get(ADMIN_ELEVATION_REQUEST_HEADER) ===
+    ADMIN_ELEVATION_LOGIN_METHOD;
+  const shouldAllowAdminGitHubReauth =
+    isAdminGitHubReauthRequest && session?.user.isAdmin;
 
   // If user is already authenticated, redirect to dashboard
-  if (session?.user) {
+  if (session?.user && !shouldAllowAdminGitHubReauth) {
     redirect(`/${locale}/dashboard`);
   }
 

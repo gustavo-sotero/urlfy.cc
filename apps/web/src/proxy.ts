@@ -19,6 +19,10 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
+import {
+  ADMIN_ELEVATION_LOGIN_METHOD,
+  ADMIN_ELEVATION_REQUEST_HEADER
+} from '@urlfy/auth-shared/admin-session';
 import { ALIAS_PATTERN } from '@urlfy/contracts/alias-policy';
 import { NextRequest, NextResponse } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
@@ -116,6 +120,23 @@ function applyCspHeaders(
   return response;
 }
 
+function applyAuthRequestContextHeaders(
+  req: NextRequest,
+  requestHeaders: Headers
+): void {
+  const reauthTarget = req.nextUrl.searchParams.get('reauth');
+
+  if (reauthTarget === ADMIN_ELEVATION_LOGIN_METHOD || reauthTarget === '1') {
+    requestHeaders.set(
+      ADMIN_ELEVATION_REQUEST_HEADER,
+      ADMIN_ELEVATION_LOGIN_METHOD
+    );
+    return;
+  }
+
+  requestHeaders.delete(ADMIN_ELEVATION_REQUEST_HEADER);
+}
+
 /**
  * Next.js Proxy function (Next.js 16 requires 'proxy' export name)
  * Intercepts all requests and decides routing logic
@@ -154,6 +175,7 @@ export async function proxy(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
 
   requestHeaders.set('x-csp-nonce', nonce);
+  applyAuthRequestContextHeaders(req, requestHeaders);
   const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
 
   // 4. Canonicalize locale-backed routes before short-code classification.

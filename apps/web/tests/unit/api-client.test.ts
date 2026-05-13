@@ -379,6 +379,15 @@ describe('API Client - Base URL Resolution', () => {
     expect(resolveApiBaseUrl(env, '')).toBe('http://api:3001');
   });
 
+  it('uses DEV_API_PROXY_TARGET as the server transport fallback in development', () => {
+    const env = createEnv({
+      NODE_ENV: 'development',
+      DEV_API_PROXY_TARGET: 'http://127.0.0.1:3001/'
+    });
+
+    expect(resolveApiBaseUrl(env, '')).toBe('http://127.0.0.1:3001');
+  });
+
   it('falls back to localhost defaults when env is absent', () => {
     expect(resolveBaseUrl(createEnv(), '')).toBe('http://localhost:3000');
     expect(resolveApiBaseUrl(createEnv(), '')).toBe('http://localhost:3001');

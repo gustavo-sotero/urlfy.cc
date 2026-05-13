@@ -122,6 +122,19 @@ describe('Edge Proxy', () => {
       expect(response.headers.get('X-CSP-Nonce')).toBeDefined();
     });
 
+    it('preserves admin reauth query params when localizing login routes', async () => {
+      const response = await proxy(
+        request('/login?callbackUrl=/admin&reauth=github')
+      );
+
+      const location = response.headers.get('location');
+      const localizedUrl = new URL(location ?? 'http://localhost:3000');
+
+      expect(localizedUrl.pathname).toBe('/en/login');
+      expect(localizedUrl.searchParams.get('callbackUrl')).toBe('/admin');
+      expect(localizedUrl.searchParams.get('reauth')).toBe('github');
+    });
+
     it('redirects bare dashboard requests through next-intl before short-code handling', async () => {
       const response = await proxy(request('/dashboard'));
 

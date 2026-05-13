@@ -73,73 +73,31 @@ function normalizeForParityComparison(source: string): string {
     .trim();
 }
 
-function extractFunctionProperty(source: string, propertyName: string): string {
+function stripObjectProperty(source: string, propertyName: string): string {
   const propertyStart = source.indexOf(`${propertyName}:`);
 
   if (propertyStart < 0) {
-    throw new Error(`Could not find ${propertyName} property`);
+    return source;
   }
 
-  const arrowIndex = source.indexOf('=>', propertyStart);
+  const valueStart = source.indexOf('{', propertyStart);
 
-  if (arrowIndex < 0) {
-    throw new Error(`Could not find ${propertyName} arrow function`);
+  if (valueStart < 0) {
+    throw new Error(`Could not find ${propertyName} object body`);
   }
 
-  const bodyStart = source.indexOf('{', arrowIndex);
+  const valueEnd = findMatchingBrace(source, valueStart);
+  let propertyEnd = valueEnd + 1;
 
-  if (bodyStart < 0) {
-    throw new Error(`Could not find ${propertyName} function body`);
+  while (propertyEnd < source.length && /\s/.test(source[propertyEnd])) {
+    propertyEnd++;
   }
 
-  const bodyEnd = findMatchingBrace(source, bodyStart);
-
-  return source.slice(propertyStart, bodyEnd + 1);
-}
-
-function replaceFunctionProperty(
-  source: string,
-  propertyName: string,
-  replacement: string
-): string {
-  const propertySource = extractFunctionProperty(source, propertyName);
-  return source.replace(propertySource, `${propertyName}: ${replacement}`);
-}
-
-function stripApiOnlyAdminElevation(onSignInSource: string): string {
-  const functionArrowIndex = onSignInSource.indexOf('=>');
-  const functionBodyStart = onSignInSource.indexOf('{', functionArrowIndex);
-  const adminTryStart = onSignInSource.indexOf('try', functionBodyStart);
-
-  if (adminTryStart < 0) {
-    throw new Error('Could not find API-only admin try block');
+  if (source[propertyEnd] === ',') {
+    propertyEnd++;
   }
 
-  const adminTryBodyStart = onSignInSource.indexOf('{', adminTryStart);
-  const adminTryBodyEnd = findMatchingBrace(onSignInSource, adminTryBodyStart);
-  const catchStart = onSignInSource.indexOf('catch', adminTryBodyEnd);
-
-  if (catchStart < 0) {
-    throw new Error('Could not find API-only admin catch block');
-  }
-
-  const catchBodyStart = onSignInSource.indexOf('{', catchStart);
-  const catchBodyEnd = findMatchingBrace(onSignInSource, catchBodyStart);
-  const apiOnlySegment = onSignInSource.slice(adminTryStart, catchBodyEnd + 1);
-
-  if (!apiOnlySegment.includes('resolveIsAdminByGitHubAccount')) {
-    throw new Error('Expected API-only admin resolver in stripped segment');
-  }
-
-  if (!apiOnlySegment.includes('adminElevationExpiresAt')) {
-    throw new Error('Expected admin elevation expiry in stripped segment');
-  }
-
-  if (!apiOnlySegment.includes('Failed to issue admin elevation claim')) {
-    throw new Error('Expected admin elevation warning in stripped segment');
-  }
-
-  return `${onSignInSource.slice(0, adminTryStart)}${onSignInSource.slice(catchBodyEnd + 1)}`;
+  return `${source.slice(0, propertyStart)}${source.slice(propertyEnd)}`;
 }
 
 describe('auth runtime parity contract (api vs web)', () => {
@@ -153,24 +111,11 @@ describe('auth runtime parity contract (api vs web)', () => {
     const webRuntimeSource = extractAuthRuntimeBlock(webSource);
 
     const apiRuntimeBlock = normalizeForParityComparison(
-      replaceFunctionProperty(apiRuntimeSource, 'onSignIn', '__ON_SIGN_IN__')
+      stripObjectProperty(apiRuntimeSource, 'databaseHooks')
     );
-    const webRuntimeBlock = normalizeForParityComparison(
-      replaceFunctionProperty(webRuntimeSource, 'onSignIn', '__ON_SIGN_IN__')
-    );
+    const webRuntimeBlock = normalizeForParityComparison(webRuntimeSource);
 
     expect(apiRuntimeBlock).toBe(webRuntimeBlock);
-
-    const apiOnSignIn = normalizeForParityComparison(
-      stripApiOnlyAdminElevation(
-        extractFunctionProperty(apiRuntimeSource, 'onSignIn')
-      )
-    );
-    const webOnSignIn = normalizeForParityComparison(
-      extractFunctionProperty(webRuntimeSource, 'onSignIn')
-    );
-
-    expect(apiOnSignIn).toBe(webOnSignIn);
   });
 
   it('keeps admin elevation claim logic explicit and API-only', async () => {
@@ -179,10 +124,16 @@ describe('auth runtime parity contract (api vs web)', () => {
       readFromTestDir('../../../web/src/lib/auth.ts')
     ]);
 
+    expect(apiSource).toContain('databaseHooks:');
+    expect(apiSource).toContain('session: {');
+    expect(apiSource).toContain('create: {');
+    expect(apiSource).toContain('resolveAdminElevationClaim');
     expect(apiSource).toContain('resolveIsAdminByGitHubAccount');
     expect(apiSource).toContain('adminElevationExpiresAt');
     expect(apiSource).toContain('Failed to issue admin elevation claim');
+    expect(apiSource).toContain('resolveAuthLoginMethod');
 
+    expect(webSource).not.toContain('databaseHooks:');
     expect(webSource).not.toContain('resolveIsAdminByGitHubAccount');
     expect(webSource).not.toContain('adminElevationExpiresAt');
     expect(webSource).not.toContain('Failed to issue admin elevation claim');

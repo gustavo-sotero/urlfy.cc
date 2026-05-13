@@ -11,13 +11,15 @@
 export {
   ADMIN_ELEVATION_LOGIN_METHOD,
   ADMIN_ELEVATION_PROVIDER,
+  ADMIN_ELEVATION_REQUEST_HEADER,
   ADMIN_SESSION_MAX_AGE_MS,
   getAdminElevationExpiresAt,
   getAdminSessionAgeMs,
   hasRequiredAdminLoginMethod,
   isAdminElevationClaimValid,
   isAdminSessionElevated,
-  isAdminSessionFresh
+  isAdminSessionFresh,
+  resolveAuthLoginMethod
 } from './admin-session';
 export type { Scope } from './scopes';
 export {

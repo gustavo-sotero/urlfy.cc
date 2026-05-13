@@ -12,7 +12,8 @@
 import {
   ADMIN_ELEVATION_PROVIDER,
   getAdminElevationExpiresAt,
-  hasRequiredAdminLoginMethod
+  hasRequiredAdminLoginMethod,
+  resolveAuthLoginMethod
 } from '@urlfy/auth-shared';
 import { db } from '@urlfy/data';
 import type {
@@ -23,7 +24,6 @@ import * as schema from '@urlfy/data/schema/auth';
 import { createLogger } from '@urlfy/telemetry';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { eq } from 'drizzle-orm';
 import { resolveIsAdminByGitHubAccount } from '@/server/services/admin.resolver';
 import { auditLogService } from '@/server/services/audit.service';
 import { emailService } from '@/server/services/email.service';
@@ -62,6 +62,69 @@ function getBunPasswordRuntime(): BunPasswordRuntime {
   return bunRuntime.password;
 }
 
+function resolveSignInMethodFromContext(
+  authContext:
+    | {
+        path?: string | null;
+        params?: {
+          id?: string | null;
+          providerId?: string | null;
+        } | null;
+      }
+    | null
+    | undefined
+): string | null {
+  return resolveAuthLoginMethod({
+    path: typeof authContext?.path === 'string' ? authContext.path : null,
+    params: {
+      id:
+        typeof authContext?.params?.id === 'string'
+          ? authContext.params.id
+          : null,
+      providerId:
+        typeof authContext?.params?.providerId === 'string'
+          ? authContext.params.providerId
+          : null
+    }
+  });
+}
+
+async function resolveAdminElevationClaim(
+  userId: string,
+  authContext:
+    | {
+        path?: string | null;
+        params?: {
+          id?: string | null;
+          providerId?: string | null;
+        } | null;
+      }
+    | null
+    | undefined
+): Promise<{
+  adminElevatedAt: Date;
+  adminElevationExpiresAt: Date;
+  adminElevationProvider: typeof ADMIN_ELEVATION_PROVIDER;
+} | null> {
+  const signInMethod = resolveSignInMethodFromContext(authContext);
+
+  if (!hasRequiredAdminLoginMethod(signInMethod)) {
+    return null;
+  }
+
+  if (!(await resolveIsAdminByGitHubAccount(userId))) {
+    return null;
+  }
+
+  const elevatedAt = new Date();
+
+  return {
+    adminElevatedAt: elevatedAt,
+    adminElevationExpiresAt: getAdminElevationExpiresAt(elevatedAt),
+    adminElevationProvider: ADMIN_ELEVATION_PROVIDER
+  };
+}
+
 assertRuntimeAuthConfigSafe();
 
 // ═══════════════════════════════════════════════════════════════════
@@ -71,6 +134,38 @@ assertRuntimeAuthConfigSafe();
 export const auth = betterAuth({
   // Spread shared configuration
   ...baseAuthConfig,
+
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (sessionRecord, context) => {
+          if (typeof sessionRecord.userId !== 'string') {
+            return;
+          }
+
+          try {
+            const claim = await resolveAdminElevationClaim(
+              sessionRecord.userId,
+              context
+            );
+
+            if (!claim) {
+              return;
+            }
+
+            return {
+              data: claim
+            };
+          } catch (error) {
+            logger.warn('Failed to issue admin elevation claim', {
+              error: error instanceof Error ? error.message : String(error),
+              userId: sessionRecord.userId
+            });
+          }
+        }
+      }
+    }
+  },
 
   // ═══════════════════════════════════════════════════════════════════
   // DATABASE ADAPTER (Bun SQL for runtime)
@@ -181,30 +276,6 @@ export const auth = betterAuth({
       user: DbUser;
       session: DbSession;
     }) => {
-      try {
-        if (
-          hasRequiredAdminLoginMethod(user.lastLoginMethod) &&
-          (await resolveIsAdminByGitHubAccount(user.id))
-        ) {
-          const elevatedAt = new Date();
-
-          await db
-            .update(schema.session)
-            .set({
-              adminElevatedAt: elevatedAt,
-              adminElevationExpiresAt: getAdminElevationExpiresAt(elevatedAt),
-              adminElevationProvider: ADMIN_ELEVATION_PROVIDER
-            })
-            .where(eq(schema.session.id, session.id));
-        }
-      } catch (error) {
-        logger.warn('Failed to issue admin elevation claim', {
-          error: error instanceof Error ? error.message : String(error),
-          sessionId: session.id,
-          userId: user.id
-        });
-      }
-
       try {
         await auditLogService.log({
           userId: user.id,

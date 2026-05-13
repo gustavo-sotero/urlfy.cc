@@ -6604,6 +6604,20 @@
           "impersonatedBy": {
             "type": "string",
             "readOnly": true
+          },
+          "adminElevatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "adminElevationExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "adminElevationProvider": {
+            "type": "string",
+            "readOnly": true
           }
         },
         "required": [

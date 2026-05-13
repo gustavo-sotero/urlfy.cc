@@ -6,18 +6,16 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
+import { resolveInternalApiOrigin } from '@/lib/api/internal-url';
 
 interface Props {
   params: Promise<{ code: string }>;
 }
 
-// SSR-only: use the internal service URL to avoid the hairpin through Nginx.
-const API_INTERNAL = process.env.API_INTERNAL_URL || 'http://localhost:3001';
-
 async function getLinkPreview(code: string) {
   try {
     const response = await fetch(
-      `${API_INTERNAL}/api/links/by-code/${code}/preview`,
+      `${resolveInternalApiOrigin()}/api/links/by-code/${code}/preview`,
       {
         cache: 'no-store'
       }

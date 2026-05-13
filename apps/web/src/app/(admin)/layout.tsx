@@ -1,9 +1,8 @@
 // src/app/(admin)/layout.tsx
 
 import {
-  getAdminSessionAgeMs,
-  hasRequiredAdminLoginMethod,
-  isAdminSessionFresh
+  ADMIN_ELEVATION_LOGIN_METHOD,
+  isAdminElevationClaimValid
 } from '@urlfy/auth-shared/admin-session';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -37,28 +36,11 @@ export default async function AdminLayout({
   const { user } = session;
   const userId = user.id;
   const userEmail = user.email;
-  const adminReauthUrl = '/login?callbackUrl=/admin&reauth=github';
+  const adminReauthUrl = `/login?callbackUrl=/admin&reauth=${ADMIN_ELEVATION_LOGIN_METHOD}`;
+  const adminSession = session.session;
 
   // Derive client IP once using the canonical trust-aware helper
   const clientIp = getClientIpFromHeaders(requestHeaders);
-
-  if (!isAdminSessionFresh(session.session.createdAt)) {
-    void auditLogService.log({
-      userId,
-      action: 'admin_access_denied',
-      entityType: 'admin_panel',
-      entityId: 'session_expired',
-      metadata: {
-        reason: 'admin_session_expired',
-        sessionAgeMs: getAdminSessionAgeMs(session.session.createdAt),
-        userId
-      },
-      ipAddress: clientIp,
-      userAgent: requestHeaders.get('user-agent') ?? undefined
-    });
-
-    redirect(adminReauthUrl);
-  }
 
   // ═══════════════════════════════════════════════════════════════════
   // GUARD 2: Admin authorization (derived from linked GitHub account)
@@ -80,15 +62,21 @@ export default async function AdminLayout({
     redirect('/dashboard');
   }
 
-  if (!hasRequiredAdminLoginMethod(user.lastLoginMethod)) {
+  if (
+    !isAdminElevationClaimValid({
+      provider: adminSession.adminElevationProvider,
+      expiresAt: adminSession.adminElevationExpiresAt
+    })
+  ) {
     void auditLogService.log({
       userId,
       action: 'admin_access_denied',
       entityType: 'admin_panel',
       entityId: 'github_reauth_required',
       metadata: {
-        reason: 'admin_github_reauth_required',
-        lastLoginMethod: user.lastLoginMethod ?? null,
+        reason: 'admin_elevation_missing_or_expired',
+        elevationProvider: adminSession.adminElevationProvider ?? null,
+        elevationExpiresAt: adminSession.adminElevationExpiresAt ?? null,
         userId
       },
       ipAddress: clientIp,

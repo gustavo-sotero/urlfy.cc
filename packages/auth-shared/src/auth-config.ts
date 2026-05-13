@@ -1,5 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth';
 import { lastLoginMethod, openAPI, twoFactor } from 'better-auth/plugins';
+import { resolveAuthLoginMethod } from './admin-session';
 
 const BUILD_TIME_SENTINELS = new Set([
   'build-time-placeholder-secret-32chars',
@@ -275,6 +276,21 @@ export function createBaseAuthConfig() {
           type: 'string' as const,
           required: false,
           input: false
+        },
+        adminElevatedAt: {
+          type: 'date' as const,
+          required: false,
+          input: false
+        },
+        adminElevationExpiresAt: {
+          type: 'date' as const,
+          required: false,
+          input: false
+        },
+        adminElevationProvider: {
+          type: 'string' as const,
+          required: false,
+          input: false
         }
       }
     },
@@ -347,11 +363,17 @@ export function getPlugins(options: { disableOpenAPI?: boolean } = {}) {
   plugins.push(
     lastLoginMethod({
       storeInDatabase: true,
-      schema: {
-        user: {
-          lastLoginMethod: 'last_login_method'
-        }
-      }
+      customResolveMethod: (ctx) =>
+        resolveAuthLoginMethod({
+          path: ctx.path,
+          params: {
+            id: typeof ctx.params?.id === 'string' ? ctx.params.id : null,
+            providerId:
+              typeof ctx.params?.providerId === 'string'
+                ? ctx.params.providerId
+                : null
+          }
+        })
     })
   );
 

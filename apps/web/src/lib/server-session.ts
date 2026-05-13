@@ -1,3 +1,4 @@
+import { resolveInternalApiOrigin } from '@/lib/api/internal-url';
 import { getClientIpFromHeaders } from '@/server/lib/ip';
 import type {
   Session as AppSession,
@@ -12,22 +13,6 @@ export interface ServerSession {
 interface GetServerSessionOptions {
   headers: Headers;
   disableCookieCache?: boolean;
-}
-
-function getApiInternalUrl(): string {
-  const raw = process.env.API_INTERNAL_URL || 'http://localhost:3001';
-
-  try {
-    const parsed = new URL(raw);
-
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new Error(`Unsupported protocol: ${parsed.protocol}`);
-    }
-
-    return parsed.origin;
-  } catch {
-    throw new Error(`Invalid API_INTERNAL_URL: ${raw}`);
-  }
 }
 
 function buildForwardedHeaders(requestHeaders: Headers): Headers {
@@ -67,7 +52,7 @@ export async function getServerSession({
   }
 
   const response = await fetch(
-    new URL('/api/internal/session', getApiInternalUrl()),
+    new URL('/api/internal/session', resolveInternalApiOrigin()),
     {
       method: 'GET',
       headers: buildForwardedHeaders(headers),

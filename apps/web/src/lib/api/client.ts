@@ -6,6 +6,7 @@
 
 import { treaty } from '@elysiajs/eden';
 import type { ApiClientContract } from './api-types';
+import { resolveInternalApiOrigin } from './internal-url';
 
 // ═══════════════════════════════════════════════════════════════════
 // BASE URL CONFIGURATION
@@ -36,12 +37,7 @@ export function resolveApiBaseUrl(
   env: NodeJS.ProcessEnv = process.env,
   browserOrigin: string | undefined = getBrowserOrigin()
 ): string {
-  return (
-    browserOrigin ||
-    env.API_INTERNAL_URL ||
-    env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:3001'
-  );
+  return browserOrigin || resolveInternalApiOrigin(env);
 }
 
 export const BASE_URL = resolveBaseUrl();

@@ -46,6 +46,9 @@ export interface AuthSessionRecord {
   userAgent: string | null;
   userId: string;
   impersonatedBy: string | null;
+  adminElevatedAt?: Date | null;
+  adminElevationExpiresAt?: Date | null;
+  adminElevationProvider?: string | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════
