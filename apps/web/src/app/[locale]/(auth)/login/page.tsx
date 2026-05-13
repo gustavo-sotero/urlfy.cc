@@ -11,7 +11,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ADMIN_ELEVATION_LOGIN_METHOD } from '@urlfy/auth-shared';
+import { ADMIN_ELEVATION_LOGIN_METHOD } from '@urlfy/auth-shared/admin-session';
 import { Github, Loader2, Mail } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';

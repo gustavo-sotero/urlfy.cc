@@ -4,6 +4,10 @@
  * that don't require a runtime-specific auth instance.
  */
 
+// Keep the root entry client-safe. Runtime Better Auth configuration lives
+// behind the explicit ./auth-config subpath because it eagerly resolves
+// server secrets.
+
 export {
   ADMIN_ELEVATION_LOGIN_METHOD,
   ADMIN_ELEVATION_PROVIDER,
@@ -15,16 +19,6 @@ export {
   isAdminSessionElevated,
   isAdminSessionFresh
 } from './admin-session';
-export type { BuildPublicEmailVerificationUrlInput } from './auth-config';
-export {
-  assertRuntimeAuthConfigSafe,
-  baseAuthConfig,
-  buildPublicEmailVerificationUrl,
-  createBaseAuthConfig,
-  getAuthSecret,
-  getPlugins,
-  getSocialProviderCallbackUrl
-} from './auth-config';
 export type { Scope } from './scopes';
 export {
   hasScopes,

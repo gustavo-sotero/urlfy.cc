@@ -4,7 +4,7 @@ import {
   getAdminSessionAgeMs,
   hasRequiredAdminLoginMethod,
   isAdminSessionFresh
-} from '@urlfy/auth-shared';
+} from '@urlfy/auth-shared/admin-session';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AdminHeader } from '@/components/admin/layout/admin-header';
