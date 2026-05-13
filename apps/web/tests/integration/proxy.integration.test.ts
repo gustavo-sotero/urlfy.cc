@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test';
+import { readdirSync, statSync } from 'node:fs';
+import { relative, resolve, sep } from 'node:path';
 import { NextRequest } from 'next/server';
-import { proxy } from '@/proxy';
+import { LOCALIZED_APP_ROUTES, proxy } from '@/proxy';
 
 function request(path: string): NextRequest {
   return new NextRequest(`http://localhost:3000${path}`);
@@ -14,7 +16,54 @@ function nextHeader(response: Response): string | null {
   return response.headers.get('x-middleware-next');
 }
 
+function collectLocalizedAppRoutePrefixes(): string[] {
+  const localeAppRoot = resolve(import.meta.dir, '../../src/app/[locale]');
+  const routePrefixes = new Set<string>();
+
+  function visit(currentPath: string) {
+    for (const entry of readdirSync(currentPath)) {
+      const entryPath = resolve(currentPath, entry);
+      const stats = statSync(entryPath);
+
+      if (stats.isDirectory()) {
+        visit(entryPath);
+        continue;
+      }
+
+      if (entry !== 'page.tsx') {
+        continue;
+      }
+
+      const normalizedRelativePath = relative(localeAppRoot, entryPath).split(
+        sep
+      );
+      const appSegments = normalizedRelativePath
+        .slice(0, -1)
+        .filter((segment) => !/^\(.+\)$/.test(segment));
+      const firstSegment = appSegments[0];
+
+      if (!firstSegment || firstSegment.startsWith('[')) {
+        continue;
+      }
+
+      routePrefixes.add(`/${firstSegment}`);
+    }
+  }
+
+  visit(localeAppRoot);
+
+  return [...routePrefixes].sort();
+}
+
 describe('Edge Proxy', () => {
+  describe('Localized route coverage', () => {
+    it('keeps manual localized route prefixes aligned with the actual [locale] pages', () => {
+      expect(collectLocalizedAppRoutePrefixes()).toEqual(
+        [...LOCALIZED_APP_ROUTES].sort()
+      );
+    });
+  });
+
   describe('Backend and static passthrough', () => {
     for (const path of [
       '/api/links',
@@ -40,7 +89,7 @@ describe('Edge Proxy', () => {
   });
 
   describe('UI bypass routes', () => {
-    for (const path of ['/admin', '/login', '/signup', '/settings']) {
+    for (const path of ['/admin', '/settings']) {
       it(`passes through ${path} with CSP headers`, async () => {
         const response = await proxy(request(path));
 
@@ -50,6 +99,43 @@ describe('Edge Proxy', () => {
         expect(response.headers.get('X-CSP-Nonce')).toBeDefined();
       });
     }
+  });
+
+  describe('Unprefixed localized app routes', () => {
+    it('redirects bare login requests through next-intl instead of bypassing to a 404', async () => {
+      const response = await proxy(request('/login?callbackUrl=/admin'));
+
+      const location = response.headers.get('location');
+
+      expect(nextHeader(response)).toBeNull();
+      expect(rewriteHeader(response)).toBeNull();
+      expect(location).not.toBeNull();
+      expect(new URL(location ?? 'http://localhost:3000').pathname).toBe(
+        '/en/login'
+      );
+      expect(
+        new URL(location ?? 'http://localhost:3000').searchParams.get(
+          'callbackUrl'
+        )
+      ).toBe('/admin');
+      expect(response.headers.get('Content-Security-Policy')).toBeDefined();
+      expect(response.headers.get('X-CSP-Nonce')).toBeDefined();
+    });
+
+    it('redirects bare dashboard requests through next-intl before short-code handling', async () => {
+      const response = await proxy(request('/dashboard'));
+
+      const location = response.headers.get('location');
+
+      expect(nextHeader(response)).toBeNull();
+      expect(rewriteHeader(response)).toBeNull();
+      expect(location).not.toBeNull();
+      expect(new URL(location ?? 'http://localhost:3000').pathname).toBe(
+        '/en/dashboard'
+      );
+      expect(response.headers.get('Content-Security-Policy')).toBeDefined();
+      expect(response.headers.get('X-CSP-Nonce')).toBeDefined();
+    });
   });
 
   describe('Short code classification', () => {

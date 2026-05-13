@@ -8,10 +8,12 @@
  *
  * Flow:
  * 1. Skip static files, API routes, and internal Next paths
- * 2. Check if path is (auth) or (admin) - bypass i18n
- * 3. Check if path starts with locale (e.g., /en, /pt-br) or is root /
+ * 2. Canonicalize known locale-backed app routes (e.g., /login, /dashboard)
+ *    through next-intl before short-code classification
+ * 3. Check unlocalized system routes like /auth and /admin - bypass i18n
+ * 4. Check if path starts with locale (e.g., /en, /pt-br) or is root /
  *    - If YES: Use next-intl middleware
- * 4. If NO (e.g., /abc1234): Treat as potential Short URL
+ * 5. If NO (e.g., /abc1234): Treat as potential Short URL
  *
  * @see README.md#topology
  * ═════════════════════════════════════════════════════════════════════
@@ -45,8 +47,6 @@ const PASSTHROUGH_ROUTES = [
 const UI_BYPASS_ROUTES = [
   '/auth', // Authentication routes (Better-Auth, may serve UI)
   '/admin', // Admin panel
-  '/login', // Login page
-  '/signup', // Signup page
   '/logout', // Logout
   '/settings', // Settings
   '/_next', // Next.js internals (safety net — matcher excludes _next/)
@@ -56,6 +56,27 @@ const UI_BYPASS_ROUTES = [
   '/.well-known', // Well-known URIs
   '/404', // Error page — must not be treated as a shortlink slug
   '/500' // Error page — must not be treated as a shortlink slug
+] as const;
+
+/**
+ * Locale-backed application routes that should be canonicalized through
+ * next-intl when accessed without a locale prefix. Without this guard, paths
+ * like /login or /dashboard can be mistaken for shortlinks or stale root pages.
+ */
+export const LOCALIZED_APP_ROUTES = [
+  '/contact',
+  '/dashboard',
+  '/email-verification',
+  '/forgot-password',
+  '/help',
+  '/login',
+  '/preview',
+  '/privacy',
+  '/project',
+  '/reset-password',
+  '/signup',
+  '/terms',
+  '/unlock'
 ] as const;
 
 /**
@@ -135,7 +156,13 @@ export async function proxy(req: NextRequest) {
   requestHeaders.set('x-csp-nonce', nonce);
   const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
 
-  // 4. Bypass i18n for UI system routes — apply CSP but skip intl middleware
+  // 4. Canonicalize locale-backed routes before short-code classification.
+  if (isLocalizedAppRoute(pathname)) {
+    const response = intlMiddleware(requestWithNonce);
+    return applyCspHeaders(response, csp, nonce);
+  }
+
+  // 5. Bypass i18n for UI system routes — apply CSP but skip intl middleware
   if (isUiBypassRoute(pathname)) {
     const response = NextResponse.next({
       request: {
@@ -145,7 +172,7 @@ export async function proxy(req: NextRequest) {
     return applyCspHeaders(response, csp, nonce);
   }
 
-  // 5. Check for locale-prefixed paths or root
+  // 6. Check for locale-prefixed paths or root
   const isLocalePath = hasLocalePrefix(pathname);
 
   // Root path or locale-prefixed path → use i18n middleware
@@ -154,7 +181,7 @@ export async function proxy(req: NextRequest) {
     return applyCspHeaders(response, csp, nonce);
   }
 
-  // 5. Not a locale path and not system route -> check if it's a short code.
+  // 7. Not a locale path and not a recognized app route -> check short code.
   const shortCodeMatch = pathname.match(SHORT_CODE_PATH_REGEX);
 
   if (!shortCodeMatch) {
@@ -192,16 +219,29 @@ export async function proxy(req: NextRequest) {
  * Evaluated before nonce generation to avoid unnecessary crypto work.
  */
 function isPassthroughRoute(pathname: string): boolean {
-  return PASSTHROUGH_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
-  );
+  return matchesRoutePrefix(pathname, PASSTHROUGH_ROUTES);
 }
 
 /**
  * Check if pathname is a UI system route that bypasses i18n but still needs CSP.
  */
 function isUiBypassRoute(pathname: string): boolean {
-  return UI_BYPASS_ROUTES.some(
+  return matchesRoutePrefix(pathname, UI_BYPASS_ROUTES);
+}
+
+/**
+ * Check if pathname belongs to a locale-backed app route and should be handed
+ * to next-intl even when accessed without a locale prefix.
+ */
+function isLocalizedAppRoute(pathname: string): boolean {
+  return matchesRoutePrefix(pathname, LOCALIZED_APP_ROUTES);
+}
+
+function matchesRoutePrefix(
+  pathname: string,
+  routes: readonly string[]
+): boolean {
+  return routes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 }

@@ -85,7 +85,7 @@ export function LinkForm() {
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
-      className="flex flex-col gap-4 sm:flex-row"
+      className="flex flex-col gap-4 sm:flex-row sm:items-end"
     >
       <div className="min-w-0 flex-1">
         <AccessibleFormField
