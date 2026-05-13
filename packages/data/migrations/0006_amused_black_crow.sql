@@ -1,0 +1,1 @@
+ALTER TABLE "user" DROP COLUMN IF EXISTS "ban_reason";

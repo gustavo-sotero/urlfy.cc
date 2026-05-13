@@ -383,7 +383,7 @@ export const AnalyticsGlobalService = {
   async getAllLinksSummary(
     userId: string,
     days: number = 30
-  ): Promise<AnalyticsSummary | null> {
+  ): Promise<AnalyticsSummary> {
     try {
       const currentStart = getStartDate(days);
       const previousStart = getStartDate(days * 2);
@@ -546,7 +546,7 @@ export const AnalyticsGlobalService = {
         error: error instanceof Error ? error.message : String(error),
         userId
       });
-      return null;
+      throw error;
     }
   },
 
@@ -628,13 +628,7 @@ export const AnalyticsGlobalService = {
         error: error instanceof Error ? error.message : String(error),
         userId
       });
-
-      return {
-        countries: [],
-        devices: [],
-        browsers: [],
-        referrers: []
-      };
+      throw error;
     }
   }
 };

@@ -607,7 +607,7 @@ export const AnalyticsService = {
   async getSummary(
     linkId: string,
     days: number = 30
-  ): Promise<AnalyticsSummary | null> {
+  ): Promise<AnalyticsSummary> {
     try {
       const currentStart = getStartDate(days);
       const previousStart = getStartDate(days * 2);
@@ -752,7 +752,7 @@ export const AnalyticsService = {
         error: error instanceof Error ? error.message : String(error),
         linkId
       });
-      return null;
+      throw error;
     }
   },
 
@@ -799,13 +799,7 @@ export const AnalyticsService = {
         error: error instanceof Error ? error.message : String(error),
         linkId
       });
-
-      return {
-        countries: [],
-        devices: [],
-        browsers: [],
-        referrers: []
-      };
+      throw error;
     }
   },
 
