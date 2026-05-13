@@ -204,6 +204,8 @@ let logProcessorConfigured = false;
 let telemetryShuttingDown = false;
 let loggingConfigured = false;
 let telemetryStartupPromise: Promise<void> = Promise.resolve();
+let telemetryBootstrapPromise: Promise<void> = Promise.resolve();
+let telemetryStartupSucceeded = false;
 
 function writeBootstrap(
   level: 'info' | 'warn' | 'error',
@@ -385,13 +387,37 @@ export function initTelemetry() {
     ]
   });
 
+  telemetryStartupSucceeded = false;
   telemetryStartupPromise = Promise.resolve(sdk.start())
-    .then(() => undefined)
+    .then(() => {
+      telemetryStartupSucceeded = true;
+    })
     .catch((error) => {
       writeBootstrap('error', 'Telemetry SDK start failed', {
         error: error instanceof Error ? error.message : String(error)
       });
     });
+
+  telemetryBootstrapPromise = telemetryStartupPromise.then(async () => {
+    if (
+      !telemetryStartupSucceeded ||
+      !logProcessorConfigured ||
+      !logsEndpoint
+    ) {
+      return;
+    }
+
+    await loggerProvider.forceFlush().catch((err: unknown) => {
+      writeBootstrap(
+        'warn',
+        'Bootstrap log forceFlush failed – logs may not export initially',
+        {
+          error: err instanceof Error ? err.message : String(err),
+          logsEndpoint
+        }
+      );
+    });
+  });
 
   telemetryInitialized = true;
   telemetryShuttingDown = false;
@@ -415,21 +441,10 @@ export function initTelemetry() {
       service: process.env.OTEL_SERVICE_NAME || 'urlfy-api'
     }
   });
+}
 
-  if (logProcessorConfigured && logsEndpoint) {
-    void telemetryStartupPromise.then(() => {
-      return loggerProvider.forceFlush().catch((err: unknown) => {
-        writeBootstrap(
-          'warn',
-          'Bootstrap log forceFlush failed – logs may not export initially',
-          {
-            error: err instanceof Error ? err.message : String(err),
-            logsEndpoint
-          }
-        );
-      });
-    });
-  }
+export async function waitForTelemetryStartup(): Promise<void> {
+  await telemetryBootstrapPromise;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -445,7 +460,7 @@ export async function shutdownTelemetry() {
   const activeSdk = sdk;
 
   try {
-    await telemetryStartupPromise;
+    await telemetryBootstrapPromise;
 
     // Reset LogTape before shutting down the OTel provider so any
     // in-flight log records are flushed through the OTel sink first.
@@ -498,6 +513,8 @@ export async function shutdownTelemetry() {
     telemetryShuttingDown = false;
     logProcessorConfigured = false;
     telemetryStartupPromise = Promise.resolve();
+    telemetryBootstrapPromise = Promise.resolve();
+    telemetryStartupSucceeded = false;
     loggerProvider = createLoggerProvider();
 
     writeBootstrap('info', 'Telemetry shut down gracefully');

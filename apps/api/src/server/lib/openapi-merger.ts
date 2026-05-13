@@ -164,8 +164,46 @@ function mergeSpecs(
   );
 
   merged.tags = [...(elysiaSpec.tags || []), ...betterAuthTags];
+  normalizeNullableUnionTypes(merged);
 
   return merged;
+}
+
+/**
+ * Normalize JSON Schema-style nullable unions to OpenAPI 3.0 nullable fields.
+ */
+function normalizeNullableUnionTypes(obj: unknown): void {
+  if (Array.isArray(obj)) {
+    for (const value of obj) {
+      normalizeNullableUnionTypes(value);
+    }
+    return;
+  }
+
+  if (!obj || typeof obj !== 'object') return;
+
+  const record = obj as Record<string, unknown>;
+  const rawType = record.type;
+
+  if (Array.isArray(rawType)) {
+    const literalTypes = rawType.filter(
+      (value): value is string => typeof value === 'string'
+    );
+    const nonNullTypes = literalTypes.filter((value) => value !== 'null');
+
+    if (
+      literalTypes.length === rawType.length &&
+      literalTypes.includes('null') &&
+      nonNullTypes.length === 1
+    ) {
+      record.type = nonNullTypes[0];
+      record.nullable ??= true;
+    }
+  }
+
+  for (const value of Object.values(record)) {
+    normalizeNullableUnionTypes(value);
+  }
 }
 
 /**

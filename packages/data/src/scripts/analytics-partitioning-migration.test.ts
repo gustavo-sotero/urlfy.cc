@@ -49,6 +49,11 @@ describe('analytics partitioning migration', () => {
     expect(sql).toContain(
       'SELECT count(*) INTO new_count FROM "analytics_events";'
     );
-    expect(sql).toContain('DROP TABLE IF EXISTS "analytics_events_legacy";');
+    expect(sql).toContain(
+      'Do not drop analytics_events_legacy in this migration.'
+    );
+    expect(sql).not.toContain(
+      'DROP TABLE IF EXISTS "analytics_events_legacy";'
+    );
   });
 });

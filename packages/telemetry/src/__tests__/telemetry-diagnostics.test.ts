@@ -214,7 +214,7 @@ describe('telemetry diagnostics', () => {
       initModule = await loadInitModule('telemetry-diagnostics-shutdown');
 
       initModule.initTelemetry();
-      await Bun.sleep(25);
+      await initModule.waitForTelemetryStartup();
 
       const originalForceFlush = LoggerProvider.prototype.forceFlush;
       let shouldFailForceFlush = true;

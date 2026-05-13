@@ -5,10 +5,6 @@ const realDataSchema = await import(
   '../../../../packages/data/src/schema.ts?worker-analytics-click-tx-real-schema'
 );
 
-const realCacheModule = await import(
-  '../../../../packages/cache/src/index.ts?worker-analytics-click-tx-real-cache'
-);
-
 type ClickEventStream = {
   eventId?: string;
   linkId: string;
@@ -251,13 +247,7 @@ mock.module('drizzle-orm', () => ({
   )
 }));
 
-mock.module('@urlfy/cache', () => ({
-  ...realCacheModule,
-  CACHE_KEYS: {
-    ...realCacheModule.CACHE_KEYS,
-    ANALYTICS_KEYS_SET: (linkId: string) => `analytics:keys:${linkId}`
-  },
-  CACHE_TTL: realCacheModule.CACHE_TTL,
+mock.module('@/server/lib/realtime-clicks', () => ({
   drainPendingClicks: drainPendingClicksMock
 }));
 
@@ -296,17 +286,6 @@ mock.module('@/server/lib/telemetry', () => ({
 
 mock.module('@/server/services/cache.service', () => ({
   cacheService: cacheServiceMock
-}));
-
-mock.module('@/server/services/useragent.service', () => ({
-  parseUserAgent: mock(() => ({
-    browser: 'Chrome',
-    browserVersion: '136.0.0.0',
-    deviceType: 'desktop',
-    isBot: false,
-    os: 'macOS',
-    osVersion: '14'
-  }))
 }));
 
 async function loadWorkerModule() {

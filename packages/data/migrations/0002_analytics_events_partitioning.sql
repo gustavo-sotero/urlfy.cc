@@ -164,7 +164,7 @@ CREATE INDEX "idx_analytics_utm"
   ON "analytics_events" USING btree ("utm_source", "utm_medium", "utm_campaign");
 
 -- ─────────────────────────────────────────────────────────────────
--- 7. Validate row counts before dropping the legacy table
+-- 7. Validate row counts before retaining the legacy table for rollback safety
 -- ─────────────────────────────────────────────────────────────────
 DO $$
 DECLARE

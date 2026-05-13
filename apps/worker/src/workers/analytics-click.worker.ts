@@ -8,12 +8,12 @@
  * - Batch cache increments per link
  */
 
-import { drainPendingClicks } from '@urlfy/cache';
 import { db } from '@urlfy/data';
 import { analyticsEvents, links } from '@urlfy/data/schema';
 import { eq, sql } from 'drizzle-orm';
 import { CACHE_KEYS } from '@/server/lib/cache-keys';
 import { recordMetric } from '@/server/lib/metrics';
+import { drainPendingClicks } from '@/server/lib/realtime-clicks';
 import { getRedisClient } from '@/server/lib/redis';
 import type { StreamMessage } from '@/server/lib/redis-stream';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';

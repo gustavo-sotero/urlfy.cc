@@ -194,6 +194,7 @@ export const LinkForm = {
 
   // Guest/landing form
   guest: {
+    label: 'Enter your URL',
     placeholder: 'Paste your URL here...',
     shorten: 'Shorten',
     creating: 'Creating...',

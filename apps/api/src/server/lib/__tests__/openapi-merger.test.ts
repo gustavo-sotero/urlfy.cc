@@ -125,6 +125,74 @@ describe('getMergedOpenAPISpec — healthy merge', () => {
     expect(spec.components?.schemas?.BetterAuthSignInBody).toBeDefined();
     expect(spec.components?.schemas?.SignInBody).toBeUndefined();
   });
+
+  it('normalizes nullable union types to OpenAPI 3.0 nullable schemas', async () => {
+    const nullablePathItem = {
+      get: {
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: {
+                  type: ['object', 'null'],
+                  properties: {
+                    session: {
+                      type: ['string', 'null']
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } as unknown as OpenAPIV3.PathItemObject;
+
+    const spec = await getMergedOpenAPISpec(
+      makeGetElysiaSpec({
+        paths: {
+          '/api/nullable': nullablePathItem
+        }
+      })
+    );
+
+    const schema = (
+      spec.paths?.['/api/nullable'] as {
+        get?: {
+          responses?: {
+            200?: {
+              content?: {
+                'application/json'?: {
+                  schema?: {
+                    nullable?: boolean;
+                    properties?: {
+                      session?: {
+                        nullable?: boolean;
+                        type?: string;
+                      };
+                    };
+                    type?: string;
+                  };
+                };
+              };
+            };
+          };
+        };
+      }
+    )?.get?.responses?.[200]?.content?.['application/json']?.schema;
+
+    expect(schema).toMatchObject({
+      nullable: true,
+      properties: {
+        session: {
+          nullable: true,
+          type: 'string'
+        }
+      },
+      type: 'object'
+    });
+  });
 });
 
 // ─── Section 2: Degraded merge (Better-Auth schema generation throws) ────────
