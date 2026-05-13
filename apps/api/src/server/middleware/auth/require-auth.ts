@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia';
 import type { Session, User } from '@/lib/auth';
 import { auth } from '@/lib/auth';
+import { isMissingAuthSessionError } from '@/server/lib/auth-session-error';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { sanitizeHeaders } from '@/server/lib/log-sanitizer';
 import { createLogger } from '@/server/lib/telemetry';
@@ -74,6 +75,16 @@ export const requireAuth = new Elysia({ name: 'require-auth' })
         isTestAuth: false as const
       };
     } catch (err) {
+      if (isMissingAuthSessionError(err)) {
+        logger.debug('No valid session found after auth lookup error');
+        return {
+          user: null,
+          session: null,
+          isAuthenticated: false as const,
+          isTestAuth: false as const
+        };
+      }
+
       // Unexpected auth subsystem failure must NOT be silently downgraded
       // to an unauthenticated path. Surface as a typed operational error
       // so it reaches the global onError handler as a 503.

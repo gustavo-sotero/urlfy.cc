@@ -188,6 +188,30 @@ describe('internalController session route', () => {
     expect(await response.text()).toBe('');
   });
 
+  test('returns 401 when Better Auth reports a legacy session token as not found', async () => {
+    getSessionMock.mockImplementation(async () => {
+      throw Object.assign(new Error('Session not found'), {
+        status: 404,
+        code: 'NOT_FOUND'
+      });
+    });
+
+    const { internalController } = await importInternalController();
+    const app = new Elysia({ prefix: '/api' }).use(internalController);
+
+    const response = await app.handle(
+      new Request('http://localhost/api/internal/session', {
+        headers: {
+          cookie: 'urlfy.session_token=legacy-token',
+          'x-internal-api': 'test-internal-api-secret-32chars'
+        }
+      })
+    );
+
+    expect(response.status).toBe(401);
+    expect(await response.text()).toBe('');
+  });
+
   test('rejects legacy analytics payloads that still include a raw ip', async () => {
     const { internalController } = await importInternalController();
     const app = new Elysia({ prefix: '/api' }).use(internalController);

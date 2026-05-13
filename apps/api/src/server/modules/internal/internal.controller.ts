@@ -11,6 +11,7 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { Elysia, t } from 'elysia';
 import { auth } from '@/lib/auth';
+import { isMissingAuthSessionError } from '@/server/lib/auth-session-error';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { RedisStream, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { resolveIsAdminByGitHubAccount } from '@/server/services/admin.resolver';
@@ -22,7 +23,6 @@ import {
 } from './internal.schema';
 
 type InternalAnalyticsBody = typeof InternalAnalyticsEventBody.static;
-
 /**
  * Verify internal API request
  * Checks x-internal-api header matches INTERNAL_API_SECRET
@@ -63,9 +63,20 @@ export const internalController = new Elysia({ prefix: '/internal' })
         );
       }
 
-      const session = await auth.api.getSession({
-        headers: request.headers
-      });
+      let session: Awaited<ReturnType<typeof auth.api.getSession>>;
+
+      try {
+        session = await auth.api.getSession({
+          headers: request.headers
+        });
+      } catch (error) {
+        if (!isMissingAuthSessionError(error)) {
+          throw error;
+        }
+
+        set.status = 401;
+        return null;
+      }
 
       if (!session?.user || !session?.session) {
         set.status = 401;

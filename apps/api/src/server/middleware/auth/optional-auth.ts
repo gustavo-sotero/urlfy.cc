@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia';
 import type { Session, User } from '@/lib/auth';
 import { auth } from '@/lib/auth';
+import { isMissingAuthSessionError } from '@/server/lib/auth-session-error';
 import { createLogger } from '@/server/lib/telemetry';
 import { getTestUserFromHeaders } from './helpers';
 
@@ -32,6 +33,15 @@ export const optionalAuth = new Elysia({ name: 'optional-auth' })
         };
       }
     } catch (err) {
+      if (isMissingAuthSessionError(err)) {
+        return {
+          user: null,
+          session: null,
+          isAuthenticated: false as const,
+          isTestAuth: false as const
+        };
+      }
+
       // Best-effort: continue as anonymous but log the subsystem failure
       // so it is distinguishable from a normal unauthenticated request.
       logger.error('Auth subsystem failure in optionalAuth', {

@@ -17,6 +17,7 @@
 import { Elysia } from 'elysia';
 import type { Session, User } from '@/lib/auth';
 import { auth } from '@/lib/auth';
+import { isMissingAuthSessionError } from '@/server/lib/auth-session-error';
 import { createLogger } from '@/server/lib/telemetry';
 
 const logger = createLogger('better-auth-macro');
@@ -26,6 +27,20 @@ const logger = createLogger('better-auth-macro');
 interface AuthMacroOptions {
   /** Whether authentication is required (default: true) */
   required?: boolean;
+}
+
+function getSafeRefererPath(headers: Headers): string | undefined {
+  const referer = headers.get('referer');
+
+  if (!referer) {
+    return undefined;
+  }
+
+  try {
+    return new URL(referer).pathname;
+  } catch {
+    return undefined;
+  }
 }
 
 // ─── Better-Auth Macro ─────────────────────────────────────────────
@@ -47,7 +62,7 @@ export const betterAuthMacro = new Elysia({ name: 'Macro.BetterAuth' }).macro({
           if (!session) {
             if (required) {
               logger.warn('Unauthorized access attempt', {
-                path: new URL(headers.get('referer') || '').pathname
+                path: getSafeRefererPath(headers)
               });
 
               return status(401, {
@@ -72,6 +87,27 @@ export const betterAuthMacro = new Elysia({ name: 'Macro.BetterAuth' }).macro({
             session: session.session as Session
           };
         } catch (error) {
+          if (isMissingAuthSessionError(error)) {
+            if (required) {
+              logger.warn('Unauthorized access attempt', {
+                path: getSafeRefererPath(headers)
+              });
+
+              return status(401, {
+                success: false,
+                error: {
+                  code: 'UNAUTHORIZED',
+                  message: 'Authentication required'
+                }
+              });
+            }
+
+            return {
+              user: null as User | null,
+              session: null as Session | null
+            };
+          }
+
           logger.error('Better-Auth macro error', {
             error: error instanceof Error ? error.message : String(error)
           });
