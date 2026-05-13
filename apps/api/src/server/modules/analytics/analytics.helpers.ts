@@ -76,8 +76,23 @@ export async function withCache<T>(
   }
 
   if (cached) {
-    logger.debug('Analytics cache hit', { cacheKey });
-    return JSON.parse(cached) as T;
+    try {
+      const parsed = JSON.parse(cached) as T;
+      logger.debug('Analytics cache hit', { cacheKey });
+      return parsed;
+    } catch (parseError) {
+      logger.warn(
+        'Analytics cache value is corrupted (invalid JSON), skipping cache',
+        {
+          cacheKey,
+          error:
+            parseError instanceof Error
+              ? parseError.message
+              : String(parseError)
+        }
+      );
+      // Fall through to fresh fetch — do NOT return stale/corrupt data.
+    }
   }
 
   logger.debug('Analytics cache miss', { cacheKey });

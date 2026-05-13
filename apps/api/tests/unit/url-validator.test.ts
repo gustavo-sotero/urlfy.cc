@@ -79,6 +79,16 @@ describe('URL Validator Service', () => {
     it('should block IPv4-mapped IPv6 addresses — RF-SSRF extended ranges', () => {
       expect(isPrivateIP('::ffff:192.168.1.1')).toBe(true);
       expect(isPrivateIP('::ffff:10.0.0.1')).toBe(true);
+      expect(isPrivateIP('::ffff:8.8.8.8')).toBe(false);
+    });
+
+    it('should block IPv6 transition and special-use ranges', () => {
+      expect(isPrivateIP('64:ff9b::c000:201')).toBe(true);
+      expect(isPrivateIP('100::1')).toBe(true);
+      expect(isPrivateIP('2001::1')).toBe(true);
+      expect(isPrivateIP('2001:2::1')).toBe(true);
+      expect(isPrivateIP('2001:10::1')).toBe(true);
+      expect(isPrivateIP('2002::1')).toBe(true);
     });
 
     it('should block IPv6 unique-local (fc00::/7) — RF-SSRF extended ranges', () => {

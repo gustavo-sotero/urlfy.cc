@@ -6,9 +6,12 @@
 
 export {
   ADMIN_ELEVATION_LOGIN_METHOD,
+  ADMIN_ELEVATION_PROVIDER,
   ADMIN_SESSION_MAX_AGE_MS,
+  getAdminElevationExpiresAt,
   getAdminSessionAgeMs,
   hasRequiredAdminLoginMethod,
+  isAdminElevationClaimValid,
   isAdminSessionElevated,
   isAdminSessionFresh
 } from './admin-session';

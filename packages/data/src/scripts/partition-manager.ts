@@ -31,17 +31,29 @@ export class PartitionManager {
    */
   async verifyPartitionedTopology(): Promise<void> {
     const result = await db.execute(sql`
-      SELECT relkind
-      FROM   pg_class
-      WHERE  relname = 'analytics_events'
-        AND  relnamespace = 'public'::regnamespace
+      SELECT
+        c.relkind,
+        pt.partstrat,
+        pg_get_partkeydef(c.oid) AS partition_key
+      FROM pg_class c
+      LEFT JOIN pg_partitioned_table pt ON pt.partrelid = c.oid
+      WHERE c.relname = 'analytics_events'
+        AND c.relnamespace = 'public'::regnamespace
     `);
     const rows = Array.isArray(result) ? result : [];
-    const relkind = rows[0]?.relkind;
+    const row = rows[0];
+    const relkind = row?.relkind;
+    const partstrat = row?.partstrat;
+    const partitionKey = String(row?.partition_key ?? '').toLowerCase();
 
-    if (relkind !== 'p') {
+    if (
+      relkind !== 'p' ||
+      partstrat !== 'r' ||
+      partitionKey !== 'range (created_at)'
+    ) {
       throw new Error(
-        `analytics_events is not a partitioned table (pg_class.relkind=${JSON.stringify(relkind)}). ` +
+        'analytics_events is not partitioned as RANGE (created_at) ' +
+          `(relkind=${JSON.stringify(relkind)}, partstrat=${JSON.stringify(partstrat)}, partition_key=${JSON.stringify(row?.partition_key)}). ` +
           'Run migration 0002_analytics_events_partitioning.sql before starting the partition manager.'
       );
     }
@@ -99,15 +111,22 @@ export class PartitionManager {
       // Extract rows from result
       const rows = Array.isArray(result) ? result : [];
 
-      return rows.map((row) => {
-        const { startDate, endDate } = this.parsePartitionBounds(
-          row.partition_bound
-        );
-        return {
-          name: row.tablename,
-          startDate,
-          endDate
-        };
+      return rows.flatMap((row) => {
+        try {
+          const { startDate, endDate } = this.parsePartitionBounds(
+            row.partition_bound
+          );
+          return [
+            {
+              name: row.tablename,
+              startDate,
+              endDate
+            }
+          ];
+        } catch {
+          // DEFAULT partition or other non-date-bounded partition — skip
+          return [];
+        }
       });
     } catch (error) {
       logger.error('[PartitionManager] Error listing partitions', {
@@ -154,9 +173,6 @@ export class PartitionManager {
             FOR VALUES FROM ('${startDate}') TO ('${endDate}')
           `)
         );
-
-        // Create local indexes on the partition
-        await this.createPartitionIndexes(partitionName);
 
         logger.info(
           `[PartitionManager] Partition created successfully: ${partitionName}`
@@ -216,31 +232,6 @@ export class PartitionManager {
   }
 
   /**
-   * Creates local indexes on a partition
-   */
-  private async createPartitionIndexes(partitionName: string): Promise<void> {
-    const indexes = [
-      `CREATE INDEX IF NOT EXISTS idx_${partitionName}_link_id ON ${partitionName}(link_id);`,
-      `CREATE INDEX IF NOT EXISTS idx_${partitionName}_created_at ON ${partitionName}(created_at);`,
-      `CREATE INDEX IF NOT EXISTS idx_${partitionName}_country ON ${partitionName}(country);`,
-      `CREATE INDEX IF NOT EXISTS idx_${partitionName}_not_bot ON ${partitionName}(link_id, is_bot);`
-    ];
-
-    for (const indexSql of indexes) {
-      try {
-        await db.execute(sql.raw(indexSql));
-      } catch (error) {
-        logger.warn(
-          `[PartitionManager] Error creating index on ${partitionName}`,
-          {
-            error: error instanceof Error ? error.message : String(error)
-          }
-        );
-      }
-    }
-  }
-
-  /**
    * Generates partition name based on date
    */
   private getPartitionName(date: Date): string {
@@ -263,10 +254,14 @@ export class PartitionManager {
     startDate: Date;
     endDate: Date;
   } {
-    // Format: FOR VALUES FROM ('2026-01-01') TO ('2026-02-01')
     const matches = bounds.match(/'([^']+)'/g);
+
+    // DEFAULT partitions have no date bounds — skip them so they are never
+    // accidentally dropped by age-based retention logic.
     if (!matches || matches.length < 2) {
-      throw new Error(`Invalid partition bounds format: ${bounds}`);
+      throw new Error(
+        `Partition without date bounds (DEFAULT or invalid): ${bounds}`
+      );
     }
 
     const startStr = matches[0].replace(/'/g, '');

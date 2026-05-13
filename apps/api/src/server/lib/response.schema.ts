@@ -143,7 +143,7 @@ export const ERROR_EXAMPLES = {
   },
   409: {
     success: false,
-    error: { code: 'CONFLICT', message: 'Custom alias already in use' }
+    error: { code: 'ALIAS_TAKEN', message: 'Custom alias already in use' }
   },
   410: {
     success: false,

@@ -38,10 +38,17 @@ function createSpecialUseIpBlockList(): BlockList {
   ];
 
   const ipv6Subnets: Array<[string, number]> = [
+    ['64:ff9b::', 96],
+    ['64:ff9b:1::', 48],
+    ['100::', 64],
+    ['2001::', 23],
+    ['2001:2::', 48],
+    ['2001:10::', 28],
     ['fe80::', 10],
     ['fc00::', 7],
     ['ff00::', 8],
-    ['2001:db8::', 32]
+    ['2001:db8::', 32],
+    ['2002::', 16]
   ];
 
   for (const [network, prefix] of ipv4Subnets) {
@@ -119,7 +126,8 @@ function isSelfShortenerOrigin(parsed: URL): boolean {
  *   - {appHost}/r/{code}  — explicit redirect route
  *   - {appHost}/{code}    — proxy-intercepted shortcode path (3–20 chars)
  *
- * Does NOT block multi-segment paths (e.g. /en/about, /docs/api).
+ * Does NOT block multi-segment paths (e.g. /en/about, /docs/api) or single-
+ * segment paths that are known reserved slugs / informational pages.
  */
 export function isSelfShortenerTarget(url: string): boolean {
   try {
@@ -181,6 +189,7 @@ export function isPrivateIP(ip: string): boolean {
     .trim()
     .replace(/^\[/, '')
     .replace(/\]$/, '')
+    .replace(/%[\w.-]+$/, '')
     .toLowerCase();
 
   if (normalized === 'localhost') {
@@ -194,6 +203,13 @@ export function isPrivateIP(ip: string): boolean {
   }
 
   if (family === 6) {
+    const ipv4MappedMatch = normalized.match(
+      /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/
+    );
+    if (ipv4MappedMatch) {
+      return isPrivateIP(ipv4MappedMatch[1]);
+    }
+
     return SPECIAL_USE_IP_BLOCK_LIST.check(normalized, 'ipv6');
   }
 

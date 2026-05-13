@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   drainPendingClicks,
   incrementPendingClicks,
@@ -42,6 +43,7 @@ export async function enqueueRedirectAnalytics(
   await RedisStream.add(
     STREAM_NAMES.analyticsClicks,
     {
+      eventId: randomUUID(),
       linkId,
       shortCode: code,
       visitorHash,

@@ -199,7 +199,10 @@ export function useBanUser(
   return useMutation({
     mutationFn: (userId: string) => api.banUser(userId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.users({}) });
+      // Invalidate all users queries regardless of page/filter
+      queryClient.invalidateQueries({
+        queryKey: [adminKeys.all[0], 'users']
+      });
     },
     ...options
   });
@@ -213,7 +216,10 @@ export function useUnbanUser(
   return useMutation({
     mutationFn: (userId: string) => api.unbanUser(userId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminKeys.users({}) });
+      // Invalidate all users queries regardless of page/filter
+      queryClient.invalidateQueries({
+        queryKey: [adminKeys.all[0], 'users']
+      });
     },
     ...options
   });

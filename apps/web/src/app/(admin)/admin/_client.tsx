@@ -36,13 +36,7 @@ export function AdminDashboardPageClient() {
     queryKey: ADMIN_STATS_KEY,
     queryFn: () => getAdminStats(),
     staleTime: 30_000,
-    refetchInterval: (query) => {
-      if (query.state.error) {
-        const failures = query.state.errorUpdateCount ?? 1;
-        return Math.min(30_000 * 2 ** failures, 120_000);
-      }
-      return 30_000;
-    },
+    refetchInterval: false,
     refetchIntervalInBackground: false
   });
 
@@ -54,13 +48,7 @@ export function AdminDashboardPageClient() {
     queryKey: adminGrowthKey(growthRange),
     queryFn: () => getGrowthStats(growthRange),
     staleTime: 60_000,
-    refetchInterval: (query) => {
-      if (query.state.error) {
-        const failures = query.state.errorUpdateCount ?? 1;
-        return Math.min(60_000 * 2 ** failures, 300_000);
-      }
-      return 60_000;
-    },
+    refetchInterval: false,
     refetchIntervalInBackground: false
   });
 

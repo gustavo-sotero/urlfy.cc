@@ -1,7 +1,16 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import * as realDrizzle from 'drizzle-orm';
 
+const realDataSchema = await import(
+  '../../../../packages/data/src/schema.ts?worker-analytics-click-tx-real-schema'
+);
+
+const realCacheModule = await import(
+  '../../../../packages/cache/src/index.ts?worker-analytics-click-tx-real-cache'
+);
+
 type ClickEventStream = {
+  eventId?: string;
   linkId: string;
   shortCode: string;
   visitorHash: string;
@@ -208,21 +217,26 @@ const redisClientMock = {
   send: mock(async () => [])
 };
 
-mock.module('@urlfy/data', () => ({
-  db: dbMock
-}));
-
 mock.module('@urlfy/data/schema', () => ({
+  ...realDataSchema,
   analyticsEvents: {
+    ...realDataSchema.analyticsEvents,
     id: { __col: 'analyticsEvents.id' },
     linkId: { __col: 'analyticsEvents.linkId' },
     streamMessageId: { __col: 'analyticsEvents.streamMessageId' }
   },
   links: {
+    ...realDataSchema.links,
     clicksCount: { __col: 'links.clicksCount' },
     id: { __col: 'links.id' },
     lastClickedAt: { __col: 'links.lastClickedAt' }
   }
+}));
+
+mock.module('@urlfy/data', () => ({
+  db: dbMock,
+  checkDatabaseHealth: mock(() => Promise.resolve({ status: 'ok' })),
+  closeDatabase: mock(() => Promise.resolve())
 }));
 
 mock.module('drizzle-orm', () => ({
@@ -238,10 +252,12 @@ mock.module('drizzle-orm', () => ({
 }));
 
 mock.module('@urlfy/cache', () => ({
+  ...realCacheModule,
   CACHE_KEYS: {
+    ...realCacheModule.CACHE_KEYS,
     ANALYTICS_KEYS_SET: (linkId: string) => `analytics:keys:${linkId}`
   },
-  CACHE_TTL: {},
+  CACHE_TTL: realCacheModule.CACHE_TTL,
   drainPendingClicks: drainPendingClicksMock
 }));
 
@@ -361,6 +377,46 @@ describe('analytics-click worker transactional semantics', () => {
     expect(state.committedUpdates).toHaveLength(1);
     expect(state.cacheCalls).toEqual([{ count: 1, shortCode: 'urlfy' }]);
     expect(state.drainCalls).toEqual([{ count: 1, linkId: 'link-001' }]);
+  });
+
+  test('uses payload eventId as the durable dedupe identity across requeues', async () => {
+    const workerModule = await loadWorkerModule();
+    const worker = getWorkerAccess(workerModule);
+
+    await expect(
+      worker.processMessage('redis-msg-1', {
+        ...baseEvent,
+        eventId: 'event-stable-1'
+      })
+    ).resolves.toBeUndefined();
+
+    await expect(
+      worker.processMessage('redis-msg-2', {
+        ...baseEvent,
+        eventId: 'event-stable-1'
+      })
+    ).resolves.toBeUndefined();
+
+    expect(state.committedRows).toEqual([
+      { linkId: 'link-001', streamMessageId: 'event-stable-1' }
+    ]);
+    expect(state.committedUpdates).toHaveLength(1);
+  });
+
+  test('uses originalId as the dedupe identity for legacy retry payloads', async () => {
+    const workerModule = await loadWorkerModule();
+    const worker = getWorkerAccess(workerModule);
+
+    await expect(
+      worker.processMessage('retry-msg-1', {
+        ...baseEvent,
+        originalId: 'legacy-original-1'
+      } as ClickEventStream & { originalId: string })
+    ).resolves.toBeUndefined();
+
+    expect(state.committedRows).toEqual([
+      { linkId: 'link-001', streamMessageId: 'legacy-original-1' }
+    ]);
   });
 
   test('batch retries only when the transactional DB stage fails before commit', async () => {

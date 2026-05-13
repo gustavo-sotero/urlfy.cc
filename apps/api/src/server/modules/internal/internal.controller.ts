@@ -8,7 +8,7 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { timingSafeEqual } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { Elysia, t } from 'elysia';
 import { auth } from '@/lib/auth';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
@@ -112,6 +112,7 @@ export const internalController = new Elysia({ prefix: '/internal' })
       await RedisStream.add(
         STREAM_NAMES.analyticsClicks,
         {
+          eventId: analyticsBody.eventId ?? randomUUID(),
           linkId: analyticsBody.linkId,
           shortCode: analyticsBody.shortCode,
           visitorHash: analyticsBody.visitorHash,

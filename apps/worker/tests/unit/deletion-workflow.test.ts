@@ -8,10 +8,10 @@
  * Validates:
  * 1. Normal happy-path: request transitions pending → processing → completed,
  *    user data is deleted before terminal completion, and audits happen in the correct order.
- * 2. Deadline not yet reached: worker throws and does NOT mark request as failed.
+ * 2. Deadline not yet reached: worker leaves the request pending for the scheduler.
  * 3. Request not found: worker exits silently without throwing.
- * 4. DB failure during processMessage: request status is updated to 'failed'
- *    with the error message.
+ * 4. DB failure during processMessage: retriable failures are re-armed as
+ *    pending and exhausted failures become terminal.
  * 5. Claim happens BEFORE user deletion and terminal completion happens AFTER
  *    the real delete, verifying correct operation ordering.
  * 6. Retry safety: if the worker crashes mid-way (after partial deletes),
@@ -44,7 +44,11 @@ const makePendingRequest = (deadlineOffset = -1000) => ({
   dataExported: 'no' as const,
   requestedAt: new Date(Date.now() - 86_400_000),
   completedAt: null,
-  failureReason: null
+  failureReason: null,
+  processingStartedAt: null as Date | null,
+  processingLeaseExpiresAt: null as Date | null,
+  processingOwner: null as string | null,
+  attemptCount: 0
 });
 
 // ─── Operation order tracker ───────────────────────────────────────────────
@@ -87,8 +91,13 @@ function makeUpdater() {
 
               const currentRequest = getCurrentRequest();
               const currentStatus = currentRequest?.status;
+              const leaseExpiresAt =
+                currentRequest?.processingLeaseExpiresAt ?? null;
+              const processingLeaseExpired =
+                !leaseExpiresAt || leaseExpiresAt.getTime() < Date.now();
               const isClaimable =
-                currentStatus === 'pending' || currentStatus === 'processing';
+                currentStatus === 'pending' ||
+                (currentStatus === 'processing' && processingLeaseExpired);
 
               if (!isClaimable) {
                 return [];
@@ -98,6 +107,19 @@ function makeUpdater() {
 
               if (currentRequest) {
                 currentRequest.status = 'processing';
+                currentRequest.processingStartedAt =
+                  values.processingStartedAt instanceof Date
+                    ? values.processingStartedAt
+                    : null;
+                currentRequest.processingLeaseExpiresAt =
+                  values.processingLeaseExpiresAt instanceof Date
+                    ? values.processingLeaseExpiresAt
+                    : null;
+                currentRequest.processingOwner =
+                  typeof values.processingOwner === 'string'
+                    ? values.processingOwner
+                    : null;
+                currentRequest.attemptCount += 1;
               }
 
               return [{ id: currentRequest?.id ?? REQUEST_ID }];
@@ -135,6 +157,23 @@ function makeUpdater() {
                 typeof values.failureReason === 'string'
                   ? values.failureReason
                   : null;
+            }
+
+            return [];
+          }
+
+          if (status === 'pending') {
+            opOrder.push('status:pending');
+
+            const currentRequest = getCurrentRequest();
+            if (currentRequest) {
+              currentRequest.status = 'pending';
+              currentRequest.failureReason =
+                typeof values.failureReason === 'string'
+                  ? values.failureReason
+                  : null;
+              currentRequest.processingLeaseExpiresAt = null;
+              currentRequest.processingOwner = null;
             }
 
             return [];
@@ -248,6 +287,7 @@ mock.module('drizzle-orm', () => ({
   // Include all operators used across test files to prevent
   // export-not-found contamination in subsequent test files.
   and: mock((...args: unknown[]) => args),
+  or: mock((...args: unknown[]) => args),
   lt: mock((_col: unknown, _val: unknown) => ({})),
   // Prevent contamination of schema modules that import `relations` from drizzle-orm
   relations: mock(() => ({}))
@@ -426,6 +466,10 @@ describe('DeletionWorker.processMessage', () => {
     dbMock.insert.mockReset();
     auditLogServiceMock.log.mockReset();
 
+    // Keep WorkerBase backoff sleeps from slowing tests if a failure path reaches
+    // the shared retry pipeline.
+    Bun.sleep = (() => Promise.resolve()) as unknown as typeof Bun.sleep;
+
     // Re-apply default implementations after mockReset
     dbMock.select.mockImplementation(() => ({
       from: mock(() => ({
@@ -506,6 +550,7 @@ describe('DeletionWorker.processMessage', () => {
       (auditLogs[1] as { metadata?: { operation?: string } }).metadata
         ?.operation
     ).toBe('user_data_deleted');
+    expect((auditLogs[1] as { userId?: string | null }).userId).toBeNull();
 
     expect(firstAuditIdx).toBeGreaterThanOrEqual(0);
     expect(lastAuditIdx).toBeGreaterThanOrEqual(0);
@@ -571,8 +616,8 @@ describe('DeletionWorker.processMessage', () => {
     expect(opOrder.filter((op) => op.startsWith('audit'))).toHaveLength(0);
   });
 
-  // ── 5. Deadline not reached: throws (re-queue semantics) ─────────────────
-  test('throws when deadline has not been reached (enables re-queue)', async () => {
+  // ── 5. Deadline not reached: leave pending for scheduler ─────────────────
+  test('leaves pending requests untouched when deadline has not been reached', async () => {
     state.dbSelectResult = [makePendingRequest(60_000)]; // deadline in the future
     const worker = makeWorker();
 
@@ -581,18 +626,15 @@ describe('DeletionWorker.processMessage', () => {
         requestId: REQUEST_ID,
         userId: USER_ID
       })
-    ).rejects.toMatchObject({
-      name: 'DeferredDeletionError',
-      message: 'Deletion deadline not reached yet'
-    });
+    ).resolves.toBeUndefined();
 
     // Must NOT have started any actual data deletion
     expect(opOrder.filter((op) => op.startsWith('delete'))).toHaveLength(0);
     expect(opOrder.filter((op) => op.startsWith('status'))).toHaveLength(0);
   });
 
-  // ── 6. DB failure during delete → request marked failed ──────────────────
-  test('marks request as failed when analytics delete throws', async () => {
+  // ── 6. DB failure during delete → request re-armed for retry ─────────────
+  test('re-arms request as pending when analytics delete throws before retry exhaustion', async () => {
     state.failOnDeleteAnalytics = true;
     dbMock.delete.mockImplementation(() => ({
       where: mock(async () => {
@@ -610,9 +652,75 @@ describe('DeletionWorker.processMessage', () => {
       })
     ).rejects.toThrow();
 
-    // The failure catch block should have attempted to set status = 'failed'
+    // Retriable failures stay non-terminal so the stream retry can claim them.
     expect(dbMock.update).toHaveBeenCalled();
+    expect(opOrder).toContain('status:pending');
+  });
+
+  test('marks request as failed when retry budget is exhausted', async () => {
+    state.failOnDeleteAnalytics = true;
+    dbMock.delete.mockImplementation(() => ({
+      where: mock(async () => {
+        opOrder.push('delete:analytics-fail');
+        throw new Error('analytics delete failed');
+      })
+    }));
+
+    const worker = makeWorker();
+
+    await expect(
+      worker.runProcess('msg-006b', {
+        requestId: REQUEST_ID,
+        userId: USER_ID,
+        retryCount: 3
+      })
+    ).rejects.toThrow();
+
     expect(opOrder).toContain('status:failed');
+  });
+
+  test('does not reclaim a fresh processing lease', async () => {
+    state.dbSelectResult = [
+      {
+        ...makePendingRequest(),
+        status: 'processing',
+        processingLeaseExpiresAt: new Date(Date.now() + 60_000)
+      }
+    ];
+
+    const worker = makeWorker();
+
+    await expect(
+      worker.runProcess('msg-006c', {
+        requestId: REQUEST_ID,
+        userId: USER_ID
+      })
+    ).resolves.toBeUndefined();
+
+    expect(opOrder.filter((op) => op.startsWith('delete'))).toHaveLength(0);
+    expect(opOrder.filter((op) => op === 'status:processing')).toHaveLength(0);
+    expect(opOrder.filter((op) => op === 'status:completed')).toHaveLength(0);
+  });
+
+  test('reclaims a stale processing lease', async () => {
+    state.dbSelectResult = [
+      {
+        ...makePendingRequest(),
+        status: 'processing',
+        processingLeaseExpiresAt: new Date(Date.now() - 60_000)
+      }
+    ];
+
+    const worker = makeWorker();
+
+    await worker.runProcess('msg-006d', {
+      requestId: REQUEST_ID,
+      userId: USER_ID
+    });
+
+    expect(opOrder).toContain('status:processing');
+    expect(opOrder).toContain('delete:user');
+    expect(opOrder).toContain('status:completed');
   });
 
   // ── 7. Stream/group contract constants match across publisher and worker ──

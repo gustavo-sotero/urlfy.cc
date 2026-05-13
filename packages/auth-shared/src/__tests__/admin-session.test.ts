@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import {
   ADMIN_ELEVATION_LOGIN_METHOD,
+  ADMIN_ELEVATION_PROVIDER,
   ADMIN_SESSION_MAX_AGE_MS,
+  getAdminElevationExpiresAt,
   getAdminSessionAgeMs,
   hasRequiredAdminLoginMethod,
+  isAdminElevationClaimValid,
   isAdminSessionElevated,
   isAdminSessionFresh
 } from '../admin-session';
@@ -66,6 +69,35 @@ describe('admin session helpers', () => {
       isAdminSessionElevated({
         createdAt: staleCreatedAt,
         lastLoginMethod: ADMIN_ELEVATION_LOGIN_METHOD,
+        now
+      })
+    ).toBe(false);
+  });
+
+  it('validates a session-scoped admin elevation claim', () => {
+    const elevatedAt = new Date(now.getTime() - (ADMIN_SESSION_MAX_AGE_MS - 1));
+    const expiresAt = getAdminElevationExpiresAt(elevatedAt);
+
+    expect(
+      isAdminElevationClaimValid({
+        provider: ADMIN_ELEVATION_PROVIDER,
+        expiresAt,
+        now
+      })
+    ).toBe(true);
+
+    expect(
+      isAdminElevationClaimValid({
+        provider: 'email',
+        expiresAt,
+        now
+      })
+    ).toBe(false);
+
+    expect(
+      isAdminElevationClaimValid({
+        provider: ADMIN_ELEVATION_PROVIDER,
+        expiresAt: new Date(now.getTime() - 1),
         now
       })
     ).toBe(false);

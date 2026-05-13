@@ -79,6 +79,7 @@ services:
       # provider redirect URIs.
       - TRUST_PROXY=true
       - TRUST_PROXY_HOPS=1
+      - TRUSTED_PROXY_CIDRS=${TRUSTED_PROXY_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       # OAuth (optional)
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
@@ -155,6 +156,7 @@ services:
       # proxy-derived host/scheme/IP handling consistent for web runtime code.
       - TRUST_PROXY=true
       - TRUST_PROXY_HOPS=1
+      - TRUSTED_PROXY_CIDRS=${TRUSTED_PROXY_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       # Redis (needed for web-level rate limiting)
       - REDIS_URL=${REDIS_URL}
       - REDIS_HOST=${REDIS_HOST:-}

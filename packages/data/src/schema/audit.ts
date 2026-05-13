@@ -12,6 +12,7 @@
 import { relations } from 'drizzle-orm';
 import {
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -77,6 +78,10 @@ export const dataDeletionRequest = pgTable(
 
     // Processing details
     failureReason: text('failure_reason'),
+    processingStartedAt: timestamp('processing_started_at'),
+    processingLeaseExpiresAt: timestamp('processing_lease_expires_at'),
+    processingOwner: text('processing_owner'),
+    attemptCount: integer('attempt_count').default(0).notNull(),
     processedBy: text('processed_by').references(() => user.id),
     dataExported: varchar('data_exported', { length: 3 })
       .notNull()
@@ -86,7 +91,11 @@ export const dataDeletionRequest = pgTable(
     index('dataDeletionRequest_userId_idx').on(table.userId),
     index('dataDeletionRequest_userIdSnapshot_idx').on(table.userIdSnapshot),
     index('dataDeletionRequest_status_idx').on(table.status),
-    index('dataDeletionRequest_deadlineAt_idx').on(table.deadlineAt)
+    index('dataDeletionRequest_deadlineAt_idx').on(table.deadlineAt),
+    index('dataDeletionRequest_processingLease_idx').on(
+      table.status,
+      table.processingLeaseExpiresAt
+    )
   ]
 );
 

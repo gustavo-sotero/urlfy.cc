@@ -17,6 +17,7 @@
  */
 
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import * as realDrizzle from 'drizzle-orm';
 
 const realCacheModule = await import(
   '../../../../packages/cache/src/index.ts?worker-scheduler-real-cache'
@@ -120,6 +121,7 @@ mock.module('@urlfy/cache', () => ({
 }));
 
 mock.module('drizzle-orm', () => ({
+  ...realDrizzle,
   and: mock((...args: unknown[]) => args),
   eq: mock((_col: unknown, _val: unknown) => ({})),
   lt: mock((_col: unknown, _val: unknown) => ({})),

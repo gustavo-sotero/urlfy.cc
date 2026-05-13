@@ -41,6 +41,11 @@ import {
   toNumber
 } from './analytics.helpers';
 
+const linkHealthFilters = () => [
+  eq(links.isActive, true),
+  eq(links.isBanned, false)
+];
+
 function toDateOnly(input: Date): string {
   return input.toISOString().split('T')[0] as string;
 }
@@ -115,6 +120,7 @@ async function getAllLinksBreakdownCounts(userId: string, days: number) {
           .where(
             and(
               eq(links.userId, userId),
+              ...linkHealthFilters(),
               gte(analyticsCountryBreakdown.date, startDateStr),
               lt(analyticsCountryBreakdown.date, todayStr)
             )
@@ -133,6 +139,7 @@ async function getAllLinksBreakdownCounts(userId: string, days: number) {
           .where(
             and(
               eq(links.userId, userId),
+              ...linkHealthFilters(),
               gte(analyticsEvents.createdAt, realtimeStart),
               lt(analyticsEvents.createdAt, tomorrowDate),
               eq(analyticsEvents.isBot, false)
@@ -155,6 +162,7 @@ async function getAllLinksBreakdownCounts(userId: string, days: number) {
           .where(
             and(
               eq(links.userId, userId),
+              ...linkHealthFilters(),
               gte(analyticsDeviceBreakdown.date, startDateStr),
               lt(analyticsDeviceBreakdown.date, todayStr)
             )
@@ -173,6 +181,7 @@ async function getAllLinksBreakdownCounts(userId: string, days: number) {
           .where(
             and(
               eq(links.userId, userId),
+              ...linkHealthFilters(),
               gte(analyticsEvents.createdAt, realtimeStart),
               lt(analyticsEvents.createdAt, tomorrowDate),
               eq(analyticsEvents.isBot, false)
@@ -195,6 +204,7 @@ async function getAllLinksBreakdownCounts(userId: string, days: number) {
           .where(
             and(
               eq(links.userId, userId),
+              ...linkHealthFilters(),
               gte(analyticsBrowserBreakdown.date, startDateStr),
               lt(analyticsBrowserBreakdown.date, todayStr)
             )
@@ -213,6 +223,7 @@ async function getAllLinksBreakdownCounts(userId: string, days: number) {
           .where(
             and(
               eq(links.userId, userId),
+              ...linkHealthFilters(),
               gte(analyticsEvents.createdAt, realtimeStart),
               lt(analyticsEvents.createdAt, tomorrowDate),
               eq(analyticsEvents.isBot, false)
@@ -292,6 +303,7 @@ export const AnalyticsGlobalService = {
               .where(
                 and(
                   eq(links.userId, userId),
+                  ...linkHealthFilters(),
                   gte(linkClicksDaily.date, startDateStr),
                   lt(linkClicksDaily.date, todayStr)
                 )
@@ -315,6 +327,7 @@ export const AnalyticsGlobalService = {
               .where(
                 and(
                   eq(links.userId, userId),
+                  ...linkHealthFilters(),
                   gte(analyticsEvents.createdAt, realtimeStart),
                   lt(analyticsEvents.createdAt, tomorrowDate),
                   eq(analyticsEvents.isBot, false)
@@ -405,6 +418,7 @@ export const AnalyticsGlobalService = {
                 .where(
                   and(
                     eq(links.userId, userId),
+                    ...linkHealthFilters(),
                     gte(linkClicksDaily.date, periodStartDate),
                     lt(linkClicksDaily.date, aggregateEndDate)
                   )
@@ -421,6 +435,7 @@ export const AnalyticsGlobalService = {
                 .where(
                   and(
                     eq(links.userId, userId),
+                    ...linkHealthFilters(),
                     gte(
                       analyticsEvents.createdAt,
                       periodStart > todayStart ? periodStart : todayStart
@@ -461,6 +476,7 @@ export const AnalyticsGlobalService = {
           .where(
             and(
               eq(links.userId, userId),
+              ...linkHealthFilters(),
               gte(analyticsEvents.createdAt, currentStart),
               eq(analyticsEvents.isBot, false)
             )
@@ -477,6 +493,7 @@ export const AnalyticsGlobalService = {
           .where(
             and(
               eq(links.userId, userId),
+              ...linkHealthFilters(),
               gte(analyticsEvents.createdAt, previousStart),
               lt(analyticsEvents.createdAt, previousEnd),
               eq(analyticsEvents.isBot, false)
@@ -495,6 +512,7 @@ export const AnalyticsGlobalService = {
           .where(
             and(
               eq(links.userId, userId),
+              ...linkHealthFilters(),
               gte(analyticsEvents.createdAt, currentStart),
               eq(analyticsEvents.isBot, false)
             )
@@ -556,6 +574,7 @@ export const AnalyticsGlobalService = {
           .where(
             and(
               eq(links.userId, userId),
+              ...linkHealthFilters(),
               gte(analyticsEvents.createdAt, startDate),
               eq(analyticsEvents.isBot, false)
             )

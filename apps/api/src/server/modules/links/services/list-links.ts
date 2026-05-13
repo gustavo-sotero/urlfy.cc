@@ -173,7 +173,7 @@ export async function listUserLinks(
   const sanitizedTags = sanitizeTags(query.tags);
   const sortBy = query.sortBy ?? 'createdAt';
   const sortOrder = query.sortOrder ?? 'desc';
-  const deletedOnly = query.deleted === true;
+  const deletedOnly = String(query.deleted) === 'true';
 
   // ── Build base filters ────────────────────────────────────────
   const baseFilters = [eq(links.userId, userId)];

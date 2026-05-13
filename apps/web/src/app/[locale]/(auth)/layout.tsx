@@ -59,7 +59,11 @@ export default async function AuthLayout({
       </header>
 
       {/* Main Content */}
-      <main className="flex flex-1 items-center justify-center bg-muted/30 px-4 pt-16">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex flex-1 items-center justify-center bg-muted/30 px-4 pt-16"
+      >
         {children}
       </main>
     </div>

@@ -14,6 +14,7 @@ import {
 import { Elysia, t } from 'elysia';
 
 const InternalAnalyticsEventBodyBase = {
+  eventId: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   linkId: t.String({ format: 'uuid' }),
   shortCode: t.String({
     minLength: ALIAS_MIN_LENGTH,

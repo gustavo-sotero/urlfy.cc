@@ -5,6 +5,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { BlockList, isIP } from 'node:net';
 
 let trustProxyWarningLogged = false;
 
@@ -13,6 +14,8 @@ export interface ClientIpResolutionOptions {
   trustProxy?: string | boolean;
   trustedProxyHops?: string | number;
   trustedProxyProvider?: 'standard' | 'cloudflare';
+  trustedProxySourceIp?: string | null;
+  trustedProxyCidrs?: string | string[];
 }
 
 interface TrustProxyConfigInput {
@@ -88,6 +91,67 @@ function resolveTrustedProxyHopsValue(
   );
 }
 
+function parseTrustedProxyCidrs(
+  value: ClientIpResolutionOptions['trustedProxyCidrs']
+): string[] {
+  const explicitValues = Array.isArray(value) ? value : value?.split(',');
+  const envValues = process.env.TRUSTED_PROXY_CIDRS?.split(',');
+
+  return (explicitValues ?? envValues ?? [])
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function buildTrustedProxyBlockList(cidrs: string[]): BlockList {
+  const blockList = new BlockList();
+
+  for (const cidr of cidrs) {
+    const [address, prefixValue] = cidr.split('/');
+    const family = isIP(address);
+
+    if (family === 0) {
+      continue;
+    }
+
+    if (prefixValue === undefined) {
+      blockList.addAddress(address, family === 4 ? 'ipv4' : 'ipv6');
+      continue;
+    }
+
+    const prefix = Number.parseInt(prefixValue, 10);
+    const maxPrefix = family === 4 ? 32 : 128;
+    if (!Number.isInteger(prefix) || prefix < 0 || prefix > maxPrefix) {
+      continue;
+    }
+
+    blockList.addSubnet(address, prefix, family === 4 ? 'ipv4' : 'ipv6');
+  }
+
+  return blockList;
+}
+
+function isTrustedProxySource(options: ClientIpResolutionOptions): boolean {
+  const cidrs = parseTrustedProxyCidrs(options.trustedProxyCidrs);
+  if (cidrs.length === 0) {
+    return true;
+  }
+
+  const sourceIp = normalizeTrustedIp(options.trustedProxySourceIp ?? null);
+  if (!sourceIp) {
+    return false;
+  }
+
+  const family = isIP(sourceIp);
+  if (family === 0) {
+    return false;
+  }
+
+  return buildTrustedProxyBlockList(cidrs).check(
+    sourceIp,
+    family === 4 ? 'ipv4' : 'ipv6'
+  );
+}
+
 function normalizeTrustedIp(value: string | null): string | undefined {
   if (!value) {
     return undefined;
@@ -135,6 +199,10 @@ function resolveTrustedProxyHeaderIp(
   options: ClientIpResolutionOptions
 ): string | undefined {
   if (!resolveTrustProxyValue(options.trustProxy)) {
+    return undefined;
+  }
+
+  if (!isTrustedProxySource(options)) {
     return undefined;
   }
 
@@ -277,8 +345,12 @@ export function getClientIp(
   options: ClientIpResolutionOptions = {}
 ): string {
   const trustProxy = resolveTrustProxyValue(options.trustProxy);
+  const requestIp = (request as Request & { ip?: string }).ip;
 
-  const trustedHeaderIp = resolveTrustedProxyHeaderIp(request.headers, options);
+  const trustedHeaderIp = resolveTrustedProxyHeaderIp(request.headers, {
+    ...options,
+    trustedProxySourceIp: options.trustedProxySourceIp ?? requestIp ?? null
+  });
   if (trustedHeaderIp) {
     return trustedHeaderIp;
   }
@@ -287,7 +359,6 @@ export function getClientIp(
     warnWhenProxyHeadersAreIgnored(request.headers);
   }
 
-  const requestIp = (request as Request & { ip?: string }).ip;
   if (requestIp) {
     return requestIp;
   }
@@ -335,7 +406,6 @@ export function getClientIpFromHeaders(
  */
 export function isValidIp(ip: string): boolean {
   const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-  const ipv6Pattern = /^([\da-f]{0,4}:){2,7}[\da-f]{0,4}$/i;
 
   if (ipv4Pattern.test(ip)) {
     const octets = ip.split('.');
@@ -345,7 +415,15 @@ export function isValidIp(ip: string): boolean {
     });
   }
 
-  return ipv6Pattern.test(ip);
+  // Validate IPv6 via URL parser — handles compressed notation (::1),
+  // IPv4-mapped (::ffff:192.0.2.1), embedded zone IDs, and all standard
+  // representations without regex edge cases.
+  try {
+    const parsed = new URL(`http://[${ip}]`);
+    return parsed.hostname === `[${ip}]`;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -353,18 +431,66 @@ export function isValidIp(ip: string): boolean {
  * Useful for filtering out internal requests from analytics.
  */
 export function isPrivateIp(ip: string): boolean {
-  if (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost') {
+  const ipv4 = ip.trim();
+
+  // Fast-path string equality for the most common private addresses.
+  if (
+    ipv4 === '127.0.0.1' ||
+    ipv4 === '::1' ||
+    ipv4 === 'localhost' ||
+    ipv4 === '0.0.0.0'
+  ) {
     return true;
   }
 
+  // IPv4 private ranges via well-known prefix patterns.
   const privateRanges = [
     /^10\./,
     /^172\.(1[6-9]|2\d|3[01])\./,
     /^192\.168\./,
-    /^169\.254\./
+    /^169\.254\./,
+    /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT 100.64.0.0/10
+    /^198\.1[89]\./ // Benchmarking 198.18.0.0/15
   ];
 
-  return privateRanges.some((pattern) => pattern.test(ip));
+  if (privateRanges.some((pattern) => pattern.test(ipv4))) {
+    return true;
+  }
+
+  // If the address is not IPv4 and starts with a character typical of IPv6,
+  // delegate to the URL parser for a definitive check of the address scope.
+  if (/^[[a-fA-F\d:]/.test(ipv4)) {
+    try {
+      const normalized = ipv4.replace(/^\[/, '').replace(/\]$/, '');
+      // Remove zone IDs before checking (fe80::1%eth0 => fe80::1)
+      const zoneStripped = normalized.replace(/%\w+$/, '');
+      const parsed = new URL(`http://[${zoneStripped}]`);
+      if (parsed.hostname !== `[${zoneStripped}]`) {
+        return false;
+      }
+      // fc00::/7 — Unique Local Address
+      if (zoneStripped.startsWith('fc') || zoneStripped.startsWith('fd')) {
+        return true;
+      }
+      // fe80::/10 — Link-Local
+      if (
+        zoneStripped.startsWith('fe8') ||
+        zoneStripped.startsWith('fe9') ||
+        zoneStripped.startsWith('fea') ||
+        zoneStripped.startsWith('feb')
+      ) {
+        return true;
+      }
+      // Loopback
+      if (zoneStripped === '::1') {
+        return true;
+      }
+    } catch {
+      // Not a valid IPv6 — fall through to false
+    }
+  }
+
+  return false;
 }
 
 /**

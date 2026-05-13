@@ -253,7 +253,10 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
         db
           .select({
             country: analyticsEvents.country,
-            clicks: countFn(analyticsEvents.id).as('clicks')
+            clicks: countFn(analyticsEvents.id).as('clicks'),
+            uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
+              'unique_visitors'
+            )
           })
           .from(analyticsEvents)
           .where(baseWhere)
@@ -262,7 +265,10 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
         db
           .select({
             deviceType: analyticsEvents.deviceType,
-            clicks: countFn(analyticsEvents.id).as('clicks')
+            clicks: countFn(analyticsEvents.id).as('clicks'),
+            uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
+              'unique_visitors'
+            )
           })
           .from(analyticsEvents)
           .where(baseWhere)
@@ -271,7 +277,10 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
         db
           .select({
             browser: analyticsEvents.browser,
-            clicks: countFn(analyticsEvents.id).as('clicks')
+            clicks: countFn(analyticsEvents.id).as('clicks'),
+            uniqueVisitors: countDistinct(analyticsEvents.visitorHash).as(
+              'unique_visitors'
+            )
           })
           .from(analyticsEvents)
           .where(baseWhere)
@@ -337,7 +346,8 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
                 linkId,
                 date: dateStr,
                 country: row.country,
-                clicks: Number(row.clicks)
+                clicks: Number(row.clicks),
+                uniqueVisitors: Number(row.uniqueVisitors)
               })
               .onConflictDoUpdate({
                 target: [
@@ -345,7 +355,10 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
                   analyticsCountryBreakdown.date,
                   analyticsCountryBreakdown.country
                 ],
-                set: { clicks: Number(row.clicks) }
+                set: {
+                  clicks: Number(row.clicks),
+                  uniqueVisitors: Number(row.uniqueVisitors)
+                }
               })
           )
       ),
@@ -367,7 +380,8 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
                 linkId,
                 date: dateStr,
                 deviceType: row.deviceType,
-                clicks: Number(row.clicks)
+                clicks: Number(row.clicks),
+                uniqueVisitors: Number(row.uniqueVisitors)
               })
               .onConflictDoUpdate({
                 target: [
@@ -375,7 +389,10 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
                   analyticsDeviceBreakdown.date,
                   analyticsDeviceBreakdown.deviceType
                 ],
-                set: { clicks: Number(row.clicks) }
+                set: {
+                  clicks: Number(row.clicks),
+                  uniqueVisitors: Number(row.uniqueVisitors)
+                }
               })
           )
       ),
@@ -397,7 +414,8 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
                 linkId,
                 date: dateStr,
                 browser: row.browser,
-                clicks: Number(row.clicks)
+                clicks: Number(row.clicks),
+                uniqueVisitors: Number(row.uniqueVisitors)
               })
               .onConflictDoUpdate({
                 target: [
@@ -405,7 +423,10 @@ class AggregationWorker extends WorkerBase<AggregationJobStream> {
                   analyticsBrowserBreakdown.date,
                   analyticsBrowserBreakdown.browser
                 ],
-                set: { clicks: Number(row.clicks) }
+                set: {
+                  clicks: Number(row.clicks),
+                  uniqueVisitors: Number(row.uniqueVisitors)
+                }
               })
           )
       )

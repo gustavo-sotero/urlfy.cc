@@ -285,6 +285,34 @@ describe('getClientIp with TRUST_PROXY enabled', () => {
 
     expect(getClientIp(req, TRUSTED_PROXY_OPTIONS)).toBe('203.0.113.5');
   });
+
+  test('trusts forwarded headers only when the runtime peer matches configured proxy CIDRs', () => {
+    const req = makeRequest({ 'x-real-ip': '50.60.70.80' }) as Request & {
+      ip: string;
+    };
+    req.ip = '10.10.0.5';
+
+    expect(
+      getClientIp(req, {
+        trustProxy: true,
+        trustedProxyCidrs: '10.0.0.0/8'
+      })
+    ).toBe('50.60.70.80');
+  });
+
+  test('ignores forwarded headers from an untrusted runtime peer', () => {
+    const req = makeRequest({ 'x-real-ip': '50.60.70.80' }) as Request & {
+      ip: string;
+    };
+    req.ip = '203.0.113.10';
+
+    expect(
+      getClientIp(req, {
+        trustProxy: true,
+        trustedProxyCidrs: '10.0.0.0/8'
+      })
+    ).toBe('203.0.113.10');
+  });
 });
 
 describe('assertTrustProxyConfig', () => {

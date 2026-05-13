@@ -290,7 +290,9 @@ describe('requireAdmin middleware', () => {
         id: 's-admin-1',
         token: 't-admin-1',
         createdAt: new Date(),
-        userId: 'admin-1'
+        userId: 'admin-1',
+        adminElevationProvider: 'github',
+        adminElevationExpiresAt: new Date(Date.now() + ADMIN_SESSION_MAX_AGE_MS)
       }
     });
 
@@ -303,7 +305,7 @@ describe('requireAdmin middleware', () => {
     expect(body.data).toEqual({ userId: 'admin-1', isAdmin: true });
   });
 
-  test('returns 403 when the admin session was not reauthenticated with GitHub', async () => {
+  test('returns 403 when the admin session has no GitHub elevation claim', async () => {
     resolveIsAdminByGitHubAccountMock.mockResolvedValueOnce(true);
     getSessionMock.mockResolvedValueOnce({
       user: {
@@ -332,7 +334,36 @@ describe('requireAdmin middleware', () => {
     expect(body.error.code).toBe('ADMIN_SESSION_EXPIRED');
   });
 
-  test('returns 403 when the admin session is stale even after GitHub sign-in', async () => {
+  test('returns 403 for a fresh GitHub login without the session-scoped elevation claim', async () => {
+    resolveIsAdminByGitHubAccountMock.mockResolvedValueOnce(true);
+    getSessionMock.mockResolvedValueOnce({
+      user: {
+        id: 'admin-2b',
+        email: 'admin@test.com',
+        role: 'user',
+        bannedAt: null,
+        deletedAt: null,
+        twoFactorEnabled: false,
+        lastLoginMethod: 'github'
+      },
+      session: {
+        id: 's-admin-2b',
+        token: 't-admin-2b',
+        createdAt: new Date(),
+        userId: 'admin-2b'
+      }
+    });
+
+    const app = await buildRequireAdminApp();
+    const res = await app.handle(new Request('http://localhost/admin'));
+
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('ADMIN_SESSION_EXPIRED');
+  });
+
+  test('returns 403 when the admin elevation claim is expired', async () => {
     resolveIsAdminByGitHubAccountMock.mockResolvedValueOnce(true);
     getSessionMock.mockResolvedValueOnce({
       user: {
@@ -347,8 +378,10 @@ describe('requireAdmin middleware', () => {
       session: {
         id: 's-admin-3',
         token: 't-admin-3',
-        createdAt: new Date(Date.now() - (ADMIN_SESSION_MAX_AGE_MS + 1_000)),
-        userId: 'admin-3'
+        createdAt: new Date(),
+        userId: 'admin-3',
+        adminElevationProvider: 'github',
+        adminElevationExpiresAt: new Date(Date.now() - 1_000)
       }
     });
 

@@ -211,6 +211,16 @@ describe('WorkerBase', () => {
     });
 
     it('should handle errors gracefully during processing', async () => {
+      const operationOrder: string[] = [];
+      mockRedisStream.add.mockImplementationOnce(async () => {
+        operationOrder.push('add');
+        return 'retry-1';
+      });
+      mockRedisStream.ack.mockImplementationOnce(async () => {
+        operationOrder.push('ack');
+        return 1;
+      });
+
       mockRedisStream.readGroup.mockImplementationOnce(async () => [
         {
           stream: TEST_CONFIG.stream,
@@ -239,9 +249,20 @@ describe('WorkerBase', () => {
         TEST_CONFIG.group,
         ['2-0']
       );
+      expect(operationOrder).toEqual(['add', 'ack']);
     });
 
     it('should move a message to DLQ after retries are exhausted', async () => {
+      const operationOrder: string[] = [];
+      mockRedisStream.add.mockImplementationOnce(async () => {
+        operationOrder.push('add');
+        return 'dlq-1';
+      });
+      mockRedisStream.ack.mockImplementationOnce(async () => {
+        operationOrder.push('ack');
+        return 1;
+      });
+
       mockRedisStream.readGroup.mockImplementationOnce(async () => [
         {
           stream: TEST_CONFIG.stream,
@@ -278,6 +299,7 @@ describe('WorkerBase', () => {
         TEST_CONFIG.group,
         ['3-0']
       );
+      expect(operationOrder).toEqual(['add', 'ack']);
     });
   });
 

@@ -1,5 +1,6 @@
 // src/db/schema/analytics.ts
 
+import { isNotNull } from 'drizzle-orm';
 import {
   boolean,
   date,
@@ -89,11 +90,14 @@ export const analyticsEvents = pgTable(
       columns: [table.id, table.createdAt]
     }),
 
-    // Unique constraint for idempotent inserts on the partitioned parent.
-    idxStreamMessageId: uniqueIndex('idx_analytics_stream_message_id').on(
-      table.streamMessageId,
-      table.createdAt
-    ),
+    // Partial unique constraint for idempotent inserts on the partitioned
+    // parent. The WHERE filter excludes rows with a null stream_message_id
+    // (pre-migration rows or future rows without an idempotency key) so that
+    // multiple null-keyed rows are permitted while the unique guard still
+    // protects every retry scenario where a valid key is present.
+    idxStreamMessageId: uniqueIndex('idx_analytics_stream_message_id')
+      .on(table.streamMessageId, table.createdAt)
+      .where(isNotNull(table.streamMessageId)),
 
     // Primary index for link queries
     idxLinkId: index('idx_analytics_link_id').on(table.linkId),

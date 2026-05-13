@@ -359,6 +359,7 @@ export abstract class WorkerBase<T = Record<string, string>> {
       this.config.stream,
       this.buildRetryPayload(message, retryCount)
     );
+
     await this.acknowledgeMessage(message.id);
 
     this.logger.warn('[WorkerBase] Message re-queued for retry', {
@@ -456,7 +457,6 @@ export abstract class WorkerBase<T = Record<string, string>> {
         DLQ_MAXLEN
       );
 
-      // Acknowledge the original message to remove from PEL
       await this.acknowledgeMessage(message.id);
 
       this.logger.info('[WorkerBase] Message moved to DLQ', {

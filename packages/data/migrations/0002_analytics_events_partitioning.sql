@@ -17,7 +17,7 @@
 --      monthly partitions to cover legacy data and near-future writes.
 --   5. Backfill all rows from the legacy table.
 --   6. Recreate the FK constraint and performance indexes on the parent.
---   7. Drop the legacy table.
+--   7. Keep analytics_events_legacy as an explicit rollback/inspection source.
 --
 -- NOTE: drizzle-kit cannot generate PARTITION BY DDL, so this migration is
 -- written by hand with a minimal, targeted scope.
@@ -181,8 +181,10 @@ BEGIN
 END $$;
 
 -- ─────────────────────────────────────────────────────────────────
--- 8. Drop the legacy table
+-- 8. Retain the legacy table for post-deploy validation / rollback.
 -- ─────────────────────────────────────────────────────────────────
-DROP TABLE IF EXISTS "analytics_events_legacy";
+-- Do not drop analytics_events_legacy in this migration. A later cleanup
+-- migration can remove it after production validation confirms counts,
+-- constraints, partition pruning, and read-path correctness.
 
 COMMIT;

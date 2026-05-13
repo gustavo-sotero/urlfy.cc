@@ -3,15 +3,11 @@
  * Processes cleanup jobs for analytics data retention and partition management
  */
 
-import { db } from '@urlfy/data';
-import { analyticsEvents } from '@urlfy/data/schema';
 import { PartitionManager } from '@urlfy/data/scripts/partition-manager';
-import { inArray, lt } from 'drizzle-orm';
 import { recordMetric } from '@/server/lib/metrics';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { WorkerBase } from '@/server/lib/worker-base';
 
-const RETENTION_DAYS = 90; // Keep data for 90 days
 const partitionManager = new PartitionManager();
 
 /**
@@ -58,13 +54,15 @@ class CleanupWorker extends WorkerBase<CleanupJobStream> {
 
       let deletedCount = 0;
 
-      // Data retention cleanup
+      // Data retention cleanup. Raw analytics retention is partition-first:
+      // PartitionManager verifies the parent topology and drops expired monthly
+      // partitions. We no longer run row-by-row deletes on the hot table.
       if (type === 'retention' || type === 'full') {
         deletedCount = await this.performRetentionCleanup();
       }
 
       // Partition management
-      if (type === 'partitions' || type === 'full') {
+      if (type === 'partitions') {
         await this.performPartitionMaintenance();
       }
 
@@ -91,57 +89,11 @@ class CleanupWorker extends WorkerBase<CleanupJobStream> {
   }
 
   /**
-   * Delete analytics events older than retention period
+   * Apply raw analytics retention through partition maintenance.
    */
   private async performRetentionCleanup(): Promise<number> {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
-
-    this.logger.info('[CleanupWorker] Deleting events older than cutoff', {
-      cutoffDate: cutoffDate.toISOString()
-    });
-
-    let totalDeleted = 0;
-    const batchSize = 10000;
-
-    while (true) {
-      // Get batch of IDs to delete
-      const toDelete = await db
-        .select({ id: analyticsEvents.id })
-        .from(analyticsEvents)
-        .where(lt(analyticsEvents.createdAt, cutoffDate))
-        .limit(batchSize);
-
-      if (toDelete.length === 0) break;
-
-      // Delete batch
-      const ids = toDelete.map((r) => r.id);
-      await db.delete(analyticsEvents).where(inArray(analyticsEvents.id, ids));
-
-      totalDeleted += toDelete.length;
-
-      this.logger.debug('[CleanupWorker] Batch deleted', {
-        batchSize: toDelete.length,
-        totalDeleted
-      });
-
-      // Small pause between batches to avoid overwhelming DB
-      await Bun.sleep(100);
-
-      // Safety break if we're deleting too much (sanity check)
-      if (totalDeleted > 10_000_000) {
-        this.logger.warn('[CleanupWorker] Deleted over 10M records, stopping', {
-          totalDeleted
-        });
-        break;
-      }
-    }
-
-    this.logger.info('[CleanupWorker] Retention cleanup completed', {
-      deletedCount: totalDeleted
-    });
-
-    return totalDeleted;
+    await this.performPartitionMaintenance();
+    return 0;
   }
 
   /**

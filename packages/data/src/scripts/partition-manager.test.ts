@@ -71,12 +71,14 @@ describe('PartitionManager', () => {
     const manager = new PartitionManager();
 
     await expect(manager.verifyPartitionedTopology()).rejects.toThrow(
-      'analytics_events is not a partitioned table'
+      'analytics_events is not partitioned as RANGE (created_at)'
     );
   });
 
   it('accepts the expected partitioned parent topology', async () => {
-    executeMock.mockResolvedValueOnce([{ relkind: 'p' }]);
+    executeMock.mockResolvedValueOnce([
+      { relkind: 'p', partstrat: 'r', partition_key: 'RANGE (created_at)' }
+    ]);
 
     const { PartitionManager } = await loadPartitionManager();
     const manager = new PartitionManager();
@@ -84,7 +86,7 @@ describe('PartitionManager', () => {
     await expect(manager.verifyPartitionedTopology()).resolves.toBeUndefined();
   });
 
-  it('creates missing future partitions and local indexes', async () => {
+  it('creates missing future partitions without duplicate local indexes', async () => {
     executeMock.mockResolvedValue([]);
 
     const { PartitionManager } = await loadPartitionManager();
@@ -103,13 +105,11 @@ describe('PartitionManager', () => {
             ) && statement.includes('PARTITION OF "analytics_events"')
         )
       ).toBe(true);
-
-      expect(
-        statements.some((statement) =>
-          statement.includes(`idx_${partitionName}_link_id`)
-        )
-      ).toBe(true);
     }
+
+    expect(
+      statements.some((statement) => statement.includes('CREATE INDEX'))
+    ).toBe(false);
   });
 
   it('drops only partitions that are older than the retention window', async () => {

@@ -6171,6 +6171,11 @@
           "visitorHash"
         ],
         "properties": {
+          "eventId": {
+            "minLength": 1,
+            "maxLength": 128,
+            "type": "string"
+          },
           "linkId": {
             "format": "uuid",
             "type": "string"
@@ -7433,6 +7438,11 @@
                   "visitorHash"
                 ],
                 "properties": {
+                  "eventId": {
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "type": "string"
+                  },
                   "linkId": {
                     "format": "uuid",
                     "type": "string"
@@ -7502,6 +7512,11 @@
                   "visitorHash"
                 ],
                 "properties": {
+                  "eventId": {
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "type": "string"
+                  },
                   "linkId": {
                     "format": "uuid",
                     "type": "string"
@@ -7571,6 +7586,11 @@
                   "visitorHash"
                 ],
                 "properties": {
+                  "eventId": {
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "type": "string"
+                  },
                   "linkId": {
                     "format": "uuid",
                     "type": "string"
@@ -10247,7 +10267,7 @@
                     {
                       "success": false,
                       "error": {
-                        "code": "CONFLICT",
+                        "code": "ALIAS_TAKEN",
                         "message": "Custom alias already in use"
                       }
                     }
@@ -17216,7 +17236,7 @@
                     {
                       "success": false,
                       "error": {
-                        "code": "CONFLICT",
+                        "code": "ALIAS_TAKEN",
                         "message": "Custom alias already in use"
                       }
                     }
@@ -17812,7 +17832,7 @@
                     {
                       "success": false,
                       "error": {
-                        "code": "CONFLICT",
+                        "code": "ALIAS_TAKEN",
                         "message": "Custom alias already in use"
                       }
                     }

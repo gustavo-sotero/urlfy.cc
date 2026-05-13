@@ -1,8 +1,4 @@
-import {
-  ADMIN_SESSION_MAX_AGE_MS,
-  getAdminSessionAgeMs,
-  hasRequiredAdminLoginMethod
-} from '@urlfy/auth-shared';
+import { isAdminElevationClaimValid } from '@urlfy/auth-shared';
 import { Elysia } from 'elysia';
 import type { Session, User } from '@/lib/auth';
 import { createLogger } from '@/server/lib/telemetry';
@@ -31,7 +27,7 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
         );
       }
 
-      const adminUser = user as User & { lastLoginMethod?: string | null };
+      const adminUser = user as User;
       const isAdmin = await resolveIsAdminByGitHubAccount(adminUser.id);
 
       if (!isAdmin) {
@@ -46,26 +42,32 @@ export const requireAdmin = new Elysia({ name: 'require-admin' })
         );
       }
 
-      // Require a recently-created session for admin operations.
+      // Require a short-lived, session-scoped GitHub elevation claim for admin
+      // operations. User-level lastLoginMethod is deliberately not trusted here
+      // because it is global to the account and can outlive the current session.
       // Test auth bypasses this check (no real session object exists).
       if (!isTestAuth && session) {
-        const adminSession = session as Session;
-        const sessionAgeMs = getAdminSessionAgeMs(adminSession.createdAt);
-        const usedGitHubReauth = hasRequiredAdminLoginMethod(
-          adminUser.lastLoginMethod
-        );
+        const adminSession = session as Session & {
+          adminElevationExpiresAt?: Date | string | null;
+          adminElevationProvider?: string | null;
+        };
 
-        if (sessionAgeMs > ADMIN_SESSION_MAX_AGE_MS || !usedGitHubReauth) {
+        if (
+          !isAdminElevationClaimValid({
+            provider: adminSession.adminElevationProvider,
+            expiresAt: adminSession.adminElevationExpiresAt
+          })
+        ) {
           logger.warn(
             'Admin access denied - GitHub re-authentication required',
             {
               userId: adminUser.id,
-              sessionAgeMs: Math.round(sessionAgeMs / 1000),
-              lastLoginMethod: adminUser.lastLoginMethod ?? null,
-              reason:
-                sessionAgeMs > ADMIN_SESSION_MAX_AGE_MS
-                  ? 'admin_session_expired'
-                  : 'last_login_method_mismatch'
+              elevationProvider: adminSession.adminElevationProvider ?? null,
+              elevationExpiresAt:
+                adminSession.adminElevationExpiresAt instanceof Date
+                  ? adminSession.adminElevationExpiresAt.toISOString()
+                  : (adminSession.adminElevationExpiresAt ?? null),
+              reason: 'admin_elevation_missing_or_expired'
             }
           );
           const requestId = getOrCreateRequestId(request);

@@ -188,9 +188,14 @@ export function DashboardAnalyticsPageClient() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:w-120">
           <div className="space-y-2">
-            <p className="text-sm font-medium">{t('filters.selectLink')}</p>
+            <p id="analytics-link-filter-label" className="text-sm font-medium">
+              {t('filters.selectLink')}
+            </p>
             <Select value={selectedLinkId} onValueChange={setSelectedLinkId}>
-              <SelectTrigger className="w-full rounded-xl border-border/60 bg-background/80">
+              <SelectTrigger
+                aria-labelledby="analytics-link-filter-label"
+                className="w-full rounded-xl border-border/60 bg-background/80"
+              >
                 <SelectValue placeholder={t('filters.allLinks')} />
               </SelectTrigger>
               <SelectContent>
@@ -204,9 +209,17 @@ export function DashboardAnalyticsPageClient() {
             </Select>
           </div>
           <div className="space-y-2">
-            <p className="text-sm font-medium">{t('filters.selectPeriod')}</p>
+            <p
+              id="analytics-period-filter-label"
+              className="text-sm font-medium"
+            >
+              {t('filters.selectPeriod')}
+            </p>
             <Select value={days} onValueChange={setDays}>
-              <SelectTrigger className="w-full rounded-xl border-border/60 bg-background/80">
+              <SelectTrigger
+                aria-labelledby="analytics-period-filter-label"
+                className="w-full rounded-xl border-border/60 bg-background/80"
+              >
                 <SelectValue placeholder={t('filters.selectPeriod')} />
               </SelectTrigger>
               <SelectContent>

@@ -24,7 +24,6 @@ export const user = pgTable(
     twoFactorEnabled: boolean('two_factor_enabled').default(false),
     role: text('role').default('user').notNull(),
     banned: boolean('banned').default(false),
-    banReason: text('ban_reason'),
     banExpires: timestamp('ban_expires'),
     linksQuota: integer('links_quota').default(100).notNull(),
     linksCount: integer('links_count').default(0).notNull(),
@@ -56,9 +55,17 @@ export const session = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    impersonatedBy: text('impersonated_by')
+    impersonatedBy: text('impersonated_by'),
+    adminElevatedAt: timestamp('admin_elevated_at'),
+    adminElevationExpiresAt: timestamp('admin_elevation_expires_at'),
+    adminElevationProvider: text('admin_elevation_provider')
   },
-  (table) => [index('session_userId_idx').on(table.userId)]
+  (table) => [
+    index('session_userId_idx').on(table.userId),
+    index('session_adminElevationExpiresAt_idx').on(
+      table.adminElevationExpiresAt
+    )
+  ]
 );
 
 export const account = pgTable(

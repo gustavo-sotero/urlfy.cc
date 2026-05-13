@@ -27,6 +27,9 @@ import { deletionWorker } from './workers/deletion-stream.worker';
 const logger = createLogger('workers-main');
 let isExiting = false;
 
+const WORKER_RESTART_DELAY_MS = 5000;
+const MAX_CONSECUTIVE_RESTARTS = 5;
+
 async function exitWithTelemetryFlush(
   code: number,
   reason: string,
@@ -114,19 +117,49 @@ async function main() {
 
   try {
     for (const { name, instance } of allWorkers) {
-      instance.run().catch((error) => {
-        void exitWithTelemetryFlush(1, `${name} worker crashed`, {
-          error: error instanceof Error ? error.message : String(error)
-        });
-      });
+      // Start the worker loop in a fire-and-forget fashion.  If the worker
+      // loop itself exits normally (no crash), attempt a restart up to a
+      // sanity limit so transient errors don't take down the whole process.
+      void (async () => {
+        let restartCount = 0;
+
+        while (!isExiting) {
+          try {
+            await instance.run();
+            // run() returned cleanly — only happens on graceful stop.
+            break;
+          } catch (error) {
+            restartCount++;
+            logger.error(
+              `[Main] ${name} worker crashed (attempt ${restartCount})`,
+              {
+                error: error instanceof Error ? error.message : String(error)
+              }
+            );
+
+            if (restartCount >= MAX_CONSECUTIVE_RESTARTS) {
+              void exitWithTelemetryFlush(
+                1,
+                `${name} worker failed after ${restartCount} restarts`,
+                {
+                  error: error instanceof Error ? error.message : String(error)
+                }
+              );
+              return;
+            }
+
+            // Stop the crashed instance so its internal state is clean.
+            await instance.stop().catch(() => {});
+            await Bun.sleep(WORKER_RESTART_DELAY_MS);
+          }
+        }
+      })();
 
       logger.info(`✅ ${name} Worker started`);
     }
 
     logger.info('✅ All workers started successfully');
 
-    // Start scheduled cron jobs (daily aggregation, weekly cleanup,
-    // data deletion processing, RPS metrics calculation)
     startScheduler();
     logger.info('✅ Scheduler started');
   } catch (error) {

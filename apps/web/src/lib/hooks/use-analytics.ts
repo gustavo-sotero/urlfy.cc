@@ -1,3 +1,5 @@
+'use client';
+
 // src/lib/hooks/use-analytics.ts
 /**
  * React Query hooks for analytics data

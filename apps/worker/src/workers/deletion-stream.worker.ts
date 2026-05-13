@@ -16,11 +16,13 @@ import {
   twoFactor,
   user
 } from '@urlfy/data/schema/auth';
-import { and, eq, inArray, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { recordMetric } from '@/server/lib/metrics';
 import { CONSUMER_GROUPS, STREAM_NAMES } from '@/server/lib/redis-stream';
 import { WorkerBase } from '@/server/lib/worker-base';
 import { auditLogService } from '@/server/services/audit.service';
+
+const DELETION_PROCESSING_LEASE_MS = 15 * 60 * 1000;
 
 /**
  * Stream message shape for deletion jobs.
@@ -29,24 +31,7 @@ import { auditLogService } from '@/server/services/audit.service';
 interface DeletionJobStream {
   requestId: string;
   userId: string;
-}
-
-/**
- * Typed error thrown when a deletion job is deferred because the
- * cooling-off deadline has not yet elapsed.  Worker-base will re-queue
- * the message automatically.
- */
-class DeferredDeletionError extends Error {
-  constructor() {
-    super('Deletion deadline not reached yet');
-    this.name = 'DeferredDeletionError';
-  }
-}
-
-function isDeferredDeletionError(
-  error: unknown
-): error is DeferredDeletionError {
-  return error instanceof DeferredDeletionError;
+  retryCount?: number | string;
 }
 
 /**
@@ -104,29 +89,45 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
       // 2. Check if deadline has passed
       const now = new Date();
       if (now < request.deadlineAt) {
-        this.logger.info('[DeletionWorker] Deadline not reached, skipping', {
-          requestId,
-          deadlineAt: request.deadlineAt.toISOString()
-        });
-        throw new DeferredDeletionError(); // Will be re-queued
+        this.logger.info(
+          '[DeletionWorker] Deadline not reached, leaving request pending',
+          {
+            requestId,
+            deadlineAt: request.deadlineAt.toISOString()
+          }
+        );
+        return;
       }
 
-      // 3. Atomically claim the request: transition pending → processing.
-      // The WHERE clause restricts the update to claimable states so that two
-      // concurrent worker instances cannot both execute the same deletion.
-      // If the update returns no rows the request is in a terminal state
-      // (completed/failed) — skip without error so this worker ACKs harmlessly.
+      const leaseExpiresAt = new Date(
+        now.getTime() + DELETION_PROCESSING_LEASE_MS
+      );
+
+      // 3. Atomically claim the request. Pending rows can be claimed once;
+      // processing rows can only be reclaimed after their lease expires so two
+      // live workers cannot execute the same deletion concurrently.
       const claimed = await db
         .update(dataDeletionRequest)
-        .set({ status: 'processing' })
+        .set({
+          status: 'processing',
+          processingStartedAt: now,
+          processingLeaseExpiresAt: leaseExpiresAt,
+          processingOwner: this.config.consumer,
+          attemptCount: sql`${dataDeletionRequest.attemptCount} + 1`,
+          failureReason: null
+        })
         .where(
           and(
             eq(dataDeletionRequest.id, requestId),
             or(
               eq(dataDeletionRequest.status, 'pending'),
-              // Allow re-claim of stale 'processing' records (lease recovery
-              // for workers that crashed after claiming but before completing).
-              eq(dataDeletionRequest.status, 'processing')
+              and(
+                eq(dataDeletionRequest.status, 'processing'),
+                or(
+                  lt(dataDeletionRequest.processingLeaseExpiresAt, now),
+                  isNull(dataDeletionRequest.processingLeaseExpiresAt)
+                )
+              )
             )
           )
         )
@@ -183,7 +184,7 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
           reason: 'GDPR deletion request processed',
           operation: 'user_data_deleted'
         },
-        userId: effectiveUserId,
+        userId: null,
         ipAddress: '127.0.0.1'
       });
 
@@ -194,7 +195,10 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         .update(dataDeletionRequest)
         .set({
           status: 'completed',
-          completedAt: new Date()
+          completedAt: new Date(),
+          processingStartedAt: null,
+          processingLeaseExpiresAt: null,
+          processingOwner: null
         })
         .where(eq(dataDeletionRequest.id, requestId));
 
@@ -212,27 +216,26 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
         duration
       });
     } catch (error) {
-      if (isDeferredDeletionError(error)) {
-        this.logger.info('[DeletionWorker] Deferring deletion retry', {
-          messageId: id,
-          requestId: payload.requestId
-        });
-        throw error;
-      }
-
       this.logger.error('[DeletionWorker] Failed to process deletion', {
         messageId: id,
         error: error instanceof Error ? error.message : String(error)
       });
 
-      // Update request status to failed only if the record still exists
+      // Keep retriable failures claimable by the stream retry. Only the final
+      // attempt becomes terminal so DLQ state and DB status remain aligned.
       if (payload.requestId) {
+        const retryCount = this.getPayloadRetryCount(payload);
+        const exhaustedRetries = retryCount >= this.config.maxRetries;
+
         await db
           .update(dataDeletionRequest)
           .set({
-            status: 'failed',
+            status: exhaustedRetries ? 'failed' : 'pending',
             failureReason:
-              error instanceof Error ? error.message : String(error)
+              error instanceof Error ? error.message : String(error),
+            processingStartedAt: null,
+            processingLeaseExpiresAt: null,
+            processingOwner: null
           })
           .where(eq(dataDeletionRequest.id, payload.requestId))
           .catch((updateError) => {
@@ -250,6 +253,24 @@ class DeletionWorker extends WorkerBase<DeletionJobStream> {
 
       throw error; // Re-throw to trigger DLQ logic
     }
+  }
+
+  private getPayloadRetryCount(payload: DeletionJobStream): number {
+    if (
+      typeof payload.retryCount === 'number' &&
+      Number.isFinite(payload.retryCount)
+    ) {
+      return Math.max(0, Math.trunc(payload.retryCount));
+    }
+
+    if (typeof payload.retryCount === 'string') {
+      const parsed = Number.parseInt(payload.retryCount, 10);
+      if (Number.isFinite(parsed)) {
+        return Math.max(0, parsed);
+      }
+    }
+
+    return 0;
   }
 
   /**

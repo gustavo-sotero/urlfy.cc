@@ -127,32 +127,34 @@ export function useDashboardSummary(
 // ═══════════════════════════════════════════════════════════════════
 
 export function useCreateLink(
-  options?: UseMutationOptions<LinkResponse, Error, CreateLinkInput>
+  options?: UseMutationOptions<LinkResponse, Error, CreateLinkInput> & {
+    toastSuccess?: string;
+    toastError?: string;
+  }
 ) {
   const queryClient = useQueryClient();
   const {
     onSuccess: userOnSuccess,
     onError: userOnError,
+    toastSuccess,
+    toastError,
     ...restOptions
   } = options ?? {};
 
   return useMutation({
     mutationFn: (input: CreateLinkInput) => api.createLink(input),
     onSuccess: (data, variables, onMutateResult, context) => {
-      // Invalidate lists to refetch
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
       queryClient.invalidateQueries({ queryKey: linkKeys.quota() });
 
-      // Show success toast
-      toast.success('Link criado com sucesso!', {
+      toast.success(toastSuccess ?? 'Link criado com sucesso!', {
         description: `Código: ${data.shortCode}`
       });
 
       userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
-      // Show error toast
-      toast.error('Erro ao criar link', {
+      toast.error(toastError ?? 'Erro ao criar link', {
         description: error.message || 'Tente novamente mais tarde'
       });
 
@@ -167,12 +169,17 @@ export function useUpdateLink(
     LinkResponse,
     Error,
     { id: string; data: UpdateLinkInput }
-  >
+  > & {
+    toastSuccess?: string;
+    toastError?: string;
+  }
 ) {
   const queryClient = useQueryClient();
   const {
     onSuccess: userOnSuccess,
     onError: userOnError,
+    toastSuccess,
+    toastError,
     ...restOptions
   } = options ?? {};
 
@@ -185,14 +192,12 @@ export function useUpdateLink(
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
 
-      // Show success toast
-      toast.success('Link atualizado com sucesso!');
+      toast.success(toastSuccess ?? 'Link atualizado com sucesso!');
 
       userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
-      // Show error toast
-      toast.error('Erro ao atualizar link', {
+      toast.error(toastError ?? 'Erro ao atualizar link', {
         description: error.message || 'Tente novamente mais tarde'
       });
 
