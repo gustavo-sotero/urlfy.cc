@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Link, useRouter } from '@/i18n/routing';
+import { Link } from '@/i18n/routing';
 import { authClient } from '@/lib/auth.client';
 import { reportActionError } from '@/lib/browser-logger';
 import {
@@ -56,7 +56,6 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isTwoFactorStep, setIsTwoFactorStep] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const reauthTarget = searchParams.get('reauth');
   const requiresAdminGitHubReauth =
@@ -100,7 +99,7 @@ function LoginForm() {
         return;
       }
 
-      router.push(callbackPath);
+      window.location.href = callbackPath;
     } catch {
       setError(tErrors('tryAgain'));
     } finally {
@@ -123,7 +122,7 @@ function LoginForm() {
         return;
       }
 
-      router.push(callbackPath);
+      window.location.href = callbackPath;
     } catch (err) {
       reportActionError(err, { step: '2fa-verification' });
       setError(tErrors('invalidCode'));
