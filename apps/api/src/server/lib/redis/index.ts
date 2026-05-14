@@ -1,6 +1,18 @@
 /**
  * Redis barrel shim.
- * Re-export through the local shim because Bun can fail to surface named
- * exports reliably from `export *` across workspace packages during tests.
+ * Uses explicit named re-exports (not `export *`) so Bun can statically
+ * enumerate the exported names when tests call mock.module on this path.
+ * `export *` across workspace packages is not reliably resolved by Bun's
+ * module registry during mock setup.
  */
-export * from './redis';
+export {
+  canAttemptRedisCommand,
+  checkRedisHealth,
+  closeRedis,
+  getRedisClient,
+  getRedisHealthSnapshot,
+  markRedisCommandFailure,
+  markRedisCommandSuccess,
+  redis,
+  shouldLogRedisFailure
+} from './redis';

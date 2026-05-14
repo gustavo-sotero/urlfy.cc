@@ -18,7 +18,11 @@ mock.module('@/server/lib/telemetry', () => ({
   createLogger: () => loggerInstance
 }));
 
+// Spread real module so the full export surface is preserved when Bun does not
+// reset mock.module state between test files (Windows / shared-worker mode).
+const realRedisModule = await import('@/server/lib/redis');
 mock.module('@/server/lib/redis', () => ({
+  ...realRedisModule,
   getRedisClient: () => redisClient
 }));
 

@@ -65,7 +65,11 @@ mock.module('@/server/middleware/admin-rate-limit', () => ({
   }
 }));
 
+// Spread real module so the full export surface (including AuditLogService class)
+// is preserved when Bun does not reset mock.module state between test files.
+const realAuditServiceModule = await import('@/server/services/audit.service');
 mock.module('@/server/services/audit.service', () => ({
+  ...realAuditServiceModule,
   auditLogService: {
     getRecent: getRecentMock,
     getById: getByIdMock,
