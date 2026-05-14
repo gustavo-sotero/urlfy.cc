@@ -40,7 +40,7 @@ describe('LoginPage — localized auth callbackURL contract', () => {
     expect(source).toMatch(
       /const\s+callbackPath\s*=\s*buildPostLoginCallbackPath\(locale, rawCallbackUrl\)/
     );
-    expect(source).toMatch(/router\.push\(callbackPath\)/);
+    expect(source).toMatch(/window\.location\.href\s*=\s*callbackPath/);
   });
 
   it('passes an absolute localized callbackURL to social sign-in', async () => {

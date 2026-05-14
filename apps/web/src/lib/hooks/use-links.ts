@@ -12,8 +12,10 @@ import {
   useQuery,
   useQueryClient
 } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import * as api from '@/lib/api';
+import { ApiClientError } from '@/lib/api/error';
 import type {
   CreateLinkInput,
   LinkResponse,
@@ -126,18 +128,43 @@ export function useDashboardSummary(
 // MUTATIONS
 // ═══════════════════════════════════════════════════════════════════
 
+/**
+ * Maps a link API error code to a translated user-facing description.
+ * `t` is the `LinkForm` translation function obtained from useTranslations.
+ */
+function getLinkErrorDescription(
+  error: Error,
+  t: (key: string) => string
+): string {
+  if (!(error instanceof ApiClientError)) return t('errors.generic');
+  const map: Record<string, string> = {
+    INVALID_URL: t('errors.invalidUrl'),
+    URL_TOO_LONG: t('errors.urlTooLong'),
+    URL_BLOCKED: t('errors.urlBlocked'),
+    SHORTENER_NOT_ALLOWED: t('errors.urlBlockedShortener'),
+    RATE_LIMITED: t('errors.rateLimited'),
+    ALIAS_TAKEN: t('errors.aliasTaken'),
+    ALIAS_RESERVED: t('errors.aliasReserved'),
+    QUOTA_EXCEEDED: t('errors.quotaExceeded')
+  };
+  return map[error.code] ?? t('errors.generic');
+}
+
 export function useCreateLink(
   options?: UseMutationOptions<LinkResponse, Error, CreateLinkInput> & {
     toastSuccess?: string;
     toastError?: string;
+    showErrorToast?: boolean;
   }
 ) {
   const queryClient = useQueryClient();
+  const t = useTranslations('LinkForm');
   const {
     onSuccess: userOnSuccess,
     onError: userOnError,
     toastSuccess,
     toastError,
+    showErrorToast = true,
     ...restOptions
   } = options ?? {};
 
@@ -147,16 +174,20 @@ export function useCreateLink(
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
       queryClient.invalidateQueries({ queryKey: linkKeys.quota() });
 
-      toast.success(toastSuccess ?? 'Link criado com sucesso!', {
-        description: `Código: ${data.shortCode}`
+      toast.success(toastSuccess ?? t('success.created'), {
+        description: t('success.createdDescription', {
+          shortCode: data.shortCode
+        })
       });
 
       userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
-      toast.error(toastError ?? 'Erro ao criar link', {
-        description: error.message || 'Tente novamente mais tarde'
-      });
+      if (showErrorToast) {
+        toast.error(toastError ?? t('errors.createFailed'), {
+          description: getLinkErrorDescription(error, t)
+        });
+      }
 
       userOnError?.(error, variables, onMutateResult, context);
     },
@@ -175,6 +206,7 @@ export function useUpdateLink(
   }
 ) {
   const queryClient = useQueryClient();
+  const t = useTranslations('LinkForm');
   const {
     onSuccess: userOnSuccess,
     onError: userOnError,
@@ -192,13 +224,13 @@ export function useUpdateLink(
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: linkKeys.lists() });
 
-      toast.success(toastSuccess ?? 'Link atualizado com sucesso!');
+      toast.success(toastSuccess ?? t('success.updated'));
 
       userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
-      toast.error(toastError ?? 'Erro ao atualizar link', {
-        description: error.message || 'Tente novamente mais tarde'
+      toast.error(toastError ?? t('errors.updateFailed'), {
+        description: getLinkErrorDescription(error, t)
       });
 
       userOnError?.(error, variables, onMutateResult, context);
@@ -211,6 +243,7 @@ export function useDeleteLink(
   options?: UseMutationOptions<void, Error, string>
 ) {
   const queryClient = useQueryClient();
+  const t = useTranslations('LinkForm');
   const {
     onSuccess: userOnSuccess,
     onError: userOnError,
@@ -231,9 +264,8 @@ export function useDeleteLink(
       userOnSuccess?.(data, id, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
-      // Show error toast
-      toast.error('Erro ao deletar link', {
-        description: error.message || 'Tente novamente mais tarde'
+      toast.error(t('errors.deleteFailed'), {
+        description: getLinkErrorDescription(error, t)
       });
 
       userOnError?.(error, variables, onMutateResult, context);

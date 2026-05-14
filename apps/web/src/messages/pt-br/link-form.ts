@@ -142,13 +142,19 @@ export const LinkForm = {
   // Error messages
   errors: {
     invalidUrl: 'Por favor, digite uma URL válida',
-    urlTooLong: 'URL muito longa (máx 2048 caracteres)',
+    urlTooLong: 'URL muito longa (máx. 2048 caracteres)',
+    urlBlocked: 'Esta URL foi bloqueada e não pode ser encurtada.',
+    urlBlockedShortener:
+      'Não é possível encurtar links de outros encurtadores. Use a URL original.',
+    rateLimited: 'Muitas tentativas. Por favor, tente novamente em breve.',
     aliasTaken: 'Este alias já está em uso',
     aliasReserved: 'Este alias é reservado pelo sistema',
     quotaExceeded: 'Você atingiu sua cota de links',
     createFailed: 'Erro ao criar link',
     updateFailed: 'Erro ao atualizar link',
-    loadFailed: 'Erro ao carregar link'
+    deleteFailed: 'Erro ao excluir link',
+    loadFailed: 'Erro ao carregar link',
+    generic: 'Ocorreu um erro inesperado. Por favor, tente novamente.'
   },
 
   summary: {
@@ -188,6 +194,7 @@ export const LinkForm = {
   // Success messages
   success: {
     created: 'Link criado com sucesso!',
+    createdDescription: 'Código: {shortCode}',
     updated: 'Link atualizado com sucesso!',
     copied: 'Link copiado para a área de transferência!'
   },

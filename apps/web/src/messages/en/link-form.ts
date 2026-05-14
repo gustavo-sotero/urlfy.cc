@@ -143,12 +143,18 @@ export const LinkForm = {
   errors: {
     invalidUrl: 'Please enter a valid URL',
     urlTooLong: 'URL is too long (max 2048 characters)',
+    urlBlocked: 'This URL has been blocked and cannot be shortened.',
+    urlBlockedShortener:
+      'URL shortener services cannot be shortened again. Please use the original URL.',
+    rateLimited: 'Too many requests. Please try again in a moment.',
     aliasTaken: 'This alias is already taken',
     aliasReserved: 'This alias is reserved by the system',
     quotaExceeded: 'You have reached your link quota',
     createFailed: 'Error creating link',
     updateFailed: 'Error updating link',
-    loadFailed: 'Error loading link'
+    deleteFailed: 'Error deleting link',
+    loadFailed: 'Error loading link',
+    generic: 'Something went wrong. Please try again.'
   },
 
   summary: {
@@ -188,6 +194,7 @@ export const LinkForm = {
   // Success messages
   success: {
     created: 'Link created successfully!',
+    createdDescription: 'Code: {shortCode}',
     updated: 'Link updated successfully!',
     copied: 'Link copied to clipboard!'
   },

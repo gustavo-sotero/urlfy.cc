@@ -122,8 +122,36 @@ export function extractErrorInfo(errorValue: unknown): {
     };
   }
 
-  // Handle Error objects from network failures
+  // Handle Error objects from network failures.
+  // Eden Treaty can serialize the Elysia validation wrapper into Error.message as a
+  // JSON string — detect and unwrap it before falling back to the raw message.
   if (errorObj.message && typeof errorObj.message === 'string') {
+    if (errorObj.message.startsWith('{')) {
+      try {
+        const parsed: unknown = JSON.parse(errorObj.message);
+        if (
+          isRecord(parsed) &&
+          parsed.type === 'validation' &&
+          parsed.on === 'response' &&
+          isRecord(parsed.found)
+        ) {
+          const found = parsed.found as Record<string, unknown>;
+          if (found.error && isRecord(found.error)) {
+            const backendError = found.error as Record<string, unknown>;
+            return {
+              code: (backendError.code as string) || fallback.code,
+              message: (backendError.message as string) || fallback.message,
+              details: backendError.details as
+                | Record<string, unknown>
+                | undefined,
+              requestId: found.requestId as string | undefined
+            };
+          }
+        }
+      } catch {
+        // Not valid JSON — fall through to raw message return
+      }
+    }
     return {
       code: 'NETWORK_ERROR',
       message: errorObj.message,

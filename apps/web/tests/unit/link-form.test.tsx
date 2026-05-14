@@ -88,6 +88,103 @@ describe('LinkForm', () => {
     };
   });
 
+  it('reports create-link failures without leaving the guest form', async () => {
+    const failingCreateLinkMock = mock(async () => {
+      throw new Error('create failed');
+    });
+
+    createLinkState = {
+      isPending: false,
+      mutateAsync: failingCreateLinkMock
+    };
+
+    render(<LinkForm />);
+
+    await act(async () => {
+      fireEvent.change(screen.getByRole('textbox'), {
+        target: { value: 'https://example.com/failure' }
+      });
+    });
+
+    await act(async () => {
+      fireEvent.submit(
+        screen
+          .getByRole('button', { name: /shorten/i })
+          .closest('form') as HTMLFormElement
+      );
+    });
+
+    expect(reportActionErrorMock).toHaveBeenCalledWith(expect.any(Error), {
+      action: 'create-link'
+    });
+    expect(screen.getByRole('button', { name: /shorten/i })).toBeDefined();
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('Something went wrong');
+  });
+
+  it('shows a specific message for known ApiClientError codes', async () => {
+    const apiError = new ApiClientError(
+      'SHORTENER_NOT_ALLOWED',
+      'Shortening other URL shorteners is not allowed'
+    );
+    const failingMock = mock(async () => {
+      throw apiError;
+    });
+    createLinkState = { isPending: false, mutateAsync: failingMock };
+
+    render(<LinkForm />);
+
+    await act(async () => {
+      fireEvent.change(screen.getByRole('textbox'), {
+        target: { value: 'https://bit.ly/example' }
+      });
+    });
+
+    await act(async () => {
+      fireEvent.submit(
+        screen
+          .getByRole('button', { name: /shorten/i })
+          .closest('form') as HTMLFormElement
+      );
+    });
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain(
+      'URL shortener services cannot be shortened again'
+    );
+  });
+
+  it('falls back to serverError message for unknown ApiClientError codes', async () => {
+    const apiError = new ApiClientError(
+      'SOME_UNKNOWN_CODE',
+      'Internal failure'
+    );
+    const failingMock = mock(async () => {
+      throw apiError;
+    });
+    createLinkState = { isPending: false, mutateAsync: failingMock };
+
+    render(<LinkForm />);
+
+    await act(async () => {
+      fireEvent.change(screen.getByRole('textbox'), {
+        target: { value: 'https://example.com/unknown-error' }
+      });
+    });
+
+    await act(async () => {
+      fireEvent.submit(
+        screen
+          .getByRole('button', { name: /shorten/i })
+          .closest('form') as HTMLFormElement
+      );
+    });
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('Something went wrong');
+  });
+
   it('uses a full-width submit button before the small breakpoint', () => {
     render(<LinkForm />);
 
@@ -137,97 +234,4 @@ describe('LinkForm', () => {
 
     expect(screen.getByRole('button', { name: /shorten/i })).toBeDefined();
   });
-});
-it('reports create-link failures without leaving the guest form', async () => {
-  const failingCreateLinkMock = mock(async () => {
-    throw new Error('create failed');
-  });
-
-  createLinkState = {
-    isPending: false,
-    mutateAsync: failingCreateLinkMock
-  };
-
-  render(<LinkForm />);
-
-  await act(async () => {
-    fireEvent.change(screen.getByRole('textbox'), {
-      target: { value: 'https://example.com/failure' }
-    });
-  });
-
-  await act(async () => {
-    fireEvent.submit(
-      screen
-        .getByRole('button', { name: /shorten/i })
-        .closest('form') as HTMLFormElement
-    );
-  });
-
-  expect(reportActionErrorMock).toHaveBeenCalledWith(expect.any(Error), {
-    action: 'create-link'
-  });
-  expect(screen.getByRole('button', { name: /shorten/i })).toBeDefined();
-
-  const alert = screen.getByRole('alert');
-  expect(alert.textContent).toContain('Something went wrong');
-});
-
-it('shows a specific message for known ApiClientError codes', async () => {
-  const apiError = new ApiClientError(
-    'SHORTENER_NOT_ALLOWED',
-    'Shortening other URL shorteners is not allowed'
-  );
-  const failingMock = mock(async () => {
-    throw apiError;
-  });
-  createLinkState = { isPending: false, mutateAsync: failingMock };
-
-  render(<LinkForm />);
-
-  await act(async () => {
-    fireEvent.change(screen.getByRole('textbox'), {
-      target: { value: 'https://bit.ly/example' }
-    });
-  });
-
-  await act(async () => {
-    fireEvent.submit(
-      screen
-        .getByRole('button', { name: /shorten/i })
-        .closest('form') as HTMLFormElement
-    );
-  });
-
-  const alert = screen.getByRole('alert');
-  expect(alert.textContent).toContain(
-    'URL shortener services cannot be shortened again'
-  );
-});
-
-it('falls back to serverError message for unknown ApiClientError codes', async () => {
-  const apiError = new ApiClientError('SOME_UNKNOWN_CODE', 'Internal failure');
-  const failingMock = mock(async () => {
-    throw apiError;
-  });
-  createLinkState = { isPending: false, mutateAsync: failingMock };
-
-  render(<LinkForm />);
-
-  await act(async () => {
-    fireEvent.change(screen.getByRole('textbox'), {
-      target: { value: 'https://example.com/unknown-error' }
-    });
-  });
-
-  await act(async () => {
-    fireEvent.submit(
-      screen
-        .getByRole('button', { name: /shorten/i })
-        .closest('form') as HTMLFormElement
-    );
-  });
-
-  const alert = screen.getByRole('alert');
-  expect(alert.textContent).toContain('Something went wrong');
 });
