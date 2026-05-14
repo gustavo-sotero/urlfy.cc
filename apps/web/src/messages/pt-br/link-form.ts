@@ -200,8 +200,14 @@ export const LinkForm = {
     creating: 'Criando...',
     successMessage: 'Link criado com sucesso!',
     createAnother: 'Criar outro link',
+    shortUrlLabel: 'Sua URL encurtada',
     invalidUrl: 'URL inválida',
     freeNoSignup: 'Gratuito e sem necessidade de cadastro',
-    shortUrlLabel: 'Sua URL encurtada'
+    urlBlockedShortener:
+      'Não é possível encurtar links de outros encurtadores. Use a URL original.',
+    urlTooLong: 'URL muito longa (máx. 2048 caracteres).',
+    urlBlocked: 'Esta URL foi bloqueada e não pode ser encurtada.',
+    rateLimited: 'Muitas tentativas. Por favor, tente novamente em breve.',
+    serverError: 'Ocorreu um erro. Por favor, tente novamente.'
   }
 } as const;

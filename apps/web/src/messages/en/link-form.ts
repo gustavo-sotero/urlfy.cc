@@ -202,6 +202,12 @@ export const LinkForm = {
     createAnother: 'Create another link',
     shortUrlLabel: 'Your shortened URL',
     invalidUrl: 'Invalid URL',
-    freeNoSignup: 'Free and no sign-up required'
+    freeNoSignup: 'Free and no sign-up required',
+    urlBlockedShortener:
+      'URL shortener services cannot be shortened again. Please use the original URL.',
+    urlTooLong: 'URL is too long (max 2048 characters).',
+    urlBlocked: 'This URL has been blocked and cannot be shortened.',
+    rateLimited: 'Too many requests. Please try again in a moment.',
+    serverError: 'Something went wrong. Please try again.'
   }
 } as const;

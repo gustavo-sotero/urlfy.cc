@@ -91,6 +91,26 @@ export function extractErrorInfo(errorValue: unknown): {
 
   const errorObj = errorValue as Record<string, unknown>;
 
+  // Handle Elysia Treaty response validation errors:
+  // {type: "validation", on: "response", found: <actual backend payload>}
+  // Occurs when the HTTP response body fails Elysia's declared response schema.
+  if (
+    errorObj.type === 'validation' &&
+    errorObj.on === 'response' &&
+    isRecord(errorObj.found)
+  ) {
+    const found = errorObj.found as Record<string, unknown>;
+    if (found.error && isRecord(found.error)) {
+      const backendError = found.error as Record<string, unknown>;
+      return {
+        code: (backendError.code as string) || fallback.code,
+        message: (backendError.message as string) || fallback.message,
+        details: backendError.details as Record<string, unknown> | undefined,
+        requestId: found.requestId as string | undefined
+      };
+    }
+  }
+
   // Handle structured error responses from backend
   if (errorObj.error && typeof errorObj.error === 'object') {
     const backendError = errorObj.error as Record<string, unknown>;
