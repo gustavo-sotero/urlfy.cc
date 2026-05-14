@@ -27,7 +27,12 @@ jobs:
           fetch-depth: 0
 
       - name: Fetch refs used for release gating
-        run: git fetch origin main release --tags --force
+        run: |
+          git fetch origin main --tags --force
+
+          if git ls-remote --exit-code --heads origin release >/dev/null 2>&1; then
+            git fetch origin release:refs/remotes/origin/release --force
+          fi
 
       - name: Resolve release version
         id: version
@@ -93,4 +98,11 @@ jobs:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           git branch -f release "$HEAD_SHA"
-          git push origin release:release --force-with-lease
+
+          if git show-ref --verify --quiet refs/remotes/origin/release; then
+            remote_release_sha="$(git rev-parse refs/remotes/origin/release)"
+            git push origin release:release --force-with-lease=refs/heads/release:$remote_release_sha
+            exit 0
+          fi
+
+          git push origin release:release
