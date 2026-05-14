@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Check out the validated commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
@@ -34,24 +34,28 @@ jobs:
             git fetch origin release:refs/remotes/origin/release --force
           fi
 
-      - name: Resolve release version
-        id: version
+      - name: Resolve automatic release tag
+        id: tag
         run: |
-          version="$(node -p "require('./package.json').version")"
+          commit_epoch="$(git show -s --format=%ct HEAD)"
+          release_stamp="$(date -u -d "@$commit_epoch" +%Y%m%d%H%M%S)"
+          short_sha="$(git rev-parse --short=12 HEAD)"
+          tag_name="release-$release_stamp-$short_sha"
 
-          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$'; then
-            echo "::error::package.json version '$version' is not a valid release tag source."
+          if ! printf '%s' "$tag_name" | grep -Eq '^release-[0-9]{14}-[0-9a-f]{12}$'; then
+            echo "::error::Generated tag '$tag_name' is not valid."
             exit 1
           fi
 
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "stamp=$release_stamp" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
+          echo "name=$tag_name" >> "$GITHUB_OUTPUT"
 
       - name: Verify this workflow is still on the latest main commit
         id: gate
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          TAG_NAME: ${{ steps.version.outputs.tag }}
+          TAG_NAME: ${{ steps.tag.outputs.name }}
         run: |
           current_main_sha="$(git rev-parse origin/main)"
 
@@ -70,8 +74,15 @@ jobs:
               exit 0
             fi
 
-            echo "::error::Tag $TAG_NAME already exists for $existing_sha. Bump package.json version before merging to main."
+            echo "::error::Tag $TAG_NAME already exists for $existing_sha."
             exit 1
+          fi
+
+          if git show-ref --verify --quiet refs/remotes/origin/release; then
+            if ! git merge-base --is-ancestor refs/remotes/origin/release "$HEAD_SHA"; then
+              echo "::error::origin/release does not point to a main-line ancestor of $HEAD_SHA. Resolve the release branch manually before the next automated promotion."
+              exit 1
+            fi
           fi
 
           echo "release_ready=true" >> "$GITHUB_OUTPUT"
@@ -85,11 +96,12 @@ jobs:
       - name: Create annotated release tag
         if: steps.gate.outputs.release_ready == 'true'
         env:
-          TAG_NAME: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
+          TAG_NAME: ${{ steps.tag.outputs.name }}
+          RELEASE_STAMP: ${{ steps.tag.outputs.stamp }}
+          RELEASE_SHA: ${{ steps.tag.outputs.short_sha }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          git tag -a "$TAG_NAME" "$HEAD_SHA" -m "Release $VERSION"
+          git tag -a "$TAG_NAME" "$HEAD_SHA" -m "Release $RELEASE_STAMP ($RELEASE_SHA)"
           git push origin "refs/tags/$TAG_NAME"
 
       - name: Move release branch to the tagged commit
@@ -98,11 +110,4 @@ jobs:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           git branch -f release "$HEAD_SHA"
-
-          if git show-ref --verify --quiet refs/remotes/origin/release; then
-            remote_release_sha="$(git rev-parse refs/remotes/origin/release)"
-            git push origin release:release --force-with-lease=refs/heads/release:$remote_release_sha
-            exit 0
-          fi
-
           git push origin release:release

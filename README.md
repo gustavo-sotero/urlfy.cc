@@ -122,13 +122,13 @@ bun run dev
 
 Production deployments in Dokploy should follow the automation in `.github/workflows/release-tag.yml`.
 
-1. A pull request that is meant to ship must bump the root `package.json` version.
-2. After that commit lands on `main`, `.github/workflows/ci.yml` validates the full pipeline.
-3. When CI succeeds on the latest `main` commit, `.github/workflows/release-tag.yml` creates the annotated tag `v<package.json version>`.
+1. A commit lands on `main`.
+2. `.github/workflows/ci.yml` validates the full pipeline.
+3. When CI succeeds on the latest `main` commit, `.github/workflows/release-tag.yml` creates an annotated immutable tag in the format `release-YYYYMMDDHHMMSS-<12-char-sha>`.
 4. The same workflow fast-forwards the `release` branch to that exact tagged commit.
-5. Dokploy should track the `release` branch, not `main`, so deploys only happen for tagged releases.
+5. Dokploy should track the `release` branch, not `main`, so deploys only happen for validated releases.
 
-This extra `release` branch is intentional. The current Dokploy production topology uses Git + Docker Compose builds from the repository (`docker/docker-compose.prod.yml`), so branch state is the deployable source of truth there. Tagging and moving `release` together keeps the release identity (`vX.Y.Z`) while still giving Dokploy a deterministic ref to build.
+This extra `release` branch is intentional. The current Dokploy production topology uses Git + Docker Compose builds from the repository (`docker/docker-compose.prod.yml`), so branch state is the deployable source of truth there. Tagging and moving `release` together keeps an immutable release identity while still giving Dokploy a deterministic ref to build. The workflow expects `release` to stay on the `main` commit lineage.
 
 Recommended Dokploy settings:
 
@@ -139,8 +139,11 @@ Recommended Dokploy settings:
 
 Operational notes:
 
-- If CI succeeds but the version was not bumped, the release workflow fails rather than reusing an old tag.
+- The tag is derived from the commit timestamp in UTC plus the commit SHA, so no manual version bump is required.
+- The tag is deterministic per commit, so rerunning the workflow for the same commit does not create a second release tag.
 - If a newer commit reaches `main` before an older CI run finishes, the stale run is ignored and only the newest validated `main` commit can release.
+- The `release` branch should be treated as automation-owned. Manual updates should be limited to intentional rollback or recovery operations that still point to a commit reachable from `main`.
+- If `release` is repointed to unrelated history, the workflow now fails fast with a manual recovery error instead of overwriting it.
 - Rollback is simple: point the `release` branch back to an older tag and redeploy, or redeploy the older tag commit manually.
 
 ## Key Design Decisions
