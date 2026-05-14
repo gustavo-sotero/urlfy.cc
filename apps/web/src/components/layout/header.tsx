@@ -64,6 +64,7 @@ export function Header({ user }: Props) {
     await signOut();
     queryClient.setQueryData(SESSION_QUERY_KEY, null);
     await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
+    router.refresh();
     router.push('/');
   };
 

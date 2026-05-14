@@ -32,6 +32,7 @@ beforeAll(() => {
 });
 
 const pushMock = mock(() => {});
+const refreshMock = mock(() => {});
 const signOutMock = mock(async () => {});
 const setQueryDataMock = mock((..._args: unknown[]) => {});
 const invalidateQueriesMock = mock(async (..._args: unknown[]) => {});
@@ -64,7 +65,7 @@ mock.module('next/navigation', () => ({
   notFound: () => {},
   useSearchParams: () => new URLSearchParams(),
   usePathname: () => '/dashboard/links',
-  useRouter: () => ({ push: pushMock }),
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
   useParams: () => ({ id: 'link-1' })
 }));
 
@@ -212,6 +213,7 @@ describe('Dashboard Header', () => {
     cleanup();
     queryClient.clear();
     pushMock.mockClear();
+    refreshMock.mockClear();
     signOutMock.mockClear();
     setQueryDataMock.mockClear();
     invalidateQueriesMock.mockClear();
@@ -307,6 +309,7 @@ describe('Dashboard Header', () => {
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: ['session']
     });
+    expect(refreshMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith('/');
   });
 });
