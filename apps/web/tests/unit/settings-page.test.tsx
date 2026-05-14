@@ -1,9 +1,27 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+const SETTINGS_PAGE_PATH =
+  '../../src/app/[locale]/(dashboard)/dashboard/settings/page.tsx';
+let settingsPageImportCounter = 0;
+
+async function importFreshSettingsPage() {
+  return import(
+    `${SETTINGS_PAGE_PATH}?test=${settingsPageImportCounter++}`
+  ) as Promise<{
+    default: typeof import('@/app/[locale]/(dashboard)/dashboard/settings/page').default;
+  }>;
+}
+
 const updateUserMock = mock(async () => undefined);
-const headersMock = mock(async () => new Headers());
-const getServerSessionMock = mock(async () => ({
+const headersMock = mock(
+  async () =>
+    new Headers({
+      cookie: 'urlfy.session_token=settings-token',
+      'user-agent': 'bun-test-agent'
+    })
+);
+const fetchSessionMock = mock(async () => ({
   user: {
     name: 'Admin User',
     email: 'admin@example.com',
@@ -11,9 +29,28 @@ const getServerSessionMock = mock(async () => ({
     isAdmin: true
   },
   session: {
-    id: 'session-1'
+    id: 'session-1',
+    userId: 'admin-1'
   }
 }));
+const originalFetch = global.fetch;
+const originalApiInternalUrl = process.env.API_INTERNAL_URL;
+const originalInternalApiSecret = process.env.INTERNAL_API_SECRET;
+
+function createJsonFetchStub(): typeof fetch {
+  return (async () => {
+    const session = await fetchSessionMock();
+
+    if (!session) {
+      return new Response(null, { status: 401 });
+    }
+
+    return new Response(JSON.stringify(session), {
+      status: 200,
+      headers: { 'content-type': 'application/json' }
+    });
+  }) as unknown as typeof fetch;
+}
 
 mock.module('next/headers', () => ({
   headers: headersMock
@@ -21,10 +58,6 @@ mock.module('next/headers', () => ({
 
 mock.module('next-intl', () => ({
   useTranslations: () => (key: string) => key
-}));
-
-mock.module('@/lib/server-session', () => ({
-  getServerSession: getServerSessionMock
 }));
 
 mock.module('@/lib/auth.client', () => ({
@@ -70,9 +103,18 @@ mock.module('@/components/settings/two-factor-setup', () => ({
 
 describe('SettingsPage', () => {
   beforeEach(() => {
+    global.fetch = createJsonFetchStub();
+    process.env.API_INTERNAL_URL = 'http://api:3001';
+    process.env.INTERNAL_API_SECRET = 'test-internal-api-secret';
     headersMock.mockClear();
-    getServerSessionMock.mockReset();
-    getServerSessionMock.mockResolvedValue({
+    headersMock.mockResolvedValue(
+      new Headers({
+        cookie: 'urlfy.session_token=settings-token',
+        'user-agent': 'bun-test-agent'
+      })
+    );
+    fetchSessionMock.mockReset();
+    fetchSessionMock.mockResolvedValue({
       user: {
         name: 'Admin User',
         email: 'admin@example.com',
@@ -80,25 +122,41 @@ describe('SettingsPage', () => {
         isAdmin: true
       },
       session: {
-        id: 'session-1'
+        id: 'session-1',
+        userId: 'admin-1'
       }
     });
   });
 
+  afterEach(() => {
+    global.fetch = originalFetch;
+
+    if (originalApiInternalUrl === undefined) {
+      delete process.env.API_INTERNAL_URL;
+    } else {
+      process.env.API_INTERNAL_URL = originalApiInternalUrl;
+    }
+
+    if (originalInternalApiSecret === undefined) {
+      delete process.env.INTERNAL_API_SECRET;
+    } else {
+      process.env.INTERNAL_API_SECRET = originalInternalApiSecret;
+    }
+  });
+
   it('shows the disable 2FA actions for authorized admins when 2FA is enabled', async () => {
-    const { default: SettingsPage } = await import(
-      '@/app/[locale]/(dashboard)/dashboard/settings/page'
-    );
+    const { default: SettingsPage } = await importFreshSettingsPage();
 
     const markup = renderToStaticMarkup(await SettingsPage());
 
     expect(markup).toContain('data-testid="backup-codes"');
     expect(markup).toContain('data-testid="disable-two-factor"');
     expect(markup).not.toContain('data-testid="two-factor-setup"');
+    expect(fetchSessionMock).toHaveBeenCalledTimes(1);
   });
 
   it('shows the 2FA setup flow when 2FA is disabled, regardless of admin status', async () => {
-    getServerSessionMock.mockResolvedValue({
+    fetchSessionMock.mockResolvedValue({
       user: {
         name: 'Admin User',
         email: 'admin@example.com',
@@ -106,18 +164,18 @@ describe('SettingsPage', () => {
         isAdmin: true
       },
       session: {
-        id: 'session-1'
+        id: 'session-1',
+        userId: 'admin-1'
       }
     });
 
-    const { default: SettingsPage } = await import(
-      '@/app/[locale]/(dashboard)/dashboard/settings/page'
-    );
+    const { default: SettingsPage } = await importFreshSettingsPage();
 
     const markup = renderToStaticMarkup(await SettingsPage());
 
     expect(markup).toContain('data-testid="two-factor-setup"');
     expect(markup).not.toContain('data-testid="disable-two-factor"');
     expect(markup).not.toContain('data-testid="backup-codes"');
+    expect(fetchSessionMock).toHaveBeenCalledTimes(1);
   });
 });
