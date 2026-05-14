@@ -52,6 +52,56 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object';
 }
 
+/**
+ * Tries to unwrap an Elysia Treaty response validation envelope:
+ * { type: "validation", on: "response", found: <backend response> }
+ * Returns null if the shape does not match.
+ */
+function tryParseElysiaWrapper(
+  obj: Record<string, unknown>,
+  fallback: { code: string; message: string }
+): {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+  requestId?: string;
+} | null {
+  if (
+    obj.type !== 'validation' ||
+    obj.on !== 'response' ||
+    !isRecord(obj.found)
+  ) {
+    return null;
+  }
+  const found = obj.found as Record<string, unknown>;
+  if (!found.error || !isRecord(found.error)) return null;
+  const backendError = found.error as Record<string, unknown>;
+  return {
+    code: (backendError.code as string) || fallback.code,
+    message: (backendError.message as string) || fallback.message,
+    details: backendError.details as Record<string, unknown> | undefined,
+    requestId: found.requestId as string | undefined
+  };
+}
+
+/**
+ * Normalizes known API code discrepancies between what the backend sends
+ * and the semantic error it actually means.
+ * The live API returns INVALID_URL when the real reason is a blocked shortener URL.
+ */
+function normalizeApiCode(
+  code: string,
+  details: Record<string, unknown> | undefined
+): string {
+  if (
+    code === 'INVALID_URL' &&
+    details?.validationError === 'SHORTENER_BLOCKED'
+  ) {
+    return 'SHORTENER_NOT_ALLOWED';
+  }
+  return code;
+}
+
 function isBackendSuccessResponse(
   value: unknown
 ): value is BackendSuccessResponse<unknown> {
@@ -78,13 +128,28 @@ export function extractErrorInfo(errorValue: unknown): {
 
   if (!errorValue || typeof errorValue !== 'object') {
     if (typeof errorValue === 'string') {
+      // Detect a JSON-serialized Elysia validation wrapper in the raw string.
+      // Eden Treaty can deliver the wrapper as a plain string rather than an object.
+      if (errorValue.startsWith('{')) {
+        try {
+          const parsed: unknown = JSON.parse(errorValue);
+          if (isRecord(parsed)) {
+            const wrapper = tryParseElysiaWrapper(parsed, fallback);
+            if (wrapper) {
+              return {
+                ...wrapper,
+                code: normalizeApiCode(wrapper.code, wrapper.details)
+              };
+            }
+          }
+        } catch {
+          // Not valid JSON — fall through
+        }
+      }
       return { ...fallback, message: errorValue };
     }
     if (errorValue instanceof Error) {
-      return {
-        code: 'NETWORK_ERROR',
-        message: errorValue.message
-      };
+      return { code: 'NETWORK_ERROR', message: errorValue.message };
     }
     return fallback;
   }
@@ -94,30 +159,25 @@ export function extractErrorInfo(errorValue: unknown): {
   // Handle Elysia Treaty response validation errors:
   // {type: "validation", on: "response", found: <actual backend payload>}
   // Occurs when the HTTP response body fails Elysia's declared response schema.
-  if (
-    errorObj.type === 'validation' &&
-    errorObj.on === 'response' &&
-    isRecord(errorObj.found)
-  ) {
-    const found = errorObj.found as Record<string, unknown>;
-    if (found.error && isRecord(found.error)) {
-      const backendError = found.error as Record<string, unknown>;
-      return {
-        code: (backendError.code as string) || fallback.code,
-        message: (backendError.message as string) || fallback.message,
-        details: backendError.details as Record<string, unknown> | undefined,
-        requestId: found.requestId as string | undefined
-      };
-    }
+  const elysiaWrapper = tryParseElysiaWrapper(errorObj, fallback);
+  if (elysiaWrapper) {
+    return {
+      ...elysiaWrapper,
+      code: normalizeApiCode(elysiaWrapper.code, elysiaWrapper.details)
+    };
   }
 
   // Handle structured error responses from backend
   if (errorObj.error && typeof errorObj.error === 'object') {
     const backendError = errorObj.error as Record<string, unknown>;
+    const details = backendError.details as Record<string, unknown> | undefined;
     return {
-      code: (backendError.code as string) || fallback.code,
+      code: normalizeApiCode(
+        (backendError.code as string) || fallback.code,
+        details
+      ),
       message: (backendError.message as string) || fallback.message,
-      details: backendError.details as Record<string, unknown> | undefined,
+      details,
       requestId: errorObj.requestId as string | undefined
     };
   }
@@ -129,22 +189,12 @@ export function extractErrorInfo(errorValue: unknown): {
     if (errorObj.message.startsWith('{')) {
       try {
         const parsed: unknown = JSON.parse(errorObj.message);
-        if (
-          isRecord(parsed) &&
-          parsed.type === 'validation' &&
-          parsed.on === 'response' &&
-          isRecord(parsed.found)
-        ) {
-          const found = parsed.found as Record<string, unknown>;
-          if (found.error && isRecord(found.error)) {
-            const backendError = found.error as Record<string, unknown>;
+        if (isRecord(parsed)) {
+          const wrapper = tryParseElysiaWrapper(parsed, fallback);
+          if (wrapper) {
             return {
-              code: (backendError.code as string) || fallback.code,
-              message: (backendError.message as string) || fallback.message,
-              details: backendError.details as
-                | Record<string, unknown>
-                | undefined,
-              requestId: found.requestId as string | undefined
+              ...wrapper,
+              code: normalizeApiCode(wrapper.code, wrapper.details)
             };
           }
         }
