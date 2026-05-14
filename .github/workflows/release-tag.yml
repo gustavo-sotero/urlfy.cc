@@ -1,0 +1,96 @@
+name: Release Tag
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag successful main build
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the validated commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Fetch refs used for release gating
+        run: git fetch origin main release --tags --force
+
+      - name: Resolve release version
+        id: version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$'; then
+            echo "::error::package.json version '$version' is not a valid release tag source."
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify this workflow is still on the latest main commit
+        id: gate
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+        run: |
+          current_main_sha="$(git rev-parse origin/main)"
+
+          if [ "$current_main_sha" != "$HEAD_SHA" ]; then
+            echo "A newer commit is already at origin/main; skipping stale release for $HEAD_SHA."
+            echo "release_ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git rev-parse -q --verify "refs/tags/$TAG_NAME" >/dev/null; then
+            existing_sha="$(git rev-list -n 1 "$TAG_NAME")"
+
+            if [ "$existing_sha" = "$HEAD_SHA" ]; then
+              echo "Tag $TAG_NAME already exists for this commit; nothing to do."
+              echo "release_ready=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "::error::Tag $TAG_NAME already exists for $existing_sha. Bump package.json version before merging to main."
+            exit 1
+          fi
+
+          echo "release_ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git identity
+        if: steps.gate.outputs.release_ready == 'true'
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+      - name: Create annotated release tag
+        if: steps.gate.outputs.release_ready == 'true'
+        env:
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          git tag -a "$TAG_NAME" "$HEAD_SHA" -m "Release $VERSION"
+          git push origin "refs/tags/$TAG_NAME"
+
+      - name: Move release branch to the tagged commit
+        if: steps.gate.outputs.release_ready == 'true'
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          git branch -f release "$HEAD_SHA"
+          git push origin release:release --force-with-lease

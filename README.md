@@ -118,6 +118,31 @@ bun run dev
 
 > **Alias policy audit**: `bun run db:validate:aliases` checks persisted `links.short_code` rows against the shared alias regex in `@urlfy/contracts/alias-policy`. Run it before tightening alias rules or after importing historical data so old rows do not silently diverge from routing and validation behavior.
 
+## Release Flow
+
+Production deployments in Dokploy should follow the automation in `.github/workflows/release-tag.yml`.
+
+1. A pull request that is meant to ship must bump the root `package.json` version.
+2. After that commit lands on `main`, `.github/workflows/ci.yml` validates the full pipeline.
+3. When CI succeeds on the latest `main` commit, `.github/workflows/release-tag.yml` creates the annotated tag `v<package.json version>`.
+4. The same workflow fast-forwards the `release` branch to that exact tagged commit.
+5. Dokploy should track the `release` branch, not `main`, so deploys only happen for tagged releases.
+
+This extra `release` branch is intentional. The current Dokploy production topology uses Git + Docker Compose builds from the repository (`docker/docker-compose.prod.yml`), so branch state is the deployable source of truth there. Tagging and moving `release` together keeps the release identity (`vX.Y.Z`) while still giving Dokploy a deterministic ref to build.
+
+Recommended Dokploy settings:
+
+- Source repository: this repository
+- Tracked branch: `release`
+- Auto Deploy: enabled
+- Compose file: `docker/docker-compose.prod.yml`
+
+Operational notes:
+
+- If CI succeeds but the version was not bumped, the release workflow fails rather than reusing an old tag.
+- If a newer commit reaches `main` before an older CI run finishes, the stale run is ignored and only the newest validated `main` commit can release.
+- Rollback is simple: point the `release` branch back to an older tag and redeploy, or redeploy the older tag commit manually.
+
 ## Key Design Decisions
 
 ### Redirect Hot Path
