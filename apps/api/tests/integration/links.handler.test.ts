@@ -181,6 +181,27 @@ describe('Links Endpoints (handler-level)', () => {
       expect(response.body.success).toBe(false);
     });
 
+    test('should surface shortener validation failures with the semantic API code', async () => {
+      const response = await client.post<{
+        success: boolean;
+        error?: {
+          code: string;
+          message: string;
+          details?: {
+            validationError?: string;
+          };
+        };
+      }>('/api/links', { url: 'http://bit.ly/3Z54JV6' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error?.code).toBe('SHORTENER_NOT_ALLOWED');
+      expect(response.body.error?.message).toContain('shorteners');
+      expect(response.body.error?.details?.validationError).toBe(
+        'SHORTENER_BLOCKED'
+      );
+    });
+
     test('should reject creation with empty body', async () => {
       const response = await client.post('/api/links', {});
 

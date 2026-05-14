@@ -15,7 +15,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import * as api from '@/lib/api';
-import { ApiClientError } from '@/lib/api/error';
+import { getLinkFormErrorDescription } from '@/lib/create-link-error';
 import type {
   CreateLinkInput,
   LinkResponse,
@@ -128,28 +128,6 @@ export function useDashboardSummary(
 // MUTATIONS
 // ═══════════════════════════════════════════════════════════════════
 
-/**
- * Maps a link API error code to a translated user-facing description.
- * `t` is the `LinkForm` translation function obtained from useTranslations.
- */
-function getLinkErrorDescription(
-  error: Error,
-  t: (key: string) => string
-): string {
-  if (!(error instanceof ApiClientError)) return t('errors.generic');
-  const map: Record<string, string> = {
-    INVALID_URL: t('errors.invalidUrl'),
-    URL_TOO_LONG: t('errors.urlTooLong'),
-    URL_BLOCKED: t('errors.urlBlocked'),
-    SHORTENER_NOT_ALLOWED: t('errors.urlBlockedShortener'),
-    RATE_LIMITED: t('errors.rateLimited'),
-    ALIAS_TAKEN: t('errors.aliasTaken'),
-    ALIAS_RESERVED: t('errors.aliasReserved'),
-    QUOTA_EXCEEDED: t('errors.quotaExceeded')
-  };
-  return map[error.code] ?? t('errors.generic');
-}
-
 export function useCreateLink(
   options?: UseMutationOptions<LinkResponse, Error, CreateLinkInput> & {
     toastSuccess?: string;
@@ -185,7 +163,7 @@ export function useCreateLink(
     onError: (error, variables, onMutateResult, context) => {
       if (showErrorToast) {
         toast.error(toastError ?? t('errors.createFailed'), {
-          description: getLinkErrorDescription(error, t)
+          description: getLinkFormErrorDescription(error, t)
         });
       }
 
@@ -230,7 +208,7 @@ export function useUpdateLink(
     },
     onError: (error, variables, onMutateResult, context) => {
       toast.error(toastError ?? t('errors.updateFailed'), {
-        description: getLinkErrorDescription(error, t)
+        description: getLinkFormErrorDescription(error, t)
       });
 
       userOnError?.(error, variables, onMutateResult, context);
@@ -265,7 +243,7 @@ export function useDeleteLink(
     },
     onError: (error, variables, onMutateResult, context) => {
       toast.error(t('errors.deleteFailed'), {
-        description: getLinkErrorDescription(error, t)
+        description: getLinkFormErrorDescription(error, t)
       });
 
       userOnError?.(error, variables, onMutateResult, context);

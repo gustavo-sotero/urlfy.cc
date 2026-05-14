@@ -11,17 +11,9 @@ import { CopyButton } from '@/components/shared/copy-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ApiClientError } from '@/lib/api/error';
 import { reportActionError } from '@/lib/browser-logger';
+import { getGuestCreateLinkErrorMessage } from '@/lib/create-link-error';
 import { useCreateLink } from '@/lib/hooks/use-links';
-
-const ERROR_CODE_TO_MESSAGE_KEY = {
-  SHORTENER_NOT_ALLOWED: 'urlBlockedShortener',
-  URL_TOO_LONG: 'urlTooLong',
-  URL_BLOCKED: 'urlBlocked',
-  RATE_LIMITED: 'rateLimited',
-  INVALID_URL: 'invalidUrl'
-} as const;
 
 export function LinkForm() {
   const t = useTranslations('LinkForm.guest');
@@ -51,14 +43,11 @@ export function LinkForm() {
       setResult({ shortUrl: link.shortUrl });
     } catch (error) {
       reportActionError(error, { action: 'create-link' });
-      if (error instanceof ApiClientError) {
-        const messageKey =
-          (ERROR_CODE_TO_MESSAGE_KEY as Record<string, string>)[error.code] ??
-          'serverError';
-        form.setError('url', { message: t(messageKey) }, { shouldFocus: true });
-      } else {
-        form.setError('url', { message: t('serverError') });
-      }
+      form.setError(
+        'url',
+        { message: getGuestCreateLinkErrorMessage(error, t) },
+        { shouldFocus: true }
+      );
     }
   };
 

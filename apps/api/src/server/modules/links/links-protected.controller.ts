@@ -40,6 +40,7 @@ import {
   buildGuestIdCookieHeader,
   getGuestIdFromCookie
 } from './guest-identity';
+import { createLinkAppError } from './link-errors';
 import { LinkLifecycleService } from './link-lifecycle.service';
 import {
   LinkBulkCreateBody,
@@ -50,22 +51,17 @@ import {
   LinkUpdateBody
 } from './links.schema';
 import { LinkService } from './links.service';
-import { validateUrlSafe } from './services/url-validator';
+import {
+  type ValidationError,
+  validateUrlSafe
+} from './services/url-validator';
 
-function getUrlValidationEnvelope(validationError: string) {
-  if (validationError === 'BANNED_DOMAINS_UNAVAILABLE') {
-    return {
-      status: 503,
-      code: 'SERVICE_UNAVAILABLE' as const,
-      message:
-        'URL validation is temporarily unavailable while the banned-domain snapshot is loading'
-    };
-  }
-
+function getUrlValidationEnvelope(validationError: ValidationError) {
+  const appError = createLinkAppError(validationError);
   return {
-    status: 422,
-    code: 'INVALID_URL' as const,
-    message: `Invalid URL: ${validationError}`
+    status: appError.status,
+    code: appError.code,
+    message: appError.message
   };
 }
 
