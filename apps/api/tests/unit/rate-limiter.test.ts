@@ -11,16 +11,17 @@ const noopLogger = {
   debug: () => {}
 };
 
-// Mock all import paths before importing rate-limiter
+// Spread real module so the full export surface is preserved when Bun does not
+// reset mock.module state between test files (Windows / shared-worker mode).
+const realRedisModule = await import('@/server/lib/redis');
 mock.module('@/server/lib/redis', () => ({
+  ...realRedisModule,
   getRedisClient: () => mockRedis,
   redis: mockRedis,
   shouldLogRedisFailure: () => true,
   checkRedisHealth: mock(() =>
     Promise.resolve({ status: 'ok' as const, latencyMs: 1 })
-  ),
-  CACHE_KEYS: {},
-  CACHE_TTL: {}
+  )
 }));
 
 mock.module('@/server/lib/redis/redis', () => ({

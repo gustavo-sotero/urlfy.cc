@@ -108,7 +108,9 @@ const markRedisCommandSuccessMock = mock(() => {});
 
 // Mock redis module — both the legacy shim path and the canonical package client
 // so that @urlfy/cache/stream internals see the mock Redis too.
+const realRedisModule = await import('@/server/lib/redis');
 mock.module('@/server/lib/redis', () => ({
+  ...realRedisModule,
   redis: mockRedis,
   getRedisClient: () => mockRedis,
   checkRedisHealth: async () => ({ status: 'ok' as const, latencyMs: 1 })

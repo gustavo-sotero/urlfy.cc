@@ -69,7 +69,11 @@ mock.module('@urlfy/data', () => ({
   getSQLConnection: mock(() => ({}))
 }));
 
+// Spread real module so the full export surface is preserved when Bun does not
+// reset mock.module state between test files (Windows / shared-worker mode).
+const realRedisModule = await import('@/server/lib/redis');
 mock.module('@/server/lib/redis', () => ({
+  ...realRedisModule,
   redis: {
     del: mock(() => Promise.resolve(0)),
     send: mock(() => Promise.resolve('OK'))

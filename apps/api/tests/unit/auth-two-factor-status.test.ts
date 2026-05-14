@@ -17,7 +17,11 @@ mock.module('@urlfy/data', () => ({
   closeDatabase: mock(() => Promise.resolve())
 }));
 
+// Spread real module so the full export surface is preserved when Bun does not
+// reset mock.module state between test files (Windows / shared-worker mode).
+const realRedisModule = await import('@/server/lib/redis');
 mock.module('@/server/lib/redis', () => ({
+  ...realRedisModule,
   redis: {
     get: mock(() => Promise.resolve(null)),
     set: mock(() => Promise.resolve('OK')),
@@ -37,9 +41,7 @@ mock.module('@/server/lib/redis', () => ({
   shouldLogRedisFailure: () => true,
   checkRedisHealth: mock(() =>
     Promise.resolve({ status: 'ok' as const, latencyMs: 1 })
-  ),
-  CACHE_KEYS: {},
-  CACHE_TTL: {}
+  )
 }));
 
 const _realAuthModule = await import('@/lib/auth');
