@@ -109,7 +109,7 @@
     "dotenv-cli": "^11.0.0",
     "drizzle-kit": "^0.31.10",
     "snyk": "^1.1304.0",
-    "turbo": "^2.9.6",
+    "turbo": "^2.9.14",
     "typescript": "^6.0.3"
   },
   "ignoreScripts": [
@@ -144,6 +144,7 @@
     "protobufjs": "^7.5.8",
     "postcss": "^8.5.10",
     "uuid": "^14.0.0",
-    "yaml": "^2.8.3"
+    "yaml": "^2.8.3",
+    "ws": "^8.20.1"
   }
 }
