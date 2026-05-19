@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "cd ../.. && NODE_ENV=development bun --env-file=.env run --watch apps/worker/src/index.ts",
-    "healthcheck": "bun --env-file=../../.env run src/healthcheck.ts",
+    "healthcheck": "bun run src/healthcheck.ts",
+    "healthcheck:local": "bun --env-file=../../.env run src/healthcheck.ts",
     "start": "bun --env-file=../../.env run src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "lint": "bunx biome check . --write",

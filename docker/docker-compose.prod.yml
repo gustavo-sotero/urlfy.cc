@@ -69,15 +69,16 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-${NEXT_PUBLIC_APP_URL}}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
-      - INTERNAL_ANALYTICS_SECRET=${INTERNAL_ANALYTICS_SECRET:-}
+      - INTERNAL_ANALYTICS_SECRET=${INTERNAL_ANALYTICS_SECRET}
       - JWT_SECRET=${JWT_SECRET}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
       - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-}
-      # Required when running behind Traefik/Dokploy reverse proxy: ensures
-      # Better Auth infers the correct public host/scheme from X-Forwarded-*
-      # headers and generates OAuth callback URLs that match the registered
-      # provider redirect URIs.
+      # Production topology: Cloudflare → Traefik → app.
+      # TRUST_PROXY_PROVIDER=cloudflare makes the IP extractor read CF-Connecting-IP
+      # (injected by Cloudflare) instead of counting X-Forwarded-For hops, which
+      # avoids misreading the Cloudflare edge IP as the real client IP.
       - TRUST_PROXY=true
+      - TRUST_PROXY_PROVIDER=cloudflare
       - TRUST_PROXY_HOPS=1
       - TRUSTED_PROXY_CIDRS=${TRUSTED_PROXY_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       # OAuth (optional)
@@ -86,7 +87,7 @@ services:
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
       # Admin authority (GitHub account ID — see .env.example)
-      - ADMIN_GITHUB_ACCOUNT_ID=${ADMIN_GITHUB_ACCOUNT_ID:-}
+      - ADMIN_GITHUB_ACCOUNT_ID=${ADMIN_GITHUB_ACCOUNT_ID}
       # Email (optional)
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - RESEND_FROM=${RESEND_FROM:-}
@@ -152,17 +153,19 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-${NEXT_PUBLIC_APP_URL}}
       - JWT_SECRET=${JWT_SECRET}
-      # Required when running behind Traefik/Dokploy reverse proxy: keeps
-      # proxy-derived host/scheme/IP handling consistent for web runtime code.
+      # Production topology: Cloudflare → Traefik → app.
+      # See api service comment above for rationale.
       - TRUST_PROXY=true
+      - TRUST_PROXY_PROVIDER=cloudflare
       - TRUST_PROXY_HOPS=1
       - TRUSTED_PROXY_CIDRS=${TRUSTED_PROXY_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       # Redis (needed for web-level rate limiting)
       - REDIS_URL=${REDIS_URL}
       - REDIS_HOST=${REDIS_HOST:-}
       - REDIS_PORT=${REDIS_PORT:-6379}
-      # Shared internal API secret for runtime validation and signed internal flows
+      # Shared internal secrets for runtime validation and signed internal flows
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - INTERNAL_ANALYTICS_SECRET=${INTERNAL_ANALYTICS_SECRET}
       # GeoIP (needed for redirect analytics)
       - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
       # OpenTelemetry — same collector base URL as API service.
@@ -213,7 +216,7 @@ services:
       - REDIS_PORT=${REDIS_PORT:-6379}
       - GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
-      - INTERNAL_ANALYTICS_SECRET=${INTERNAL_ANALYTICS_SECRET:-}
+      - INTERNAL_ANALYTICS_SECRET=${INTERNAL_ANALYTICS_SECRET}
       # OpenTelemetry — same collector base URL as API service.
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-}

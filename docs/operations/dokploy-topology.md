@@ -1,0 +1,330 @@
+# Dokploy Production Topology
+
+> Reference for provisioning and configuring Dokploy Applications that back the `deploy.yml` CI/CD pipeline.
+>
+> **Keep this document in sync with env-schema changes in `apps/*/src/lib/env.ts`.**
+
+---
+
+## 1. Overview
+
+Each service runs as an independent **Dokploy Application** sourced from an immutable GHCR image.  The pipeline always deploys by calling `POST /api/application.deploy` after the `:stable` tag is updated in GHCR — Dokploy pulls the latest `:stable` image and performs a rolling Swarm update.
+
+```
+GHCR (immutable :tag + :stable)
+        │
+        ├── urlfy-api       (port 3001, traffic-serving)
+        ├── urlfy-web       (port 3000, traffic-serving)
+        ├── urlfy-worker    (background, no external port)
+        ├── urlfy-migrate   (one-shot job, restart: never)
+        └── urlfy-geoip     (cron updater, writes geoip_data volume)
+```
+
+External dependencies (managed outside Dokploy):
+
+| Dependency  | Notes                                              |
+|-------------|----------------------------------------------------|
+| PostgreSQL   | Managed database (e.g. Neon, Supabase, RDS)        |
+| Redis        | Managed cache/stream broker (e.g. Upstash)         |
+| GeoLite2     | MMDB auto-downloaded from jsDelivr CDN (no MaxMind credentials required) |
+
+---
+
+## 2. Swarm Configuration
+
+Apply these settings in **Dokploy → Application → Advanced → Docker Swarm Configuration** for each Application that serves traffic.  The JSON maps directly to the Swarm service spec overlay.
+
+### 2.1 `urlfy-api` — zero-downtime
+
+```json
+{
+  "HealthCheck": {
+    "Test": ["CMD", "curl", "-fsS", "http://127.0.0.1:3001/api/health/ready"],
+    "Interval": 30000000000,
+    "Timeout":  10000000000,
+    "StartPeriod": 20000000000,
+    "Retries": 3
+  },
+  "UpdateConfig": {
+    "Parallelism": 1,
+    "Delay":       10000000000,
+    "FailureAction": "rollback",
+    "Order": "start-first"
+  },
+  "RollbackConfig": {
+    "Parallelism": 1,
+    "Delay": 0,
+    "FailureAction": "pause",
+    "Order": "start-first"
+  }
+}
+```
+
+> `start-first`: new container is started and health-checked **before** the old one is stopped — guarantees zero downtime.  
+> `FailureAction: rollback`: if the new replica fails health checks within the update window, Swarm automatically reverts.
+
+### 2.2 `urlfy-web` — zero-downtime
+
+```json
+{
+  "HealthCheck": {
+    "Test": ["CMD", "curl", "-fsS", "http://localhost:3000/ops/health/ready"],
+    "Interval": 30000000000,
+    "Timeout":  10000000000,
+    "StartPeriod": 15000000000,
+    "Retries": 3
+  },
+  "UpdateConfig": {
+    "Parallelism": 1,
+    "Delay":       10000000000,
+    "FailureAction": "rollback",
+    "Order": "start-first"
+  },
+  "RollbackConfig": {
+    "Parallelism": 1,
+    "Delay": 0,
+    "FailureAction": "pause",
+    "Order": "start-first"
+  }
+}
+```
+
+### 2.3 `urlfy-worker` — stop-first (no traffic)
+
+```json
+{
+  "HealthCheck": {
+    "Test": ["CMD", "bun", "run", "healthcheck"],
+    "Interval": 30000000000,
+    "Timeout":  10000000000,
+    "StartPeriod": 20000000000,
+    "Retries": 3
+  },
+  "UpdateConfig": {
+    "Parallelism": 1,
+    "Delay": 5000000000,
+    "FailureAction": "rollback",
+    "Order": "stop-first"
+  },
+  "RollbackConfig": {
+    "Parallelism": 1,
+    "Delay": 0,
+    "FailureAction": "pause",
+    "Order": "stop-first"
+  }
+}
+```
+
+### 2.4 `urlfy-migrate` — one-shot, no restart
+
+- **Restart Policy**: `never` (or equivalent Dokploy "Run once" mode)
+- **No HealthCheck** (container exits 0 on success, non-zero on failure)
+- **No UpdateConfig** (not a long-running service)
+
+### 2.5 `urlfy-geoip` — cron updater
+
+- **Restart Policy**: `unless-stopped`
+- No traffic port required
+- Mounts `geoip_data` volume read-write
+
+### 2.6 Health endpoint contract
+
+Dokploy should treat the HTTP status code as authoritative and rely only on the aggregate `status` field. Do not parse or expose internal dependency details in health responses.
+
+- API readiness: `GET /api/health/ready`
+  - `200`: `{ "status": "ready" | "degraded", "timestamp": "<iso-8601>" }`
+  - `503`: `{ "status": "not_ready", "timestamp": "<iso-8601>" }`
+- Web readiness: `GET /ops/health/ready`
+  - `200`: `{ "status": "ready" | "degraded", "component": "web", "timestamp": "<iso-8601>" }`
+  - `503`: `{ "status": "not_ready", "component": "web", "timestamp": "<iso-8601>" }`
+
+---
+
+## 3. Image Sources
+
+All images are built by `deploy.yml` and pushed to GHCR.  Configure each Dokploy Application to track the `:stable` tag so a single `POST /api/application.deploy` redeploys with the latest stable image.
+
+| Application    | GHCR Image                                      | Port |
+|----------------|-------------------------------------------------|------|
+| urlfy-api      | `ghcr.io/<owner>/urlfy-api:stable`              | 3001 |
+| urlfy-web      | `ghcr.io/<owner>/urlfy-web:stable`              | 3000 |
+| urlfy-worker   | `ghcr.io/<owner>/urlfy-worker:stable`           | —    |
+| urlfy-migrate  | `ghcr.io/<owner>/urlfy-worker:stable`           | —    |
+| urlfy-geoip    | `ghcr.io/<owner>/urlfy-geoip:stable`            | —    |
+
+> `urlfy-migrate` reuses the **worker** image and overrides the command to `bun run db:migrate:prod`.
+>
+> In Dokploy, enable **Deployments → Rollback Settings** against the same GHCR registry for `urlfy-api` and `urlfy-web` so per-application registry rollback remains available. The CI-generated `release-manifest.json` is still the authoritative cross-service rollback map.
+
+---
+
+## 4. Networking
+
+All five Applications attach to the **`dokploy-network`** overlay network (created automatically by Dokploy).  The API and Web services are also exposed through Traefik for public ingress.
+
+**Same-origin routing** (Traefik rule on the Web Application):
+
+- `Host('urlfy.cc') && PathPrefix('/api')` → route to `urlfy-api:3001`
+- All other requests → `urlfy-web:3000`
+
+This lets the browser hit a single origin for both the Next.js front-end and the Elysia API.
+
+---
+
+## 5. Volumes
+
+| Volume Name  | Mount Path (in container)              | Applications           | Mode       |
+|--------------|----------------------------------------|------------------------|------------|
+| `geoip_data` | `/app/geoip` (api, web, worker)        | api, web, worker       | read-only  |
+| `geoip_data` | `/geoip` (geoip updater)               | urlfy-geoip            | read-write |
+
+Configure the shared named volume once in Dokploy and attach it to all four Applications.
+
+---
+
+## 6. Environment Variables
+
+### 6.1 `urlfy-api`
+
+| Variable                 | Required | Notes                                                              |
+|--------------------------|----------|--------------------------------------------------------------------|
+| `DATABASE_URL`           | ✅        | PostgreSQL connection string                                       |
+| `NEXT_PUBLIC_APP_URL`    | ✅        | Public origin; keep aligned with Web runtime and `BETTER_AUTH_URL` |
+| `BETTER_AUTH_SECRET`     | ✅        | Min 32 chars — must match web                                      |
+| `BETTER_AUTH_URL`        | —        | Defaults to `NEXT_PUBLIC_APP_URL`; keep aligned when set           |
+| `INTERNAL_API_SECRET`    | ✅        | Min 16 chars — must match web + worker                             |
+| `ADMIN_GITHUB_ACCOUNT_ID`| ✅        | GitHub numeric account ID for admin elevation                      |
+| `INTERNAL_ANALYTICS_SECRET` | ✅    | Shared secret between API and worker for analytics events          |
+| `JWT_SECRET`             | ✅        | Required in production for password-protected links                |
+| `REDIS_URL`              | ✅        | Redis connection URL                                               |
+| `REDIS_TOKEN`            | —        | Upstash REST token (if using Upstash)                              |
+| `TRUST_PROXY`            | ✅        | `true` — Traefik sits in front                                     |
+| `TRUST_PROXY_PROVIDER`   | ✅        | `cloudflare` — Cloudflare → Traefik → app topology; reads `CF-Connecting-IP` |
+| `TRUST_PROXY_HOPS`       | —        | Default `1`; only relevant when `TRUST_PROXY_PROVIDER` is not set  |
+| `TRUSTED_PROXY_CIDRS`    | —        | Optional CIDR allowlist; invalid entries are rejected at startup   |
+| `GEOIP_DB_PATH`          | —        | Default `/app/geoip/GeoLite2-City.mmdb`                           |
+| `GITHUB_CLIENT_ID`       | —        | OAuth: GitHub                                                      |
+| `GITHUB_CLIENT_SECRET`   | —        | OAuth: GitHub                                                      |
+| `GOOGLE_CLIENT_ID`       | —        | OAuth: Google                                                      |
+| `GOOGLE_CLIENT_SECRET`   | —        | OAuth: Google                                                      |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | —   | SigNoz / Grafana LGTM OTLP endpoint                               |
+| `OTEL_SERVICE_NAME`      | —        | Default `urlfy-api`                                                |
+
+### 6.2 `urlfy-web`
+
+| Variable                 | Required | Notes                                                              |
+|--------------------------|----------|--------------------------------------------------------------------|
+| `DATABASE_URL`           | ✅        | Must match API (Better Auth shares the same DB)                    |
+| `NEXT_PUBLIC_APP_URL`    | ✅        | Must be passed as both the Web build arg and runtime env           |
+| `BETTER_AUTH_SECRET`     | ✅        | Must match API                                                     |
+| `BETTER_AUTH_URL`        | —        | Defaults to `NEXT_PUBLIC_APP_URL`; keep aligned when set           |
+| `INTERNAL_API_SECRET`    | ✅        | Must match API                                                     |
+| `INTERNAL_ANALYTICS_SECRET` | ✅    | Required in production; must match API + worker                    |
+| `JWT_SECRET`             | ✅        | Required in production for password-protected links                |
+| `REDIS_URL`              | ✅        |                                                                    |
+| `REDIS_TOKEN`            | —        | Upstash REST token                                                 |
+| `API_INTERNAL_URL`       | ✅        | Set to the internal Dokploy / Swarm API address                    |
+| `TRUST_PROXY`            | ✅        | `true`                                                             |
+| `TRUST_PROXY_PROVIDER`   | ✅        | `cloudflare` — Cloudflare → Traefik → app topology                 |
+| `TRUST_PROXY_HOPS`       | —        | Default `1`; only relevant when `TRUST_PROXY_PROVIDER` is not set  |
+| `TRUSTED_PROXY_CIDRS`    | —        | Optional CIDR allowlist; invalid entries are rejected at startup   |
+| `GEOIP_DB_PATH`          | —        | Default `/app/geoip/GeoLite2-City.mmdb`                           |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | —   |                                                                    |
+| `OTEL_SERVICE_NAME`      | —        | Default `urlfy-web`                                                |
+
+> `NEXT_PUBLIC_APP_URL` is both a **build-time** and **runtime** contract. Rebuild the Web image when it changes, and update the runtime env in Dokploy at the same time so server-side auth, readiness, and redirect flows stay aligned with the rendered origin.
+
+### 6.3 `urlfy-worker`
+
+| Variable                 | Required | Notes                                                              |
+|--------------------------|----------|--------------------------------------------------------------------|
+| `DATABASE_URL`           | ✅        |                                                                    |
+| `REDIS_URL`              | ✅        |                                                                    |
+| `REDIS_TOKEN`            | —        | Upstash REST token                                                 |
+| `INTERNAL_API_SECRET`    | ✅        |                                                                    |
+| `INTERNAL_ANALYTICS_SECRET` | ✅    |                                                                    |
+| `GEOIP_DB_PATH`          | —        | Default `/app/geoip/GeoLite2-City.mmdb`                           |
+| `TRUST_PROXY`            | —        | Only needed when worker-side code trusts proxy headers             |
+| `TRUST_PROXY_PROVIDER`   | —        | Optional `cloudflare` override for shared proxy-aware helpers      |
+| `TRUST_PROXY_HOPS`       | —        | Default `1`                                                        |
+| `TRUSTED_PROXY_CIDRS`    | —        | Optional CIDR allowlist; invalid entries are rejected at startup   |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | —   |                                                                    |
+| `OTEL_SERVICE_NAME`      | —        | Default `urlfy-worker`                                             |
+
+### 6.4 `urlfy-migrate`
+
+`urlfy-migrate` reuses the worker image but should run the explicit command `bun run db:migrate:prod`. The migration script waits for PostgreSQL before running Drizzle migrations, so its timeout knobs belong to the deployment contract.
+
+| Variable                 | Required |
+|--------------------------|----------|
+| `DATABASE_URL`           | ✅        |
+| `MIGRATION_TIMEOUT`      | —        |
+| `DB_CHECK_TIMEOUT`       | —        |
+| `SKIP_MIGRATIONS`        | —        |
+
+### 6.5 `urlfy-geoip`
+
+The GeoIP container downloads the GeoLite2-City MMDB from a public jsDelivr CDN mirror — no MaxMind credentials are required.
+
+| Variable           | Required | Default                                                              | Notes                                        |
+|--------------------|----------|----------------------------------------------------------------------|----------------------------------------------|
+| `GEOIP_DB_PATH`    | —        | `/app/geoip/GeoLite2-City.mmdb`                                     | Path where the MMDB file is written          |
+| `GEOIP_MAX_AGE_DAYS` | —      | `25`                                                                 | Re-download if the file is older than this   |
+| `GEOIP_MMDB_URL`   | —        | `https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz` | CDN mirror URL for the compressed MMDB       |
+
+---
+
+## 7. CI Secrets and Variables Checklist
+
+Configure these in **GitHub Settings → Secrets and variables → Actions** before setting `DOKPLOY_DEPLOY_ENABLED = true`.
+
+### Repository Variables
+
+| Name                    | Example / Notes                              |
+|-------------------------|----------------------------------------------|
+| `NEXT_PUBLIC_APP_URL`   | `https://urlfy.cc` — baked into web image     |
+| `DOKPLOY_DEPLOY_ENABLED`| `true` to activate production deployments     |
+| `DOKPLOY_STAGING_DEPLOY_ENABLED` | `true` to activate staging deployments |
+
+### Repository Secrets (Production)
+
+| Name                        | Description                                   |
+|-----------------------------|-----------------------------------------------|
+| `DOKPLOY_API_URL`           | `https://your-dokploy-server.example.com`     |
+| `DOKPLOY_API_KEY`           | Dokploy API token                             |
+| `DOKPLOY_APP_ID_MIGRATE`    | `applicationId` from Dokploy dashboard        |
+| `DOKPLOY_APP_ID_API`        | `applicationId` from Dokploy dashboard        |
+| `DOKPLOY_APP_ID_WEB`        | `applicationId` from Dokploy dashboard        |
+| `DOKPLOY_APP_ID_WORKER`     | `applicationId` from Dokploy dashboard        |
+| `PRODUCTION_APP_URL`        | `https://urlfy.cc`                            |
+| `PRODUCTION_SMOKE_SHORT_CODE` | Known redirect code for post-deploy smoke   |
+| `PRODUCTION_SMOKE_EXPECTED_LOCATION` | Exact `Location` header expected from that smoke redirect |
+
+> **How to find `applicationId`**: In Dokploy, open the Application → Settings → General. The ID is shown in the URL or the General settings panel.
+
+### Repository Secrets (Staging — optional)
+
+| Name                              | Description                                |
+|-----------------------------------|--------------------------------------------|
+| `DOKPLOY_STAGING_API_URL`         | Staging Dokploy server URL                 |
+| `DOKPLOY_STAGING_API_KEY`         | Staging Dokploy API token                  |
+| `DOKPLOY_STAGING_APP_ID_MIGRATE`  |                                            |
+| `DOKPLOY_STAGING_APP_ID_API`      |                                            |
+| `DOKPLOY_STAGING_APP_ID_WEB`      |                                            |
+| `DOKPLOY_STAGING_APP_ID_WORKER`   |                                            |
+| `STAGING_APP_URL`                 | `https://staging.urlfy.cc`                 |
+| `STAGING_SMOKE_SHORT_CODE`        | Known redirect code for post-deploy smoke  |
+| `STAGING_SMOKE_EXPECTED_LOCATION` | Exact `Location` header expected from that smoke redirect |
+
+---
+
+## 8. Migration Mode (Initial Rollout)
+
+During the cutover from `docker-compose.prod.yml` to independent Dokploy Applications:
+
+1. **Leave `DOKPLOY_DEPLOY_ENABLED` unset** — the `deploy.yml` workflow will build and push images to GHCR but skip all Dokploy API calls.
+2. Provision the five Dokploy Applications manually using the image references from `release-manifest.json` on the GitHub Release.
+3. Configure the smoke-test secrets (`PRODUCTION_SMOKE_SHORT_CODE`, `PRODUCTION_SMOKE_EXPECTED_LOCATION`) and validate health checks, same-origin routing, and traffic in Dokploy before setting `DOKPLOY_DEPLOY_ENABLED = true`.
+4. From that point forward, every `release-*` tag triggers a fully automated ordered deployment.
+
+The old `docker/docker-compose.prod.yml` is preserved as a rollback baseline — see `docs/operations/rollback-playbook.md`.

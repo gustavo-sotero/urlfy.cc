@@ -378,4 +378,28 @@ describe('assertTrustProxyConfig', () => {
       })
     ).not.toThrow();
   });
+
+  test('throws when TRUSTED_PROXY_CIDRS contains an invalid entry', () => {
+    expect(() =>
+      assertTrustProxyConfig({
+        nodeEnv: 'production',
+        publicAppUrl: 'https://urlfy.cc',
+        trustProxy: 'true',
+        trustedProxyCidrs: '10.0.0.0/8,not-a-cidr'
+      })
+    ).toThrow(
+      'TRUSTED_PROXY_CIDRS contains an invalid CIDR or IP entry: not-a-cidr'
+    );
+  });
+
+  test('accepts valid TRUSTED_PROXY_CIDRS entries', () => {
+    expect(() =>
+      assertTrustProxyConfig({
+        nodeEnv: 'production',
+        publicAppUrl: 'https://urlfy.cc',
+        trustProxy: 'true',
+        trustedProxyCidrs: '10.0.0.0/8,192.168.0.1,fd00::/8'
+      })
+    ).not.toThrow();
+  });
 });

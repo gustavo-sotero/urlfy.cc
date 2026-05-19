@@ -24,7 +24,7 @@ const envSchema = z.object({
 
   // OpenTelemetry
   OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
-  OTEL_SERVICE_NAME: z.string().default('urlfy-api'),
+  OTEL_SERVICE_NAME: z.string().default('urlfy-worker'),
   OTEL_SERVICE_VERSION: z.string().optional(),
   OTEL_TRACES_SAMPLER: z.string().optional(),
   OTEL_TRACES_SAMPLER_ARG: z.string().optional(),
@@ -88,8 +88,10 @@ const envSchema = z.object({
   TRUSTED_ORIGINS: z.string().optional(),
 
   // Proxy Configuration
+  TRUST_PROXY_PROVIDER: z.enum(['standard', 'cloudflare']).optional(),
   TRUST_PROXY: z.string().default('false'),
-  TRUST_PROXY_HOPS: z.string().default('1')
+  TRUST_PROXY_HOPS: z.string().default('1'),
+  TRUSTED_PROXY_CIDRS: z.string().optional()
 });
 
 type Env = z.infer<typeof envSchema>;
@@ -189,7 +191,8 @@ export function validateEnv(): Env {
         nodeEnv: env.NODE_ENV,
         publicAppUrl: env.NEXT_PUBLIC_APP_URL,
         trustProxy: env.TRUST_PROXY,
-        trustedProxyHops: env.TRUST_PROXY_HOPS
+        trustedProxyHops: env.TRUST_PROXY_HOPS,
+        trustedProxyCidrs: env.TRUSTED_PROXY_CIDRS
       });
     }
 

@@ -1,0 +1,699 @@
+# ═══════════════════════════════════════════════════════════════════
+# Production Deploy — urlfy.cc
+# ═══════════════════════════════════════════════════════════════════
+# Triggered on every immutable release-* tag created by release-tag.yml.
+#
+# Phases (in order):
+#   1. Build and push all four service images to GHCR in parallel
+#      (api, web, worker, geoip).
+#   2. Generate a machine-readable release manifest and attach it to
+#      the corresponding GitHub Release.
+#   3. When DOKPLOY_DEPLOY_ENABLED == 'true', deploy in strict order:
+#        urlfy-migrate → urlfy-api → urlfy-web → urlfy-worker
+#      with health gates between each traffic-serving step and a
+#      post-deploy smoke verification pass.
+#
+# Required repository variables (Settings → Variables → Actions):
+#   NEXT_PUBLIC_APP_URL         Public web origin, e.g. https://urlfy.cc
+#   DOKPLOY_DEPLOY_ENABLED      Set to 'true' to activate ordered Dokploy deployment.
+#                               Leave unset (or set to 'false') during initial
+#                               migration to run only the build/manifest phase.
+#
+# Required repository secrets (Settings → Secrets → Actions):
+#   DOKPLOY_API_URL             Base URL of the Dokploy server, e.g. https://dokploy.example.com
+#   DOKPLOY_API_KEY             API token from Dokploy profile settings
+#   DOKPLOY_APP_ID_MIGRATE      applicationId of the urlfy-migrate Application in Dokploy
+#   DOKPLOY_APP_ID_API          applicationId of the urlfy-api Application in Dokploy
+#   DOKPLOY_APP_ID_WEB          applicationId of the urlfy-web Application in Dokploy
+#   DOKPLOY_APP_ID_WORKER       applicationId of the urlfy-worker Application in Dokploy
+#   PRODUCTION_APP_URL          Public root URL used for health gates, e.g. https://urlfy.cc
+#   PRODUCTION_SMOKE_SHORT_CODE Known public short code used for redirect smoke verification
+#   PRODUCTION_SMOKE_EXPECTED_LOCATION Exact Location header expected for that smoke link
+#
+# See docs/operations/dokploy-topology.md for full configuration reference.
+# ═══════════════════════════════════════════════════════════════════
+
+name: Deploy
+
+on:
+  push:
+    tags:
+      # Matches the immutable tag format produced by release-tag.yml:
+      # release-YYYYMMDDHHMMSS-<12-hex-sha>
+      - 'release-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-*'
+
+permissions:
+  contents: write  # for creating GitHub Releases and attaching the manifest
+  packages: write  # for pushing images to GHCR
+
+# Only one production deploy at a time. Never cancel in-progress deployments.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ─── Parse release tag ──────────────────────────────────────────
+  setup:
+    name: Parse release tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.parse.outputs.tag_name }}
+      image_prefix: ${{ steps.parse.outputs.image_prefix }}
+    steps:
+      - name: Extract tag metadata
+        id: parse
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+
+          if ! printf '%s' "$tag" | grep -Eq '^release-[0-9]{14}-[0-9a-f]{12}$'; then
+            echo "::error::Tag '$tag' does not match expected release-YYYYMMDDHHMMSS-<sha> format."
+            exit 1
+          fi
+
+          # GHCR requires lowercase owner names
+          owner="${{ github.repository_owner }}"
+          echo "tag_name=$tag" >> "$GITHUB_OUTPUT"
+          echo "image_prefix=ghcr.io/${owner,,}" >> "$GITHUB_OUTPUT"
+
+  # ─── Build and push API image ────────────────────────────────────
+  build-api:
+    name: Build API image
+    runs-on: ubuntu-latest
+    needs: setup
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/api.Dockerfile
+          push: true
+          tags: |
+            ${{ needs.setup.outputs.image_prefix }}/urlfy-api:${{ needs.setup.outputs.tag_name }}
+            ${{ needs.setup.outputs.image_prefix }}/urlfy-api:stable
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.setup.outputs.tag_name }}
+
+  # ─── Build and push Web image ─────────────────────────────────────
+  build-web:
+    name: Build Web image
+    runs-on: ubuntu-latest
+    needs: setup
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Web image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/web.Dockerfile
+          push: true
+          tags: |
+            ${{ needs.setup.outputs.image_prefix }}/urlfy-web:${{ needs.setup.outputs.tag_name }}
+            ${{ needs.setup.outputs.image_prefix }}/urlfy-web:stable
+          # NEXT_PUBLIC_APP_URL is inlined at Next.js build time.
+          # Configure NEXT_PUBLIC_APP_URL as a repository variable.
+          build-args: |
+            NEXT_PUBLIC_APP_URL=${{ vars['NEXT_PUBLIC_APP_URL'] || 'https://urlfy.cc' }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.setup.outputs.tag_name }}
+
+  # ─── Build and push Worker image ──────────────────────────────────
+  build-worker:
+    name: Build Worker image
+    runs-on: ubuntu-latest
+    needs: setup
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Worker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/worker.Dockerfile
+          push: true
+          tags: |
+            ${{ needs.setup.outputs.image_prefix }}/urlfy-worker:${{ needs.setup.outputs.tag_name }}
+            ${{ needs.setup.outputs.image_prefix }}/urlfy-worker:stable
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,scope=worker,mode=max
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.setup.outputs.tag_name }}
+
+  # ─── Build and push GeoIP image ───────────────────────────────────
+  build-geoip:
+    name: Build GeoIP image
+    runs-on: ubuntu-latest
+    needs: setup
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push GeoIP image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          # GeoIP Dockerfile build context is the geoip subdirectory, not repo root
+          context: docker/geoip
+          file: docker/geoip/Dockerfile
+          push: true
+          tags: |
+            ${{ needs.setup.outputs.image_prefix }}/urlfy-geoip:${{ needs.setup.outputs.tag_name }}
+            ${{ needs.setup.outputs.image_prefix }}/urlfy-geoip:stable
+          cache-from: type=gha,scope=geoip
+          cache-to: type=gha,scope=geoip,mode=max
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.setup.outputs.tag_name }}
+
+  # ─── Generate and publish release manifest ───────────────────────
+  manifest:
+    name: Release manifest
+    runs-on: ubuntu-latest
+    needs: [setup, build-api, build-web, build-worker, build-geoip]
+    steps:
+      - name: Write release manifest
+        id: write
+        env:
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+          IMAGE_PREFIX: ${{ needs.setup.outputs.image_prefix }}
+          API_DIGEST: ${{ needs.build-api.outputs.digest }}
+          WEB_DIGEST: ${{ needs.build-web.outputs.digest }}
+          WORKER_DIGEST: ${{ needs.build-worker.outputs.digest }}
+          GEOIP_DIGEST: ${{ needs.build-geoip.outputs.digest }}
+        run: |
+          cat > release-manifest.json <<EOF
+          {
+            "release_tag": "$TAG_NAME",
+            "commit_sha": "${{ github.sha }}",
+            "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "workflow_run_id": "${{ github.run_id }}",
+            "images": {
+              "api": {
+                "reference": "$IMAGE_PREFIX/urlfy-api:$TAG_NAME",
+                "stable_reference": "$IMAGE_PREFIX/urlfy-api:stable",
+                "digest": "$API_DIGEST"
+              },
+              "web": {
+                "reference": "$IMAGE_PREFIX/urlfy-web:$TAG_NAME",
+                "stable_reference": "$IMAGE_PREFIX/urlfy-web:stable",
+                "digest": "$WEB_DIGEST"
+              },
+              "worker": {
+                "reference": "$IMAGE_PREFIX/urlfy-worker:$TAG_NAME",
+                "stable_reference": "$IMAGE_PREFIX/urlfy-worker:stable",
+                "digest": "$WORKER_DIGEST"
+              },
+              "geoip": {
+                "reference": "$IMAGE_PREFIX/urlfy-geoip:$TAG_NAME",
+                "stable_reference": "$IMAGE_PREFIX/urlfy-geoip:stable",
+                "digest": "$GEOIP_DIGEST"
+              }
+            }
+          }
+          EOF
+
+          # Pretty-print for readability in GitHub UI
+          jq . release-manifest.json > release-manifest-pretty.json
+          mv release-manifest-pretty.json release-manifest.json
+
+          echo "Manifest written:"
+          cat release-manifest.json
+
+      - name: Upload manifest as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest-${{ needs.setup.outputs.tag_name }}
+          path: release-manifest.json
+          # 90 days — long enough for production audit trail
+          retention-days: 90
+
+      - name: Attach manifest to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+        run: |
+          # Create the GitHub Release if it doesn't already exist, then attach the manifest.
+          # The release-tag.yml workflow creates the annotated git tag; this step adds
+          # the GitHub Release object with the manifest attached.
+          if gh release view "$TAG_NAME" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "GitHub Release '$TAG_NAME' already exists; uploading manifest..."
+            gh release upload "$TAG_NAME" release-manifest.json \
+              --repo "${{ github.repository }}" \
+              --clobber
+          else
+            echo "Creating GitHub Release '$TAG_NAME' with manifest..."
+            gh release create "$TAG_NAME" \
+              --repo "${{ github.repository }}" \
+              --title "Release $TAG_NAME" \
+              --notes "Automated release. See \`release-manifest.json\` for immutable image references." \
+              --target "${{ github.sha }}" \
+              release-manifest.json
+          fi
+
+  # ─────────────────────────────────────────────────────────────────
+  # Ordered Dokploy deployment
+  #
+  # All deploy jobs are guarded by DOKPLOY_DEPLOY_ENABLED == 'true'.
+  # Set this repository variable (Settings → Variables → Actions) when
+  # the Dokploy Applications are provisioned and secrets are configured.
+  #
+  # Deployment order: migrate → api (health gate) → web (health gate) → worker
+  # ─────────────────────────────────────────────────────────────────
+
+  # ─── Deploy: Migrate ─────────────────────────────────────────────
+  deploy-migrate:
+    name: Deploy — migrate
+    runs-on: ubuntu-latest
+    needs: [setup, manifest]
+    if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
+    environment: production
+    steps:
+      - name: Trigger migrate deployment
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_MIGRATE }}
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+        run: |
+          echo "Triggering migrate deployment for $TAG_NAME..."
+
+          response=$(curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.deploy" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\"}")
+
+          echo "Response: $response"
+
+      - name: Wait for migration completion
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_MIGRATE }}
+        run: |
+          echo "Waiting for migration to complete (timeout: 300s)..."
+          timeout=300
+          start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - start ))
+
+            if [ "$elapsed" -ge "$timeout" ]; then
+              echo "::error::Migration timed out after ${timeout}s."
+              exit 1
+            fi
+
+            deployments=$(curl -sf \
+              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              -H "accept: application/json" \
+              -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null || echo "[]")
+
+            status=$(echo "$deployments" | jq -r '.[0].status // "unknown"')
+
+            case "$status" in
+              done)
+                echo "✅ Migration completed successfully (${elapsed}s)"
+                exit 0
+                ;;
+              error)
+                echo "::error::Migration deployment failed."
+                echo "Last deployment log:"
+                echo "$deployments" | jq -r '.[0].log // ""' | tail -40
+                exit 1
+                ;;
+              running | queued | starting | *)
+                echo "Migration status: $status (${elapsed}s elapsed)"
+                sleep 10
+                ;;
+            esac
+          done
+
+  # ─── Deploy: API ──────────────────────────────────────────────────
+  deploy-api:
+    name: Deploy — API
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-migrate]
+    # Inherits skip cascade if deploy-migrate was skipped
+    if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
+    environment: production
+    steps:
+      - name: Trigger API deployment
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_API }}
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+        run: |
+          echo "Deploying API for release $TAG_NAME..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.deploy" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\"}"
+
+      - name: Wait for Dokploy deployment to complete
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_API }}
+        run: |
+          timeout=300
+          start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - start ))
+            [ "$elapsed" -ge "$timeout" ] && { echo "::error::Dokploy API deployment timed out"; exit 1; }
+
+            status=$(curl -sf \
+              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null \
+              | jq -r '.[0].status // "unknown"')
+
+            case "$status" in
+              done) echo "Dokploy deployment done (${elapsed}s)"; break ;;
+              error) echo "::error::Dokploy API deployment reported error"; exit 1 ;;
+              *) echo "Deployment status: $status (${elapsed}s)"; sleep 10 ;;
+            esac
+          done
+
+      - name: API health gate
+        env:
+          PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+        run: |
+          echo "Polling API readiness at $PRODUCTION_APP_URL/api/health/ready..."
+          url="$PRODUCTION_APP_URL/api/health/ready"
+          timeout=180
+          start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - start ))
+            [ "$elapsed" -ge "$timeout" ] && { echo "::error::API health gate timed out after ${timeout}s"; exit 1; }
+
+            code=$(curl -sf -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+
+            if [ "$code" = "200" ]; then
+              echo "✅ API health gate passed (HTTP 200) in ${elapsed}s"
+              break
+            fi
+
+            echo "API health: HTTP $code (${elapsed}s elapsed)"
+            sleep 10
+          done
+
+  # ─── Deploy: Web ──────────────────────────────────────────────────
+  deploy-web:
+    name: Deploy — Web
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-api]
+    if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
+    environment: production
+    steps:
+      - name: Trigger Web deployment
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WEB }}
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+        run: |
+          echo "Deploying Web for release $TAG_NAME..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.deploy" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\"}"
+
+      - name: Wait for Dokploy deployment to complete
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WEB }}
+        run: |
+          timeout=300
+          start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - start ))
+            [ "$elapsed" -ge "$timeout" ] && { echo "::error::Dokploy Web deployment timed out"; exit 1; }
+
+            status=$(curl -sf \
+              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null \
+              | jq -r '.[0].status // "unknown"')
+
+            case "$status" in
+              done) echo "Dokploy deployment done (${elapsed}s)"; break ;;
+              error) echo "::error::Dokploy Web deployment reported error"; exit 1 ;;
+              *) echo "Deployment status: $status (${elapsed}s)"; sleep 10 ;;
+            esac
+          done
+
+      - name: Web health gate
+        env:
+          PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+        run: |
+          echo "Polling Web readiness at $PRODUCTION_APP_URL/ops/health/ready..."
+          url="$PRODUCTION_APP_URL/ops/health/ready"
+          timeout=180
+          start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - start ))
+            [ "$elapsed" -ge "$timeout" ] && { echo "::error::Web health gate timed out after ${timeout}s"; exit 1; }
+
+            code=$(curl -sf -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+
+            if [ "$code" = "200" ]; then
+              echo "✅ Web health gate passed (HTTP 200) in ${elapsed}s"
+              break
+            fi
+
+            echo "Web health: HTTP $code (${elapsed}s elapsed)"
+            sleep 10
+          done
+
+  # ─── Deploy: Worker ───────────────────────────────────────────────
+  deploy-worker:
+    name: Deploy — Worker
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-web]
+    if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
+    environment: production
+    steps:
+      - name: Trigger Worker deployment
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WORKER }}
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+        run: |
+          echo "Deploying Worker for release $TAG_NAME..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.deploy" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\"}"
+
+      - name: Wait for Dokploy deployment to complete
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WORKER }}
+        run: |
+          timeout=180
+          start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - start ))
+            [ "$elapsed" -ge "$timeout" ] && { echo "::error::Dokploy Worker deployment timed out"; exit 1; }
+
+            status=$(curl -sf \
+              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null \
+              | jq -r '.[0].status // "unknown"')
+
+            case "$status" in
+              done) echo "✅ Worker deployed (${elapsed}s)"; break ;;
+              error) echo "::error::Dokploy Worker deployment reported error"; exit 1 ;;
+              *) echo "Deployment status: $status (${elapsed}s)"; sleep 10 ;;
+            esac
+          done
+
+  # ─── Post-deploy smoke verification ──────────────────────────────
+  smoke-verify:
+    name: Smoke verification
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-worker]
+    if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
+    environment: production
+    steps:
+      - name: Smoke — API health
+        env:
+          PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+        run: |
+          code=$(curl -sf -o /dev/null -w "%{http_code}" \
+            "$PRODUCTION_APP_URL/api/health/ready" 2>/dev/null || echo "000")
+
+          if [ "$code" != "200" ]; then
+            echo "::error::API smoke check failed: HTTP $code"
+            exit 1
+          fi
+          echo "✅ /api/health/ready → HTTP 200"
+
+      - name: Smoke — Web health
+        env:
+          PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+        run: |
+          code=$(curl -sf -o /dev/null -w "%{http_code}" \
+            "$PRODUCTION_APP_URL/ops/health/ready" 2>/dev/null || echo "000")
+
+          if [ "$code" != "200" ]; then
+            echo "::error::Web smoke check failed: HTTP $code"
+            exit 1
+          fi
+          echo "✅ /ops/health/ready → HTTP 200"
+
+      - name: Smoke — Same-origin /api routing through ingress
+        env:
+          PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+        run: |
+          # Verify that /api/* routes correctly through Traefik to the API service.
+          # /api/health (no /ready suffix) returns the liveness summary.
+          code=$(curl -sf -o /dev/null -w "%{http_code}" \
+            "$PRODUCTION_APP_URL/api/health" 2>/dev/null || echo "000")
+
+          if [ "$code" = "000" ]; then
+            echo "::error::Same-origin /api routing check failed: could not reach endpoint"
+            exit 1
+          fi
+
+          echo "✅ Same-origin /api routing → HTTP $code"
+
+      - name: Smoke — Redirect hot path
+        env:
+          PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+          SMOKE_SHORT_CODE: ${{ secrets['PRODUCTION_SMOKE_SHORT_CODE'] }}
+          SMOKE_EXPECTED_LOCATION: ${{ secrets['PRODUCTION_SMOKE_EXPECTED_LOCATION'] }}
+        run: |
+          [ -n "$SMOKE_SHORT_CODE" ] || {
+            echo "::error::PRODUCTION_SMOKE_SHORT_CODE is not configured"
+            exit 1
+          }
+
+          [ -n "$SMOKE_EXPECTED_LOCATION" ] || {
+            echo "::error::PRODUCTION_SMOKE_EXPECTED_LOCATION is not configured"
+            exit 1
+          }
+
+          normalized_code="${SMOKE_SHORT_CODE#/}"
+          smoke_url="$PRODUCTION_APP_URL/$normalized_code"
+          response_headers=$(mktemp)
+          trap 'rm -f "$response_headers"' EXIT
+
+          redirect_code=$(curl -sS -D "$response_headers" -o /dev/null -w "%{http_code}" \
+            --max-redirs 0 \
+            "$smoke_url" 2>/dev/null || echo "000")
+
+          if [ "${redirect_code:0:1}" != "3" ]; then
+            echo "::error::Redirect smoke check failed: expected 3xx, got HTTP $redirect_code for /$normalized_code"
+            exit 1
+          fi
+
+          location=$(tr -d '\r' < "$response_headers" | awk 'BEGIN { IGNORECASE = 1 } /^Location: / { sub(/^Location: /, ""); print; exit }')
+
+          if [ "$location" != "$SMOKE_EXPECTED_LOCATION" ]; then
+            echo "::error::Redirect smoke check failed: expected Location '$SMOKE_EXPECTED_LOCATION', got '$location'"
+            exit 1
+          fi
+
+          echo "✅ Redirect hot path → HTTP $redirect_code (/$normalized_code → $location)"
+
+      - name: Deployment summary
+        env:
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+        run: |
+          echo "## ✅ Production Deployment Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Release | \`$TAG_NAME\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Deployed at | $(date -u +%Y-%m-%dT%H:%M:%SZ) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "All smoke checks passed. Consult the release manifest for image digests." >> "$GITHUB_STEP_SUMMARY"

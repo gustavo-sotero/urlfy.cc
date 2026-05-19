@@ -133,6 +133,15 @@ const configToCheck: ConfigCheck[] = [
         ? null
         : 'must be a positive integer';
     }
+  },
+  {
+    name: 'TRUST_PROXY_PROVIDER',
+    value: process.env.TRUST_PROXY_PROVIDER,
+    required: false,
+    validate: (value) =>
+      value === 'cloudflare' || value === 'standard'
+        ? null
+        : 'must be either "cloudflare" or "standard"'
   }
 ];
 

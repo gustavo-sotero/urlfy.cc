@@ -1,0 +1,405 @@
+# ═══════════════════════════════════════════════════════════════════
+# Staging Deploy — urlfy.cc
+# ═══════════════════════════════════════════════════════════════════
+# Manual workflow for deploying a specific release tag (or `stable`)
+# to the staging environment.  Follows the same ordered deployment
+# sequence as the production workflow but uses separate Dokploy
+# secrets and a separate environment guard.
+#
+# Required repository variables (Settings → Variables → Actions):
+#   DOKPLOY_STAGING_DEPLOY_ENABLED   Set to 'true' to activate staging deployments.
+#
+# Required repository secrets (Settings → Secrets → Actions):
+#   DOKPLOY_STAGING_API_URL          Base URL of the staging Dokploy server
+#   DOKPLOY_STAGING_API_KEY          API token for the staging Dokploy server
+#   DOKPLOY_STAGING_APP_ID_MIGRATE   applicationId for urlfy-migrate in staging
+#   DOKPLOY_STAGING_APP_ID_API       applicationId for urlfy-api in staging
+#   DOKPLOY_STAGING_APP_ID_WEB       applicationId for urlfy-web in staging
+#   DOKPLOY_STAGING_APP_ID_WORKER    applicationId for urlfy-worker in staging
+#   STAGING_APP_URL                  Public root URL of the staging environment
+#   STAGING_SMOKE_SHORT_CODE         Known public short code used for redirect smoke verification
+#   STAGING_SMOKE_EXPECTED_LOCATION  Exact Location header expected for that smoke link
+#
+# GHCR images are shared across environments (same image, different deployment target).
+# See docs/operations/dokploy-topology.md for full configuration reference.
+# ═══════════════════════════════════════════════════════════════════
+
+name: Deploy (Staging)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: >
+          Release tag to deploy, e.g. release-20260601120000-abcdef012345.
+          Use 'stable' to deploy whatever image is currently tagged :stable in GHCR.
+        required: false
+        default: stable
+        type: string
+      skip_smoke:
+        description: Skip post-deploy smoke checks (useful for deliberate broken-state testing)
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: read
+
+# Only one staging deploy at a time. Allow cancellation for faster iteration.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ─── Validate and resolve tag ─────────────────────────────────────
+  setup:
+    name: Resolve deployment target
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.resolve.outputs.tag_name }}
+      image_prefix: ${{ steps.resolve.outputs.image_prefix }}
+    steps:
+      - name: Resolve tag and image prefix
+        id: resolve
+        run: |
+          tag="${{ inputs.tag_name }}"
+          owner="${{ github.repository_owner }}"
+
+          if [ -z "$tag" ]; then
+            tag="stable"
+          fi
+
+          # Validate: must be 'stable' or a release-* tag
+          if [ "$tag" != "stable" ]; then
+            if ! printf '%s' "$tag" | grep -Eq '^release-[0-9]{14}-[0-9a-f]{12}$'; then
+              echo "::error::Invalid tag '$tag'. Must be 'stable' or match release-YYYYMMDDHHMMSS-<12-hex-sha>."
+              exit 1
+            fi
+          fi
+
+          echo "tag_name=$tag" >> "$GITHUB_OUTPUT"
+          echo "image_prefix=ghcr.io/${owner,,}" >> "$GITHUB_OUTPUT"
+
+          echo "Staging deployment target: $tag"
+
+  # ─── Deploy: Migrate ─────────────────────────────────────────────
+  deploy-migrate:
+    name: Deploy — migrate (staging)
+    runs-on: ubuntu-latest
+    needs: setup
+    if: vars['DOKPLOY_STAGING_DEPLOY_ENABLED'] == 'true'
+    environment: staging
+    steps:
+      - name: Trigger migrate deployment
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_MIGRATE }}
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+        run: |
+          echo "Triggering staging migrate deployment for $TAG_NAME..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.deploy" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\"}"
+
+      - name: Wait for migration completion
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_MIGRATE }}
+        run: |
+          timeout=300
+          start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - start ))
+            [ "$elapsed" -ge "$timeout" ] && { echo "::error::Staging migration timed out"; exit 1; }
+
+            status=$(curl -sf \
+              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null \
+              | jq -r '.[0].status // "unknown"')
+
+            case "$status" in
+              done) echo "✅ Migration completed (${elapsed}s)"; break ;;
+              error)
+                echo "::error::Staging migration failed"
+                exit 1
+                ;;
+              *) echo "Migration status: $status (${elapsed}s)"; sleep 10 ;;
+            esac
+          done
+
+  # ─── Deploy: API ──────────────────────────────────────────────────
+  deploy-api:
+    name: Deploy — API (staging)
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-migrate]
+    if: vars['DOKPLOY_STAGING_DEPLOY_ENABLED'] == 'true'
+    environment: staging
+    steps:
+      - name: Trigger API deployment
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_API }}
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+        run: |
+          echo "Deploying staging API for $TAG_NAME..."
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.deploy" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\"}"
+
+      - name: Wait for deployment and health gate
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_API }}
+          STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
+        run: |
+          timeout=300
+          start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - start ))
+            [ "$elapsed" -ge "$timeout" ] && { echo "::error::Staging API deployment timed out"; exit 1; }
+
+            status=$(curl -sf \
+              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null \
+              | jq -r '.[0].status // "unknown"')
+
+            case "$status" in
+              done) echo "Deployment done (${elapsed}s)"; break ;;
+              error) echo "::error::Staging API deployment error"; exit 1 ;;
+              *) echo "Status: $status (${elapsed}s)"; sleep 10 ;;
+            esac
+          done
+
+          echo "Polling staging API health gate..."
+          url="$STAGING_APP_URL/api/health/ready"
+          gate_start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - gate_start ))
+            [ "$elapsed" -ge 180 ] && { echo "::error::Staging API health gate timed out"; exit 1; }
+
+            code=$(curl -sf -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+            [ "$code" = "200" ] && { echo "✅ Staging API ready (${elapsed}s)"; break; }
+            echo "Health: HTTP $code (${elapsed}s)"; sleep 10
+          done
+
+  # ─── Deploy: Web ──────────────────────────────────────────────────
+  deploy-web:
+    name: Deploy — Web (staging)
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-api]
+    if: vars['DOKPLOY_STAGING_DEPLOY_ENABLED'] == 'true'
+    environment: staging
+    steps:
+      - name: Trigger Web deployment
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WEB }}
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+        run: |
+          echo "Deploying staging Web for $TAG_NAME..."
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.deploy" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\"}"
+
+      - name: Wait for deployment and health gate
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WEB }}
+          STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
+        run: |
+          timeout=300
+          start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - start ))
+            [ "$elapsed" -ge "$timeout" ] && { echo "::error::Staging Web deployment timed out"; exit 1; }
+
+            status=$(curl -sf \
+              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null \
+              | jq -r '.[0].status // "unknown"')
+
+            case "$status" in
+              done) echo "Deployment done (${elapsed}s)"; break ;;
+              error) echo "::error::Staging Web deployment error"; exit 1 ;;
+              *) echo "Status: $status (${elapsed}s)"; sleep 10 ;;
+            esac
+          done
+
+          echo "Polling staging Web health gate..."
+          url="$STAGING_APP_URL/ops/health/ready"
+          gate_start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - gate_start ))
+            [ "$elapsed" -ge 180 ] && { echo "::error::Staging Web health gate timed out"; exit 1; }
+
+            code=$(curl -sf -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+            [ "$code" = "200" ] && { echo "✅ Staging Web ready (${elapsed}s)"; break; }
+            echo "Health: HTTP $code (${elapsed}s)"; sleep 10
+          done
+
+  # ─── Deploy: Worker ───────────────────────────────────────────────
+  deploy-worker:
+    name: Deploy — Worker (staging)
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-web]
+    if: vars['DOKPLOY_STAGING_DEPLOY_ENABLED'] == 'true'
+    environment: staging
+    steps:
+      - name: Trigger Worker deployment
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WORKER }}
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+        run: |
+          echo "Deploying staging Worker for $TAG_NAME..."
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.deploy" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\"}"
+
+      - name: Wait for Worker to deploy
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WORKER }}
+        run: |
+          timeout=180
+          start=$(date +%s)
+
+          while true; do
+            elapsed=$(( $(date +%s) - start ))
+            [ "$elapsed" -ge "$timeout" ] && { echo "::error::Staging Worker deployment timed out"; exit 1; }
+
+            status=$(curl -sf \
+              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null \
+              | jq -r '.[0].status // "unknown"')
+
+            case "$status" in
+              done) echo "✅ Staging Worker deployed (${elapsed}s)"; break ;;
+              error) echo "::error::Staging Worker deployment error"; exit 1 ;;
+              *) echo "Status: $status (${elapsed}s)"; sleep 10 ;;
+            esac
+          done
+
+  # ─── Post-deploy smoke verification ──────────────────────────────
+  smoke-verify:
+    name: Smoke verification (staging)
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-worker]
+    if: |
+      vars['DOKPLOY_STAGING_DEPLOY_ENABLED'] == 'true' &&
+      inputs.skip_smoke != true
+    environment: staging
+    steps:
+      - name: Smoke — staging API
+        env:
+          STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
+        run: |
+          code=$(curl -sf -o /dev/null -w "%{http_code}" \
+            "$STAGING_APP_URL/api/health/ready" 2>/dev/null || echo "000")
+          [ "$code" = "200" ] || { echo "::error::Staging API smoke failed: HTTP $code"; exit 1; }
+          echo "✅ /api/health/ready → HTTP 200"
+
+      - name: Smoke — staging Web
+        env:
+          STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
+        run: |
+          code=$(curl -sf -o /dev/null -w "%{http_code}" \
+            "$STAGING_APP_URL/ops/health/ready" 2>/dev/null || echo "000")
+          [ "$code" = "200" ] || { echo "::error::Staging Web smoke failed: HTTP $code"; exit 1; }
+          echo "✅ /ops/health/ready → HTTP 200"
+
+      - name: Smoke — staging same-origin /api routing
+        env:
+          STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
+        run: |
+          code=$(curl -sf -o /dev/null -w "%{http_code}" \
+            "$STAGING_APP_URL/api/health" 2>/dev/null || echo "000")
+
+          if [ "$code" = "000" ]; then
+            echo "::error::Staging same-origin /api routing check failed: could not reach endpoint"
+            exit 1
+          fi
+
+          echo "✅ Staging same-origin /api routing → HTTP $code"
+
+      - name: Smoke — Redirect hot path (staging)
+        env:
+          STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
+          SMOKE_SHORT_CODE: ${{ secrets['STAGING_SMOKE_SHORT_CODE'] }}
+          SMOKE_EXPECTED_LOCATION: ${{ secrets['STAGING_SMOKE_EXPECTED_LOCATION'] }}
+        run: |
+          [ -n "$SMOKE_SHORT_CODE" ] || {
+            echo "::error::STAGING_SMOKE_SHORT_CODE is not configured"
+            exit 1
+          }
+
+          [ -n "$SMOKE_EXPECTED_LOCATION" ] || {
+            echo "::error::STAGING_SMOKE_EXPECTED_LOCATION is not configured"
+            exit 1
+          }
+
+          normalized_code="${SMOKE_SHORT_CODE#/}"
+          smoke_url="$STAGING_APP_URL/$normalized_code"
+          response_headers=$(mktemp)
+          trap 'rm -f "$response_headers"' EXIT
+
+          redirect_code=$(curl -sS -D "$response_headers" -o /dev/null -w "%{http_code}" \
+            --max-redirs 0 \
+            "$smoke_url" 2>/dev/null || echo "000")
+
+          if [ "${redirect_code:0:1}" != "3" ]; then
+            echo "::error::Staging redirect smoke check failed: expected 3xx, got HTTP $redirect_code for /$normalized_code"
+            exit 1
+          fi
+
+          location=$(tr -d '\r' < "$response_headers" | awk 'BEGIN { IGNORECASE = 1 } /^Location: / { sub(/^Location: /, ""); print; exit }')
+
+          if [ "$location" != "$SMOKE_EXPECTED_LOCATION" ]; then
+            echo "::error::Staging redirect smoke check failed: expected Location '$SMOKE_EXPECTED_LOCATION', got '$location'"
+            exit 1
+          fi
+
+          echo "✅ Staging redirect hot path → HTTP $redirect_code (/$normalized_code → $location)"
+
+      - name: Staging deployment summary
+        env:
+          TAG_NAME: ${{ needs.setup.outputs.tag_name }}
+        run: |
+          echo "## ✅ Staging Deployment Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Target | \`$TAG_NAME\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Deployed at | $(date -u +%Y-%m-%dT%H:%M:%SZ) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "All smoke checks passed." >> "$GITHUB_STEP_SUMMARY"

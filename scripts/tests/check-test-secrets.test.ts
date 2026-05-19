@@ -113,4 +113,12 @@ describe('check-test-secrets guard', () => {
     expect(result.stderr).toContain('TRUST_PROXY_HOPS');
     expect(result.stderr).toContain('positive integer');
   });
+
+  test('fails when TRUST_PROXY_PROVIDER is invalid', async () => {
+    const result = await runCheck({ TRUST_PROXY_PROVIDER: 'nginx' });
+
+    expectExitCode(result, 1);
+    expect(result.stderr).toContain('TRUST_PROXY_PROVIDER');
+    expect(result.stderr).toContain('"cloudflare" or "standard"');
+  });
 });

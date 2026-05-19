@@ -23,6 +23,7 @@ interface TrustProxyConfigInput {
   publicAppUrl?: string;
   trustProxy?: string | boolean;
   trustedProxyHops?: string | number;
+  trustedProxyCidrs?: string | string[];
 }
 
 type TrustedProxyProvider = NonNullable<
@@ -100,6 +101,38 @@ function parseTrustedProxyCidrs(
   return (explicitValues ?? envValues ?? [])
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function isValidTrustedProxyCidr(cidr: string): boolean {
+  const [address, prefixValue, ...extraSegments] = cidr.split('/');
+  if (extraSegments.length > 0) {
+    return false;
+  }
+
+  const family = isIP(address);
+  if (family === 0) {
+    return false;
+  }
+
+  if (prefixValue === undefined || prefixValue.trim() === '') {
+    return true;
+  }
+
+  if (!/^\d+$/.test(prefixValue)) {
+    return false;
+  }
+
+  const prefix = Number.parseInt(prefixValue, 10);
+  const maxPrefix = family === 4 ? 32 : 128;
+  return Number.isInteger(prefix) && prefix >= 0 && prefix <= maxPrefix;
+}
+
+function findInvalidTrustedProxyCidr(
+  value: ClientIpResolutionOptions['trustedProxyCidrs']
+): string | undefined {
+  return parseTrustedProxyCidrs(value).find(
+    (cidr) => !isValidTrustedProxyCidr(cidr)
+  );
 }
 
 function buildTrustedProxyBlockList(cidrs: string[]): BlockList {
@@ -268,8 +301,19 @@ export function assertTrustProxyConfig({
   nodeEnv,
   publicAppUrl,
   trustProxy,
-  trustedProxyHops
+  trustedProxyHops,
+  trustedProxyCidrs
 }: TrustProxyConfigInput): void {
+  const invalidTrustedProxyCidr = findInvalidTrustedProxyCidr(
+    trustedProxyCidrs ?? process.env.TRUSTED_PROXY_CIDRS
+  );
+
+  if (invalidTrustedProxyCidr) {
+    throw new Error(
+      `TRUSTED_PROXY_CIDRS contains an invalid CIDR or IP entry: ${invalidTrustedProxyCidr}`
+    );
+  }
+
   if (
     trustProxy === true ||
     trustProxy === 'true' ||
