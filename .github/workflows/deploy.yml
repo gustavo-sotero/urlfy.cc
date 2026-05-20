@@ -457,19 +457,22 @@ jobs:
           url="$PRODUCTION_APP_URL/api/health/ready"
           timeout=180
           start=$(date +%s)
+          response_body=$(mktemp)
+          trap 'rm -f "$response_body"' EXIT
 
           while true; do
             elapsed=$(( $(date +%s) - start ))
             [ "$elapsed" -ge "$timeout" ] && { echo "::error::API health gate timed out after ${timeout}s"; exit 1; }
 
-            code=$(curl -sf -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+            code=$(curl -sS -o "$response_body" -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+            status=$(jq -r '.status // empty' "$response_body" 2>/dev/null || true)
 
-            if [ "$code" = "200" ]; then
-              echo "✅ API health gate passed (HTTP 200) in ${elapsed}s"
+            if [ "$code" = "200" ] && { [ "$status" = "ready" ] || [ "$status" = "degraded" ]; }; then
+              echo "✅ API health gate passed (${status}) in ${elapsed}s"
               break
             fi
 
-            echo "API health: HTTP $code (${elapsed}s elapsed)"
+            echo "API health: HTTP $code status=${status:-unknown} (${elapsed}s elapsed)"
             sleep 10
           done
 
@@ -530,19 +533,22 @@ jobs:
           url="$PRODUCTION_APP_URL/ops/health/ready"
           timeout=180
           start=$(date +%s)
+          response_body=$(mktemp)
+          trap 'rm -f "$response_body"' EXIT
 
           while true; do
             elapsed=$(( $(date +%s) - start ))
             [ "$elapsed" -ge "$timeout" ] && { echo "::error::Web health gate timed out after ${timeout}s"; exit 1; }
 
-            code=$(curl -sf -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+            code=$(curl -sS -o "$response_body" -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+            status=$(jq -r '.status // empty' "$response_body" 2>/dev/null || true)
 
-            if [ "$code" = "200" ]; then
-              echo "✅ Web health gate passed (HTTP 200) in ${elapsed}s"
+            if [ "$code" = "200" ] && { [ "$status" = "ready" ] || [ "$status" = "degraded" ]; }; then
+              echo "✅ Web health gate passed (${status}) in ${elapsed}s"
               break
             fi
 
-            echo "Web health: HTTP $code (${elapsed}s elapsed)"
+            echo "Web health: HTTP $code status=${status:-unknown} (${elapsed}s elapsed)"
             sleep 10
           done
 
@@ -607,27 +613,51 @@ jobs:
         env:
           PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
         run: |
-          code=$(curl -sf -o /dev/null -w "%{http_code}" \
+          response_body=$(mktemp)
+          trap 'rm -f "$response_body"' EXIT
+          code=$(curl -sS -o "$response_body" -w "%{http_code}" \
             "$PRODUCTION_APP_URL/api/health/ready" 2>/dev/null || echo "000")
+          status=$(jq -r '.status // empty' "$response_body" 2>/dev/null || true)
 
-          if [ "$code" != "200" ]; then
-            echo "::error::API smoke check failed: HTTP $code"
+          if [ "$code" != "200" ] || { [ "$status" != "ready" ] && [ "$status" != "degraded" ]; }; then
+            echo "::error::API smoke check failed: HTTP $code status=${status:-unknown}"
             exit 1
           fi
-          echo "✅ /api/health/ready → HTTP 200"
+          echo "✅ /api/health/ready → HTTP 200 (${status})"
 
       - name: Smoke — Web health
         env:
           PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
         run: |
-          code=$(curl -sf -o /dev/null -w "%{http_code}" \
+          response_body=$(mktemp)
+          trap 'rm -f "$response_body"' EXIT
+          code=$(curl -sS -o "$response_body" -w "%{http_code}" \
             "$PRODUCTION_APP_URL/ops/health/ready" 2>/dev/null || echo "000")
+          status=$(jq -r '.status // empty' "$response_body" 2>/dev/null || true)
 
-          if [ "$code" != "200" ]; then
-            echo "::error::Web smoke check failed: HTTP $code"
+          if [ "$code" != "200" ] || { [ "$status" != "ready" ] && [ "$status" != "degraded" ]; }; then
+            echo "::error::Web smoke check failed: HTTP $code status=${status:-unknown}"
             exit 1
           fi
-          echo "✅ /ops/health/ready → HTTP 200"
+          echo "✅ /ops/health/ready → HTTP 200 (${status})"
+
+      - name: Smoke — Better Auth session route
+        env:
+          PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+        run: |
+          session_body=$(mktemp)
+          trap 'rm -f "$session_body"' EXIT
+          session_code=$(curl -sS -o "$session_body" -w "%{http_code}" \
+            "$PRODUCTION_APP_URL/api/auth/get-session" 2>/dev/null || echo "000")
+          response_shape_ok=$(jq -r 'if (type == "object" and has("session") and has("user")) then "true" else "false" end' "$session_body" 2>/dev/null || echo "false")
+
+          if [ "$session_code" != "200" ] || [ "$response_shape_ok" != "true" ]; then
+            echo "::error::Better Auth session route smoke failed: HTTP $session_code shape=${response_shape_ok}"
+            cat "$session_body"
+            exit 1
+          fi
+
+          echo "✅ Better Auth session route smoke passed"
 
       - name: Smoke — Same-origin /api routing through ingress
         env:

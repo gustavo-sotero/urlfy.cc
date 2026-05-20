@@ -5,6 +5,7 @@ const lintSteps = [
   ['bun', 'run', 'validate:catalog'],
   ['bun', 'run', 'scripts/validate-module-boundaries.ts'],
   ['bun', 'run', 'scripts/validate-proxy-headers.ts'],
+  ['bun', 'run', 'scripts/validate-deployment-env-contract.ts'],
   ['bun', 'run', 'contracts:check']
 ] as const;
 

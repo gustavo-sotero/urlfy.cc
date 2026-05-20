@@ -190,14 +190,23 @@ jobs:
           echo "Polling staging API health gate..."
           url="$STAGING_APP_URL/api/health/ready"
           gate_start=$(date +%s)
+          response_body=$(mktemp)
+          trap 'rm -f "$response_body"' EXIT
 
           while true; do
             elapsed=$(( $(date +%s) - gate_start ))
             [ "$elapsed" -ge 180 ] && { echo "::error::Staging API health gate timed out"; exit 1; }
 
-            code=$(curl -sf -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
-            [ "$code" = "200" ] && { echo "✅ Staging API ready (${elapsed}s)"; break; }
-            echo "Health: HTTP $code (${elapsed}s)"; sleep 10
+            code=$(curl -sS -o "$response_body" -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+            status=$(jq -r '.status // empty' "$response_body" 2>/dev/null || true)
+
+            if [ "$code" = "200" ] && { [ "$status" = "ready" ] || [ "$status" = "degraded" ]; }; then
+              echo "✅ Staging API ready (${status}, ${elapsed}s)"
+              break
+            fi
+
+            echo "Health: HTTP $code status=${status:-unknown} (${elapsed}s)"
+            sleep 10
           done
 
   # ─── Deploy: Web ──────────────────────────────────────────────────
@@ -252,14 +261,23 @@ jobs:
           echo "Polling staging Web health gate..."
           url="$STAGING_APP_URL/ops/health/ready"
           gate_start=$(date +%s)
+          response_body=$(mktemp)
+          trap 'rm -f "$response_body"' EXIT
 
           while true; do
             elapsed=$(( $(date +%s) - gate_start ))
             [ "$elapsed" -ge 180 ] && { echo "::error::Staging Web health gate timed out"; exit 1; }
 
-            code=$(curl -sf -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
-            [ "$code" = "200" ] && { echo "✅ Staging Web ready (${elapsed}s)"; break; }
-            echo "Health: HTTP $code (${elapsed}s)"; sleep 10
+            code=$(curl -sS -o "$response_body" -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+            status=$(jq -r '.status // empty' "$response_body" 2>/dev/null || true)
+
+            if [ "$code" = "200" ] && { [ "$status" = "ready" ] || [ "$status" = "degraded" ]; }; then
+              echo "✅ Staging Web ready (${status}, ${elapsed}s)"
+              break
+            fi
+
+            echo "Health: HTTP $code status=${status:-unknown} (${elapsed}s)"
+            sleep 10
           done
 
   # ─── Deploy: Worker ───────────────────────────────────────────────
@@ -324,19 +342,53 @@ jobs:
         env:
           STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
         run: |
-          code=$(curl -sf -o /dev/null -w "%{http_code}" \
+          response_body=$(mktemp)
+          trap 'rm -f "$response_body"' EXIT
+          code=$(curl -sS -o "$response_body" -w "%{http_code}" \
             "$STAGING_APP_URL/api/health/ready" 2>/dev/null || echo "000")
-          [ "$code" = "200" ] || { echo "::error::Staging API smoke failed: HTTP $code"; exit 1; }
-          echo "✅ /api/health/ready → HTTP 200"
+          status=$(jq -r '.status // empty' "$response_body" 2>/dev/null || true)
+
+          if [ "$code" != "200" ] || { [ "$status" != "ready" ] && [ "$status" != "degraded" ]; }; then
+            echo "::error::Staging API smoke failed: HTTP $code status=${status:-unknown}"
+            exit 1
+          fi
+
+          echo "✅ /api/health/ready → HTTP 200 (${status})"
 
       - name: Smoke — staging Web
         env:
           STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
         run: |
-          code=$(curl -sf -o /dev/null -w "%{http_code}" \
+          response_body=$(mktemp)
+          trap 'rm -f "$response_body"' EXIT
+          code=$(curl -sS -o "$response_body" -w "%{http_code}" \
             "$STAGING_APP_URL/ops/health/ready" 2>/dev/null || echo "000")
-          [ "$code" = "200" ] || { echo "::error::Staging Web smoke failed: HTTP $code"; exit 1; }
-          echo "✅ /ops/health/ready → HTTP 200"
+          status=$(jq -r '.status // empty' "$response_body" 2>/dev/null || true)
+
+          if [ "$code" != "200" ] || { [ "$status" != "ready" ] && [ "$status" != "degraded" ]; }; then
+            echo "::error::Staging Web smoke failed: HTTP $code status=${status:-unknown}"
+            exit 1
+          fi
+
+          echo "✅ /ops/health/ready → HTTP 200 (${status})"
+
+      - name: Smoke — Better Auth session route (staging)
+        env:
+          STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
+        run: |
+          session_body=$(mktemp)
+          trap 'rm -f "$session_body"' EXIT
+          session_code=$(curl -sS -o "$session_body" -w "%{http_code}" \
+            "$STAGING_APP_URL/api/auth/get-session" 2>/dev/null || echo "000")
+          response_shape_ok=$(jq -r 'if (type == "object" and has("session") and has("user")) then "true" else "false" end' "$session_body" 2>/dev/null || echo "false")
+
+          if [ "$session_code" != "200" ] || [ "$response_shape_ok" != "true" ]; then
+            echo "::error::Staging Better Auth session route smoke failed: HTTP $session_code shape=${response_shape_ok}"
+            cat "$session_body"
+            exit 1
+          fi
+
+          echo "✅ Better Auth session route smoke passed"
 
       - name: Smoke — staging same-origin /api routing
         env:

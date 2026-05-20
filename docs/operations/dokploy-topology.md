@@ -169,6 +169,8 @@ All five Applications attach to the **`dokploy-network`** overlay network (creat
 
 This lets the browser hit a single origin for both the Next.js front-end and the Elysia API.
 
+Set `API_INTERNAL_URL` on `urlfy-web` to the actual internal Dokploy service DNS name for the API Application, not to the public ingress URL. In a typical overlay this is the Dokploy/Docker service name, for example `http://urlfy-api:3001`, but the exact hostname depends on how the Application is named in your environment.
+
 ---
 
 ## 5. Volumes
@@ -179,6 +181,8 @@ This lets the browser hit a single origin for both the Next.js front-end and the
 | `geoip_data` | `/geoip` (geoip updater)               | urlfy-geoip            | read-write |
 
 Configure the shared named volume once in Dokploy and attach it to all four Applications.
+
+On a fresh environment, bootstrap `urlfy-geoip` once before cutting traffic over to the new topology or pre-seed `geoip_data` with `GeoLite2-City.mmdb`. API, Web, and Worker degrade safely when the MMDB file is absent, but GeoIP enrichment remains unavailable until the first successful refresh.
 
 ---
 
