@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 const store = new Map<string, string>();
 
@@ -25,15 +26,16 @@ const redisMock = {
   })
 };
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => ({
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {}
-  }),
-  configureLogging: async () => {}
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => ({
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+      debug: () => {}
+    })
+  })
+);
 
 describe('Idempotency key scoping', () => {
   beforeEach(async () => {

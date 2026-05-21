@@ -13,6 +13,7 @@
 
 import { afterAll, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 import { createDbMock } from '../mocks/db.mock';
 
 const realRateLimiterModule = await import('@/server/lib/rate-limiter');
@@ -98,15 +99,16 @@ mock.module('@/server/lib/rate-limiter', () => ({
   )
 }));
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => ({
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {}
-  }),
-  configureLogging: async () => {}
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => ({
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {}
+    })
+  })
+);
 
 afterAll(() => {
   mock.restore();

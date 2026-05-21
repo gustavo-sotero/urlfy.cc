@@ -11,6 +11,7 @@ import {
   it,
   mock
 } from 'bun:test';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 async function importFreshModule<T>(path: string): Promise<T> {
   return (await import(`${path}?api-redis-stream-test-module`)) as T;
@@ -28,35 +29,35 @@ const mockLogger = {
   warn: mock(() => {})
 };
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => mockLogger,
-  configureLogging: async () => {}
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => mockLogger
+  })
+);
 
 // Also mock the canonical telemetry package used by @urlfy/cache internals
 const noOpCounter = { add: mock(() => {}) };
-mock.module('@urlfy/telemetry', () => ({
-  createLogger: () => mockLogger,
-  configureLogging: async () => {},
-  initTelemetry: async () => {},
-  shutdownTelemetry: async () => {},
-  fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
-    fn().catch(() => {});
-  },
-  circuitBreakerTrips: noOpCounter,
-  cacheHits: noOpCounter,
-  cacheMisses: noOpCounter,
-  cacheHitRate: noOpCounter,
-  redisFallbacks: noOpCounter,
-  redirectTotal: noOpCounter,
-  redirectErrors: noOpCounter,
-  redirectLatency: { record: mock(() => {}) },
-  stampedeLocksAcquired: noOpCounter,
-  stampedeLocksWaited: noOpCounter,
-  recordCacheHit: mock(() => {}),
-  recordCacheMiss: mock(() => {}),
-  recordRedirectMetrics: mock(() => {})
-}));
+mock.module('@urlfy/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => mockLogger,
+    fireAndForget: (_label: string, fn: () => Promise<unknown>) => {
+      fn().catch(() => {});
+    },
+    circuitBreakerTrips: noOpCounter,
+    cacheHits: noOpCounter,
+    cacheMisses: noOpCounter,
+    cacheHitRate: noOpCounter,
+    redisFallbacks: noOpCounter,
+    redirectTotal: noOpCounter,
+    redirectErrors: noOpCounter,
+    redirectLatency: { record: mock(() => {}) },
+    stampedeLocksAcquired: noOpCounter,
+    stampedeLocksWaited: noOpCounter,
+    recordCacheHit: mock(() => {}),
+    recordCacheMiss: mock(() => {}),
+    recordRedirectMetrics: mock(() => {})
+  })
+);
 
 // Mock Redis client
 const mockRedis = {

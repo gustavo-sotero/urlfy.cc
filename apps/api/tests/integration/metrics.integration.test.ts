@@ -14,21 +14,23 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 const realCacheClientModule = await import(
   '../../../../packages/cache/src/client.ts?api-metrics-real-cache-client'
 );
 
 // Mock canonical telemetry used by the cache package.
-mock.module('@urlfy/telemetry', () => ({
-  createLogger: () => ({
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {}
-  }),
-  configureLogging: async () => {}
-}));
+mock.module('@urlfy/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => ({
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {}
+    })
+  })
+);
 
 // In-memory Redis mock
 const store = new Map<string, string>();

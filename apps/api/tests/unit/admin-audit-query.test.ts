@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 import { ResponseModels } from '../../src/server/lib/response.schema';
 import { errorMiddleware } from '../../src/server/middleware/error.middleware';
 
@@ -36,10 +37,11 @@ const getByIdMock = mock(async () => null);
 const getByEntityMock = mock(async () => ({ logs: [], total: 0 }));
 const getByUserMock = mock(async () => ({ logs: [], total: 0 }));
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => logger,
-  configureLogging: async () => {}
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => logger
+  })
+);
 
 const resolveIsAdminByGitHubAccountMock = mock(
   async (userId: string) => userId === adminHeaders['x-test-user-id']

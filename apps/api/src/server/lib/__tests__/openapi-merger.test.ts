@@ -19,6 +19,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { OpenAPIV3 } from 'openapi-types';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 // ─── Module-level auth mock (must be hoisted before the module under test) ───
 
@@ -50,14 +51,16 @@ mock.module('@/lib/auth', () => ({
   }
 }));
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => ({
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {}
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => ({
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {}
+    })
   })
-}));
+);
 
 // Import module under test AFTER mocks are registered
 const { getMergedOpenAPISpec, getOpenAPIDegradedState, invalidateCache } =

@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 import { createElysiaTestClient } from '../helpers/elysia-test-client';
 import { createDbMock } from '../mocks/db.mock';
 
@@ -64,10 +65,11 @@ const logger = {
   error: mock(() => {})
 };
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => logger,
-  configureLogging: async () => {}
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => logger
+  })
+);
 
 function createAuthTestApp() {
   return new Elysia({ prefix: '/api' })

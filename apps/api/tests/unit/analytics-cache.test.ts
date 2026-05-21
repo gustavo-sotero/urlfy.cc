@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 const loggerInstance = {
   debug: mock(() => {}),
@@ -14,9 +15,11 @@ const redisClient = {
   expire: mock(async () => 1)
 };
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => loggerInstance
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => loggerInstance
+  })
+);
 
 // Spread real module so the full export surface is preserved when Bun does not
 // reset mock.module state between test files (Windows / shared-worker mode).

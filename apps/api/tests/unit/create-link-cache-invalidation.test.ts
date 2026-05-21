@@ -9,6 +9,7 @@
  */
 
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 import { createDbMock } from '../mocks/db.mock';
 
 // ─── Controllable cache mock ────────────────────────────────────────────────
@@ -97,15 +98,16 @@ mock.module('@/server/services/cache.service', () => ({
   scanKeys: mock(async () => [])
 }));
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => ({
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {}
-  }),
-  configureLogging: async () => {}
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => ({
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {}
+    })
+  })
+);
 
 // Mock shortcode service to return deterministic values
 mock.module('@/server/modules/links/services/shortcode.service', () => ({

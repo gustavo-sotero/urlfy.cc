@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 const failures = {
   canAttempt: true,
@@ -40,15 +41,16 @@ const redisMock = {
   })
 };
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => ({
-    info: mock(() => {}),
-    warn: mock(() => {}),
-    error: mock(() => {}),
-    debug: mock(() => {})
-  }),
-  configureLogging: async () => {}
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => ({
+      info: mock(() => {}),
+      warn: mock(() => {}),
+      error: mock(() => {}),
+      debug: mock(() => {})
+    })
+  })
+);
 
 describe('Idempotency degradation handling', () => {
   beforeEach(async () => {

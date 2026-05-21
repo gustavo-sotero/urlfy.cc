@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { createInMemoryRedisClient } from '@/server/lib/redis/redis-mock';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 // Create mock redis client that supports EVAL/EVALSHA/SCRIPT
 const mockRedis = createInMemoryRedisClient();
@@ -29,10 +30,11 @@ mock.module('@/server/lib/redis/redis', () => ({
   redis: mockRedis
 }));
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => noopLogger,
-  configureLogging: async () => {}
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => noopLogger
+  })
+);
 
 /**
  * Helper: create a fresh RateLimiter instance with mock redis injected.

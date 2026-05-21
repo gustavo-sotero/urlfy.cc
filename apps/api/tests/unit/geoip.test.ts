@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, it, mock } from 'bun:test';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 const realCacheModule = await import('@urlfy/cache');
 
@@ -35,14 +36,16 @@ mock.module('@urlfy/cache', () => ({
   })
 }));
 
-mock.module('@urlfy/telemetry', () => ({
-  createLogger: () => ({
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {}
+mock.module('@urlfy/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => ({
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {}
+    })
   })
-}));
+);
 
 mock.module('@maxmind/geoip2-node', () => ({
   Reader: {

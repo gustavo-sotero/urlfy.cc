@@ -12,6 +12,7 @@ import {
   it,
   mock
 } from 'bun:test';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 // Create a stateful mock Redis client for testing
 const mockStore = new Map<string, { value: string; expiry?: number }>();
@@ -128,18 +129,19 @@ const realCacheClientModule = await import(
 );
 
 // Mock canonical telemetry used by the cache package.
-mock.module('@urlfy/telemetry', () => ({
-  createLogger: () => ({
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {}
-  }),
-  initTelemetry: () => {},
-  configureLogging: async () => {},
-  shutdownTelemetry: () => Promise.resolve(),
-  maskIpForLog: (ip: string) => ip
-}));
+mock.module('@urlfy/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => ({
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {}
+    }),
+    initTelemetry: () => {},
+    shutdownTelemetry: () => Promise.resolve(),
+    maskIpForLog: (ip: string) => ip
+  })
+);
 
 realCacheClientModule.markRedisCommandSuccess();
 

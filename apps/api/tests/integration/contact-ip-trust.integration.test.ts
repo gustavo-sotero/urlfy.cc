@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 let observedIp: string | undefined;
 
@@ -43,15 +44,16 @@ mock.module('@/server/modules/contact/contact.service', () => ({
   }
 }));
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => ({
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {}
-  }),
-  configureLogging: async () => {}
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => ({
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+      debug: () => {}
+    })
+  })
+);
 
 describe('Contact limiter trusted IP resolution (P0-S2)', () => {
   const originalTrustProxy = process.env.TRUST_PROXY;

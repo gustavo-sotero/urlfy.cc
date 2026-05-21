@@ -10,6 +10,7 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { ADMIN_SESSION_MAX_AGE_MS } from '@urlfy/auth-shared';
 import { Elysia } from 'elysia';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 // ─── Mock logger ─────────────────────────────────────────────────────
 const loggerInstance = {
@@ -19,10 +20,11 @@ const loggerInstance = {
   error: mock(() => {})
 };
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => loggerInstance,
-  configureLogging: async () => {}
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => loggerInstance
+  })
+);
 
 // ─── Mock auth module (session resolution) ───────────────────────────
 const getSessionMock = mock(async () => null);

@@ -1,6 +1,7 @@
 process.env.NODE_ENV = 'test';
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 const realRateLimiterModule = await import('@/server/lib/rate-limiter');
 const realRateLimiter = realRateLimiterModule.rateLimiter;
@@ -37,14 +38,16 @@ describe('rateLimit middleware', () => {
       remaining: 9,
       resetTime: Date.now() + 60_000
     }));
-    mock.module('@/server/lib/telemetry', () => ({
-      createLogger: () => ({
-        debug: mock(() => undefined),
-        info: mock(() => undefined),
-        warn: mock(() => undefined),
-        error: mock(() => undefined)
+    mock.module('@/server/lib/telemetry', () =>
+      createTelemetryModuleMock({
+        createLogger: () => ({
+          debug: mock(() => undefined),
+          info: mock(() => undefined),
+          warn: mock(() => undefined),
+          error: mock(() => undefined)
+        })
       })
-    }));
+    );
     mock.module('@/server/lib/rate-limiter', () => ({
       ...realRateLimiterModule,
       RATE_LIMIT_CONFIGS: {

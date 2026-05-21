@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Elysia } from 'elysia';
+import { createTelemetryModuleMock } from '@/test-utils/real-telemetry';
 
 const logger = {
   debug: mock(() => {}),
@@ -16,10 +17,11 @@ const groupsMock = mock(async (_stream: string) => [
 ]);
 const getLengthMock = mock(async (_stream: string) => 10);
 
-mock.module('@/server/lib/telemetry', () => ({
-  createLogger: () => logger,
-  configureLogging: async () => {}
-}));
+mock.module('@/server/lib/telemetry', () =>
+  createTelemetryModuleMock({
+    createLogger: () => logger
+  })
+);
 
 mock.module('@/server/middleware/auth/require-admin', () => ({
   requireAdmin: new Elysia({ name: 'require-admin-mock' }).derive(() => ({
