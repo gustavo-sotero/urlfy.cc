@@ -22,6 +22,8 @@ export interface DeploymentEnvContractReport {
   errors: string[];
 }
 
+type ComposeEnvAssignments = Map<string, Map<string, string>>;
+
 const RUNTIME_SERVICE_FILES: Record<RuntimeServiceName, string> = {
   api: 'apps/api/src/lib/env.ts',
   web: 'apps/web/src/lib/env.ts',
@@ -68,6 +70,57 @@ const MIGRATE_REQUIRED_KEYS = [
   'MIGRATION_TIMEOUT',
   'DB_CHECK_TIMEOUT',
   'SKIP_MIGRATIONS'
+] as const;
+
+const COMPOSE_SHARED_VALUE_INVARIANTS = [
+  {
+    key: 'DATABASE_URL',
+    services: ['api', 'web', 'worker', 'migrate'] as const
+  },
+  {
+    key: 'REDIS_URL',
+    services: ['api', 'web', 'worker'] as const
+  },
+  {
+    key: 'NEXT_PUBLIC_APP_URL',
+    services: ['api', 'web'] as const
+  },
+  {
+    key: 'BETTER_AUTH_SECRET',
+    services: ['api', 'web'] as const
+  },
+  {
+    key: 'BETTER_AUTH_URL',
+    services: ['api', 'web'] as const
+  },
+  {
+    key: 'JWT_SECRET',
+    services: ['api', 'web'] as const
+  },
+  {
+    key: 'INTERNAL_API_SECRET',
+    services: ['api', 'web', 'worker'] as const
+  },
+  {
+    key: 'INTERNAL_ANALYTICS_SECRET',
+    services: ['api', 'web', 'worker'] as const
+  },
+  {
+    key: 'TRUST_PROXY',
+    services: ['api', 'web'] as const
+  },
+  {
+    key: 'TRUST_PROXY_HOPS',
+    services: ['api', 'web'] as const
+  },
+  {
+    key: 'TRUST_PROXY_PROVIDER',
+    services: ['api', 'web'] as const
+  },
+  {
+    key: 'TRUSTED_PROXY_CIDRS',
+    services: ['api', 'web'] as const
+  }
 ] as const;
 
 function uniqueSorted(values: Iterable<string>): string[] {
@@ -193,10 +246,10 @@ export function collectDocumentedEnvVariables(sourceText: string): Set<string> {
   return names;
 }
 
-export function collectComposeServiceEnvVariables(
+export function collectComposeServiceEnvAssignments(
   sourceText: string
-): Map<string, Set<string>> {
-  const envByService = new Map<string, Set<string>>();
+): ComposeEnvAssignments {
+  const envByService: ComposeEnvAssignments = new Map();
   const lines = sourceText.split(/\r?\n/u);
   let currentService: string | null = null;
   let inEnvironmentBlock = false;
@@ -214,7 +267,7 @@ export function collectComposeServiceEnvVariables(
       inEnvironmentBlock = false;
       envByService.set(
         currentService,
-        envByService.get(currentService) ?? new Set()
+        envByService.get(currentService) ?? new Map()
       );
       continue;
     }
@@ -227,9 +280,9 @@ export function collectComposeServiceEnvVariables(
     }
 
     if (inEnvironmentBlock) {
-      const envMatch = line.match(/^\s*-\s*([A-Z][A-Z0-9_]+)=/u);
+      const envMatch = line.match(/^\s*-\s*([A-Z][A-Z0-9_]+)=(.*)$/u);
       if (envMatch) {
-        envByService.get(currentService)?.add(envMatch[1]);
+        envByService.get(currentService)?.set(envMatch[1], envMatch[2].trim());
         continue;
       }
 
@@ -240,6 +293,56 @@ export function collectComposeServiceEnvVariables(
   }
 
   return envByService;
+}
+
+export function collectComposeServiceEnvVariables(
+  sourceText: string
+): Map<string, Set<string>> {
+  const assignments = collectComposeServiceEnvAssignments(sourceText);
+
+  return new Map(
+    [...assignments.entries()].map(([service, values]) => [
+      service,
+      new Set(values.keys())
+    ])
+  );
+}
+
+export function findComposeSharedValueDrift(
+  envByService: ComposeEnvAssignments
+): string[] {
+  const errors: string[] = [];
+
+  for (const invariant of COMPOSE_SHARED_VALUE_INVARIANTS) {
+    const entries = invariant.services.map((service) => ({
+      service,
+      value: envByService.get(service)?.get(invariant.key)
+    }));
+
+    if (entries.some((entry) => entry.value === undefined)) {
+      continue;
+    }
+
+    const normalizedEntries = entries.map((entry) => ({
+      service: entry.service,
+      value: entry.value?.trim() ?? ''
+    }));
+    const [baseline, ...rest] = normalizedEntries;
+
+    if (rest.every((entry) => entry.value === baseline.value)) {
+      continue;
+    }
+
+    const mismatchDetails = normalizedEntries
+      .map((entry) => `${entry.service}=${entry.value}`)
+      .join('; ');
+
+    errors.push(
+      `compose invariant drift for ${invariant.key} -> ${mismatchDetails}`
+    );
+  }
+
+  return errors;
 }
 
 function getRequiredKeysForRuntimeService(
@@ -280,9 +383,11 @@ export async function validateDeploymentEnvContract(
   ]);
 
   const documentedEnv = collectDocumentedEnvVariables(exampleSource);
+  const composeEnvAssignmentsByService =
+    collectComposeServiceEnvAssignments(composeSource);
   const composeEnvByService = collectComposeServiceEnvVariables(composeSource);
   const services: ServiceContractReport[] = [];
-  const errors: string[] = [];
+  const errors = findComposeSharedValueDrift(composeEnvAssignmentsByService);
 
   const runtimeContracts = {
     api: apiContract,

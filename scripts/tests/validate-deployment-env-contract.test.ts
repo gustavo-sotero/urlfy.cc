@@ -3,9 +3,11 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  collectComposeServiceEnvAssignments,
   collectComposeServiceEnvVariables,
   collectDocumentedEnvVariables,
   extractRuntimeEnvContract,
+  findComposeSharedValueDrift,
   validateDeploymentEnvContract
 } from '../lib/deployment-env-contract';
 
@@ -44,6 +46,60 @@ volumes:
       new Set(['DATABASE_URL', 'INTERNAL_API_SECRET'])
     );
     expect(envByService.get('web')).toEqual(new Set(['API_INTERNAL_URL']));
+  });
+
+  test('collects compose env values per service', () => {
+    const envByService = collectComposeServiceEnvAssignments(`
+services:
+  api:
+    environment:
+      - NEXT_PUBLIC_APP_URL=
+      - BETTER_AUTH_URL=
+  web:
+    environment:
+      - NEXT_PUBLIC_APP_URL=
+      - BETTER_AUTH_URL=
+`);
+
+    expect(envByService.get('api')).toEqual(
+      new Map([
+        ['NEXT_PUBLIC_APP_URL', ''],
+        ['BETTER_AUTH_URL', '']
+      ])
+    );
+    expect(envByService.get('web')).toEqual(
+      new Map([
+        ['NEXT_PUBLIC_APP_URL', ''],
+        ['BETTER_AUTH_URL', '']
+      ])
+    );
+  });
+
+  test('detects compose shared-value drift across services', () => {
+    const envByService = collectComposeServiceEnvAssignments(`
+services:
+  api:
+    environment:
+      - NEXT_PUBLIC_APP_URL=
+      - TRUST_PROXY_PROVIDER=cloudflare
+      - INTERNAL_ANALYTICS_SECRET=
+  web:
+    environment:
+      - NEXT_PUBLIC_APP_URL=
+      - TRUST_PROXY_PROVIDER=traefik
+      - INTERNAL_ANALYTICS_SECRET=
+  worker:
+    environment:
+      - INTERNAL_ANALYTICS_SECRET=
+`);
+
+    const errors = findComposeSharedValueDrift(envByService);
+
+    expect(
+      errors.some((error) =>
+        error.includes('compose invariant drift for TRUST_PROXY_PROVIDER')
+      )
+    ).toBe(true);
   });
 
   test('extracts required keys from the runtime schema', async () => {

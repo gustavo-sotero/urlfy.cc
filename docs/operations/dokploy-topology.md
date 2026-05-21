@@ -8,10 +8,10 @@
 
 ## 1. Overview
 
-Each service runs as an independent **Dokploy Application** sourced from an immutable GHCR image.  The pipeline always deploys by calling `POST /api/application.deploy` after the `:stable` tag is updated in GHCR — Dokploy pulls the latest `:stable` image and performs a rolling Swarm update.
+Each service runs as an independent **Dokploy Application** sourced from GHCR. Production deploys use `POST /api/application.update` to pin each Application to the immutable `release-*` image recorded in `release-manifest.json`, then call `POST /api/application.deploy` to roll out that exact image. The staging workflow uses the same API-driven image pinning and can optionally repoint an Application back to `:stable` when you want channel-based validation instead of a release-specific image.
 
 ```
-GHCR (immutable :tag + :stable)
+GHCR (immutable release-* tags + optional :stable channel)
         │
         ├── urlfy-api       (port 3001, traffic-serving)
         ├── urlfy-web       (port 3000, traffic-serving)
@@ -142,19 +142,21 @@ Dokploy should treat the HTTP status code as authoritative and rely only on the 
 
 ## 3. Image Sources
 
-All images are built by `deploy.yml` and pushed to GHCR.  Configure each Dokploy Application to track the `:stable` tag so a single `POST /api/application.deploy` redeploys with the latest stable image.
+All images are built by `deploy.yml` and pushed to GHCR. Bootstrap each Dokploy Application with any valid GHCR reference, but expect CI to overwrite `dockerImage` with the immutable `release-*` reference before every production or staging deployment. The optional `:stable` tag remains available as a convenience channel for manual validation and recovery, not as the authoritative production deployment target.
 
-| Application    | GHCR Image                                      | Port |
-|----------------|-------------------------------------------------|------|
-| urlfy-api      | `ghcr.io/<owner>/urlfy-api:stable`              | 3001 |
-| urlfy-web      | `ghcr.io/<owner>/urlfy-web:stable`              | 3000 |
-| urlfy-worker   | `ghcr.io/<owner>/urlfy-worker:stable`           | —    |
-| urlfy-migrate  | `ghcr.io/<owner>/urlfy-worker:stable`           | —    |
-| urlfy-geoip    | `ghcr.io/<owner>/urlfy-geoip:stable`            | —    |
+| Application    | GHCR Image                                             | Port |
+|----------------|--------------------------------------------------------|------|
+| urlfy-api      | `ghcr.io/<owner>/urlfy-api:<release-tag>`              | 3001 |
+| urlfy-web      | `ghcr.io/<owner>/urlfy-web:<release-tag>`              | 3000 |
+| urlfy-worker   | `ghcr.io/<owner>/urlfy-worker:<release-tag>`           | —    |
+| urlfy-migrate  | `ghcr.io/<owner>/urlfy-worker:<release-tag>`           | —    |
+| urlfy-geoip    | `ghcr.io/<owner>/urlfy-geoip:<release-tag>`            | —    |
 
-> `urlfy-migrate` reuses the **worker** image and overrides the command to `bun run db:migrate:prod`.
+> `urlfy-migrate` reuses the **worker** image and overrides the command to `bun run db:migrate:prod`. The release manifest still records `migrate` separately so rollback and audit trails can treat it as its own deployment target.
 >
 > In Dokploy, enable **Deployments → Rollback Settings** against the same GHCR registry for `urlfy-api` and `urlfy-web` so per-application registry rollback remains available. The CI-generated `release-manifest.json` is still the authoritative cross-service rollback map.
+
+For staging validation, `.github/workflows/deploy-staging.yml` updates each staging Application's `dockerImage` to the requested GHCR reference, for example `ghcr.io/<owner>/urlfy-api:release-...`, before calling `POST /api/application.deploy`. Passing `stable` repoints the staging Applications to the shared `:stable` channel tag instead of a release-specific image.
 
 ---
 

@@ -46,7 +46,7 @@ Use this procedure when:
 - Auto-rollback did not trigger.
 - You need to roll back to a *specific* previous release, not just the previous Swarm state.
 
-If Dokploy registry-based rollback is enabled for the Application, you may use the dashboard rollback button as a convenience after confirming the selected deployment matches `release-manifest.json`. The manual GHCR re-tag flow below remains the deterministic fallback and the cross-service source of truth.
+If Dokploy registry-based rollback is enabled for the Application, you may use the dashboard rollback button as a convenience after confirming the selected deployment matches `release-manifest.json`. The manual API-driven image pinning flow below remains the deterministic fallback and the cross-service source of truth.
 
 ### 2.1 Find the target release
 
@@ -61,29 +61,41 @@ If Dokploy registry-based rollback is enabled for the Application, you may use t
    }
    ```
 
-### 2.2 Re-tag the target release as `:stable` in GHCR
+### 2.2 Repoint Dokploy to the target release images
 
-GHCR images are immutable by digest — the `:stable` tag is a pointer.  To roll back, move `:stable` back to the previous image:
+Use the immutable image references from `release-manifest.json` directly. No GHCR re-tagging is required.
 
 ```bash
-# Authenticate with GHCR
-echo "$GHCR_TOKEN" | docker login ghcr.io -u <github-username> --password-stdin
+DOKPLOY_API_URL="https://your-dokploy-server.example.com"
+DOKPLOY_API_KEY="<your-api-key>"
 
-# Pull the target release image (use digest for exactness)
-docker pull ghcr.io/<owner>/urlfy-api@sha256:<digest>
+WEB_IMAGE="$(jq -r '.images.web.reference' release-manifest.json)"
+API_IMAGE="$(jq -r '.images.api.reference' release-manifest.json)"
+WORKER_IMAGE="$(jq -r '.images.worker.reference' release-manifest.json)"
 
-# Re-tag as :stable
-docker tag ghcr.io/<owner>/urlfy-api@sha256:<digest> ghcr.io/<owner>/urlfy-api:stable
+update_application_image() {
+  local app_id="$1"
+  local image="$2"
 
-# Push the updated :stable pointer
-docker push ghcr.io/<owner>/urlfy-api:stable
+  curl -X POST "$DOKPLOY_API_URL/api/application.update" \
+    -H "Content-Type: application/json" \
+    -H "x-api-key: $DOKPLOY_API_KEY" \
+    -d "{\"applicationId\": \"$app_id\", \"dockerImage\": \"$image\"}"
+}
+
+deploy_application() {
+  local app_id="$1"
+
+  curl -X POST "$DOKPLOY_API_URL/api/application.deploy" \
+    -H "Content-Type: application/json" \
+    -H "x-api-key: $DOKPLOY_API_KEY" \
+    -d "{\"applicationId\": \"$app_id\"}"
+}
 ```
-
-Repeat for `urlfy-web`, `urlfy-worker`, and `urlfy-geoip` if needed.
 
 ### 2.3 Trigger re-deployment via Dokploy API
 
-Call the deploy endpoint for each service you need to roll back.  **Follow the same rollback order as forward deployments, reversed for traffic-serving services:**
+Update each Application to the target manifest image and then trigger a deploy. **Follow the same rollback order as forward deployments, reversed for traffic-serving services:**
 
 ```
 web rollback → api rollback → worker rollback
@@ -92,26 +104,17 @@ web rollback → api rollback → worker rollback
 > Never roll back the migrate Application to run schema changes in reverse — see §4.
 
 ```bash
-DOKPLOY_API_URL="https://your-dokploy-server.example.com"
-DOKPLOY_API_KEY="<your-api-key>"
-
 # Trigger web rollback first (removes new front-end)
-curl -X POST "$DOKPLOY_API_URL/api/application.deploy" \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: $DOKPLOY_API_KEY" \
-  -d '{"applicationId": "<DOKPLOY_APP_ID_WEB>"}'
+update_application_image "<DOKPLOY_APP_ID_WEB>" "$WEB_IMAGE"
+deploy_application "<DOKPLOY_APP_ID_WEB>"
 
 # Wait for web to stabilise, then roll back API
-curl -X POST "$DOKPLOY_API_URL/api/application.deploy" \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: $DOKPLOY_API_KEY" \
-  -d '{"applicationId": "<DOKPLOY_APP_ID_API>"}'
+update_application_image "<DOKPLOY_APP_ID_API>" "$API_IMAGE"
+deploy_application "<DOKPLOY_APP_ID_API>"
 
 # Finally roll back worker
-curl -X POST "$DOKPLOY_API_URL/api/application.deploy" \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: $DOKPLOY_API_KEY" \
-  -d '{"applicationId": "<DOKPLOY_APP_ID_WORKER>"}'
+update_application_image "<DOKPLOY_APP_ID_WORKER>" "$WORKER_IMAGE"
+deploy_application "<DOKPLOY_APP_ID_WORKER>"
 ```
 
 Poll deployment status between each step:
@@ -127,10 +130,10 @@ Wait for `"done"` before proceeding to the next service.
 
 ```bash
 curl -fsS https://urlfy.cc/api/health/ready
-# Expected: HTTP 200 with body "ready" or "degraded"
+# Expected: HTTP 200 with JSON status "ready" or "degraded"
 
 curl -fsS https://urlfy.cc/ops/health/ready
-# Expected: HTTP 200
+# Expected: HTTP 200 with JSON status "ready" or "degraded"
 ```
 
 ---
@@ -140,7 +143,7 @@ curl -fsS https://urlfy.cc/ops/health/ready
 Before rolling back production, you can verify the target image is healthy on staging:
 
 1. Go to **GitHub → Actions → Deploy (Staging)** → **Run workflow**.
-2. Enter the target release tag (e.g. `release-20260501120000-abc123def456`). Ensure `STAGING_SMOKE_SHORT_CODE` and `STAGING_SMOKE_EXPECTED_LOCATION` are configured, or run with `skip_smoke=true` only when you are intentionally validating a broken state.
+2. Enter the target release tag (e.g. `release-20260501120000-abc123def456`). The workflow repoints the staging Dokploy Applications to that immutable GHCR tag before deploying. Ensure `STAGING_SMOKE_SHORT_CODE` and `STAGING_SMOKE_EXPECTED_LOCATION` are configured, or run with `skip_smoke=true` only when you are intentionally validating a broken state.
 3. Confirm staging smoke checks pass.
 4. Proceed with the production rollback (§2).
 
@@ -189,10 +192,9 @@ The file `docker/docker-compose.prod.yml` is preserved as the last-resort baseli
 
 1. Restore the Dokploy Applications to a healthy state.
 2. Re-provision environment variables in each Application.
-3. Re-tag the last known-good GHCR images as `:stable`.
-4. Trigger deployments through the normal `deploy.yml` pipeline.
-5. Decommission the emergency Compose stack.
-6. Set `DOKPLOY_DEPLOY_ENABLED = true` only after full verification.
+3. Use the `release-manifest.json` from the last known-good release and follow §2 to repoint each Dokploy Application to those immutable image references.
+4. Decommission the emergency Compose stack.
+5. Set `DOKPLOY_DEPLOY_ENABLED = true` only after full verification.
 
 ---
 

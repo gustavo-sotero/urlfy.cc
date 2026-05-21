@@ -10,6 +10,8 @@
 #      the corresponding GitHub Release.
 #   3. When DOKPLOY_DEPLOY_ENABLED == 'true', deploy in strict order:
 #        urlfy-migrate → urlfy-api → urlfy-web → urlfy-worker
+#      Each Dokploy Application is first pinned to the immutable
+#      release-tagged image so the rollout matches the release manifest.
 #      with health gates between each traffic-serving step and a
 #      post-deploy smoke verification pass.
 #
@@ -62,6 +64,10 @@ jobs:
     outputs:
       tag_name: ${{ steps.parse.outputs.tag_name }}
       image_prefix: ${{ steps.parse.outputs.image_prefix }}
+      api_image: ${{ steps.parse.outputs.api_image }}
+      web_image: ${{ steps.parse.outputs.web_image }}
+      worker_image: ${{ steps.parse.outputs.worker_image }}
+      migrate_image: ${{ steps.parse.outputs.migrate_image }}
     steps:
       - name: Extract tag metadata
         id: parse
@@ -75,8 +81,14 @@ jobs:
 
           # GHCR requires lowercase owner names
           owner="${{ github.repository_owner }}"
+          image_prefix="ghcr.io/${owner,,}"
+
           echo "tag_name=$tag" >> "$GITHUB_OUTPUT"
-          echo "image_prefix=ghcr.io/${owner,,}" >> "$GITHUB_OUTPUT"
+          echo "image_prefix=$image_prefix" >> "$GITHUB_OUTPUT"
+          echo "api_image=$image_prefix/urlfy-api:$tag" >> "$GITHUB_OUTPUT"
+          echo "web_image=$image_prefix/urlfy-web:$tag" >> "$GITHUB_OUTPUT"
+          echo "worker_image=$image_prefix/urlfy-worker:$tag" >> "$GITHUB_OUTPUT"
+          echo "migrate_image=$image_prefix/urlfy-worker:$tag" >> "$GITHUB_OUTPUT"
 
   # ─── Build and push API image ────────────────────────────────────
   build-api:
@@ -246,6 +258,10 @@ jobs:
         env:
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
           IMAGE_PREFIX: ${{ needs.setup.outputs.image_prefix }}
+          API_IMAGE: ${{ needs.setup.outputs.api_image }}
+          WEB_IMAGE: ${{ needs.setup.outputs.web_image }}
+          WORKER_IMAGE: ${{ needs.setup.outputs.worker_image }}
+          MIGRATE_IMAGE: ${{ needs.setup.outputs.migrate_image }}
           API_DIGEST: ${{ needs.build-api.outputs.digest }}
           WEB_DIGEST: ${{ needs.build-web.outputs.digest }}
           WORKER_DIGEST: ${{ needs.build-worker.outputs.digest }}
@@ -259,19 +275,25 @@ jobs:
             "workflow_run_id": "${{ github.run_id }}",
             "images": {
               "api": {
-                "reference": "$IMAGE_PREFIX/urlfy-api:$TAG_NAME",
+                "reference": "$API_IMAGE",
                 "stable_reference": "$IMAGE_PREFIX/urlfy-api:stable",
                 "digest": "$API_DIGEST"
               },
               "web": {
-                "reference": "$IMAGE_PREFIX/urlfy-web:$TAG_NAME",
+                "reference": "$WEB_IMAGE",
                 "stable_reference": "$IMAGE_PREFIX/urlfy-web:stable",
                 "digest": "$WEB_DIGEST"
               },
               "worker": {
-                "reference": "$IMAGE_PREFIX/urlfy-worker:$TAG_NAME",
+                "reference": "$WORKER_IMAGE",
                 "stable_reference": "$IMAGE_PREFIX/urlfy-worker:stable",
                 "digest": "$WORKER_DIGEST"
+              },
+              "migrate": {
+                "reference": "$MIGRATE_IMAGE",
+                "stable_reference": "$IMAGE_PREFIX/urlfy-worker:stable",
+                "digest": "$WORKER_DIGEST",
+                "reuses_image": "worker"
               },
               "geoip": {
                 "reference": "$IMAGE_PREFIX/urlfy-geoip:$TAG_NAME",
@@ -338,6 +360,22 @@ jobs:
     if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
     environment: production
     steps:
+      - name: Pin migrate image
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_MIGRATE }}
+          TARGET_IMAGE: ${{ needs.setup.outputs.migrate_image }}
+        run: |
+          echo "Setting migrate image to $TARGET_IMAGE..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.update" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}"
+
       - name: Trigger migrate deployment
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
@@ -408,6 +446,22 @@ jobs:
     if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
     environment: production
     steps:
+      - name: Pin API image
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_API }}
+          TARGET_IMAGE: ${{ needs.setup.outputs.api_image }}
+        run: |
+          echo "Setting API image to $TARGET_IMAGE..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.update" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}"
+
       - name: Trigger API deployment
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
@@ -484,6 +538,22 @@ jobs:
     if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
     environment: production
     steps:
+      - name: Pin Web image
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WEB }}
+          TARGET_IMAGE: ${{ needs.setup.outputs.web_image }}
+        run: |
+          echo "Setting Web image to $TARGET_IMAGE..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.update" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}"
+
       - name: Trigger Web deployment
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
@@ -560,6 +630,22 @@ jobs:
     if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
     environment: production
     steps:
+      - name: Pin Worker image
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WORKER }}
+          TARGET_IMAGE: ${{ needs.setup.outputs.worker_image }}
+        run: |
+          echo "Setting Worker image to $TARGET_IMAGE..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.update" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}"
+
       - name: Trigger Worker deployment
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}

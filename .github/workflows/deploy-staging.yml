@@ -2,9 +2,14 @@
 # Staging Deploy — urlfy.cc
 # ═══════════════════════════════════════════════════════════════════
 # Manual workflow for deploying a specific release tag (or `stable`)
-# to the staging environment.  Follows the same ordered deployment
+# to the staging environment. Follows the same ordered deployment
 # sequence as the production workflow but uses separate Dokploy
 # secrets and a separate environment guard.
+#
+# Unlike production, staging may be pinned to an immutable release tag.
+# This workflow updates each staging Dokploy Application's dockerImage
+# before calling /api/application.deploy, so selecting a release-* tag
+# actually changes the image that Dokploy rolls out.
 #
 # Required repository variables (Settings → Variables → Actions):
 #   DOKPLOY_STAGING_DEPLOY_ENABLED   Set to 'true' to activate staging deployments.
@@ -62,6 +67,10 @@ jobs:
     outputs:
       tag_name: ${{ steps.resolve.outputs.tag_name }}
       image_prefix: ${{ steps.resolve.outputs.image_prefix }}
+      api_image: ${{ steps.resolve.outputs.api_image }}
+      web_image: ${{ steps.resolve.outputs.web_image }}
+      worker_image: ${{ steps.resolve.outputs.worker_image }}
+      migrate_image: ${{ steps.resolve.outputs.migrate_image }}
     steps:
       - name: Resolve tag and image prefix
         id: resolve
@@ -81,8 +90,14 @@ jobs:
             fi
           fi
 
+          image_prefix="ghcr.io/${owner,,}"
+
           echo "tag_name=$tag" >> "$GITHUB_OUTPUT"
-          echo "image_prefix=ghcr.io/${owner,,}" >> "$GITHUB_OUTPUT"
+          echo "image_prefix=$image_prefix" >> "$GITHUB_OUTPUT"
+          echo "api_image=$image_prefix/urlfy-api:$tag" >> "$GITHUB_OUTPUT"
+          echo "web_image=$image_prefix/urlfy-web:$tag" >> "$GITHUB_OUTPUT"
+          echo "worker_image=$image_prefix/urlfy-worker:$tag" >> "$GITHUB_OUTPUT"
+          echo "migrate_image=$image_prefix/urlfy-worker:$tag" >> "$GITHUB_OUTPUT"
 
           echo "Staging deployment target: $tag"
 
@@ -91,9 +106,25 @@ jobs:
     name: Deploy — migrate (staging)
     runs-on: ubuntu-latest
     needs: setup
-    if: vars['DOKPLOY_STAGING_DEPLOY_ENABLED'] == 'true'
+    if: vars.DOKPLOY_STAGING_DEPLOY_ENABLED == 'true'
     environment: staging
     steps:
+      - name: Pin staging migrate image
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_MIGRATE }}
+          TARGET_IMAGE: ${{ needs.setup.outputs.migrate_image }}
+        run: |
+          echo "Setting staging migrate image to $TARGET_IMAGE..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.update" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}"
+
       - name: Trigger migrate deployment
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
@@ -143,9 +174,25 @@ jobs:
     name: Deploy — API (staging)
     runs-on: ubuntu-latest
     needs: [setup, deploy-migrate]
-    if: vars['DOKPLOY_STAGING_DEPLOY_ENABLED'] == 'true'
+    if: vars.DOKPLOY_STAGING_DEPLOY_ENABLED == 'true'
     environment: staging
     steps:
+      - name: Pin staging API image
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_API }}
+          TARGET_IMAGE: ${{ needs.setup.outputs.api_image }}
+        run: |
+          echo "Setting staging API image to $TARGET_IMAGE..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.update" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}"
+
       - name: Trigger API deployment
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
@@ -214,9 +261,25 @@ jobs:
     name: Deploy — Web (staging)
     runs-on: ubuntu-latest
     needs: [setup, deploy-api]
-    if: vars['DOKPLOY_STAGING_DEPLOY_ENABLED'] == 'true'
+    if: vars.DOKPLOY_STAGING_DEPLOY_ENABLED == 'true'
     environment: staging
     steps:
+      - name: Pin staging Web image
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WEB }}
+          TARGET_IMAGE: ${{ needs.setup.outputs.web_image }}
+        run: |
+          echo "Setting staging Web image to $TARGET_IMAGE..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.update" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}"
+
       - name: Trigger Web deployment
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
@@ -285,9 +348,25 @@ jobs:
     name: Deploy — Worker (staging)
     runs-on: ubuntu-latest
     needs: [setup, deploy-web]
-    if: vars['DOKPLOY_STAGING_DEPLOY_ENABLED'] == 'true'
+    if: vars.DOKPLOY_STAGING_DEPLOY_ENABLED == 'true'
     environment: staging
     steps:
+      - name: Pin staging Worker image
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WORKER }}
+          TARGET_IMAGE: ${{ needs.setup.outputs.worker_image }}
+        run: |
+          echo "Setting staging Worker image to $TARGET_IMAGE..."
+
+          curl -sf -X POST \
+            "$DOKPLOY_API_URL/api/application.update" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}"
+
       - name: Trigger Worker deployment
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
@@ -334,7 +413,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [setup, deploy-worker]
     if: |
-      vars['DOKPLOY_STAGING_DEPLOY_ENABLED'] == 'true' &&
+      vars.DOKPLOY_STAGING_DEPLOY_ENABLED == 'true' &&
       inputs.skip_smoke != true
     environment: staging
     steps:
@@ -407,8 +486,8 @@ jobs:
       - name: Smoke — Redirect hot path (staging)
         env:
           STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
-          SMOKE_SHORT_CODE: ${{ secrets['STAGING_SMOKE_SHORT_CODE'] }}
-          SMOKE_EXPECTED_LOCATION: ${{ secrets['STAGING_SMOKE_EXPECTED_LOCATION'] }}
+          SMOKE_SHORT_CODE: ${{ secrets.STAGING_SMOKE_SHORT_CODE }}
+          SMOKE_EXPECTED_LOCATION: ${{ secrets.STAGING_SMOKE_EXPECTED_LOCATION }}
         run: |
           [ -n "$SMOKE_SHORT_CODE" ] || {
             echo "::error::STAGING_SMOKE_SHORT_CODE is not configured"
