@@ -37,6 +37,10 @@ mock.module('@/server/lib/telemetry', () =>
 
 // Also mock the canonical telemetry package used by @urlfy/cache internals
 const noOpCounter = { add: mock(() => {}) };
+const noOpObservable = {
+  addCallback: mock(() => {}),
+  removeCallback: mock(() => {})
+};
 mock.module('@urlfy/telemetry', () =>
   createTelemetryModuleMock({
     createLogger: () => mockLogger,
@@ -46,7 +50,7 @@ mock.module('@urlfy/telemetry', () =>
     circuitBreakerTrips: noOpCounter,
     cacheHits: noOpCounter,
     cacheMisses: noOpCounter,
-    cacheHitRate: noOpCounter,
+    cacheHitRate: noOpObservable,
     redisFallbacks: noOpCounter,
     redirectTotal: noOpCounter,
     redirectErrors: noOpCounter,

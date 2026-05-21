@@ -12,7 +12,6 @@ import { db } from '@urlfy/data';
 import { dataDeletionRequest } from '@urlfy/data/schema';
 import { desc, eq } from 'drizzle-orm';
 import { Elysia, t } from 'elysia';
-import { sendEmail } from '@/server/lib/email';
 import { AppError, ErrorCode } from '@/server/lib/error-handler';
 import { getRedisClient } from '@/server/lib/redis';
 import { requireUser } from '@/server/lib/require-user';
@@ -22,6 +21,7 @@ import { requireAuth } from '@/server/middleware/auth';
 import { UsersModel } from '@/server/modules/users/users.schema';
 import { requestContext } from '@/server/plugins/request-context';
 import { auditLogService } from '@/server/services/audit.service';
+import { emailService } from '@/server/services/email.service';
 import { gdprService } from '@/server/services/gdpr.service';
 
 const logger = createLogger('user-data-controller');
@@ -209,27 +209,29 @@ export const meController = new Elysia({ prefix: '/me' })
         userAgent: userAgent
       });
 
-      sendEmail({
-        to: user.email,
-        subject: 'Solicitação de exclusão de dados - urlfy.cc',
-        template: 'data-deletion-request',
-        data: {
-          name: user.name,
-          requestId: deletionRequest.requestId,
-          deadline: deletionRequest.deadline.toISOString()
-        }
-      }).catch((error) => {
-        logger.warn('Failed to send data deletion email', {
-          userId: user.id,
-          error: error instanceof Error ? error.message : String(error)
+      void emailService
+        .sendDataDeletionConfirmation({
+          to: user.email,
+          firstName: user.name?.split(' ')[0] || 'User',
+          requestDate: deletionRequest.requestedAt,
+          deadlineDate: deletionRequest.deadline,
+          userId: user.id
+        })
+        .catch((error) => {
+          logger.warn('Failed to send data deletion email', {
+            userId: user.id,
+            error: error instanceof Error ? error.message : String(error)
+          });
         });
-      });
 
       return {
         success: true as const,
         data: {
-          requestId: deletionRequest.requestId,
+          id: deletionRequest.requestId,
+          status: deletionRequest.status,
+          requestedAt: deletionRequest.requestedAt.toISOString(),
           deadline: deletionRequest.deadline.toISOString(),
+          completedAt: deletionRequest.completedAt?.toISOString() ?? null,
           message:
             'Your data deletion request has been received. Your data will be permanently deleted within 72 hours.'
         }
