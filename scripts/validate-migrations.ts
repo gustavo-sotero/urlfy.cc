@@ -9,6 +9,39 @@
  * Usage:
  *   bun run scripts/validate-migrations.ts
  *   bun run scripts/validate-migrations.ts --strict  (fails on any warning)
+ *
+ * ─── Migration Compatibility Classification ───────────────────────────────
+ *
+ * Every migration falls into one of three classes.  Knowing the class before
+ * deploy determines whether zero-downtime rollout is safe:
+ *
+ *  CLASS A — additive / backward-compatible
+ *    Safe to run while N (old) and N+1 (new) application versions coexist.
+ *    Examples: CREATE TABLE, ADD COLUMN (nullable), CREATE INDEX CONCURRENTLY,
+ *              ADD CONSTRAINT (deferred or not-yet-enforced).
+ *    Deploy strategy: standard zero-downtime rolling update.
+ *
+ *  CLASS B — behaviorally sensitive but coexistent
+ *    Runs without breaking the old application version, but carries
+ *    operational risk or performance impact.
+ *    Examples: CREATE INDEX without CONCURRENTLY (table lock),
+ *              ADD COLUMN NOT NULL with DEFAULT (backfill on large tables),
+ *              DROP INDEX IF EXISTS.
+ *    Deploy strategy: zero-downtime rollout is still safe, but schedule
+ *    during low-traffic windows and monitor query latency during the migration.
+ *
+ *  CLASS C — incompatible with concurrent N/N+1 runtime
+ *    The old application version WILL break once this migration runs.
+ *    Examples: DROP COLUMN, DROP TABLE, RENAME COLUMN/TABLE,
+ *              ALTER COLUMN TYPE, TRUNCATE, NOT NULL without DEFAULT.
+ *    Deploy strategy: DO NOT use a zero-downtime rolling update.
+ *    Use an expand-and-contract pattern:
+ *      1. Deploy N+1 code that tolerates BOTH old and new schema (expand).
+ *      2. Run the migration.
+ *      3. Remove old-schema compatibility shims in a follow-up deploy.
+ *    Attempting a rolling update with a Class C migration will cause the
+ *    old replicas to error on every request that touches the changed schema.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 
 import { readdir, readFile } from 'node:fs/promises';
@@ -40,6 +73,8 @@ interface Warning {
   severity: 'error' | 'warning';
   message: string;
   sql: string;
+  /** Migration compatibility class (see header comment for definitions). */
+  migrationClass?: 'A' | 'B' | 'C';
 }
 
 // Patterns that indicate destructive or dangerous operations
@@ -48,60 +83,72 @@ const DANGEROUS_PATTERNS: Array<{
   severity: 'error' | 'warning';
   message: string;
   skipInCreateTable?: boolean;
+  /** Migration compatibility class triggered by this pattern. */
+  migrationClass: 'A' | 'B' | 'C';
 }> = [
   {
     pattern: /DROP\s+TABLE\s+(?!IF\s+EXISTS)/i,
     severity: 'error',
-    message: 'DROP TABLE without IF EXISTS — will fail if table does not exist'
+    message: 'DROP TABLE without IF EXISTS — will fail if table does not exist',
+    migrationClass: 'C'
   },
   {
     pattern: /DROP\s+TABLE/i,
     severity: 'warning',
     message:
-      'DROP TABLE detected — this is a destructive operation, ensure data has been migrated'
+      'DROP TABLE detected — Class C (incompatible): old application versions will break; use expand-and-contract before deploying',
+    migrationClass: 'C'
   },
   {
     pattern: /DROP\s+COLUMN/i,
     severity: 'warning',
     message:
-      'DROP COLUMN detected — existing code may still reference this column during rolling deploys'
+      'DROP COLUMN detected — Class C (incompatible): existing code in the old replica will reference this column during a rolling deploy',
+    migrationClass: 'C'
   },
   {
     pattern: /ALTER\s+TABLE\s+\w+\s+RENAME/i,
     severity: 'warning',
     message:
-      'RENAME detected — existing code may reference the old name during rolling deploys'
+      'RENAME detected — Class C (incompatible): existing code references the old name during a rolling deploy; use expand-and-contract',
+    migrationClass: 'C'
   },
   {
     pattern: /ALTER\s+COLUMN\s+\w+\s+TYPE/i,
     severity: 'warning',
     message:
-      'Column type change — may cause data loss or require table rewrite on large tables'
+      'Column type change — Class C (incompatible): may cause data loss or query errors on the old application version',
+    migrationClass: 'C'
   },
   {
     pattern: /NOT\s+NULL(?!\s+DEFAULT)/i,
     severity: 'warning',
     message:
-      'Adding NOT NULL constraint without DEFAULT — will fail if existing rows have NULL values',
-    skipInCreateTable: true
+      'Adding NOT NULL constraint without DEFAULT — Class C (incompatible): will fail if existing rows have NULL values',
+    skipInCreateTable: true,
+    migrationClass: 'C'
   },
   {
     pattern: /TRUNCATE/i,
     severity: 'error',
-    message: 'TRUNCATE detected — this will delete all data in the table'
+    message:
+      'TRUNCATE detected — Class C (incompatible): this will delete all data in the table',
+    migrationClass: 'C'
   },
   {
     pattern: /DROP\s+INDEX\s+(?!IF\s+EXISTS|CONCURRENTLY)/i,
     severity: 'warning',
     message:
-      'DROP INDEX without IF EXISTS — consider using IF EXISTS for safety'
+      'DROP INDEX without IF EXISTS — Class B (sensitive): consider using IF EXISTS for safety',
+    migrationClass: 'B'
   },
   {
     pattern: /CREATE\s+INDEX\s+(?!CONCURRENTLY|IF\s+NOT\s+EXISTS)/i,
     severity: 'warning',
     message:
-      'CREATE INDEX without CONCURRENTLY — may lock table on large datasets. Consider CREATE INDEX CONCURRENTLY',
-    skipInCreateTable: true
+      'CREATE INDEX without CONCURRENTLY — Class B (sensitive): may lock table on large datasets. Consider CREATE INDEX CONCURRENTLY',
+    skipInCreateTable: true,
+    migrationClass: 'B'
   }
 ];
 
@@ -261,7 +308,8 @@ async function validateMigrations(): Promise<void> {
         pattern,
         severity,
         message,
-        skipInCreateTable
+        skipInCreateTable,
+        migrationClass
       } of DANGEROUS_PATTERNS) {
         // Skip NOT NULL checks inside CREATE TABLE (they're safe)
         if (skipInCreateTable && insideCreateTable) continue;
@@ -272,7 +320,8 @@ async function validateMigrations(): Promise<void> {
             line: i + 1,
             severity,
             message,
-            sql: line.substring(0, 120)
+            sql: line.substring(0, 120),
+            migrationClass
           });
         }
       }
@@ -291,7 +340,8 @@ async function validateMigrations(): Promise<void> {
   if (errors.length > 0) {
     console.log(`\n❌ ERRORS (${errors.length}):\n`);
     for (const w of errors) {
-      console.log(`  ${w.file}:${w.line}`);
+      const classLabel = w.migrationClass ? ` [Class ${w.migrationClass}]` : '';
+      console.log(`  ${w.file}:${w.line}${classLabel}`);
       console.log(`    ${w.message}`);
       console.log(`    SQL: ${w.sql}\n`);
     }
@@ -300,10 +350,23 @@ async function validateMigrations(): Promise<void> {
   if (warns.length > 0) {
     console.log(`\n⚠️  WARNINGS (${warns.length}):\n`);
     for (const w of warns) {
-      console.log(`  ${w.file}:${w.line}`);
+      const classLabel = w.migrationClass ? ` [Class ${w.migrationClass}]` : '';
+      console.log(`  ${w.file}:${w.line}${classLabel}`);
       console.log(`    ${w.message}`);
       console.log(`    SQL: ${w.sql}\n`);
     }
+  }
+
+  const classC = warnings.filter((w) => w.migrationClass === 'C');
+  if (classC.length > 0) {
+    console.log(
+      '\n🚫 CLASS C MIGRATION DETECTED — zero-downtime rolling update is NOT safe.\n' +
+        '   Use the expand-and-contract pattern before deploying:\n' +
+        '     1. Deploy application code tolerating BOTH old and new schema.\n' +
+        '     2. Run this migration.\n' +
+        '     3. Remove old-schema compatibility shims in a follow-up release.\n' +
+        '   See docs/operations/rollback-playbook.md §4 for the full classification guide.\n'
+    );
   }
 
   console.log('─'.repeat(60));

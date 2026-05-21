@@ -155,6 +155,26 @@ Database schema migrations (run by `urlfy-migrate`) are **not automatically reve
 
 **Why**: Drizzle migrations are append-only.  A rollback migration must be written explicitly and tested before being applied.  Running a previous application version against a newer schema may be safe (additive changes are generally backwards-compatible) but must be verified case-by-case.
 
+### 4.1 Migration Compatibility Classification
+
+Before any migration is merged, classify it into one of three classes.  The class determines whether a zero-downtime rolling update is safe.
+
+| Class | Name | Examples | Zero-downtime safe? |
+|-------|------|----------|---------------------|
+| **A** | Additive / backward-compatible | `CREATE TABLE`, `ADD COLUMN` (nullable), `CREATE INDEX CONCURRENTLY`, deferred constraints | ✅ Yes — deploy normally |
+| **B** | Behaviorally sensitive but coexistent | `CREATE INDEX` without `CONCURRENTLY` (table lock), `ADD COLUMN NOT NULL DEFAULT` (backfill), `DROP INDEX IF EXISTS` | ⚠️ Yes, but schedule in low-traffic windows; monitor query latency |
+| **C** | Incompatible with concurrent N/N+1 runtime | `DROP COLUMN`, `DROP TABLE`, `RENAME COLUMN/TABLE`, `ALTER COLUMN TYPE`, `TRUNCATE`, `NOT NULL` without `DEFAULT` | 🚫 **No** — old replicas break on requests touching the changed schema |
+
+**Class C rule**: Do NOT use a rolling (zero-downtime) update when the release includes a Class C migration.  Apply the **expand-and-contract pattern** instead:
+
+1. **Expand**: Deploy N+1 application code that tolerates _both_ the old and the new schema shape (e.g. read both old and new column names, write to both).
+2. **Migrate**: Run the Class C schema change as a standalone release phase once all replicas are on N+1.
+3. **Contract**: Remove the old-schema compatibility shims in a follow-up release.
+
+`scripts/validate-migrations.ts` detects Class B and C patterns automatically.  A Class C detection prints a blocking banner.  The CI `migrations` job runs this script on every push — review its output before approving a PR that touches `packages/data/migrations/`.
+
+### 4.2 Protocol When a Schema Migration Is Involved
+
 **Protocol when a schema migration is involved**:
 
 1. **Do not trigger a migrate deployment in the rollback direction.**

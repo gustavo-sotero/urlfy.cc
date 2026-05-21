@@ -36,6 +36,8 @@ Apply these settings in **Dokploy → Application → Advanced → Docker Swarm 
 
 ### 2.1 `urlfy-api` — zero-downtime
 
+**Replicas:** Set to **2 or more** in Dokploy → Application → General → Replicas. A single replica cannot provide in-place replacement safety; zero-downtime rollout is only effective with at least 2 replicas running simultaneously.
+
 ```json
 {
   "HealthCheck": {
@@ -64,6 +66,8 @@ Apply these settings in **Dokploy → Application → Advanced → Docker Swarm 
 > `FailureAction: rollback`: if the new replica fails health checks within the update window, Swarm automatically reverts.
 
 ### 2.2 `urlfy-web` — zero-downtime
+
+**Replicas:** Set to **2 or more** in Dokploy → Application → General → Replicas. Same requirement as API — a single replica cannot sustain zero-downtime rollouts. Do not enable `DOKPLOY_DEPLOY_ENABLED` for Web until replica count is ≥ 2.
 
 ```json
 {
@@ -199,21 +203,32 @@ On a fresh environment, bootstrap `urlfy-geoip` once before cutting traffic over
 | `BETTER_AUTH_SECRET`     | ✅        | Min 32 chars — must match web                                      |
 | `BETTER_AUTH_URL`        | —        | Defaults to `NEXT_PUBLIC_APP_URL`; keep aligned when set           |
 | `INTERNAL_API_SECRET`    | ✅        | Min 16 chars — must match web + worker                             |
-| `ADMIN_GITHUB_ACCOUNT_ID`| ✅        | GitHub numeric account ID for admin elevation                      |
+| `ADMIN_GITHUB_ACCOUNT_ID`| —        | GitHub numeric account ID for admin elevation; admin routes are inaccessible without it |
 | `INTERNAL_ANALYTICS_SECRET` | ✅    | Shared secret between API and worker for analytics events          |
 | `JWT_SECRET`             | ✅        | Required in production for password-protected links                |
 | `REDIS_URL`              | ✅        | Redis connection URL                                               |
-| `REDIS_TOKEN`            | —        | Upstash REST token (if using Upstash)                              |
 | `TRUST_PROXY`            | ✅        | `true` — Traefik sits in front                                     |
 | `TRUST_PROXY_PROVIDER`   | ✅        | `cloudflare` — Cloudflare → Traefik → app topology; reads `CF-Connecting-IP` |
 | `TRUST_PROXY_HOPS`       | —        | Default `1`; only relevant when `TRUST_PROXY_PROVIDER` is not set  |
 | `TRUSTED_PROXY_CIDRS`    | —        | Optional CIDR allowlist; invalid entries are rejected at startup   |
 | `GEOIP_DB_PATH`          | —        | Default `/app/geoip/GeoLite2-City.mmdb`                           |
+| `IDEMPOTENCY_GUEST_SECRET` | —      | Min 32 chars; falls back to `INTERNAL_API_SECRET` when absent      |
+| `RESEND_API_KEY`         | —        | Resend API key — required for email delivery (verification, reset, LGPD) |
+| `RESEND_FROM`            | —        | Sender address for transactional emails (e.g. `noreply@urlfy.cc`)  |
+| `TELEGRAM_BOT_TOKEN`     | —        | Bot token for contact-form Telegram notifications                  |
+| `TELEGRAM_CHAT_ID`       | —        | Target chat/channel ID for Telegram notifications                  |
 | `GITHUB_CLIENT_ID`       | —        | OAuth: GitHub                                                      |
 | `GITHUB_CLIENT_SECRET`   | —        | OAuth: GitHub                                                      |
 | `GOOGLE_CLIENT_ID`       | —        | OAuth: Google                                                      |
 | `GOOGLE_CLIENT_SECRET`   | —        | OAuth: Google                                                      |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | —   | SigNoz / Grafana LGTM OTLP endpoint                               |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | —   | Base OTLP endpoint (SigNoz / Grafana LGTM); per-signal overrides take precedence |
+| `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | — | Per-signal override for logs (consumed by `@urlfy/telemetry`)  |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | — | Per-signal override for metrics                             |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | — | Per-signal override for traces                              |
+| `OTEL_EXPORTER_OTLP_HEADERS` | —    | Default auth headers for all signals (`key=value,key2=value2`)     |
+| `OTEL_EXPORTER_OTLP_LOGS_HEADERS` | — | Per-signal auth headers for logs                               |
+| `OTEL_EXPORTER_OTLP_METRICS_HEADERS` | — | Per-signal auth headers for metrics                          |
+| `OTEL_EXPORTER_OTLP_TRACES_HEADERS` | — | Per-signal auth headers for traces                           |
 | `OTEL_SERVICE_NAME`      | —        | Default `urlfy-api`                                                |
 
 ### 6.2 `urlfy-web`
@@ -228,7 +243,6 @@ On a fresh environment, bootstrap `urlfy-geoip` once before cutting traffic over
 | `INTERNAL_ANALYTICS_SECRET` | ✅    | Required in production; must match API + worker                    |
 | `JWT_SECRET`             | ✅        | Required in production for password-protected links                |
 | `REDIS_URL`              | ✅        |                                                                    |
-| `REDIS_TOKEN`            | —        | Upstash REST token                                                 |
 | `API_INTERNAL_URL`       | ✅        | Set to the internal Dokploy / Swarm API address                    |
 | `TRUST_PROXY`            | ✅        | `true`                                                             |
 | `TRUST_PROXY_PROVIDER`   | ✅        | `cloudflare` — Cloudflare → Traefik → app topology                 |
@@ -246,7 +260,6 @@ On a fresh environment, bootstrap `urlfy-geoip` once before cutting traffic over
 |--------------------------|----------|--------------------------------------------------------------------|
 | `DATABASE_URL`           | ✅        |                                                                    |
 | `REDIS_URL`              | ✅        |                                                                    |
-| `REDIS_TOKEN`            | —        | Upstash REST token                                                 |
 | `INTERNAL_API_SECRET`    | ✅        |                                                                    |
 | `INTERNAL_ANALYTICS_SECRET` | ✅    |                                                                    |
 | `GEOIP_DB_PATH`          | —        | Default `/app/geoip/GeoLite2-City.mmdb`                           |
