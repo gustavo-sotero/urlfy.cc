@@ -1,0 +1,35 @@
+# lefthook.yml — git hooks for urlfy.cc
+# Docs: https://lefthook.dev/configuration
+#
+# Skip all hooks for a single command:  LEFTHOOK=0 git commit
+#
+# Requires lefthook >= 1.10.0 (jobs syntax)
+min_version: "1.10.0"
+
+# Fail loudly if hooks are not installed (protects CI against uninstalled hooks)
+assert_lefthook_installed: true
+
+# ─── pre-commit ────────────────────────────────────────────────────────────────
+# Fast, staged-files-only check. Auto-fixes formatting/lint issues and
+# re-stages the corrected files so the commit is always clean.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: biome
+      glob: "**/*.{ts,tsx,js,jsx,json,jsonc}"
+      run: bunx biome check --write {staged_files}
+      stage_fixed: true
+    - name: type-check
+      run: bun run type-check
+
+# ─── pre-push ──────────────────────────────────────────────────────────────────
+# Comprehensive gate before code leaves the machine. Runs type-checking and
+# the full lint pipeline (turbo lint + module-boundary / contract / catalog
+# validators) in parallel to keep the total wall-clock time low.
+pre-push:
+  parallel: true
+  jobs:
+    - name: build
+      run: bun run build
+    - name: test
+      run: bun run test
