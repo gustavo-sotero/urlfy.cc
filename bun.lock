@@ -315,6 +315,7 @@
     "@swc/core",
     "protobufjs",
     "snyk",
+    "lefthook",
     "@parcel/watcher",
   ],
   "overrides": {

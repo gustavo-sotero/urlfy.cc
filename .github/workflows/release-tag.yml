@@ -100,14 +100,20 @@ jobs:
           RELEASE_STAMP: ${{ steps.tag.outputs.stamp }}
           RELEASE_SHA: ${{ steps.tag.outputs.short_sha }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          # GH_RELEASE_TOKEN must be a PAT (repo + workflow scopes).
+          # GITHUB_TOKEN cannot trigger downstream workflows (GitHub security restriction).
+          GH_RELEASE_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
         run: |
           git tag -a "$TAG_NAME" "$HEAD_SHA" -m "Release $RELEASE_STAMP ($RELEASE_SHA)"
-          git push origin "refs/tags/$TAG_NAME"
+          git -c "url.https://x-access-token:${GH_RELEASE_TOKEN}@github.com/.insteadOf=https://github.com/" \
+            push origin "refs/tags/$TAG_NAME"
 
       - name: Move release branch to the tagged commit
         if: steps.gate.outputs.release_ready == 'true'
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_RELEASE_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
         run: |
           git branch -f release "$HEAD_SHA"
-          git push origin release:release
+          git -c "url.https://x-access-token:${GH_RELEASE_TOKEN}@github.com/.insteadOf=https://github.com/" \
+            push origin release:release
