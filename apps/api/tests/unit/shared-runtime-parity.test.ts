@@ -31,12 +31,30 @@ function workspaceFile(relPath: string): Bun.BunFile {
   return Bun.file(url);
 }
 
-function isReExportShim(source: string, canonicalPackage: string): boolean {
-  const stripped = source
+function normalizeSource(source: string): string {
+  return source
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/^[ \t]*\/\/.*$/gm, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function onlyImportsCanonicalModule(
+  source: string,
+  canonicalModule: string
+): boolean {
+  const importSpecifiers = [
+    ...source.matchAll(/import\(['"]([^'"]+)['"]\)/g)
+  ].map(([, specifier]) => specifier);
+
+  return (
+    importSpecifiers.length > 0 &&
+    importSpecifiers.every((specifier) => specifier === canonicalModule)
+  );
+}
+
+function isReExportShim(source: string, canonicalPackage: string): boolean {
+  const stripped = normalizeSource(source);
 
   // Must contain at least one re-export from the canonical package
   const reExportPattern = new RegExp(
@@ -60,6 +78,72 @@ function isReExportShim(source: string, canonicalPackage: string): boolean {
   }
 
   return true;
+}
+
+function isLazyEmailTransportShim(source: string): boolean {
+  const stripped = normalizeSource(source);
+
+  return (
+    onlyImportsCanonicalModule(stripped, '@urlfy/email/transport') &&
+    /export\s+type\s+\{\s*SendEmailOptions\s*\}\s+from\s+['"]@urlfy\/email\/transport['"]/.test(
+      stripped
+    ) &&
+    /function\s+getEmailTransport\(\)/.test(stripped) &&
+    /export\s+async\s+function\s+sendEmail\s*\(/.test(stripped) &&
+    /options:\s*import\('@urlfy\/email\/transport'\)\.SendEmailOptions/.test(
+      stripped
+    ) &&
+    /await\s+getEmailTransport\(\)/.test(stripped) &&
+    /sendCanonicalEmail\(options\)/.test(stripped)
+  );
+}
+
+const canonicalEmailServiceMethods = [
+  'sendWelcomeEmail',
+  'sendEmailVerification',
+  'sendPasswordResetEmail',
+  'sendDataDeletionConfirmation',
+  'sendLinkBannedNotification',
+  'sendQuotaWarning'
+] as const;
+
+function isLazyEmailServiceShim(source: string): boolean {
+  const stripped = normalizeSource(source);
+
+  if (!onlyImportsCanonicalModule(stripped, '@urlfy/email/email-service')) {
+    return false;
+  }
+
+  if (
+    !/type\s+EmailService\s*=\s*typeof\s+import\('@urlfy\/email\/email-service'\)\.emailService/.test(
+      stripped
+    )
+  ) {
+    return false;
+  }
+
+  if (!/function\s+getEmailService\(\)/.test(stripped)) {
+    return false;
+  }
+
+  if (!/export\s+const\s+emailService\s*=/.test(stripped)) {
+    return false;
+  }
+
+  if (!/satisfies\s+EmailService/.test(stripped)) {
+    return false;
+  }
+
+  return canonicalEmailServiceMethods.every((methodName) => {
+    const signaturePattern = new RegExp(
+      `async\\s+${methodName}\\s*\\(\\s*params:\\s*Parameters<EmailService\\['${methodName}'\\]>\\[0\\]\\s*\\)`
+    );
+    const callPattern = new RegExp(
+      `\\(await\\s+getEmailService\\(\\)\\)\\.${methodName}\\(params\\)`
+    );
+
+    return signaturePattern.test(stripped) && callPattern.test(stripped);
+  });
 }
 
 // ── CacheService ─────────────────────────────────────────────────────────────
@@ -141,6 +225,15 @@ describe('Email runtime shim parity', () => {
 
     it(`${app} server/lib/email.ts re-exports from @urlfy/email`, async () => {
       const source = await read('src/server/lib/email.ts');
+
+      if (app === 'API') {
+        expect(
+          isReExportShim(source, '@urlfy/email') ||
+            isLazyEmailTransportShim(source)
+        ).toBe(true);
+        return;
+      }
+
       expect(isReExportShim(source, '@urlfy/email')).toBe(true);
     });
 
@@ -151,6 +244,15 @@ describe('Email runtime shim parity', () => {
 
     it(`${app} server/services/email.service.ts re-exports from @urlfy/email`, async () => {
       const source = await read('src/server/services/email.service.ts');
+
+      if (app === 'API') {
+        expect(
+          isReExportShim(source, '@urlfy/email') ||
+            isLazyEmailServiceShim(source)
+        ).toBe(true);
+        return;
+      }
+
       expect(isReExportShim(source, '@urlfy/email')).toBe(true);
     });
   }
