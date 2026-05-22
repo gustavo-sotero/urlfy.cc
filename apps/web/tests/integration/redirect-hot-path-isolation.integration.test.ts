@@ -61,7 +61,9 @@ mock.module('@/server/services/redirect-service', () => ({
 
 mock.module('@urlfy/telemetry', () => ({
   createLogger: () => ({
+    debug: () => {},
     info: () => {},
+    warn: () => {},
     error: () => {}
   }),
   maskIpForLog: (ip: string) => `ip:${ip}`,

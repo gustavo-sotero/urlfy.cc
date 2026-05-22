@@ -18,6 +18,8 @@ const READY_ROUTE_PATH = '../../src/app/ops/health/ready/route.ts';
 let readyRouteImportCounter = 0;
 
 const originalFetch = global.fetch;
+let actualCacheModule: typeof import('../../src/server/lib/cache');
+let actualDataModule: typeof import('@urlfy/data');
 
 function expectMinimalPublicReadiness(
   body: Record<string, unknown>,
@@ -48,15 +50,19 @@ async function importFreshReadyRoute() {
 }
 
 describe('Web readiness endpoint', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
     process.env.API_INTERNAL_URL = 'http://localhost:3001';
+    actualCacheModule = await import('../../src/server/lib/cache');
+    actualDataModule = await import('@urlfy/data');
   });
 
   beforeEach(() => {
     mock.module('@/server/lib/cache', () => ({
+      ...actualCacheModule,
       checkRedisHealth: checkRedisHealthMock
     }));
     mock.module('@urlfy/data', () => ({
+      ...actualDataModule,
       checkDatabaseHealth: checkDatabaseHealthMock
     }));
     checkRedisHealthMock.mockReset();
