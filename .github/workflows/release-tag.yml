@@ -25,6 +25,10 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
+          # Use PAT so that tag/branch pushes from this workflow
+          # are treated as user-initiated events and trigger deploy.yml.
+          # GITHUB_TOKEN pushes do NOT trigger downstream workflows.
+          token: ${{ secrets.GH_RELEASE_TOKEN }}
 
       - name: Fetch refs used for release gating
         run: |
@@ -100,20 +104,14 @@ jobs:
           RELEASE_STAMP: ${{ steps.tag.outputs.stamp }}
           RELEASE_SHA: ${{ steps.tag.outputs.short_sha }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          # GH_RELEASE_TOKEN must be a PAT (repo + workflow scopes).
-          # GITHUB_TOKEN cannot trigger downstream workflows (GitHub security restriction).
-          GH_RELEASE_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
         run: |
           git tag -a "$TAG_NAME" "$HEAD_SHA" -m "Release $RELEASE_STAMP ($RELEASE_SHA)"
-          git -c "url.https://x-access-token:${GH_RELEASE_TOKEN}@github.com/.insteadOf=https://github.com/" \
-            push origin "refs/tags/$TAG_NAME"
+          git push origin "refs/tags/$TAG_NAME"
 
       - name: Move release branch to the tagged commit
         if: steps.gate.outputs.release_ready == 'true'
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          GH_RELEASE_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
         run: |
           git branch -f release "$HEAD_SHA"
-          git -c "url.https://x-access-token:${GH_RELEASE_TOKEN}@github.com/.insteadOf=https://github.com/" \
-            push origin release:release
+          git push origin release:release
