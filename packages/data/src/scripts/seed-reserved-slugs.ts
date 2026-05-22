@@ -2,7 +2,11 @@
 // Script to seed reserved slugs into the database
 
 import { db } from '../cli';
-import { RESERVED_SLUGS, reservedSlugs } from '../schema/reserved-slugs';
+import {
+  getReservedSlugReason,
+  RESERVED_SLUGS,
+  reservedSlugs
+} from '../schema/reserved-slugs';
 
 /**
  * Seeds the reserved_slugs table with the predefined list of reserved slugs
@@ -13,7 +17,7 @@ async function seedReservedSlugs() {
 
   const slugsToInsert = RESERVED_SLUGS.map((slug) => ({
     slug,
-    reason: getReasonForSlug(slug)
+    reason: getReservedSlugReason(slug)
   }));
 
   try {
@@ -33,56 +37,6 @@ async function seedReservedSlugs() {
     console.error('❌ Failed to seed reserved slugs:', error);
     throw error;
   }
-}
-
-/**
- * Determines the reason category for a reserved slug
- */
-function getReasonForSlug(slug: string): string {
-  // System routes
-  const systemRoutes = [
-    'api',
-    'auth',
-    'dashboard',
-    'admin',
-    'login',
-    'signup',
-    'logout',
-    'settings',
-    'health',
-    'metrics',
-    'docs',
-    'help',
-    'support',
-    'status',
-    'about',
-    'pricing',
-    'blog',
-    'ops'
-  ];
-  if (systemRoutes.includes(slug)) return 'system_route';
-
-  // SEO/Browser
-  const seoRoutes = ['favicon.ico', 'robots.txt', 'sitemap.xml', '.well-known'];
-  if (seoRoutes.includes(slug)) return 'seo';
-
-  // Legal
-  const legalRoutes = [
-    'privacy',
-    'terms',
-    'tos',
-    'legal',
-    'dmca',
-    'abuse',
-    'cookies'
-  ];
-  if (legalRoutes.includes(slug)) return 'legal';
-
-  // i18n locales
-  const locales = ['en', 'pt-br'];
-  if (locales.includes(slug)) return 'i18n';
-
-  return 'reserved';
 }
 
 // Run if executed directly

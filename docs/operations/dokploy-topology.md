@@ -316,8 +316,6 @@ Configure these in **GitHub Settings → Secrets and variables → Actions** bef
 | `DOKPLOY_APP_ID_WEB`        | `applicationId` from Dokploy dashboard        |
 | `DOKPLOY_APP_ID_WORKER`     | `applicationId` from Dokploy dashboard        |
 | `PRODUCTION_APP_URL`        | `https://urlfy.cc`                            |
-| `PRODUCTION_SMOKE_SHORT_CODE` | Known redirect code for post-deploy smoke   |
-| `PRODUCTION_SMOKE_EXPECTED_LOCATION` | Exact `Location` header expected from that smoke redirect |
 
 > **How to find `applicationId`**: In Dokploy, open the Application → Settings → General. The ID is shown in the URL or the General settings panel.
 
@@ -343,7 +341,7 @@ During the cutover from `docker-compose.prod.yml` to independent Dokploy Applica
 
 1. **Leave `DOKPLOY_DEPLOY_ENABLED` unset** — the `deploy.yml` workflow will build and push images to GHCR but skip all Dokploy API calls.
 2. Provision the five Dokploy Applications manually using the image references from `release-manifest.json` on the GitHub Release.
-3. Configure the smoke-test secrets (`PRODUCTION_SMOKE_SHORT_CODE`, `PRODUCTION_SMOKE_EXPECTED_LOCATION`) and validate health checks, same-origin routing, and traffic in Dokploy before setting `DOKPLOY_DEPLOY_ENABLED = true`.
+3. Validate health checks, same-origin routing, and traffic in Dokploy before setting `DOKPLOY_DEPLOY_ENABLED = true`. The smoke test uses the deterministic `repo` link seeded by `db:migrate:prod` — no additional secrets needed.
 4. From that point forward, every `release-*` tag triggers a fully automated ordered deployment.
 
 The old `docker/docker-compose.prod.yml` is preserved as a rollback baseline — see `docs/operations/rollback-playbook.md`.

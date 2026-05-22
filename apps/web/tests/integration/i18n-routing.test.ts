@@ -13,6 +13,11 @@ import { describe, expect, it } from 'bun:test';
 import { resolve } from 'node:path';
 import { ALIAS_PATTERN } from '@urlfy/contracts/alias-policy';
 import { hasLocalePrefix, routing } from '../../src/i18n/routing';
+import {
+  LOCALIZED_APP_ROUTES,
+  PASSTHROUGH_ROUTES,
+  UI_BYPASS_ROUTES
+} from '../../src/proxy';
 
 function routeFile(relativePath: string) {
   return Bun.file(resolve(import.meta.dir, '../../', relativePath));
@@ -67,6 +72,53 @@ describe('I18n Routing', () => {
       // Testa que aliases válidos são aceitos
       expect(isReserved('my-link')).toBe(false);
       expect(isReserved('abc123')).toBe(false);
+    });
+
+    it('should keep the reserved slug catalog unique', async () => {
+      const { RESERVED_SLUGS } = await import(
+        '@urlfy/data/schema/reserved-slugs'
+      );
+
+      const slugList = [...RESERVED_SLUGS];
+      const uniqueSlugs = new Set(slugList);
+
+      expect(uniqueSlugs.size).toBe(slugList.length);
+    });
+
+    it('should map every reserved slug to an explicit reason', async () => {
+      const { getReservedSlugReason, RESERVED_SLUGS } = await import(
+        '@urlfy/data/schema/reserved-slugs'
+      );
+
+      for (const slug of RESERVED_SLUGS) {
+        expect(getReservedSlugReason(slug)).not.toBe('reserved');
+      }
+    });
+
+    it('should reserve every proxy-protected root path that matches the alias policy', async () => {
+      const { RESERVED_SLUGS } = await import(
+        '@urlfy/data/schema/reserved-slugs'
+      );
+
+      const aliasSlugRegex = new RegExp(`^${ALIAS_PATTERN}$`);
+      const expectedReservedSlugs = [
+        ...routing.locales,
+        ...PASSTHROUGH_ROUTES,
+        ...UI_BYPASS_ROUTES,
+        ...LOCALIZED_APP_ROUTES
+      ]
+        .map((route) => route.replace(/^\//, ''))
+        .filter((slug, index, collection) => {
+          return (
+            aliasSlugRegex.test(slug) && collection.indexOf(slug) === index
+          );
+        });
+
+      const missingSlugs = expectedReservedSlugs.filter((slug) => {
+        return !(RESERVED_SLUGS as readonly string[]).includes(slug);
+      });
+
+      expect(missingSlugs).toEqual([]);
     });
   });
 

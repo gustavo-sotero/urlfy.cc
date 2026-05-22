@@ -29,8 +29,11 @@
 #   DOKPLOY_APP_ID_WEB          applicationId of the urlfy-web Application in Dokploy
 #   DOKPLOY_APP_ID_WORKER       applicationId of the urlfy-worker Application in Dokploy
 #   PRODUCTION_APP_URL          Public root URL used for health gates, e.g. https://urlfy.cc
-#   PRODUCTION_SMOKE_SHORT_CODE Known public short code used for redirect smoke verification
-#   PRODUCTION_SMOKE_EXPECTED_LOCATION Exact Location header expected for that smoke link
+#
+# Smoke test link is deterministic — seeded automatically by db:migrate:prod:
+#   Short code:  repo
+#   Destination: https://github.com/gustavo-sotero/urlfy.cc
+# No secret needed; values are hardcoded in packages/data/src/scripts/seed-smoke.ts
 #
 # See docs/operations/dokploy-topology.md for full configuration reference.
 # ═══════════════════════════════════════════════════════════════════
@@ -764,19 +767,11 @@ jobs:
       - name: Smoke — Redirect hot path
         env:
           PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
-          SMOKE_SHORT_CODE: ${{ secrets['PRODUCTION_SMOKE_SHORT_CODE'] }}
-          SMOKE_EXPECTED_LOCATION: ${{ secrets['PRODUCTION_SMOKE_EXPECTED_LOCATION'] }}
+          # Deterministic values — always seeded by db:migrate:prod via seed-smoke.ts.
+          # See packages/data/src/scripts/seed-smoke.ts for the source of truth.
+          SMOKE_SHORT_CODE: repo
+          SMOKE_EXPECTED_LOCATION: https://github.com/gustavo-sotero/urlfy.cc
         run: |
-          [ -n "$SMOKE_SHORT_CODE" ] || {
-            echo "::error::PRODUCTION_SMOKE_SHORT_CODE is not configured"
-            exit 1
-          }
-
-          [ -n "$SMOKE_EXPECTED_LOCATION" ] || {
-            echo "::error::PRODUCTION_SMOKE_EXPECTED_LOCATION is not configured"
-            exit 1
-          }
-
           normalized_code="${SMOKE_SHORT_CODE#/}"
           smoke_url="$PRODUCTION_APP_URL/$normalized_code"
           response_headers=$(mktemp)

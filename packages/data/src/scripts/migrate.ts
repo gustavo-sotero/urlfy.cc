@@ -5,6 +5,7 @@ import {
   getDatabaseBootstrapDiagnostics,
   initDatabase
 } from '../index';
+import { seedSmoke } from './seed-smoke';
 
 const MIGRATION_TIMEOUT_S = Number.parseInt(
   process.env.MIGRATION_TIMEOUT ?? '120',
@@ -74,6 +75,15 @@ async function main() {
     // This will run migrations on the database, skipping the ones already applied
     await migrate(db, { migrationsFolder: './migrations' });
     console.log('✅ Migrations completed successfully');
+
+    try {
+      await seedSmoke(db);
+    } catch (seedError) {
+      console.error('❌ Post-migration seed failed:', seedError);
+      await closeDatabase();
+      process.exit(1);
+    }
+
     await closeDatabase();
     process.exit(0);
   } catch (error) {

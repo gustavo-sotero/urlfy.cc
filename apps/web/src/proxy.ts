@@ -37,7 +37,7 @@ const SHORT_CODE_PATH_REGEX = new RegExp(`^/(${ALIAS_PATTERN})$`);
  * Backend routes that serve no HTML — skip before nonce/CSP generation.
  * These are pure JSON API or redirect responses where CSP is irrelevant.
  */
-const PASSTHROUGH_ROUTES = [
+export const PASSTHROUGH_ROUTES = [
   '/api', // JSON API (routed by ingress to apps/api)
   '/r', // Redirect handler hot path — pure 301/302
   '/internal', // Internal API
@@ -48,7 +48,7 @@ const PASSTHROUGH_ROUTES = [
  * Routes that bypass i18n but still receive CSP (they serve HTML pages).
  * Checked after nonce generation so headers can be applied to responses.
  */
-const UI_BYPASS_ROUTES = [
+export const UI_BYPASS_ROUTES = [
   '/auth', // Authentication routes (Better-Auth, may serve UI)
   '/admin', // Admin panel
   '/logout', // Logout

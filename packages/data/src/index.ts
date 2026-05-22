@@ -29,7 +29,7 @@ const NETWORK_ERROR_FRAGMENTS = [
 ] as const;
 
 // Type for the drizzle instance
-type DrizzleDatabase = ReturnType<typeof drizzle>;
+export type DrizzleDatabase = ReturnType<typeof drizzle>;
 
 // Connection singleton
 let dbInstance: DrizzleDatabase | null = null;
