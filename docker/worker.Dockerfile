@@ -28,7 +28,7 @@ COPY packages/telemetry/package.json ./packages/telemetry/
 RUN bun install --frozen-lockfile --filter=@urlfy/worker
 
 # ═══════════════════════════════════════════════════════════════════
-FROM oven/bun:${BUN_VERSION}-slim AS runner
+FROM oven/bun:${BUN_VERSION}-slim AS runner-base
 WORKDIR /app
 
 COPY --from=dependencies /app/node_modules ./node_modules
@@ -47,6 +47,18 @@ VOLUME /app/geoip
 USER urlfy
 
 ENV NODE_ENV=production
+
+FROM runner-base AS migrate-runtime
+
+LABEL org.opencontainers.image.description="urlfy.cc — database migrations"
+
+WORKDIR /app/packages/data
+
+CMD ["bun", "run", "db:migrate:prod"]
+
+FROM runner-base AS worker-runtime
+
+LABEL org.opencontainers.image.description="urlfy.cc — background workers"
 
 WORKDIR /app/apps/worker
 

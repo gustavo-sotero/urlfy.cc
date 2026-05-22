@@ -143,7 +143,7 @@ curl -fsS https://urlfy.cc/ops/health/ready
 Before rolling back production, you can verify the target image is healthy on staging:
 
 1. Go to **GitHub → Actions → Deploy (Staging)** → **Run workflow**.
-2. Enter the target release tag (e.g. `release-20260501120000-abc123def456`). The workflow repoints the staging Dokploy Applications to that immutable GHCR tag before deploying. Ensure `STAGING_SMOKE_SHORT_CODE` and `STAGING_SMOKE_EXPECTED_LOCATION` are configured, or run with `skip_smoke=true` only when you are intentionally validating a broken state.
+2. Enter the target release tag (e.g. `release-20260501120000-abc123def456`). The workflow repoints the staging Dokploy Applications to that immutable GHCR tag before deploying. The redirect smoke check uses the deterministic `repo` link seeded by `db:migrate:prod`, or run with `skip_smoke=true` only when you are intentionally validating a broken state.
 3. Confirm staging smoke checks pass.
 4. Proceed with the production rollback (§2).
 

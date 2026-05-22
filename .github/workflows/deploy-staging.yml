@@ -22,8 +22,11 @@
 #   DOKPLOY_STAGING_APP_ID_WEB       applicationId for urlfy-web in staging
 #   DOKPLOY_STAGING_APP_ID_WORKER    applicationId for urlfy-worker in staging
 #   STAGING_APP_URL                  Public root URL of the staging environment
-#   STAGING_SMOKE_SHORT_CODE         Known public short code used for redirect smoke verification
-#   STAGING_SMOKE_EXPECTED_LOCATION  Exact Location header expected for that smoke link
+#
+# Staging smoke link is deterministic — seeded automatically by db:migrate:prod:
+#   Short code:  repo
+#   Destination: https://github.com/gustavo-sotero/urlfy.cc
+# No secret needed; values are hardcoded in packages/data/src/scripts/seed-smoke.ts
 #
 # GHCR images are shared across environments (same image, different deployment target).
 # See docs/operations/dokploy-topology.md for full configuration reference.
@@ -97,7 +100,7 @@ jobs:
           echo "api_image=$image_prefix/urlfy-api:$tag" >> "$GITHUB_OUTPUT"
           echo "web_image=$image_prefix/urlfy-web:$tag" >> "$GITHUB_OUTPUT"
           echo "worker_image=$image_prefix/urlfy-worker:$tag" >> "$GITHUB_OUTPUT"
-          echo "migrate_image=$image_prefix/urlfy-worker:$tag" >> "$GITHUB_OUTPUT"
+          echo "migrate_image=$image_prefix/urlfy-migrate:$tag" >> "$GITHUB_OUTPUT"
 
           echo "Staging deployment target: $tag"
 
@@ -486,19 +489,9 @@ jobs:
       - name: Smoke — Redirect hot path (staging)
         env:
           STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
-          SMOKE_SHORT_CODE: ${{ secrets.STAGING_SMOKE_SHORT_CODE }}
-          SMOKE_EXPECTED_LOCATION: ${{ secrets.STAGING_SMOKE_EXPECTED_LOCATION }}
+          SMOKE_SHORT_CODE: repo
+          SMOKE_EXPECTED_LOCATION: https://github.com/gustavo-sotero/urlfy.cc
         run: |
-          [ -n "$SMOKE_SHORT_CODE" ] || {
-            echo "::error::STAGING_SMOKE_SHORT_CODE is not configured"
-            exit 1
-          }
-
-          [ -n "$SMOKE_EXPECTED_LOCATION" ] || {
-            echo "::error::STAGING_SMOKE_EXPECTED_LOCATION is not configured"
-            exit 1
-          }
-
           normalized_code="${SMOKE_SHORT_CODE#/}"
           smoke_url="$STAGING_APP_URL/$normalized_code"
           response_headers=$(mktemp)

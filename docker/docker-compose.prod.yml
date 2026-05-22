@@ -31,8 +31,7 @@ services:
     build:
       context: ..
       dockerfile: docker/worker.Dockerfile
-    working_dir: /app
-    command: ['bun', 'run', 'db:migrate:prod']
+      target: migrate-runtime
     init: true
     environment:
       - NODE_ENV=production

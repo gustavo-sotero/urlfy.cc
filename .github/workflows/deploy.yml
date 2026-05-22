@@ -4,8 +4,8 @@
 # Triggered on every immutable release-* tag created by release-tag.yml.
 #
 # Phases (in order):
-#   1. Build and push all four service images to GHCR in parallel
-#      (api, web, worker, geoip).
+#   1. Build and push five service images to GHCR
+#      (api, web, worker, migrate, geoip).
 #   2. Generate a machine-readable release manifest and attach it to
 #      the corresponding GitHub Release.
 #   3. When DOKPLOY_DEPLOY_ENABLED == 'true', deploy in strict order:
@@ -91,7 +91,7 @@ jobs:
           echo "api_image=$image_prefix/urlfy-api:$tag" >> "$GITHUB_OUTPUT"
           echo "web_image=$image_prefix/urlfy-web:$tag" >> "$GITHUB_OUTPUT"
           echo "worker_image=$image_prefix/urlfy-worker:$tag" >> "$GITHUB_OUTPUT"
-          echo "migrate_image=$image_prefix/urlfy-worker:$tag" >> "$GITHUB_OUTPUT"
+          echo "migrate_image=$image_prefix/urlfy-migrate:$tag" >> "$GITHUB_OUTPUT"
 
   # ─── Build and push API image ────────────────────────────────────
   build-api:
@@ -173,13 +173,14 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ needs.setup.outputs.tag_name }}
 
-  # ─── Build and push Worker image ──────────────────────────────────
+  # ─── Build and push Worker + Migrate images ───────────────────────
   build-worker:
-    name: Build Worker image
+    name: Build Worker and Migrate images
     runs-on: ubuntu-latest
     needs: setup
     outputs:
-      digest: ${{ steps.push.outputs.digest }}
+      worker_digest: ${{ steps.push_worker.outputs.digest }}
+      migrate_digest: ${{ steps.push_migrate.outputs.digest }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -194,15 +195,35 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Worker image
-        id: push
+        id: push_worker
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/worker.Dockerfile
+          target: worker-runtime
           push: true
           tags: |
             ${{ needs.setup.outputs.image_prefix }}/urlfy-worker:${{ needs.setup.outputs.tag_name }}
             ${{ needs.setup.outputs.image_prefix }}/urlfy-worker:stable
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,scope=worker,mode=max
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.setup.outputs.tag_name }}
+
+      - name: Build and push Migrate image
+        id: push_migrate
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/worker.Dockerfile
+          target: migrate-runtime
+          push: true
+          tags: |
+            ${{ needs.setup.outputs.image_prefix }}/urlfy-migrate:${{ needs.setup.outputs.tag_name }}
+            ${{ needs.setup.outputs.image_prefix }}/urlfy-migrate:stable
           cache-from: type=gha,scope=worker
           cache-to: type=gha,scope=worker,mode=max
           labels: |
@@ -267,7 +288,8 @@ jobs:
           MIGRATE_IMAGE: ${{ needs.setup.outputs.migrate_image }}
           API_DIGEST: ${{ needs.build-api.outputs.digest }}
           WEB_DIGEST: ${{ needs.build-web.outputs.digest }}
-          WORKER_DIGEST: ${{ needs.build-worker.outputs.digest }}
+          WORKER_DIGEST: ${{ needs.build-worker.outputs.worker_digest }}
+          MIGRATE_DIGEST: ${{ needs.build-worker.outputs.migrate_digest }}
           GEOIP_DIGEST: ${{ needs.build-geoip.outputs.digest }}
         run: |
           cat > release-manifest.json <<EOF
@@ -294,9 +316,8 @@ jobs:
               },
               "migrate": {
                 "reference": "$MIGRATE_IMAGE",
-                "stable_reference": "$IMAGE_PREFIX/urlfy-worker:stable",
-                "digest": "$WORKER_DIGEST",
-                "reuses_image": "worker"
+                "stable_reference": "$IMAGE_PREFIX/urlfy-migrate:stable",
+                "digest": "$MIGRATE_DIGEST"
               },
               "geoip": {
                 "reference": "$IMAGE_PREFIX/urlfy-geoip:$TAG_NAME",

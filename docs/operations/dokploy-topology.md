@@ -153,10 +153,10 @@ All images are built by `deploy.yml` and pushed to GHCR. Bootstrap each Dokploy 
 | urlfy-api      | `ghcr.io/<owner>/urlfy-api:<release-tag>`              | 3001 |
 | urlfy-web      | `ghcr.io/<owner>/urlfy-web:<release-tag>`              | 3000 |
 | urlfy-worker   | `ghcr.io/<owner>/urlfy-worker:<release-tag>`           | —    |
-| urlfy-migrate  | `ghcr.io/<owner>/urlfy-worker:<release-tag>`           | —    |
+| urlfy-migrate  | `ghcr.io/<owner>/urlfy-migrate:<release-tag>`          | —    |
 | urlfy-geoip    | `ghcr.io/<owner>/urlfy-geoip:<release-tag>`            | —    |
 
-> `urlfy-migrate` reuses the **worker** image and overrides the command to `bun run db:migrate:prod`. The release manifest still records `migrate` separately so rollback and audit trails can treat it as its own deployment target.
+> `urlfy-migrate` is published as its own GHCR image, but it shares the same Docker build graph as `urlfy-worker`. The dedicated image bakes `bun run db:migrate:prod` into the container contract, so Dokploy does not need any startup-command override.
 >
 > In Dokploy, enable **Deployments → Rollback Settings** against the same GHCR registry for `urlfy-api` and `urlfy-web` so per-application registry rollback remains available. The CI-generated `release-manifest.json` is still the authoritative cross-service rollback map.
 
@@ -272,7 +272,7 @@ On a fresh environment, bootstrap `urlfy-geoip` once before cutting traffic over
 
 ### 6.4 `urlfy-migrate`
 
-`urlfy-migrate` reuses the worker image but should run the explicit command `bun run db:migrate:prod`. The migration script waits for PostgreSQL before running Drizzle migrations, so its timeout knobs belong to the deployment contract.
+`urlfy-migrate` uses a dedicated image whose default command is already `bun run db:migrate:prod`. The migration script waits for PostgreSQL before running Drizzle migrations, so its timeout knobs belong to the deployment contract.
 
 | Variable                 | Required |
 |--------------------------|----------|
@@ -330,8 +330,6 @@ Configure these in **GitHub Settings → Secrets and variables → Actions** bef
 | `DOKPLOY_STAGING_APP_ID_WEB`      |                                            |
 | `DOKPLOY_STAGING_APP_ID_WORKER`   |                                            |
 | `STAGING_APP_URL`                 | `https://staging.urlfy.cc`                 |
-| `STAGING_SMOKE_SHORT_CODE`        | Known redirect code for post-deploy smoke  |
-| `STAGING_SMOKE_EXPECTED_LOCATION` | Exact `Location` header expected from that smoke redirect |
 
 ---
 

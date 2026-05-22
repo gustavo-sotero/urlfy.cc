@@ -125,8 +125,8 @@ Production deployments are fully automated through immutable GHCR images. The pi
 1. A commit lands on `main`.
 2. `.github/workflows/ci.yml` validates the full pipeline (lint, type-check, tests, migration check).
 3. When CI succeeds on the latest `main` commit, `.github/workflows/release-tag.yml` creates an annotated immutable tag in the format `release-YYYYMMDDHHMMSS-<12-char-sha>` and fast-forwards the `release` branch to that commit.
-4. The release tag triggers `.github/workflows/deploy.yml`, which builds four GHCR images (`urlfy-api`, `urlfy-web`, `urlfy-worker`, `urlfy-geoip`) in parallel and publishes immutable `ghcr.io/<owner>/urlfy-{service}:{release-*}` references plus an optional `:stable` channel tag.
-5. The deploy workflow writes `release-manifest.json`, pins each Dokploy Application to the manifest's immutable image reference (`urlfy-migrate` reuses the worker image), and then orchestrates an ordered deployment: database migration → API (with health gate) → Web (with health gate) → Worker → smoke verification.
+4. The release tag triggers `.github/workflows/deploy.yml`, which builds and publishes five GHCR images (`urlfy-api`, `urlfy-web`, `urlfy-worker`, `urlfy-migrate`, `urlfy-geoip`) with immutable `ghcr.io/<owner>/urlfy-{service}:{release-*}` references plus an optional `:stable` channel tag.
+5. The deploy workflow writes `release-manifest.json`, pins each Dokploy Application to the manifest's immutable image reference, and then orchestrates an ordered deployment: database migration → API (with health gate) → Web (with health gate) → Worker → smoke verification.
 
 Dokploy Applications are configured to pull pre-built images from GHCR, not to build from the repository. See [`docs/operations/dokploy-topology.md`](docs/operations/dokploy-topology.md) for full provisioning details and [`docs/operations/rollback-playbook.md`](docs/operations/rollback-playbook.md) for rollback procedures.
 
