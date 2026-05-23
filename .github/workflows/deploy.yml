@@ -402,8 +402,9 @@ jobs:
           echo "Setting migrate image to $TARGET_IMAGE..."
 
           response_body=$(mktemp)
-          trap 'rm -f "$response_body"' EXIT
-          http_code=$(curl -sS -o "$response_body" -w "%{http_code}" -X POST \
+          response_headers=$(mktemp)
+          trap 'rm -f "$response_body" "$response_headers"' EXIT
+          http_code=$(curl -sS -D "$response_headers" -o "$response_body" -w "%{http_code}" -X POST \
             "$DOKPLOY_API_BASE_URL/api/application.update" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
@@ -416,6 +417,8 @@ jobs:
             fi
 
             echo "::error::Dokploy application.update failed with HTTP $http_code"
+            echo "Response headers:"
+            tr -d '\r' < "$response_headers"
             cat "$response_body"
             exit 1
           fi

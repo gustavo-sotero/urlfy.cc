@@ -320,6 +320,8 @@ Configure these in **GitHub Settings → Secrets and variables → Actions** bef
 > **How to find `applicationId`**: In Dokploy, open the Application → Settings → General. The ID is shown in the URL or the General settings panel.
 >
 > **Important:** `DOKPLOY_API_URL` must reach the Dokploy API directly. Do not point it at a Cloudflare-proxied hostname that returns a browser challenge such as `Just a moment...`; GitHub Actions `curl` calls cannot solve that challenge. Prefer a DNS-only hostname or a Cloudflare rule that bypasses `/api/*` for Dokploy.
+>
+> **Important:** Production deploy jobs use `environment: production`. In GitHub Actions, environment secrets with the same name take precedence over repository secrets. If `DOKPLOY_API_KEY`, `DOKPLOY_APP_ID_*`, or `DOKPLOY_API_URL` behave differently in CI than in local tests, verify the values configured under the `production` environment as well as the repository-level secrets.
 
 ### Repository Secrets (Staging — optional)
 
