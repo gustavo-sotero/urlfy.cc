@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-Each service runs as an independent **Dokploy Application** sourced from GHCR. Production deploys use `POST /api/application.update` to pin each Application to the immutable `release-*` image recorded in `release-manifest.json`, then call `POST /api/application.deploy` to roll out that exact image. The staging workflow uses the same API-driven image pinning and can optionally repoint an Application back to `:stable` when you want channel-based validation instead of a release-specific image.
+Each service runs as an independent **Dokploy Application** sourced from GHCR. Production deploys use `POST /api/application.update` to pin each Application to the immutable `release-*` image recorded in `release-manifest.json`, then call `POST /api/application.deploy` to roll out that exact image.
 
 ```
 GHCR (immutable release-* tags + optional :stable channel)
@@ -146,7 +146,7 @@ Dokploy should treat the HTTP status code as authoritative and rely only on the 
 
 ## 3. Image Sources
 
-All images are built by `deploy.yml` and pushed to GHCR. Bootstrap each Dokploy Application with any valid GHCR reference, but expect CI to overwrite `dockerImage` with the immutable `release-*` reference before every production or staging deployment. The optional `:stable` tag remains available as a convenience channel for manual validation and recovery, not as the authoritative production deployment target.
+All images are built by `deploy.yml` and pushed to GHCR. Bootstrap each Dokploy Application with any valid GHCR reference, but expect CI to overwrite `dockerImage` with the immutable `release-*` reference before every production deployment. The optional `:stable` tag remains available as a convenience channel for manual validation and recovery, not as the authoritative production deployment target.
 
 | Application    | GHCR Image                                             | Port |
 |----------------|--------------------------------------------------------|------|
@@ -159,8 +159,6 @@ All images are built by `deploy.yml` and pushed to GHCR. Bootstrap each Dokploy 
 > `urlfy-migrate` is published as its own GHCR image, but it shares the same Docker build graph as `urlfy-worker`. The dedicated image bakes `bun run db:migrate:prod` into the container contract, so Dokploy does not need any startup-command override.
 >
 > In Dokploy, enable **Deployments → Rollback Settings** against the same GHCR registry for `urlfy-api` and `urlfy-web` so per-application registry rollback remains available. The CI-generated `release-manifest.json` is still the authoritative cross-service rollback map.
-
-For staging validation, `.github/workflows/deploy-staging.yml` updates each staging Application's `dockerImage` to the requested GHCR reference, for example `ghcr.io/<owner>/urlfy-api:release-...`, before calling `POST /api/application.deploy`. Passing `stable` repoints the staging Applications to the shared `:stable` channel tag instead of a release-specific image.
 
 ---
 
@@ -293,7 +291,7 @@ The GeoIP container downloads the GeoLite2-City MMDB from a public jsDelivr CDN 
 
 ---
 
-## 7. CI Secrets and Variables Checklist
+## 7. Production CI Secrets and Variables Checklist
 
 Configure these in **GitHub Settings → Secrets and variables → Actions** before setting `DOKPLOY_DEPLOY_ENABLED = true`.
 
@@ -303,41 +301,35 @@ Configure these in **GitHub Settings → Secrets and variables → Actions** bef
 |-------------------------|----------------------------------------------|
 | `NEXT_PUBLIC_APP_URL`   | `https://urlfy.cc` — baked into web image     |
 | `DOKPLOY_DEPLOY_ENABLED`| `true` to activate production deployments     |
-| `DOKPLOY_STAGING_DEPLOY_ENABLED` | `true` to activate staging deployments |
-| `DOKPLOY_API_URL`       | `https://your-dokploy-server.example.com` — prefer a production environment variable so the exact URL can appear in workflow logs |
-| `DOKPLOY_STAGING_API_URL` | Staging Dokploy server URL — prefer a staging environment variable for the same reason |
-| `DOKPLOY_APP_ID_MIGRATE` | Production `applicationId` for urlfy-migrate — non-sensitive, so prefer a variable if you want it visible in request logs |
-| `DOKPLOY_APP_ID_API` | Production `applicationId` for urlfy-api |
-| `DOKPLOY_APP_ID_WEB` | Production `applicationId` for urlfy-web |
-| `DOKPLOY_APP_ID_WORKER` | Production `applicationId` for urlfy-worker |
-| `DOKPLOY_STAGING_APP_ID_MIGRATE` | Staging `applicationId` for urlfy-migrate |
-| `DOKPLOY_STAGING_APP_ID_API` | Staging `applicationId` for urlfy-api |
-| `DOKPLOY_STAGING_APP_ID_WEB` | Staging `applicationId` for urlfy-web |
-| `DOKPLOY_STAGING_APP_ID_WORKER` | Staging `applicationId` for urlfy-worker |
+| `DOKPLOY_API_URL`       | `https://your-dokploy-server.example.com` — optional fallback when the same-name secret is absent |
+| `DOKPLOY_APP_ID_MIGRATE` | Production `applicationId` for urlfy-migrate — optional fallback when the same-name secret is absent |
+| `DOKPLOY_APP_ID_API` | Production `applicationId` for urlfy-api — optional fallback when the same-name secret is absent |
+| `DOKPLOY_APP_ID_WEB` | Production `applicationId` for urlfy-web — optional fallback when the same-name secret is absent |
+| `DOKPLOY_APP_ID_WORKER` | Production `applicationId` for urlfy-worker — optional fallback when the same-name secret is absent |
 
-### Repository Secrets (Production)
+### Production Environment Secrets
 
 | Name                        | Description                                   |
 |-----------------------------|-----------------------------------------------|
+| `DOKPLOY_API_URL`           | Base URL of the Dokploy server — preferred source for masked CI logs |
 | `DOKPLOY_API_KEY`           | Dokploy API token                             |
+| `DOKPLOY_APP_ID_MIGRATE`    | `applicationId` from Dokploy dashboard        |
+| `DOKPLOY_APP_ID_API`        | `applicationId` from Dokploy dashboard        |
+| `DOKPLOY_APP_ID_WEB`        | `applicationId` from Dokploy dashboard        |
+| `DOKPLOY_APP_ID_WORKER`     | `applicationId` from Dokploy dashboard        |
 | `PRODUCTION_APP_URL`        | `https://urlfy.cc`                            |
 
 > **How to find `applicationId`**: In Dokploy, open the Application → Settings → General. The ID is shown in the URL or the General settings panel.
 >
 > **Important:** `DOKPLOY_API_URL` must reach the Dokploy API directly. Do not point it at a Cloudflare-proxied hostname that returns a browser challenge such as `Just a moment...`; GitHub Actions `curl` calls cannot solve that challenge. Prefer a DNS-only hostname or a Cloudflare rule that bypasses `/api/*` for Dokploy.
 >
-> **Important:** The deploy workflows now read `DOKPLOY_API_URL`, `DOKPLOY_STAGING_API_URL`, and all `DOKPLOY*_APP_ID_*` values from the `vars` context, not from `secrets`. If you want the full URL and application IDs to appear in logs, move those values to GitHub configuration variables and stop referencing same-value secrets in the workflow.
+> **Important:** If Cloudflare Security Events show `Service = Bot Fight Mode` with `cf-mitigated: challenge`, the WAF `Skip` rule is not enough. `Skip` can bypass Super Bot Fight Mode and several WAF products, but not the legacy Bot Fight Mode challenge. In that case, either disable Bot Fight Mode for the zone/host used by Dokploy or move the Dokploy API to a DNS-only hostname.
+>
+> **Important:** Once the Dokploy API hostname is switched to DNS-only and validated, you can remove any temporary Cloudflare WAF bypass rule created only for that hostname/path because the traffic no longer passes through Cloudflare's proxy.
+>
+> **Important:** The deploy workflow prefers `secrets` for `DOKPLOY_API_URL` and all `DOKPLOY_APP_ID_*` values, and only falls back to `vars` when the same-name secret is absent. Keep them in `secrets` for normal operation; move them to `vars` only when you intentionally want those values visible during debugging.
 >
 > **Important:** Production deploy jobs use `environment: production`. In GitHub Actions, environment secrets with the same name take precedence over repository secrets. If `DOKPLOY_API_KEY`, `DOKPLOY_APP_ID_*`, or `DOKPLOY_API_URL` behave differently in CI than in local tests, verify the values configured under the `production` environment as well as the repository-level secrets.
-
-### Repository Secrets (Staging — optional)
-
-| Name                              | Description                                |
-|-----------------------------------|--------------------------------------------|
-| `DOKPLOY_STAGING_API_KEY`         | Staging Dokploy API token                  |
-| `STAGING_APP_URL`                 | `https://staging.urlfy.cc`                 |
-
-> The same rule applies to `DOKPLOY_STAGING_API_URL`: it must be reachable without Cloudflare or similar bot challenges on `/api/*`.
 
 ---
 

@@ -18,17 +18,25 @@
 # Required repository variables (Settings → Variables → Actions):
 #   NEXT_PUBLIC_APP_URL         Public web origin, e.g. https://urlfy.cc
 #   DOKPLOY_DEPLOY_ENABLED      Set to 'true' to activate ordered Dokploy deployment.
+#                               Leave unset (or set to 'false') during initial
+#                               migration to run only the build/manifest phase.
+#   Optional debug-only variables (used only when same-name secrets are absent):
 #   DOKPLOY_API_URL             Base URL of the Dokploy server, e.g. https://dokploy.example.com
 #   DOKPLOY_APP_ID_MIGRATE      applicationId of the urlfy-migrate Application in Dokploy
 #   DOKPLOY_APP_ID_API          applicationId of the urlfy-api Application in Dokploy
 #   DOKPLOY_APP_ID_WEB          applicationId of the urlfy-web Application in Dokploy
 #   DOKPLOY_APP_ID_WORKER       applicationId of the urlfy-worker Application in Dokploy
-#                               Leave unset (or set to 'false') during initial
-#                               migration to run only the build/manifest phase.
 #
-# Required repository secrets (Settings → Secrets → Actions):
+# Required production environment secrets (Settings → Environments → production → Secrets):
+#   DOKPLOY_API_URL             Base URL of the Dokploy server (preferred over vars to keep logs masked)
 #   DOKPLOY_API_KEY             API token from Dokploy profile settings
+#   DOKPLOY_APP_ID_MIGRATE      applicationId of the urlfy-migrate Application in Dokploy
+#   DOKPLOY_APP_ID_API          applicationId of the urlfy-api Application in Dokploy
+#   DOKPLOY_APP_ID_WEB          applicationId of the urlfy-web Application in Dokploy
+#   DOKPLOY_APP_ID_WORKER       applicationId of the urlfy-worker Application in Dokploy
 #   PRODUCTION_APP_URL          Public root URL used for health gates, e.g. https://urlfy.cc
+#   Matching repo/org secrets act only as fallback when the production
+#   environment secret with the same name is absent.
 #
 # Smoke test link is deterministic — seeded automatically by db:migrate:prod:
 #   Short code:  repo
@@ -386,10 +394,10 @@ jobs:
     steps:
       - name: Normalize Dokploy API base URL
         env:
-          DOKPLOY_API_URL: ${{ vars.DOKPLOY_API_URL }}
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL || vars.DOKPLOY_API_URL }}
         run: |
           if [ -z "$DOKPLOY_API_URL" ]; then
-            echo "::error::DOKPLOY_API_URL is not set. Configure it as a repository or environment variable in GitHub Actions."
+            echo "::error::DOKPLOY_API_URL is not set. Configure it as a repository or environment secret, or as a variable for temporary debugging."
             exit 1
           fi
 
@@ -400,13 +408,13 @@ jobs:
       - name: Pin migrate image
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_MIGRATE }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_MIGRATE || vars.DOKPLOY_APP_ID_MIGRATE }}
           TARGET_IMAGE: ${{ needs.setup.outputs.migrate_image }}
         run: |
           echo "Setting migrate image to $TARGET_IMAGE..."
 
           if [ -z "$APP_ID" ]; then
-            echo "::error::DOKPLOY_APP_ID_MIGRATE is not set. Configure it as a repository or environment variable in GitHub Actions."
+            echo "::error::DOKPLOY_APP_ID_MIGRATE is not set. Configure it as a repository or environment secret, or as a variable for temporary debugging."
             exit 1
           fi
 
@@ -415,13 +423,6 @@ jobs:
             --arg applicationId "$APP_ID" \
             --arg dockerImage "$TARGET_IMAGE" \
             '{applicationId: $applicationId, dockerImage: $dockerImage}')
-
-          echo "Request details:"
-          echo "POST $request_url"
-          echo "accept: application/json"
-          echo "Content-Type: application/json"
-          echo "x-api-key: $DOKPLOY_API_KEY"
-          echo "$request_body"
 
           response_body=$(mktemp)
           response_headers=$(mktemp)
@@ -448,7 +449,7 @@ jobs:
       - name: Trigger migrate deployment
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_MIGRATE }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_MIGRATE || vars.DOKPLOY_APP_ID_MIGRATE }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
         run: |
           echo "Triggering migrate deployment for $TAG_NAME..."
@@ -465,7 +466,7 @@ jobs:
       - name: Wait for migration completion
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_MIGRATE }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_MIGRATE || vars.DOKPLOY_APP_ID_MIGRATE }}
         run: |
           echo "Waiting for migration to complete (timeout: 300s)..."
           timeout=300
@@ -515,10 +516,10 @@ jobs:
     steps:
       - name: Normalize Dokploy API base URL
         env:
-          DOKPLOY_API_URL: ${{ vars.DOKPLOY_API_URL }}
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL || vars.DOKPLOY_API_URL }}
         run: |
           if [ -z "$DOKPLOY_API_URL" ]; then
-            echo "::error::DOKPLOY_API_URL is not set. Configure it as a repository or environment variable in GitHub Actions."
+            echo "::error::DOKPLOY_API_URL is not set. Configure it as a repository or environment secret, or as a variable for temporary debugging."
             exit 1
           fi
 
@@ -529,10 +530,15 @@ jobs:
       - name: Pin API image
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_API }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_API || vars.DOKPLOY_APP_ID_API }}
           TARGET_IMAGE: ${{ needs.setup.outputs.api_image }}
         run: |
           echo "Setting API image to $TARGET_IMAGE..."
+
+          if [ -z "$APP_ID" ]; then
+            echo "::error::DOKPLOY_APP_ID_API is not set. Configure it as a repository or environment secret, or as a variable for temporary debugging."
+            exit 1
+          fi
 
           curl -sf -X POST \
             "$DOKPLOY_API_BASE_URL/api/application.update" \
@@ -544,7 +550,7 @@ jobs:
       - name: Trigger API deployment
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_API }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_API || vars.DOKPLOY_APP_ID_API }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
         run: |
           echo "Deploying API for release $TAG_NAME..."
@@ -559,7 +565,7 @@ jobs:
       - name: Wait for Dokploy deployment to complete
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_API }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_API || vars.DOKPLOY_APP_ID_API }}
         run: |
           timeout=300
           start=$(date +%s)
@@ -617,10 +623,10 @@ jobs:
     steps:
       - name: Normalize Dokploy API base URL
         env:
-          DOKPLOY_API_URL: ${{ vars.DOKPLOY_API_URL }}
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL || vars.DOKPLOY_API_URL }}
         run: |
           if [ -z "$DOKPLOY_API_URL" ]; then
-            echo "::error::DOKPLOY_API_URL is not set. Configure it as a repository or environment variable in GitHub Actions."
+            echo "::error::DOKPLOY_API_URL is not set. Configure it as a repository or environment secret, or as a variable for temporary debugging."
             exit 1
           fi
 
@@ -631,10 +637,15 @@ jobs:
       - name: Pin Web image
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_WEB }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WEB || vars.DOKPLOY_APP_ID_WEB }}
           TARGET_IMAGE: ${{ needs.setup.outputs.web_image }}
         run: |
           echo "Setting Web image to $TARGET_IMAGE..."
+
+          if [ -z "$APP_ID" ]; then
+            echo "::error::DOKPLOY_APP_ID_WEB is not set. Configure it as a repository or environment secret, or as a variable for temporary debugging."
+            exit 1
+          fi
 
           curl -sf -X POST \
             "$DOKPLOY_API_BASE_URL/api/application.update" \
@@ -646,7 +657,7 @@ jobs:
       - name: Trigger Web deployment
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_WEB }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WEB || vars.DOKPLOY_APP_ID_WEB }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
         run: |
           echo "Deploying Web for release $TAG_NAME..."
@@ -661,7 +672,7 @@ jobs:
       - name: Wait for Dokploy deployment to complete
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_WEB }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WEB || vars.DOKPLOY_APP_ID_WEB }}
         run: |
           timeout=300
           start=$(date +%s)
@@ -719,10 +730,10 @@ jobs:
     steps:
       - name: Normalize Dokploy API base URL
         env:
-          DOKPLOY_API_URL: ${{ vars.DOKPLOY_API_URL }}
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL || vars.DOKPLOY_API_URL }}
         run: |
           if [ -z "$DOKPLOY_API_URL" ]; then
-            echo "::error::DOKPLOY_API_URL is not set. Configure it as a repository or environment variable in GitHub Actions."
+            echo "::error::DOKPLOY_API_URL is not set. Configure it as a repository or environment secret, or as a variable for temporary debugging."
             exit 1
           fi
 
@@ -733,10 +744,15 @@ jobs:
       - name: Pin Worker image
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_WORKER }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WORKER || vars.DOKPLOY_APP_ID_WORKER }}
           TARGET_IMAGE: ${{ needs.setup.outputs.worker_image }}
         run: |
           echo "Setting Worker image to $TARGET_IMAGE..."
+
+          if [ -z "$APP_ID" ]; then
+            echo "::error::DOKPLOY_APP_ID_WORKER is not set. Configure it as a repository or environment secret, or as a variable for temporary debugging."
+            exit 1
+          fi
 
           curl -sf -X POST \
             "$DOKPLOY_API_BASE_URL/api/application.update" \
@@ -748,7 +764,7 @@ jobs:
       - name: Trigger Worker deployment
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_WORKER }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WORKER || vars.DOKPLOY_APP_ID_WORKER }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
         run: |
           echo "Deploying Worker for release $TAG_NAME..."
@@ -763,7 +779,7 @@ jobs:
       - name: Wait for Dokploy deployment to complete
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ vars.DOKPLOY_APP_ID_WORKER }}
+          APP_ID: ${{ secrets.DOKPLOY_APP_ID_WORKER || vars.DOKPLOY_APP_ID_WORKER }}
         run: |
           timeout=180
           start=$(date +%s)

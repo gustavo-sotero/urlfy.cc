@@ -13,8 +13,8 @@
 | New deployment is rolling — Swarm health checks failing | Wait: Swarm auto-rollback fires in ~60s (see §1) |
 | Deployment completed but smoke checks failed in CI | Manual rollback via Dokploy API (see §2) |
 | Deployment completed, smoke passed, but user impact detected | Manual rollback via Dokploy API (see §2) |
-| Database schema migration broke (rollback not safe) | Stop rollback — escalate to DBA (see §4) |
-| All Dokploy Applications unavailable | Emergency: re-activate docker-compose.prod.yml (see §5) |
+| Database schema migration broke (rollback not safe) | Stop rollback — escalate to DBA (see §3) |
+| All Dokploy Applications unavailable | Emergency: re-activate docker-compose.prod.yml (see §4) |
 
 ---
 
@@ -101,7 +101,7 @@ Update each Application to the target manifest image and then trigger a deploy. 
 web rollback → api rollback → worker rollback
 ```
 
-> Never roll back the migrate Application to run schema changes in reverse — see §4.
+> Never roll back the migrate Application to run schema changes in reverse — see §3.
 
 ```bash
 # Trigger web rollback first (removes new front-end)
@@ -138,24 +138,13 @@ curl -fsS https://urlfy.cc/ops/health/ready
 
 ---
 
-## 3. Using the GitHub Actions Staging Workflow as a Rollback Dry-Run
-
-Before rolling back production, you can verify the target image is healthy on staging:
-
-1. Go to **GitHub → Actions → Deploy (Staging)** → **Run workflow**.
-2. Enter the target release tag (e.g. `release-20260501120000-abc123def456`). The workflow repoints the staging Dokploy Applications to that immutable GHCR tag before deploying. The redirect smoke check uses the deterministic `repo` link seeded by `db:migrate:prod`, or run with `skip_smoke=true` only when you are intentionally validating a broken state.
-3. Confirm staging smoke checks pass.
-4. Proceed with the production rollback (§2).
-
----
-
-## 4. Schema Rollback — Do Not Automate
+## 3. Schema Rollback — Do Not Automate
 
 Database schema migrations (run by `urlfy-migrate`) are **not automatically reversed** by any step in this playbook.
 
 **Why**: Drizzle migrations are append-only.  A rollback migration must be written explicitly and tested before being applied.  Running a previous application version against a newer schema may be safe (additive changes are generally backwards-compatible) but must be verified case-by-case.
 
-### 4.1 Migration Compatibility Classification
+### 3.1 Migration Compatibility Classification
 
 Before any migration is merged, classify it into one of three classes.  The class determines whether a zero-downtime rolling update is safe.
 
@@ -173,7 +162,7 @@ Before any migration is merged, classify it into one of three classes.  The clas
 
 `scripts/validate-migrations.ts` detects Class B and C patterns automatically.  A Class C detection prints a blocking banner.  The CI `migrations` job runs this script on every push — review its output before approving a PR that touches `packages/data/migrations/`.
 
-### 4.2 Protocol When a Schema Migration Is Involved
+### 3.2 Protocol When a Schema Migration Is Involved
 
 **Protocol when a schema migration is involved**:
 
@@ -185,7 +174,7 @@ Before any migration is merged, classify it into one of three classes.  The clas
 
 ---
 
-## 5. Emergency Fallback: Reactivate docker-compose.prod.yml
+## 4. Emergency Fallback: Reactivate docker-compose.prod.yml
 
 > Use only when all Dokploy Applications are unavailable or unrecoverable and the situation cannot wait for the standard rollback procedure.
 
@@ -218,13 +207,13 @@ The file `docker/docker-compose.prod.yml` is preserved as the last-resort baseli
 
 ---
 
-## 6. Preventing Future Incidents
+## 5. Preventing Future Incidents
 
 | Action | Recommendation |
 |--------|----------------|
 | Monitor health endpoints | Set up uptime alerts on `/api/health/ready` and `/ops/health/ready` |
 | Watch Dokploy deployment logs | Enable notifications for deployment `"error"` status |
-| Test rollback before you need it | Run a staging rollback drill quarterly |
+| Test rollback before you need it | Run a manifest-based rollback drill quarterly |
 | Keep release manifests | 90-day retention in GitHub Actions artifacts; attached to GitHub Releases indefinitely |
 | Schema migration review | Require explicit DBA sign-off on all non-additive schema changes before merging to `main` |
 | Canary deployments | For high-risk releases, consider deploying API to 1 replica first, verifying, then scaling |
