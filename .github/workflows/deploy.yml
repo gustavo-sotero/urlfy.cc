@@ -390,6 +390,7 @@ jobs:
         run: |
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
+          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin migrate image
@@ -493,6 +494,7 @@ jobs:
         run: |
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
+          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin API image
@@ -590,6 +592,7 @@ jobs:
         run: |
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
+          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin Web image
@@ -687,6 +690,7 @@ jobs:
         run: |
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
+          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin Worker image
