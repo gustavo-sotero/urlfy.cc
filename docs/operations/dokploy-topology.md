@@ -318,6 +318,8 @@ Configure these in **GitHub Settings → Secrets and variables → Actions** bef
 | `PRODUCTION_APP_URL`        | `https://urlfy.cc`                            |
 
 > **How to find `applicationId`**: In Dokploy, open the Application → Settings → General. The ID is shown in the URL or the General settings panel.
+>
+> **Important:** `DOKPLOY_API_URL` must reach the Dokploy API directly. Do not point it at a Cloudflare-proxied hostname that returns a browser challenge such as `Just a moment...`; GitHub Actions `curl` calls cannot solve that challenge. Prefer a DNS-only hostname or a Cloudflare rule that bypasses `/api/*` for Dokploy.
 
 ### Repository Secrets (Staging — optional)
 
@@ -330,6 +332,8 @@ Configure these in **GitHub Settings → Secrets and variables → Actions** bef
 | `DOKPLOY_STAGING_APP_ID_WEB`      |                                            |
 | `DOKPLOY_STAGING_APP_ID_WORKER`   |                                            |
 | `STAGING_APP_URL`                 | `https://staging.urlfy.cc`                 |
+
+> The same rule applies to `DOKPLOY_STAGING_API_URL`: it must be reachable without Cloudflare or similar bot challenges on `/api/*`.
 
 ---
 

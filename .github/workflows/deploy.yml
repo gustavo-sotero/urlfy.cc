@@ -410,6 +410,10 @@ jobs:
             -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}")
 
           if [ "${http_code:0:1}" != "2" ]; then
+            if grep -qiE 'Just a moment|cf_chl_opt|cdn-cgi/challenge-platform|cloudflare' "$response_body"; then
+              echo "::error::Dokploy API is behind a Cloudflare challenge. Point DOKPLOY_API_URL to a DNS-only or otherwise unproxied Dokploy origin URL, or add a Cloudflare bypass rule for /api/* so GitHub Actions can reach the API."
+            fi
+
             echo "::error::Dokploy application.update failed with HTTP $http_code"
             cat "$response_body"
             exit 1

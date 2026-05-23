@@ -128,12 +128,24 @@ jobs:
         run: |
           echo "Setting staging migrate image to $TARGET_IMAGE..."
 
-          curl -sf -X POST \
+          response_body=$(mktemp)
+          trap 'rm -f "$response_body"' EXIT
+          http_code=$(curl -sS -o "$response_body" -w "%{http_code}" -X POST \
             "$DOKPLOY_API_BASE_URL/api/application.update" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
-            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}"
+            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}")
+
+          if [ "${http_code:0:1}" != "2" ]; then
+            if grep -qiE 'Just a moment|cf_chl_opt|cdn-cgi/challenge-platform|cloudflare' "$response_body"; then
+              echo "::error::Dokploy API is behind a Cloudflare challenge. Point DOKPLOY_STAGING_API_URL to a DNS-only or otherwise unproxied Dokploy origin URL, or add a Cloudflare bypass rule for /api/* so GitHub Actions can reach the API."
+            fi
+
+            echo "::error::Dokploy application.update failed with HTTP $http_code"
+            cat "$response_body"
+            exit 1
+          fi
 
       - name: Trigger migrate deployment
         env:
