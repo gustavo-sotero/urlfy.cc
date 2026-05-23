@@ -390,7 +390,6 @@ jobs:
         run: |
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
-          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin migrate image
@@ -401,15 +400,28 @@ jobs:
         run: |
           echo "Setting migrate image to $TARGET_IMAGE..."
 
+          request_url="$DOKPLOY_API_BASE_URL/api/application.update"
+          request_body=$(jq -cn \
+            --arg applicationId "$APP_ID" \
+            --arg dockerImage "$TARGET_IMAGE" \
+            '{applicationId: $applicationId, dockerImage: $dockerImage}')
+
+          echo "Request details:"
+          echo "POST $request_url"
+          echo "accept: application/json"
+          echo "Content-Type: application/json"
+          echo "x-api-key: $DOKPLOY_API_KEY"
+          echo "$request_body"
+
           response_body=$(mktemp)
           response_headers=$(mktemp)
           trap 'rm -f "$response_body" "$response_headers"' EXIT
           http_code=$(curl -sS -D "$response_headers" -o "$response_body" -w "%{http_code}" -X POST \
-            "$DOKPLOY_API_BASE_URL/api/application.update" \
+            "$request_url" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
-            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}")
+            -d "$request_body")
 
           if [ "${http_code:0:1}" != "2" ]; then
             if grep -qiE 'Just a moment|cf_chl_opt|cdn-cgi/challenge-platform|cloudflare' "$response_body"; then
@@ -497,7 +509,6 @@ jobs:
         run: |
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
-          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin API image
@@ -595,7 +606,6 @@ jobs:
         run: |
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
-          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin Web image
@@ -693,7 +703,6 @@ jobs:
         run: |
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
-          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin Worker image
