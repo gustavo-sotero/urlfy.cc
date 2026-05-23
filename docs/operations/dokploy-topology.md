@@ -184,7 +184,7 @@ Set `API_INTERNAL_URL` on `urlfy-web` to the actual internal Dokploy service DNS
 | Volume Name  | Mount Path (in container)              | Applications           | Mode       |
 |--------------|----------------------------------------|------------------------|------------|
 | `geoip_data` | `/app/geoip` (api, web, worker)        | api, web, worker       | read-only  |
-| `geoip_data` | `/geoip` (geoip updater)               | urlfy-geoip            | read-write |
+| `geoip_data` | `/app/geoip` (geoip updater)           | urlfy-geoip            | read-write |
 
 Configure the shared named volume once in Dokploy and attach it to all four Applications.
 
