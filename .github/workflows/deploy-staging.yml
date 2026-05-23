@@ -13,14 +13,14 @@
 #
 # Required repository variables (Settings → Variables → Actions):
 #   DOKPLOY_STAGING_DEPLOY_ENABLED   Set to 'true' to activate staging deployments.
-#
-# Required repository secrets (Settings → Secrets → Actions):
 #   DOKPLOY_STAGING_API_URL          Base URL of the staging Dokploy server
-#   DOKPLOY_STAGING_API_KEY          API token for the staging Dokploy server
 #   DOKPLOY_STAGING_APP_ID_MIGRATE   applicationId for urlfy-migrate in staging
 #   DOKPLOY_STAGING_APP_ID_API       applicationId for urlfy-api in staging
 #   DOKPLOY_STAGING_APP_ID_WEB       applicationId for urlfy-web in staging
 #   DOKPLOY_STAGING_APP_ID_WORKER    applicationId for urlfy-worker in staging
+#
+# Required repository secrets (Settings → Secrets → Actions):
+#   DOKPLOY_STAGING_API_KEY          API token for the staging Dokploy server
 #   STAGING_APP_URL                  Public root URL of the staging environment
 #
 # Staging smoke link is deterministic — seeded automatically by db:migrate:prod:
@@ -114,17 +114,21 @@ jobs:
     steps:
       - name: Normalize Dokploy API base URL
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_URL: ${{ vars.DOKPLOY_STAGING_API_URL }}
         run: |
+          if [ -z "$DOKPLOY_API_URL" ]; then
+            echo "::error::DOKPLOY_STAGING_API_URL is not set. Configure it as a repository or environment variable in GitHub Actions."
+            exit 1
+          fi
+
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
-          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin staging migrate image
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_MIGRATE }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_MIGRATE }}
           TARGET_IMAGE: ${{ needs.setup.outputs.migrate_image }}
         run: |
           echo "Setting staging migrate image to $TARGET_IMAGE..."
@@ -151,7 +155,7 @@ jobs:
       - name: Trigger migrate deployment
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_MIGRATE }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_MIGRATE }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
         run: |
           echo "Triggering staging migrate deployment for $TAG_NAME..."
@@ -166,7 +170,7 @@ jobs:
       - name: Wait for migration completion
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_MIGRATE }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_MIGRATE }}
         run: |
           timeout=300
           start=$(date +%s)
@@ -200,17 +204,21 @@ jobs:
     steps:
       - name: Normalize Dokploy API base URL
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_URL: ${{ vars.DOKPLOY_STAGING_API_URL }}
         run: |
+          if [ -z "$DOKPLOY_API_URL" ]; then
+            echo "::error::DOKPLOY_STAGING_API_URL is not set. Configure it as a repository or environment variable in GitHub Actions."
+            exit 1
+          fi
+
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
-          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin staging API image
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_API }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_API }}
           TARGET_IMAGE: ${{ needs.setup.outputs.api_image }}
         run: |
           echo "Setting staging API image to $TARGET_IMAGE..."
@@ -225,7 +233,7 @@ jobs:
       - name: Trigger API deployment
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_API }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_API }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
         run: |
           echo "Deploying staging API for $TAG_NAME..."
@@ -239,7 +247,7 @@ jobs:
       - name: Wait for deployment and health gate
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_API }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_API }}
           STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
         run: |
           timeout=300
@@ -293,17 +301,21 @@ jobs:
     steps:
       - name: Normalize Dokploy API base URL
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_URL: ${{ vars.DOKPLOY_STAGING_API_URL }}
         run: |
+          if [ -z "$DOKPLOY_API_URL" ]; then
+            echo "::error::DOKPLOY_STAGING_API_URL is not set. Configure it as a repository or environment variable in GitHub Actions."
+            exit 1
+          fi
+
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
-          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin staging Web image
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WEB }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_WEB }}
           TARGET_IMAGE: ${{ needs.setup.outputs.web_image }}
         run: |
           echo "Setting staging Web image to $TARGET_IMAGE..."
@@ -318,7 +330,7 @@ jobs:
       - name: Trigger Web deployment
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WEB }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_WEB }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
         run: |
           echo "Deploying staging Web for $TAG_NAME..."
@@ -332,7 +344,7 @@ jobs:
       - name: Wait for deployment and health gate
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WEB }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_WEB }}
           STAGING_APP_URL: ${{ secrets.STAGING_APP_URL }}
         run: |
           timeout=300
@@ -386,17 +398,21 @@ jobs:
     steps:
       - name: Normalize Dokploy API base URL
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_STAGING_API_URL }}
+          DOKPLOY_API_URL: ${{ vars.DOKPLOY_STAGING_API_URL }}
         run: |
+          if [ -z "$DOKPLOY_API_URL" ]; then
+            echo "::error::DOKPLOY_STAGING_API_URL is not set. Configure it as a repository or environment variable in GitHub Actions."
+            exit 1
+          fi
+
           dokploy_api_base_url="${DOKPLOY_API_URL%/}"
           dokploy_api_base_url="${dokploy_api_base_url%/api}"
-          echo "::add-mask::$dokploy_api_base_url"
           echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
 
       - name: Pin staging Worker image
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WORKER }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_WORKER }}
           TARGET_IMAGE: ${{ needs.setup.outputs.worker_image }}
         run: |
           echo "Setting staging Worker image to $TARGET_IMAGE..."
@@ -411,7 +427,7 @@ jobs:
       - name: Trigger Worker deployment
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WORKER }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_WORKER }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
         run: |
           echo "Deploying staging Worker for $TAG_NAME..."
@@ -425,7 +441,7 @@ jobs:
       - name: Wait for Worker to deploy
         env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_STAGING_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_STAGING_APP_ID_WORKER }}
+          APP_ID: ${{ vars.DOKPLOY_STAGING_APP_ID_WORKER }}
         run: |
           timeout=180
           start=$(date +%s)

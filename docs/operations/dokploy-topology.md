@@ -297,29 +297,36 @@ The GeoIP container downloads the GeoLite2-City MMDB from a public jsDelivr CDN 
 
 Configure these in **GitHub Settings → Secrets and variables → Actions** before setting `DOKPLOY_DEPLOY_ENABLED = true`.
 
-### Repository Variables
+### Configuration Variables
 
 | Name                    | Example / Notes                              |
 |-------------------------|----------------------------------------------|
 | `NEXT_PUBLIC_APP_URL`   | `https://urlfy.cc` — baked into web image     |
 | `DOKPLOY_DEPLOY_ENABLED`| `true` to activate production deployments     |
 | `DOKPLOY_STAGING_DEPLOY_ENABLED` | `true` to activate staging deployments |
+| `DOKPLOY_API_URL`       | `https://your-dokploy-server.example.com` — prefer a production environment variable so the exact URL can appear in workflow logs |
+| `DOKPLOY_STAGING_API_URL` | Staging Dokploy server URL — prefer a staging environment variable for the same reason |
+| `DOKPLOY_APP_ID_MIGRATE` | Production `applicationId` for urlfy-migrate — non-sensitive, so prefer a variable if you want it visible in request logs |
+| `DOKPLOY_APP_ID_API` | Production `applicationId` for urlfy-api |
+| `DOKPLOY_APP_ID_WEB` | Production `applicationId` for urlfy-web |
+| `DOKPLOY_APP_ID_WORKER` | Production `applicationId` for urlfy-worker |
+| `DOKPLOY_STAGING_APP_ID_MIGRATE` | Staging `applicationId` for urlfy-migrate |
+| `DOKPLOY_STAGING_APP_ID_API` | Staging `applicationId` for urlfy-api |
+| `DOKPLOY_STAGING_APP_ID_WEB` | Staging `applicationId` for urlfy-web |
+| `DOKPLOY_STAGING_APP_ID_WORKER` | Staging `applicationId` for urlfy-worker |
 
 ### Repository Secrets (Production)
 
 | Name                        | Description                                   |
 |-----------------------------|-----------------------------------------------|
-| `DOKPLOY_API_URL`           | `https://your-dokploy-server.example.com`     |
 | `DOKPLOY_API_KEY`           | Dokploy API token                             |
-| `DOKPLOY_APP_ID_MIGRATE`    | `applicationId` from Dokploy dashboard        |
-| `DOKPLOY_APP_ID_API`        | `applicationId` from Dokploy dashboard        |
-| `DOKPLOY_APP_ID_WEB`        | `applicationId` from Dokploy dashboard        |
-| `DOKPLOY_APP_ID_WORKER`     | `applicationId` from Dokploy dashboard        |
 | `PRODUCTION_APP_URL`        | `https://urlfy.cc`                            |
 
 > **How to find `applicationId`**: In Dokploy, open the Application → Settings → General. The ID is shown in the URL or the General settings panel.
 >
 > **Important:** `DOKPLOY_API_URL` must reach the Dokploy API directly. Do not point it at a Cloudflare-proxied hostname that returns a browser challenge such as `Just a moment...`; GitHub Actions `curl` calls cannot solve that challenge. Prefer a DNS-only hostname or a Cloudflare rule that bypasses `/api/*` for Dokploy.
+>
+> **Important:** The deploy workflows now read `DOKPLOY_API_URL`, `DOKPLOY_STAGING_API_URL`, and all `DOKPLOY*_APP_ID_*` values from the `vars` context, not from `secrets`. If you want the full URL and application IDs to appear in logs, move those values to GitHub configuration variables and stop referencing same-value secrets in the workflow.
 >
 > **Important:** Production deploy jobs use `environment: production`. In GitHub Actions, environment secrets with the same name take precedence over repository secrets. If `DOKPLOY_API_KEY`, `DOKPLOY_APP_ID_*`, or `DOKPLOY_API_URL` behave differently in CI than in local tests, verify the values configured under the `production` environment as well as the repository-level secrets.
 
@@ -327,12 +334,7 @@ Configure these in **GitHub Settings → Secrets and variables → Actions** bef
 
 | Name                              | Description                                |
 |-----------------------------------|--------------------------------------------|
-| `DOKPLOY_STAGING_API_URL`         | Staging Dokploy server URL                 |
 | `DOKPLOY_STAGING_API_KEY`         | Staging Dokploy API token                  |
-| `DOKPLOY_STAGING_APP_ID_MIGRATE`  |                                            |
-| `DOKPLOY_STAGING_APP_ID_API`      |                                            |
-| `DOKPLOY_STAGING_APP_ID_WEB`      |                                            |
-| `DOKPLOY_STAGING_APP_ID_WORKER`   |                                            |
 | `STAGING_APP_URL`                 | `https://staging.urlfy.cc`                 |
 
 > The same rule applies to `DOKPLOY_STAGING_API_URL`: it must be reachable without Cloudflare or similar bot challenges on `/api/*`.
