@@ -384,25 +384,39 @@ jobs:
     if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
     environment: production
     steps:
-      - name: Pin migrate image
+      - name: Normalize Dokploy API base URL
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+        run: |
+          dokploy_api_base_url="${DOKPLOY_API_URL%/}"
+          dokploy_api_base_url="${dokploy_api_base_url%/api}"
+          echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
+
+      - name: Pin migrate image
+        env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_MIGRATE }}
           TARGET_IMAGE: ${{ needs.setup.outputs.migrate_image }}
         run: |
           echo "Setting migrate image to $TARGET_IMAGE..."
 
-          curl -sf -X POST \
-            "$DOKPLOY_API_URL/api/application.update" \
+          response_body=$(mktemp)
+          trap 'rm -f "$response_body"' EXIT
+          http_code=$(curl -sS -o "$response_body" -w "%{http_code}" -X POST \
+            "$DOKPLOY_API_BASE_URL/api/application.update" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
-            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}"
+            -d "{\"applicationId\": \"$APP_ID\", \"dockerImage\": \"$TARGET_IMAGE\"}")
+
+          if [ "${http_code:0:1}" != "2" ]; then
+            echo "::error::Dokploy application.update failed with HTTP $http_code"
+            cat "$response_body"
+            exit 1
+          fi
 
       - name: Trigger migrate deployment
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_MIGRATE }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
@@ -410,7 +424,7 @@ jobs:
           echo "Triggering migrate deployment for $TAG_NAME..."
 
           response=$(curl -sf -X POST \
-            "$DOKPLOY_API_URL/api/application.deploy" \
+            "$DOKPLOY_API_BASE_URL/api/application.deploy" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
@@ -420,7 +434,6 @@ jobs:
 
       - name: Wait for migration completion
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_MIGRATE }}
         run: |
@@ -437,7 +450,7 @@ jobs:
             fi
 
             deployments=$(curl -sf \
-              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              "$DOKPLOY_API_BASE_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
               -H "accept: application/json" \
               -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null || echo "[]")
 
@@ -470,9 +483,16 @@ jobs:
     if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
     environment: production
     steps:
-      - name: Pin API image
+      - name: Normalize Dokploy API base URL
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+        run: |
+          dokploy_api_base_url="${DOKPLOY_API_URL%/}"
+          dokploy_api_base_url="${dokploy_api_base_url%/api}"
+          echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
+
+      - name: Pin API image
+        env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_API }}
           TARGET_IMAGE: ${{ needs.setup.outputs.api_image }}
@@ -480,7 +500,7 @@ jobs:
           echo "Setting API image to $TARGET_IMAGE..."
 
           curl -sf -X POST \
-            "$DOKPLOY_API_URL/api/application.update" \
+            "$DOKPLOY_API_BASE_URL/api/application.update" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
@@ -488,7 +508,6 @@ jobs:
 
       - name: Trigger API deployment
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_API }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
@@ -496,7 +515,7 @@ jobs:
           echo "Deploying API for release $TAG_NAME..."
 
           curl -sf -X POST \
-            "$DOKPLOY_API_URL/api/application.deploy" \
+            "$DOKPLOY_API_BASE_URL/api/application.deploy" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
@@ -504,7 +523,6 @@ jobs:
 
       - name: Wait for Dokploy deployment to complete
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_API }}
         run: |
@@ -516,7 +534,7 @@ jobs:
             [ "$elapsed" -ge "$timeout" ] && { echo "::error::Dokploy API deployment timed out"; exit 1; }
 
             status=$(curl -sf \
-              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              "$DOKPLOY_API_BASE_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
               -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null \
               | jq -r '.[0].status // "unknown"')
 
@@ -562,9 +580,16 @@ jobs:
     if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
     environment: production
     steps:
-      - name: Pin Web image
+      - name: Normalize Dokploy API base URL
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+        run: |
+          dokploy_api_base_url="${DOKPLOY_API_URL%/}"
+          dokploy_api_base_url="${dokploy_api_base_url%/api}"
+          echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
+
+      - name: Pin Web image
+        env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_WEB }}
           TARGET_IMAGE: ${{ needs.setup.outputs.web_image }}
@@ -572,7 +597,7 @@ jobs:
           echo "Setting Web image to $TARGET_IMAGE..."
 
           curl -sf -X POST \
-            "$DOKPLOY_API_URL/api/application.update" \
+            "$DOKPLOY_API_BASE_URL/api/application.update" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
@@ -580,7 +605,6 @@ jobs:
 
       - name: Trigger Web deployment
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_WEB }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
@@ -588,7 +612,7 @@ jobs:
           echo "Deploying Web for release $TAG_NAME..."
 
           curl -sf -X POST \
-            "$DOKPLOY_API_URL/api/application.deploy" \
+            "$DOKPLOY_API_BASE_URL/api/application.deploy" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
@@ -596,7 +620,6 @@ jobs:
 
       - name: Wait for Dokploy deployment to complete
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_WEB }}
         run: |
@@ -608,7 +631,7 @@ jobs:
             [ "$elapsed" -ge "$timeout" ] && { echo "::error::Dokploy Web deployment timed out"; exit 1; }
 
             status=$(curl -sf \
-              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              "$DOKPLOY_API_BASE_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
               -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null \
               | jq -r '.[0].status // "unknown"')
 
@@ -654,9 +677,16 @@ jobs:
     if: vars['DOKPLOY_DEPLOY_ENABLED'] == 'true'
     environment: production
     steps:
-      - name: Pin Worker image
+      - name: Normalize Dokploy API base URL
         env:
           DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+        run: |
+          dokploy_api_base_url="${DOKPLOY_API_URL%/}"
+          dokploy_api_base_url="${dokploy_api_base_url%/api}"
+          echo "DOKPLOY_API_BASE_URL=$dokploy_api_base_url" >> "$GITHUB_ENV"
+
+      - name: Pin Worker image
+        env:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_WORKER }}
           TARGET_IMAGE: ${{ needs.setup.outputs.worker_image }}
@@ -664,7 +694,7 @@ jobs:
           echo "Setting Worker image to $TARGET_IMAGE..."
 
           curl -sf -X POST \
-            "$DOKPLOY_API_URL/api/application.update" \
+            "$DOKPLOY_API_BASE_URL/api/application.update" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
@@ -672,7 +702,6 @@ jobs:
 
       - name: Trigger Worker deployment
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_WORKER }}
           TAG_NAME: ${{ needs.setup.outputs.tag_name }}
@@ -680,7 +709,7 @@ jobs:
           echo "Deploying Worker for release $TAG_NAME..."
 
           curl -sf -X POST \
-            "$DOKPLOY_API_URL/api/application.deploy" \
+            "$DOKPLOY_API_BASE_URL/api/application.deploy" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
@@ -688,7 +717,6 @@ jobs:
 
       - name: Wait for Dokploy deployment to complete
         env:
-          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           APP_ID: ${{ secrets.DOKPLOY_APP_ID_WORKER }}
         run: |
@@ -700,7 +728,7 @@ jobs:
             [ "$elapsed" -ge "$timeout" ] && { echo "::error::Dokploy Worker deployment timed out"; exit 1; }
 
             status=$(curl -sf \
-              "$DOKPLOY_API_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
+              "$DOKPLOY_API_BASE_URL/api/deployment.all?applicationId=$APP_ID&limit=1" \
               -H "x-api-key: $DOKPLOY_API_KEY" 2>/dev/null \
               | jq -r '.[0].status // "unknown"')
 
