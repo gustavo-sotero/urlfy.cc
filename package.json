@@ -41,6 +41,16 @@
       }
     }
   },
+  "overrides": {
+    "@elysiajs/opentelemetry@^1.4.0": {
+      ".": "^1.4.11",
+      "@opentelemetry/sdk-node": "0.222.0"
+    },
+    "@opentelemetry/core@<2.8.0": "2.11.0",
+    "@opentelemetry/propagator-jaeger@<2.9.0": "2.9.0",
+    "@opentelemetry/exporter-prometheus@<0.217.0": "0.222.0",
+    "esbuild@~0.18.20": "0.25.12"
+  },
   "scripts": {
     "dev:preflight": "bun run scripts/warn-local-api-dist.ts",
     "dev": "bun run dev:preflight && DEV_API_PROXY_TARGET=http://localhost:3001 NODE_ENV=development turbo run dev",
@@ -130,27 +140,5 @@
     "sharp",
     "snyk",
     "unrs-resolver"
-  ],
-  "overrides": {
-    "@opentelemetry/core": "^2.11.0",
-    "@opentelemetry/exporter-prometheus": "^0.222.0",
-    "@opentelemetry/sdk-node": "^0.222.0",
-    "@protobufjs/utf8": "^1.1.1",
-    "@hono/node-server": "^1.19.13",
-    "defu": "^6.1.7",
-    "dompurify": "^3.4.0",
-    "esbuild": "^0.25.0",
-    "effect": "^3.21.0",
-    "file-type": "^21.3.2",
-    "hono": "^4.12.18",
-    "kysely": "^0.28.17",
-    "lodash": "^4.18.1",
-    "mailparser": "^3.9.3",
-    "picomatch": "^4.0.4",
-    "protobufjs": "^7.5.8",
-    "postcss": "^8.5.10",
-    "uuid": "^14.0.0",
-    "yaml": "^2.8.3",
-    "ws": "^8.20.1"
-  }
+  ]
 }
