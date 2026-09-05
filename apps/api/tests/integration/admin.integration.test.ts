@@ -16,6 +16,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { db } from '@urlfy/data';
 import { links, user as userTable } from '@urlfy/data/schema';
+import { resolveAccountIssuer } from '@urlfy/data/schema/account-identity';
 import { auditLog } from '@urlfy/data/schema/audit';
 import { account as accountTable } from '@urlfy/data/schema/auth';
 import { eq } from 'drizzle-orm';
@@ -79,6 +80,7 @@ describe('Admin Module Integration Tests', () => {
 
     await db.insert(accountTable).values({
       id: `account-${Date.now()}`,
+      issuer: resolveAccountIssuer('github'),
       userId: adminUserId,
       accountId: AUTHORIZED_GITHUB_ACCOUNT_ID,
       providerId: 'github',

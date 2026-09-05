@@ -26,6 +26,7 @@ const ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST =
 process.env.ADMIN_GITHUB_ACCOUNT_ID = ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST;
 
 import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
+import { resolveAccountIssuer } from '@urlfy/data/schema/account-identity';
 import {
   account as accountTable,
   apiKey as apiKeyTable,
@@ -206,6 +207,7 @@ describe('Auth Middleware', () => {
 
     await database.insert(accountTable).values({
       id: nanoid(),
+      issuer: resolveAccountIssuer('github'),
       userId: adminUser.id,
       accountId: ADMIN_GITHUB_ACCOUNT_ID_FOR_TEST,
       providerId: 'github',

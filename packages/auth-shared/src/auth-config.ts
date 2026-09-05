@@ -170,6 +170,16 @@ export function createBaseAuthConfig() {
     basePath: AUTH_BASE_PATH,
     secret: getAuthSecret(),
 
+    // Better Auth 1.7 keys accounts by the compound identity
+    // (issuer, accountId). The installed 1.7.x runtime always persists
+    // provider-scoped namespaces — `local:credential` for email/password
+    // accounts and `local:oauth:<providerId>` for OAuth accounts — which is
+    // exactly what the account-issuer migration backfilled and what
+    // @urlfy/data/schema/account-identity implements. When upgrading to a
+    // release that adds account.identityStrategy, make this explicit with
+    // `account: { identityStrategy: "provider-id" }` (a re-key check via
+    // `auth migrate plan` is required first).
+
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,

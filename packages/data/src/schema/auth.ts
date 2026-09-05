@@ -5,7 +5,8 @@ import {
   integer,
   pgTable,
   text,
-  timestamp
+  timestamp,
+  uniqueIndex
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable(
@@ -72,6 +73,20 @@ export const account = pgTable(
   'account',
   {
     id: text('id').primaryKey(),
+    /**
+     * Identity namespace introduced by Better Auth 1.7. Accounts are keyed by
+     * (issuer, accountId) with a unique compound index. Under Better Auth 1.7
+     * provider-scoped identity, credential accounts use the local namespace
+     * `local:credential` and OAuth accounts use the deterministic namespace
+     * `local:oauth:<providerId>` (see schema/account-identity.ts).
+     *
+     * Migration note: the column was added nullable by migration 0007, and
+     * rows populated before the issuer feature are backfilled by the
+     * versioned account-issuer backfill script (executed by scripts/migrate.ts
+     * between the generated migrations); migration 0008 then enforces this
+     * NOT NULL constraint and the unique compound index.
+     */
+    issuer: text('issuer').notNull(),
     accountId: text('account_id').notNull(),
     providerId: text('provider_id').notNull(),
     userId: text('user_id')
@@ -89,7 +104,13 @@ export const account = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull()
   },
-  (table) => [index('account_userId_idx').on(table.userId)]
+  (table) => [
+    uniqueIndex('account_issuer_accountId_uidx').on(
+      table.issuer,
+      table.accountId
+    ),
+    index('account_userId_idx').on(table.userId)
+  ]
 );
 
 export const verification = pgTable(

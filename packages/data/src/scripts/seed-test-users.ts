@@ -18,6 +18,7 @@
 
 import { eq, or } from 'drizzle-orm';
 import { db } from '../index';
+import { resolveAccountIssuer } from '../schema/account-identity';
 import { account, twoFactor, user } from '../schema/auth';
 
 // ─── safety guards ──────────────────────────────────────────────────────────
@@ -234,6 +235,7 @@ async function replaceAccounts(testUser: TestUserSeed, passwordHash: string) {
   await db.insert(account).values(
     testUser.accounts.map((entry, index) => ({
       id: `${entry.providerId}-account-${testUser.id}-${index}`,
+      issuer: resolveAccountIssuer(entry.providerId),
       accountId: entry.accountId,
       providerId: entry.providerId,
       userId: testUser.id,

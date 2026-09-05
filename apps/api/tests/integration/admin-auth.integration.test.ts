@@ -20,6 +20,7 @@
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { db } from '@urlfy/data';
+import { resolveAccountIssuer } from '@urlfy/data/schema/account-identity';
 import {
   account as accountTable,
   user as userTable
@@ -104,6 +105,7 @@ describe('Admin GitHub Identity Authority (integration)', () => {
     test('returns true when user has linked GitHub account matching ADMIN_GITHUB_ACCOUNT_ID', async () => {
       await db.insert(accountTable).values({
         id: nanoid(),
+        issuer: resolveAccountIssuer('github'),
         userId: testUserId,
         accountId: AUTHORIZED_GITHUB_ACCOUNT_ID,
         providerId: 'github',
@@ -119,6 +121,7 @@ describe('Admin GitHub Identity Authority (integration)', () => {
     test('returns false when linked GitHub accountId does not match ADMIN_GITHUB_ACCOUNT_ID', async () => {
       await db.insert(accountTable).values({
         id: nanoid(),
+        issuer: resolveAccountIssuer('github'),
         userId: testUserId,
         accountId: UNAUTHORIZED_GITHUB_ACCOUNT_ID,
         providerId: 'github',
@@ -140,6 +143,7 @@ describe('Admin GitHub Identity Authority (integration)', () => {
     test('returns false when user has a non-GitHub provider linked with matching ID', async () => {
       await db.insert(accountTable).values({
         id: nanoid(),
+        issuer: resolveAccountIssuer('google'),
         userId: testUserId,
         accountId: AUTHORIZED_GITHUB_ACCOUNT_ID, // same ID, wrong provider
         providerId: 'google',
@@ -180,6 +184,7 @@ describe('Admin GitHub Identity Authority (integration)', () => {
       // User was created with role='user' in beforeEach
       await db.insert(accountTable).values({
         id: nanoid(),
+        issuer: resolveAccountIssuer('github'),
         userId: testUserId,
         accountId: AUTHORIZED_GITHUB_ACCOUNT_ID,
         providerId: 'github',
@@ -212,6 +217,7 @@ describe('Admin GitHub Identity Authority (integration)', () => {
       // No 2FA record created — user has 2FA disabled
       await db.insert(accountTable).values({
         id: nanoid(),
+        issuer: resolveAccountIssuer('github'),
         userId: testUserId,
         accountId: AUTHORIZED_GITHUB_ACCOUNT_ID,
         providerId: 'github',
