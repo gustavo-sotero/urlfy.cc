@@ -399,7 +399,9 @@ export const api = new Elysia({ prefix: '/api' })
   )
 
   // Better-Auth routes (mount handler directly)
-  // Better-Auth has basePath: '/auth', Elysia has prefix: '/api'
+  // Better-Auth basePath: '/api/auth' — requests arrive with the full path,
+  // which Better Auth requires to start with its configured basePath
+  // (since 1.6.21 non-prefixed paths are rejected with 404).
   // Result: /api/auth/session, /api/auth/sign-in, etc.
   .mount(auth.handler)
 

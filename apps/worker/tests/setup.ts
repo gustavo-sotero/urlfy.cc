@@ -26,7 +26,7 @@ function loadEnvFile(envPath: string): void {
 // Root .env.test is 3 levels up: tests/ → worker/ → apps/ → root/
 loadEnvFile(resolve(__dirname, '../../../.env.test'));
 
-Object.defineProperty(process.env, 'NODE_ENV', { value: 'test' });
+process.env.NODE_ENV = 'test';
 
 import { mock } from 'bun:test';
 

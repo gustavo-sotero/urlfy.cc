@@ -351,7 +351,9 @@ export function initTelemetry() {
     : undefined;
 
   if (logExporter && !logProcessorConfigured) {
-    const logProcessor = new BatchLogRecordProcessor(logExporter, {
+    // sdk-logs >= 0.222: exporter is passed via a single options object.
+    const logProcessor = new BatchLogRecordProcessor({
+      exporter: logExporter,
       maxQueueSize: 2048,
       maxExportBatchSize: 512,
       scheduledDelayMillis: 1000,

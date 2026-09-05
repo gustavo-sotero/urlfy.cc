@@ -65,8 +65,8 @@ afterEach(() => {
 // ─── baseAuthConfig structural assertions ───────────────────────────────────
 
 describe('baseAuthConfig — structural shape', () => {
-  it('sets basePath to /auth', () => {
-    expect(baseAuthConfig.basePath).toBe('/auth');
+  it('sets basePath to the public auth surface /api/auth', () => {
+    expect(baseAuthConfig.basePath).toBe('/api/auth');
   });
 
   it('sets appName to urlfy.cc', () => {

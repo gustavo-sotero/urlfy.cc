@@ -12,7 +12,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ADMIN_ELEVATION_LOGIN_METHOD } from '@urlfy/auth-shared/admin-session';
-import { Github, Loader2, Mail } from 'lucide-react';
+import { Loader2, Mail } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Suspense, useState } from 'react';
@@ -20,6 +20,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { TwoFactorVerification } from '@/components/auth/two-factor-verification';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
+import { GitHubIcon } from '@/components/shared/github-icon';
 import { GoogleIcon } from '@/components/shared/google-icon';
 import { Button } from '@/components/ui/button';
 import {
@@ -184,7 +185,7 @@ function LoginForm() {
                 disabled={isLoading}
                 className={showStandardLogin ? undefined : 'w-full'}
               >
-                <Github className="mr-2 h-4 w-4" />
+                <GitHubIcon className="mr-2 h-4 w-4" />
                 {tOAuth('github')}
               </Button>
             </div>

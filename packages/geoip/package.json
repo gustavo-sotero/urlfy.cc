@@ -14,7 +14,7 @@
     "test:unit": "bun test src/"
   },
   "dependencies": {
-    "@maxmind/geoip2-node": "^6.3.4",
+    "@maxmind/geoip2-node": "^7.1.0",
     "@urlfy/cache": "workspace:*",
     "@urlfy/telemetry": "workspace:*"
   },

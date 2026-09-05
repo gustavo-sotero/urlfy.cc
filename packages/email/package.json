@@ -22,17 +22,17 @@
     "lint": "bunx biome check . --write"
   },
   "dependencies": {
-    "@react-email/components": "^0.0.41",
-    "@react-email/render": "^2.0.5",
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.1.0",
     "@urlfy/data": "workspace:*",
     "@urlfy/telemetry": "workspace:*",
     "drizzle-orm": "catalog:",
-    "postal-mime": "^2.7.4",
-    "react": "^19.1.0",
-    "resend": "^6.9.3"
+    "postal-mime": "^3.0.0",
+    "react": "^19.2.8",
+    "resend": "^6.26.0"
   },
   "devDependencies": {
     "@urlfy/config-ts": "workspace:*",
-    "@types/react": "^19.1.5"
+    "@types/react": "^19.2.18"
   }
 }

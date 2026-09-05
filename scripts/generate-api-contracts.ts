@@ -221,6 +221,14 @@ function isNumericStringSchema(schema: JsonSchema): boolean {
 
 function schemaToType(schema: JsonSchema | undefined): string {
   if (!schema) return 'unknown';
+  const base = baseSchemaToType(schema);
+  if (!schema.nullable) return base;
+  // Append null unless the base union already includes it.
+  if (base.split(' | ').includes('null')) return base;
+  return `${base} | null`;
+}
+
+function baseSchemaToType(schema: JsonSchema): string {
   if (schema.$ref) return refName(schema.$ref);
   if (schema.target === 'Partial' && schema.parameters?.[0]) {
     return `Partial<${schemaToType(schema.parameters[0])}>`;
@@ -244,13 +252,11 @@ function schemaToType(schema: JsonSchema | undefined): string {
 
   if (schema.anyOf) {
     const parts = schema.anyOf.map(schemaToType);
-    if (schema.nullable && !parts.includes('null')) parts.push('null');
     return uniqueUnion(parts);
   }
 
   if (schema.oneOf) {
     const parts = schema.oneOf.map(schemaToType);
-    if (schema.nullable && !parts.includes('null')) parts.push('null');
     return uniqueUnion(parts);
   }
 
@@ -289,7 +295,6 @@ function schemaToType(schema: JsonSchema | undefined): string {
     return objectType(schema);
   }
 
-  if (schema.nullable) return 'unknown | null';
   return 'unknown';
 }
 

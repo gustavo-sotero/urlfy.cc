@@ -1,6 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import ts from 'typescript';
+// TypeScript 7 (the Go native compiler) does not ship a programmatic compiler
+// API yet (planned for 7.1). Tooling scripts parse source files via the
+// TypeScript 6 API, aliased here per the official side-by-side setup.
+import ts from '@typescript/typescript6';
 
 type RuntimeServiceName = 'api' | 'web' | 'worker';
 export type ServiceName = RuntimeServiceName | 'migrate';

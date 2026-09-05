@@ -37,11 +37,11 @@
     "@urlfy/contracts": "workspace:*",
     "@urlfy/telemetry": "workspace:*",
     "drizzle-orm": "catalog:",
-    "nanoid": "^5.1.6"
+    "nanoid": "^6.0.1"
   },
   "devDependencies": {
     "@urlfy/config-ts": "workspace:*",
     "drizzle-kit": "catalog:tooling",
-    "postgres": "^3.4.8"
+    "postgres": "^3.4.9"
   }
 }

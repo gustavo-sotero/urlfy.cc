@@ -1,7 +1,8 @@
-import { FileText, Github, Rocket } from 'lucide-react';
+import { FileText, Rocket } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { ContactForm } from '@/components/forms/contact-form';
+import { GitHubIcon } from '@/components/shared/github-icon';
 import { RevealSection } from '@/components/shared/reveal-section';
 import { Link } from '@/i18n/routing';
 
@@ -52,7 +53,7 @@ export default async function ContactPage() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-accent"
                 >
-                  <Github className="h-5 w-5" />
+                  <GitHubIcon className="h-5 w-5" />
                   <span>{t('repositoryLink')}</span>
                 </a>
                 <a

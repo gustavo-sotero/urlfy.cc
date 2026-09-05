@@ -7,8 +7,10 @@
  */
 
 import { createHash } from 'node:crypto';
+// geoip2-node >= 7 restricts its exports map to ".", so ReaderModel must be
+// imported from the package root instead of the deep `dist/src` path.
+import type { ReaderModel } from '@maxmind/geoip2-node';
 import { Reader } from '@maxmind/geoip2-node';
-import type ReaderModel from '@maxmind/geoip2-node/dist/src/readerModel';
 import { CACHE_KEYS, CACHE_TTL, redis } from '@urlfy/cache';
 import { createLogger } from '@urlfy/telemetry';
 

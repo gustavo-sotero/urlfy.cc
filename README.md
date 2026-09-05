@@ -64,7 +64,7 @@ docker/
 
 ## Quick Start
 
-**Prerequisites:** [Bun](https://bun.sh) `1.3.11+`, Docker with Compose
+**Prerequisites:** [Bun](https://bun.sh) `1.4.1+`, Docker with Compose
 
 ```bash
 git clone https://github.com/gustavo-sotero/urlfy.cc.git

@@ -10,12 +10,13 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Github, Loader2, UserPlus } from 'lucide-react';
+import { Loader2, UserPlus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { AccessibleFormField } from '@/components/forms/accessible-form-field';
+import { GitHubIcon } from '@/components/shared/github-icon';
 import { GoogleIcon } from '@/components/shared/google-icon';
 import { Button } from '@/components/ui/button';
 import {
@@ -143,7 +144,7 @@ export default function SignupPage() {
             onClick={() => handleOAuthSignup('github')}
             disabled={isLoading}
           >
-            <Github className="mr-2 h-4 w-4" />
+            <GitHubIcon className="mr-2 h-4 w-4" />
             {tOAuth('github')}
           </Button>
         </div>

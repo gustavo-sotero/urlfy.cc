@@ -3,7 +3,7 @@
 # Build context: repo root (docker build -f docker/worker.Dockerfile .)
 # ═══════════════════════════════════════════════════════════════════
 # hadolint ignore=DL3006
-ARG BUN_VERSION=1.3.11
+ARG BUN_VERSION=1.4.1
 FROM oven/bun:${BUN_VERSION}-slim AS dependencies
 
 LABEL org.opencontainers.image.source="https://github.com/urlfy/urlfy.cc"

@@ -114,7 +114,7 @@ export function getPublicAuthOrigin(): string {
  * independently configured and cannot drift.
  *
  * Public callback route: /api/auth/callback/{provider}
- * (Better Auth basePath is /auth, but the API mounts it under /api/auth)
+ * (Better Auth basePath is /api/auth, matching the mount path below)
  *
  * Expected values:
  *   localhost:  http://localhost:3000/api/auth/callback/google
@@ -151,11 +151,23 @@ export function getAuthBaseUrl(): DynamicBaseUrlConfig {
   };
 }
 
+/*
+ * Public auth surface: /api/auth/*
+ *
+ * Better Auth requires incoming request paths to start with this basePath
+ * (since 1.6.21 the router returns 404 for non-prefixed paths), and every
+ * consumer of the auth API — nginx ingress, Next dev rewrites, OAuth
+ * redirect URIs (getSocialProviderCallbackUrl), email verification links
+ * (buildPublicEmailVerificationUrl) and the Better Auth client — targets
+ * /api/auth/*. Keep them all in sync with this single constant.
+ */
+const AUTH_BASE_PATH = '/api/auth';
+
 export function createBaseAuthConfig() {
   return {
     appName: 'urlfy.cc',
     baseURL: getAuthBaseUrl(),
-    basePath: '/auth',
+    basePath: AUTH_BASE_PATH,
     secret: getAuthSecret(),
 
     emailAndPassword: {
@@ -378,7 +390,9 @@ export function getPlugins(options: { disableOpenAPI?: boolean } = {}) {
   );
 
   if (!options.disableOpenAPI) {
-    plugins.push(openAPI({ path: '/api/auth/reference' }));
+    // Endpoint paths are resolved relative to basePath, so `/reference` serves
+    // the interactive OpenAPI reference at /api/auth/reference.
+    plugins.push(openAPI({ path: '/reference' }));
   }
 
   return plugins;

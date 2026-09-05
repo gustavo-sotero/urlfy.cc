@@ -95,7 +95,10 @@ function mockLogtapeModules(): void {
     }),
     configure: async () => {},
     reset: async () => {},
-    getConsoleSink: () => () => {}
+    getConsoleSink: () => () => {},
+    // @logtape/elysia >= 2.3 imports this for request-scoped log context.
+    withContext: <T>(_context: Record<string, unknown>, callback: () => T): T =>
+      callback()
   }));
 
   mock.module('@logtape/otel', () => ({
@@ -239,7 +242,8 @@ export function configureWebTestEnvironment(
 
   loadEnvFile(resolve(__dirname, '../../../.env.test'));
   validateRequiredSecrets();
-  Object.defineProperty(process.env, 'NODE_ENV', { value: 'test' });
+  // Next.js augments NODE_ENV as readonly; tests intentionally mutate it.
+  (process.env as Record<string, string | undefined>).NODE_ENV = 'test';
 
   if (options.mockLogtape) {
     mockLogtapeModules();

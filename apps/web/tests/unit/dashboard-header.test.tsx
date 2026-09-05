@@ -49,7 +49,12 @@ const queryClient = new reactQueryModule.QueryClient({
 const realSetQueryData = queryClient.setQueryData.bind(queryClient);
 const realInvalidateQueries = queryClient.invalidateQueries.bind(queryClient);
 
-queryClient.setQueryData = ((...args) => {
+// TanStack Query 5.10x tightened the generics of setQueryData, so the
+// passthrough wrapper is typed loosely and only forwards the call.
+queryClient.setQueryData = ((_queryKey: unknown, ...rest: unknown[]) => {
+  const args = [_queryKey, ...rest] as Parameters<
+    typeof queryClient.setQueryData
+  >;
   setQueryDataMock(...args);
   return realSetQueryData(...args);
 }) as typeof queryClient.setQueryData;

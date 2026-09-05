@@ -1015,15 +1015,8 @@
           },
           "expiresAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "format": "date-time",
+            "type": "string"
           },
           "maxClicks": {
             "nullable": true,
@@ -1049,16 +1042,9 @@
           },
           "password": {
             "nullable": true,
-            "anyOf": [
-              {
-                "minLength": 8,
-                "maxLength": 64,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "minLength": 8,
+            "maxLength": 64,
+            "type": "string"
           },
           "redirectType": {
             "type": "string",
@@ -1069,102 +1055,46 @@
           },
           "metaTitle": {
             "nullable": true,
-            "anyOf": [
-              {
-                "maxLength": 60,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "maxLength": 60,
+            "type": "string"
           },
           "metaDescription": {
             "nullable": true,
-            "anyOf": [
-              {
-                "maxLength": 160,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "maxLength": 160,
+            "type": "string"
           },
           "metaImage": {
             "nullable": true,
-            "anyOf": [
-              {
-                "maxLength": 500,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "maxLength": 500,
+            "type": "string"
           },
           "utmSource": {
             "nullable": true,
-            "anyOf": [
-              {
-                "maxLength": 100,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "maxLength": 100,
+            "type": "string"
           },
           "utmMedium": {
             "nullable": true,
-            "anyOf": [
-              {
-                "maxLength": 100,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "maxLength": 100,
+            "type": "string"
           },
           "utmCampaign": {
             "nullable": true,
-            "anyOf": [
-              {
-                "maxLength": 100,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "maxLength": 100,
+            "type": "string"
           },
           "tags": {
             "nullable": true,
-            "anyOf": [
-              {
-                "type": "array",
-                "items": {
-                  "maxLength": 50,
-                  "type": "string"
-                }
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "array",
+            "items": {
+              "maxLength": 50,
+              "type": "string"
+            }
           },
           "notes": {
             "nullable": true,
-            "anyOf": [
-              {
-                "maxLength": 500,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "maxLength": 500,
+            "type": "string"
           }
         },
         "$id": "#/components/schemas/links.update"
@@ -1607,17 +1537,10 @@
           },
           "maxClicks": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  1000
-                ],
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              1000
+            ],
+            "type": "number"
           },
           "isActive": {
             "examples": [
@@ -1633,14 +1556,7 @@
           },
           "bannedReason": {
             "nullable": true,
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "string"
           },
           "isProtected": {
             "description": "Whether link is password protected",
@@ -1651,149 +1567,79 @@
           },
           "expiresAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2026-02-01T00:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2026-02-01T00:00:00Z"
+            ],
+            "type": "string"
           },
           "metaTitle": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "Custom Title"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "Custom Title"
+            ],
+            "type": "string"
           },
           "metaDescription": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "Custom description for social sharing"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "Custom description for social sharing"
+            ],
+            "type": "string"
           },
           "metaImage": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "https://cdn.example.com/image.png"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "https://cdn.example.com/image.png"
+            ],
+            "type": "string"
           },
           "utmSource": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "twitter"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "twitter"
+            ],
+            "type": "string"
           },
           "utmMedium": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "social"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "social"
+            ],
+            "type": "string"
           },
           "utmCampaign": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "launch"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "launch"
+            ],
+            "type": "string"
           },
           "tags": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  [
-                    "marketing",
-                    "campaign"
-                  ]
-                ],
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              [
+                "marketing",
+                "campaign"
+              ]
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "notes": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "Internal campaign link"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "Internal campaign link"
+            ],
+            "type": "string"
           },
           "lastClickedAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2026-01-06T12:30:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2026-01-06T12:30:00Z"
+            ],
+            "type": "string"
           },
           "createdAt": {
             "examples": [
@@ -1849,57 +1695,29 @@
           },
           "originalUrl": {
             "nullable": true,
-            "anyOf": [
-              {
-                "description": "Destination URL. Omitted when link is password-protected.",
-                "examples": [
-                  "https://example.com"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "description": "Destination URL. Omitted when link is password-protected.",
+            "examples": [
+              "https://example.com"
+            ],
+            "type": "string"
           },
           "metaTitle": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "Example Domain"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "Example Domain"
+            ],
+            "type": "string"
           },
           "metaDescription": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "This domain is for use in examples."
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "This domain is for use in examples."
+            ],
+            "type": "string"
           },
           "metaImage": {
             "nullable": true,
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "string"
           },
           "createdAt": {
             "examples": [
@@ -1947,17 +1765,10 @@
           },
           "lastClickedAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2026-01-06T11:30:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2026-01-06T11:30:00Z"
+            ],
+            "type": "string"
           }
         },
         "$id": "#/components/schemas/links.stats.response"
@@ -2236,17 +2047,10 @@
           },
           "lastUsedAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2026-01-06T12:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2026-01-06T12:00:00Z"
+            ],
+            "type": "string"
           },
           "usageCount": {
             "examples": [
@@ -2256,17 +2060,10 @@
           },
           "expiresAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2027-01-06T00:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2027-01-06T00:00:00Z"
+            ],
+            "type": "string"
           },
           "createdAt": {
             "examples": [
@@ -2378,17 +2175,10 @@
           },
           "expiresAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2027-01-06T00:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2027-01-06T00:00:00Z"
+            ],
+            "type": "string"
           },
           "createdAt": {
             "examples": [
@@ -2438,163 +2228,121 @@
         "properties": {
           "user": {
             "nullable": true,
-            "anyOf": [
-              {
-                "type": "object",
-                "required": [
-                  "id",
-                  "email",
-                  "name",
-                  "emailVerified",
-                  "image",
-                  "role",
-                  "linksQuota",
-                  "linksCount",
-                  "createdAt",
-                  "updatedAt"
+            "type": "object",
+            "required": [
+              "id",
+              "email",
+              "name",
+              "emailVerified",
+              "image",
+              "role",
+              "linksQuota",
+              "linksCount",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "examples": [
+                  "550e8400-e29b-41d4-a716-446655440000"
                 ],
-                "properties": {
-                  "id": {
-                    "examples": [
-                      "550e8400-e29b-41d4-a716-446655440000"
-                    ],
-                    "type": "string"
-                  },
-                  "email": {
-                    "examples": [
-                      "user@example.com"
-                    ],
-                    "type": "string"
-                  },
-                  "name": {
-                    "nullable": true,
-                    "anyOf": [
-                      {
-                        "examples": [
-                          "John Doe"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "emailVerified": {
-                    "examples": [
-                      true
-                    ],
-                    "type": "boolean"
-                  },
-                  "image": {
-                    "nullable": true,
-                    "anyOf": [
-                      {
-                        "examples": [
-                          "https://example.com/avatar.jpg"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "role": {
-                    "examples": [
-                      "user"
-                    ],
-                    "type": "string"
-                  },
-                  "linksQuota": {
-                    "examples": [
-                      100
-                    ],
-                    "type": "number"
-                  },
-                  "linksCount": {
-                    "examples": [
-                      45
-                    ],
-                    "type": "number"
-                  },
-                  "createdAt": {
-                    "examples": [
-                      "2026-01-01T00:00:00Z"
-                    ],
-                    "type": "string"
-                  },
-                  "updatedAt": {
-                    "examples": [
-                      "2026-01-06T12:00:00Z"
-                    ],
-                    "type": "string"
-                  }
-                }
+                "type": "string"
               },
-              {
-                "type": "null"
+              "email": {
+                "examples": [
+                  "user@example.com"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "nullable": true,
+                "examples": [
+                  "John Doe"
+                ],
+                "type": "string"
+              },
+              "emailVerified": {
+                "examples": [
+                  true
+                ],
+                "type": "boolean"
+              },
+              "image": {
+                "nullable": true,
+                "examples": [
+                  "https://example.com/avatar.jpg"
+                ],
+                "type": "string"
+              },
+              "role": {
+                "examples": [
+                  "user"
+                ],
+                "type": "string"
+              },
+              "linksQuota": {
+                "examples": [
+                  100
+                ],
+                "type": "number"
+              },
+              "linksCount": {
+                "examples": [
+                  45
+                ],
+                "type": "number"
+              },
+              "createdAt": {
+                "examples": [
+                  "2026-01-01T00:00:00Z"
+                ],
+                "type": "string"
+              },
+              "updatedAt": {
+                "examples": [
+                  "2026-01-06T12:00:00Z"
+                ],
+                "type": "string"
               }
-            ]
+            }
           },
           "session": {
             "nullable": true,
-            "anyOf": [
-              {
-                "type": "object",
-                "required": [
-                  "id",
-                  "expiresAt",
-                  "ipAddress",
-                  "userAgent"
+            "type": "object",
+            "required": [
+              "id",
+              "expiresAt",
+              "ipAddress",
+              "userAgent"
+            ],
+            "properties": {
+              "id": {
+                "examples": [
+                  "sess_abc123"
                 ],
-                "properties": {
-                  "id": {
-                    "examples": [
-                      "sess_abc123"
-                    ],
-                    "type": "string"
-                  },
-                  "expiresAt": {
-                    "examples": [
-                      "2026-01-07T12:00:00Z"
-                    ],
-                    "type": "string"
-                  },
-                  "ipAddress": {
-                    "nullable": true,
-                    "anyOf": [
-                      {
-                        "examples": [
-                          "192.168.1.1"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "userAgent": {
-                    "nullable": true,
-                    "anyOf": [
-                      {
-                        "examples": [
-                          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  }
-                }
+                "type": "string"
               },
-              {
-                "type": "null"
+              "expiresAt": {
+                "examples": [
+                  "2026-01-07T12:00:00Z"
+                ],
+                "type": "string"
+              },
+              "ipAddress": {
+                "nullable": true,
+                "examples": [
+                  "192.168.1.1"
+                ],
+                "type": "string"
+              },
+              "userAgent": {
+                "nullable": true,
+                "examples": [
+                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"
+                ],
+                "type": "string"
               }
-            ]
+            }
           }
         },
         "$id": "#/components/schemas/auth.session.response"
@@ -2635,31 +2383,17 @@
           },
           "ipAddress": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "192.168.1.1"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "192.168.1.1"
+            ],
+            "type": "string"
           },
           "userAgent": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "Mozilla/5.0 Chrome/120.0.0.0"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "Mozilla/5.0 Chrome/120.0.0.0"
+            ],
+            "type": "string"
           },
           "createdAt": {
             "examples": [
@@ -2722,17 +2456,10 @@
           },
           "setupAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2026-01-01T00:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2026-01-01T00:00:00Z"
+            ],
+            "type": "string"
           }
         },
         "$id": "#/components/schemas/auth.2fa.status.response"
@@ -2781,17 +2508,10 @@
           },
           "name": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "John Doe"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "John Doe"
+            ],
+            "type": "string"
           },
           "emailVerified": {
             "examples": [
@@ -2801,17 +2521,10 @@
           },
           "image": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "https://cdn.example.com/avatar.png"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "https://cdn.example.com/avatar.png"
+            ],
+            "type": "string"
           },
           "role": {
             "examples": [
@@ -2957,17 +2670,10 @@
           },
           "name": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "John Doe"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "John Doe"
+            ],
+            "type": "string"
           },
           "role": {
             "examples": [
@@ -2995,45 +2701,24 @@
           },
           "bannedAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2026-01-06T12:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2026-01-06T12:00:00Z"
+            ],
+            "type": "string"
           },
           "bannedReason": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "Spam/Phishing"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "Spam/Phishing"
+            ],
+            "type": "string"
           },
           "deletedAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2026-01-06T12:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2026-01-06T12:00:00Z"
+            ],
+            "type": "string"
           },
           "createdAt": {
             "examples": [
@@ -3149,18 +2834,11 @@
           },
           "completedAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "description": "ISO timestamp",
-                "examples": [
-                  "2026-01-07T12:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "description": "ISO timestamp",
+            "examples": [
+              "2026-01-07T12:00:00Z"
+            ],
+            "type": "string"
           },
           "message": {
             "description": "Status message",
@@ -3218,17 +2896,10 @@
           },
           "completedAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2026-01-07T12:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2026-01-07T12:00:00Z"
+            ],
+            "type": "string"
           }
         },
         "$id": "#/components/schemas/users.deletion.item"
@@ -3283,18 +2954,11 @@
           },
           "completedAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "description": "ISO timestamp",
-                "examples": [
-                  "2026-01-07T12:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "description": "ISO timestamp",
+            "examples": [
+              "2026-01-07T12:00:00Z"
+            ],
+            "type": "string"
           }
         },
         "$id": "#/components/schemas/users.deletion.status"
@@ -3497,17 +3161,10 @@
               },
               "name": {
                 "nullable": true,
-                "anyOf": [
-                  {
-                    "examples": [
-                      "John Doe"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+                "examples": [
+                  "John Doe"
+                ],
+                "type": "string"
               },
               "createdAt": {
                 "description": "ISO timestamp",
@@ -3702,45 +3359,24 @@
           },
           "topCountry": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "BR"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "BR"
+            ],
+            "type": "string"
           },
           "topBrowser": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "Chrome"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "Chrome"
+            ],
+            "type": "string"
           },
           "topReferrer": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "twitter.com"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "twitter.com"
+            ],
+            "type": "string"
           },
           "totalClicksGrowth": {
             "description": "Percentage growth vs previous period",
@@ -4092,45 +3728,24 @@
               },
               "topCountry": {
                 "nullable": true,
-                "anyOf": [
-                  {
-                    "examples": [
-                      "BR"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+                "examples": [
+                  "BR"
+                ],
+                "type": "string"
               },
               "topBrowser": {
                 "nullable": true,
-                "anyOf": [
-                  {
-                    "examples": [
-                      "Chrome"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+                "examples": [
+                  "Chrome"
+                ],
+                "type": "string"
               },
               "topReferrer": {
                 "nullable": true,
-                "anyOf": [
-                  {
-                    "examples": [
-                      "twitter.com"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+                "examples": [
+                  "twitter.com"
+                ],
+                "type": "string"
               },
               "totalClicksGrowth": {
                 "description": "Percentage growth vs previous period",
@@ -4655,18 +4270,11 @@
           },
           "latestEvent": {
             "nullable": true,
-            "anyOf": [
-              {
-                "description": "ISO timestamp of the most recent analytics event",
-                "examples": [
-                  "2026-01-06T12:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "description": "ISO timestamp of the most recent analytics event",
+            "examples": [
+              "2026-01-06T12:00:00Z"
+            ],
+            "type": "string"
           }
         },
         "$id": "#/components/schemas/analytics.health.response"
@@ -4767,17 +4375,10 @@
           },
           "entityId": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "link_456def"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "link_456def"
+            ],
+            "type": "string"
           },
           "metadata": {
             "examples": [
@@ -4788,31 +4389,17 @@
           },
           "ipAddress": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "192.168.1.1"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "192.168.1.1"
+            ],
+            "type": "string"
           },
           "userAgent": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            ],
+            "type": "string"
           },
           "createdAt": {
             "examples": [
@@ -5181,17 +4768,10 @@
           },
           "userId": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "user_123abc"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "user_123abc"
+            ],
+            "type": "string"
           },
           "clicksCount": {
             "examples": [
@@ -5213,31 +4793,17 @@
           },
           "bannedReason": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "Spam/Phishing"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "Spam/Phishing"
+            ],
+            "type": "string"
           },
           "expiresAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2026-02-01T00:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2026-02-01T00:00:00Z"
+            ],
+            "type": "string"
           },
           "createdAt": {
             "examples": [
@@ -5458,31 +5024,17 @@
           },
           "bannedReason": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "Spam/Phishing"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "Spam/Phishing"
+            ],
+            "type": "string"
           },
           "bannedAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "examples": [
-                  "2026-01-06T12:00:00Z"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "examples": [
+              "2026-01-06T12:00:00Z"
+            ],
+            "type": "string"
           },
           "twoFactorEnabled": {
             "examples": [
@@ -5655,24 +5207,12 @@
             "type": "string"
           },
           "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "string",
+            "nullable": true
           },
           "prefix": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "string",
+            "nullable": true
           },
           "scopes": {
             "description": "API permission scopes",
@@ -5692,26 +5232,14 @@
             "type": "string"
           },
           "lastUsedAt": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
           },
           "expiresAt": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
           },
           "usageCount": {
             "anyOf": [
@@ -5796,24 +5324,12 @@
                 "type": "string"
               },
               "name": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+                "type": "string",
+                "nullable": true
               },
               "prefix": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+                "type": "string",
+                "nullable": true
               },
               "scopes": {
                 "description": "API permission scopes",
@@ -5833,26 +5349,14 @@
                 "type": "string"
               },
               "lastUsedAt": {
-                "anyOf": [
-                  {
-                    "format": "date-time",
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+                "format": "date-time",
+                "type": "string",
+                "nullable": true
               },
               "expiresAt": {
-                "anyOf": [
-                  {
-                    "format": "date-time",
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+                "format": "date-time",
+                "type": "string",
+                "nullable": true
               },
               "usageCount": {
                 "anyOf": [
@@ -5969,24 +5473,12 @@
                   "type": "string"
                 },
                 "name": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
+                  "type": "string",
+                  "nullable": true
                 },
                 "prefix": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
+                  "type": "string",
+                  "nullable": true
                 },
                 "scopes": {
                   "description": "API permission scopes",
@@ -6006,26 +5498,14 @@
                   "type": "string"
                 },
                 "lastUsedAt": {
-                  "anyOf": [
-                    {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
+                  "format": "date-time",
+                  "type": "string",
+                  "nullable": true
                 },
                 "expiresAt": {
-                  "anyOf": [
-                    {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
+                  "format": "date-time",
+                  "type": "string",
+                  "nullable": true
                 },
                 "usageCount": {
                   "anyOf": [
@@ -6334,16 +5814,9 @@
           },
           "createdAt": {
             "nullable": true,
-            "anyOf": [
-              {
-                "format": "date-time",
-                "description": "Creation timestamp",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "format": "date-time",
+            "description": "Creation timestamp",
+            "type": "string"
           }
         },
         "$id": "#/components/schemas/contact.admin.message"
@@ -6479,7 +5952,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "readOnly": true
           },
           "name": {
             "type": "string"
@@ -6497,13 +5971,11 @@
           },
           "createdAt": {
             "type": "string",
-            "format": "date-time",
-            "default": "Generated at runtime"
+            "format": "date-time"
           },
           "updatedAt": {
             "type": "string",
-            "format": "date-time",
-            "default": "Generated at runtime"
+            "format": "date-time"
           },
           "twoFactorEnabled": {
             "type": "boolean",
@@ -6564,17 +6036,24 @@
           }
         },
         "required": [
+          "id",
           "name",
           "email",
+          "emailVerified",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "role",
+          "linksQuota",
+          "linksCount",
+          "banned"
         ]
       },
       "BetterAuthSession": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "readOnly": true
           },
           "expiresAt": {
             "type": "string",
@@ -6585,8 +6064,7 @@
           },
           "createdAt": {
             "type": "string",
-            "format": "date-time",
-            "default": "Generated at runtime"
+            "format": "date-time"
           },
           "updatedAt": {
             "type": "string",
@@ -6621,6 +6099,7 @@
           }
         },
         "required": [
+          "id",
           "expiresAt",
           "token",
           "createdAt",
@@ -6632,6 +6111,10 @@
         "type": "object",
         "properties": {
           "id": {
+            "type": "string",
+            "readOnly": true
+          },
+          "issuer": {
             "type": "string"
           },
           "accountId": {
@@ -6668,8 +6151,7 @@
           },
           "createdAt": {
             "type": "string",
-            "format": "date-time",
-            "default": "Generated at runtime"
+            "format": "date-time"
           },
           "updatedAt": {
             "type": "string",
@@ -6677,6 +6159,8 @@
           }
         },
         "required": [
+          "id",
+          "issuer",
           "accountId",
           "providerId",
           "userId",
@@ -6688,7 +6172,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "readOnly": true
           },
           "identifier": {
             "type": "string"
@@ -6702,16 +6187,15 @@
           },
           "createdAt": {
             "type": "string",
-            "format": "date-time",
-            "default": "Generated at runtime"
+            "format": "date-time"
           },
           "updatedAt": {
             "type": "string",
-            "format": "date-time",
-            "default": "Generated at runtime"
+            "format": "date-time"
           }
         },
         "required": [
+          "id",
           "identifier",
           "value",
           "expiresAt",
@@ -6723,7 +6207,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "readOnly": true
           },
           "secret": {
             "type": "string"
@@ -6738,12 +6223,20 @@
             "type": "boolean",
             "default": true,
             "readOnly": true
+          },
+          "failedVerificationCount": {
+            "type": "number",
+            "default": 0,
+            "readOnly": true
+          },
+          "lockedUntil": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
           }
         },
         "required": [
-          "secret",
-          "backupCodes",
-          "userId"
+          "id"
         ]
       }
     },
@@ -7224,28 +6717,16 @@
                           "type": "number"
                         },
                         "lastLoadedAt": {
-                          "anyOf": [
-                            {
-                              "format": "date-time",
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
+                          "format": "date-time",
+                          "type": "string",
+                          "nullable": true
                         },
                         "cacheAgeMs": {
-                          "anyOf": [
-                            {
-                              "examples": [
-                                0
-                              ],
-                              "type": "number"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
+                          "examples": [
+                            0
+                          ],
+                          "type": "number",
+                          "nullable": true
                         }
                       }
                     }
@@ -7294,14 +6775,8 @@
                       ]
                     },
                     "error": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
+                      "type": "string",
+                      "nullable": true
                     },
                     "snapshot": {
                       "type": "object",
@@ -7332,28 +6807,16 @@
                           "type": "number"
                         },
                         "lastLoadedAt": {
-                          "anyOf": [
-                            {
-                              "format": "date-time",
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
+                          "format": "date-time",
+                          "type": "string",
+                          "nullable": true
                         },
                         "cacheAgeMs": {
-                          "anyOf": [
-                            {
-                              "examples": [
-                                0
-                              ],
-                              "type": "number"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
+                          "examples": [
+                            0
+                          ],
+                          "type": "number",
+                          "nullable": true
                         }
                       }
                     }
@@ -11288,15 +10751,8 @@
                   },
                   "expiresAt": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "format": "date-time",
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "format": "date-time",
+                    "type": "string"
                   },
                   "maxClicks": {
                     "nullable": true,
@@ -11322,16 +10778,9 @@
                   },
                   "password": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "minLength": 8,
-                        "maxLength": 64,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "minLength": 8,
+                    "maxLength": 64,
+                    "type": "string"
                   },
                   "redirectType": {
                     "type": "string",
@@ -11342,102 +10791,46 @@
                   },
                   "metaTitle": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 60,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 60,
+                    "type": "string"
                   },
                   "metaDescription": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 160,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 160,
+                    "type": "string"
                   },
                   "metaImage": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 500,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 500,
+                    "type": "string"
                   },
                   "utmSource": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 100,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 100,
+                    "type": "string"
                   },
                   "utmMedium": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 100,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 100,
+                    "type": "string"
                   },
                   "utmCampaign": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 100,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 100,
+                    "type": "string"
                   },
                   "tags": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "type": "array",
-                        "items": {
-                          "maxLength": 50,
-                          "type": "string"
-                        }
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "type": "array",
+                    "items": {
+                      "maxLength": 50,
+                      "type": "string"
+                    }
                   },
                   "notes": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 500,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 500,
+                    "type": "string"
                   }
                 },
                 "$id": "#/components/schemas/links.update"
@@ -11459,15 +10852,8 @@
                   },
                   "expiresAt": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "format": "date-time",
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "format": "date-time",
+                    "type": "string"
                   },
                   "maxClicks": {
                     "nullable": true,
@@ -11493,16 +10879,9 @@
                   },
                   "password": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "minLength": 8,
-                        "maxLength": 64,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "minLength": 8,
+                    "maxLength": 64,
+                    "type": "string"
                   },
                   "redirectType": {
                     "type": "string",
@@ -11513,102 +10892,46 @@
                   },
                   "metaTitle": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 60,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 60,
+                    "type": "string"
                   },
                   "metaDescription": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 160,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 160,
+                    "type": "string"
                   },
                   "metaImage": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 500,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 500,
+                    "type": "string"
                   },
                   "utmSource": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 100,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 100,
+                    "type": "string"
                   },
                   "utmMedium": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 100,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 100,
+                    "type": "string"
                   },
                   "utmCampaign": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 100,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 100,
+                    "type": "string"
                   },
                   "tags": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "type": "array",
-                        "items": {
-                          "maxLength": 50,
-                          "type": "string"
-                        }
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "type": "array",
+                    "items": {
+                      "maxLength": 50,
+                      "type": "string"
+                    }
                   },
                   "notes": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 500,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 500,
+                    "type": "string"
                   }
                 },
                 "$id": "#/components/schemas/links.update"
@@ -11630,15 +10953,8 @@
                   },
                   "expiresAt": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "format": "date-time",
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "format": "date-time",
+                    "type": "string"
                   },
                   "maxClicks": {
                     "nullable": true,
@@ -11664,16 +10980,9 @@
                   },
                   "password": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "minLength": 8,
-                        "maxLength": 64,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "minLength": 8,
+                    "maxLength": 64,
+                    "type": "string"
                   },
                   "redirectType": {
                     "type": "string",
@@ -11684,102 +10993,46 @@
                   },
                   "metaTitle": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 60,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 60,
+                    "type": "string"
                   },
                   "metaDescription": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 160,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 160,
+                    "type": "string"
                   },
                   "metaImage": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 500,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 500,
+                    "type": "string"
                   },
                   "utmSource": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 100,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 100,
+                    "type": "string"
                   },
                   "utmMedium": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 100,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 100,
+                    "type": "string"
                   },
                   "utmCampaign": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 100,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 100,
+                    "type": "string"
                   },
                   "tags": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "type": "array",
-                        "items": {
-                          "maxLength": 50,
-                          "type": "string"
-                        }
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "type": "array",
+                    "items": {
+                      "maxLength": 50,
+                      "type": "string"
+                    }
                   },
                   "notes": {
                     "nullable": true,
-                    "anyOf": [
-                      {
-                        "maxLength": 500,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "maxLength": 500,
+                    "type": "string"
                   }
                 },
                 "$id": "#/components/schemas/links.update"
@@ -13948,18 +13201,11 @@
                         },
                         "latestEvent": {
                           "nullable": true,
-                          "anyOf": [
-                            {
-                              "description": "ISO timestamp of the most recent analytics event",
-                              "examples": [
-                                "2026-01-06T12:00:00Z"
-                              ],
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
+                          "description": "ISO timestamp of the most recent analytics event",
+                          "examples": [
+                            "2026-01-06T12:00:00Z"
+                          ],
+                          "type": "string"
                         }
                       },
                       "$id": "#/components/schemas/analytics.health.response"
@@ -18426,25 +17672,65 @@
                 "properties": {
                   "callbackURL": {
                     "type": "string",
-                    "description": "Callback URL to redirect to after the user has signed in",
-                    "nullable": true
+                    "description": "Callback URL to redirect to after the user has signed in"
                   },
                   "newUserCallbackURL": {
-                    "type": "string",
-                    "nullable": true
+                    "type": "string"
                   },
                   "errorCallbackURL": {
                     "type": "string",
-                    "description": "Callback URL to redirect to if an error happens",
-                    "nullable": true
+                    "description": "Callback URL to redirect to if an error happens"
                   },
                   "provider": {
-                    "type": "string"
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "apple",
+                          "atlassian",
+                          "cognito",
+                          "discord",
+                          "facebook",
+                          "figma",
+                          "github",
+                          "microsoft",
+                          "google",
+                          "huggingface",
+                          "slack",
+                          "spotify",
+                          "twitch",
+                          "twitter",
+                          "dropbox",
+                          "kick",
+                          "linear",
+                          "linkedin",
+                          "gitlab",
+                          "tiktok",
+                          "reddit",
+                          "roblox",
+                          "salesforce",
+                          "vk",
+                          "zoom",
+                          "notion",
+                          "kakao",
+                          "naver",
+                          "line",
+                          "paybin",
+                          "paypal",
+                          "polar",
+                          "railway",
+                          "vercel",
+                          "wechat"
+                        ]
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
                   },
                   "disableRedirect": {
                     "type": "boolean",
-                    "description": "Disable automatic redirection to the provider. Useful for handling the redirection yourself",
-                    "nullable": true
+                    "description": "Disable automatic redirection to the provider. Useful for handling the redirection yourself"
                   },
                   "idToken": {
                     "type": "object",
@@ -18455,23 +17741,19 @@
                       },
                       "nonce": {
                         "type": "string",
-                        "description": "Nonce used to generate the token",
-                        "nullable": true
+                        "description": "Nonce used to generate the token"
                       },
                       "accessToken": {
                         "type": "string",
-                        "description": "Access token from the provider",
-                        "nullable": true
+                        "description": "Access token from the provider"
                       },
                       "refreshToken": {
                         "type": "string",
-                        "description": "Refresh token from the provider",
-                        "nullable": true
+                        "description": "Refresh token from the provider"
                       },
                       "expiresAt": {
                         "type": "number",
-                        "description": "Expiry date of the token",
-                        "nullable": true
+                        "description": "Expiry date of the token"
                       },
                       "user": {
                         "type": "object",
@@ -18480,48 +17762,55 @@
                             "type": "object",
                             "properties": {
                               "firstName": {
-                                "type": "string",
-                                "nullable": true
+                                "type": "string"
                               },
                               "lastName": {
-                                "type": "string",
-                                "nullable": true
+                                "type": "string"
                               }
-                            },
-                            "nullable": true
+                            }
                           },
                           "email": {
-                            "type": "string",
-                            "nullable": true
+                            "type": "string"
                           }
                         },
-                        "description": "The user object from the provider. Only available for some providers like Apple.",
-                        "nullable": true
+                        "description": "The user object from the provider. Only available for some providers like Apple."
                       }
                     },
                     "required": [
                       "token"
-                    ],
-                    "nullable": true
+                    ]
                   },
                   "scopes": {
                     "type": "array",
-                    "description": "Array of scopes to request from the provider. This will override the default scopes passed.",
-                    "nullable": true
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of scopes to request from the provider. This will override the default scopes passed."
                   },
                   "requestSignUp": {
                     "type": "boolean",
-                    "description": "Explicitly request sign-up. Useful when disableImplicitSignUp is true for this provider",
-                    "nullable": true
+                    "description": "Explicitly request sign-up. Useful when disableImplicitSignUp is true for this provider"
                   },
                   "loginHint": {
                     "type": "string",
-                    "description": "The login hint to use for the authorization code request",
-                    "nullable": true
+                    "description": "The login hint to use for the authorization code request"
+                  },
+                  "additionalParams": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "Extra query parameters to append to the provider authorization URL (e.g. Cognito identity_provider, Google hd)."
                   },
                   "additionalData": {
-                    "type": "string",
-                    "nullable": true
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
                   }
                 },
                 "required": [
@@ -18670,7 +17959,16 @@
             "bearerAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "400": {
             "content": {
@@ -18779,13 +18077,45 @@
             "bearerAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
+          "required": false,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {}
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "error": {
+                    "type": "string"
+                  },
+                  "device_id": {
+                    "type": "string"
+                  },
+                  "error_description": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  },
+                  "user": {
+                    "type": "string"
+                  },
+                  "iss": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
@@ -19030,7 +18360,7 @@
           "Default"
         ],
         "description": "Get the current session",
-        "operationId": "getSession",
+        "operationId": "getSessionPost",
         "security": [
           {
             "bearerAuth": []
@@ -19184,11 +18514,25 @@
         ],
         "parameters": [],
         "requestBody": {
+          "required": false,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {}
+                "properties": {
+                  "callbackURL": {
+                    "type": "string",
+                    "description": "The URL to redirect to after provider logout"
+                  },
+                  "disableRedirect": {
+                    "type": "boolean",
+                    "description": "Return the provider logout URL without redirecting"
+                  },
+                  "state": {
+                    "type": "string",
+                    "description": "State to pass to the provider logout endpoint"
+                  }
+                }
               }
             }
           }
@@ -19203,6 +18547,14 @@
                   "properties": {
                     "success": {
                       "type": "boolean"
+                    },
+                    "url": {
+                      "type": "string",
+                      "description": "Provider logout URL when RP-initiated logout is available"
+                    },
+                    "redirect": {
+                      "type": "boolean",
+                      "description": "Whether the client should redirect to the provider logout URL"
                     }
                   }
                 }
@@ -19572,14 +18924,11 @@
                   },
                   "callbackURL": {
                     "type": "string",
-                    "description": "Callback URL to use as a redirect for email verification",
-                    "nullable": true
+                    "description": "Callback URL to use as a redirect for email verification"
                   },
                   "rememberMe": {
                     "type": "boolean",
-                    "description": "If this is false, the session will not be remembered. Default is `true`.",
-                    "default": true,
-                    "nullable": true
+                    "description": "If this is false, the session will not be remembered. Default is `true`."
                   }
                 },
                 "required": [
@@ -19752,8 +19101,7 @@
                   },
                   "token": {
                     "type": "string",
-                    "description": "The token to reset the password",
-                    "nullable": true
+                    "description": "The token to reset the password"
                   }
                 },
                 "required": [
@@ -20359,8 +19707,7 @@
                   },
                   "callbackURL": {
                     "type": "string",
-                    "description": "The URL to redirect to after email verification",
-                    "nullable": true
+                    "description": "The URL to redirect to after email verification"
                   }
                 },
                 "required": [
@@ -20532,8 +19879,7 @@
                   },
                   "revokeOtherSessions": {
                     "type": "boolean",
-                    "description": "Must be a boolean value",
-                    "nullable": true
+                    "description": "Must be a boolean value"
                   }
                 },
                 "required": [
@@ -20724,11 +20070,16 @@
         ],
         "parameters": [],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {}
+                "propertyNames": {
+                  "type": "string",
+                  "description": "Field name must be a string"
+                },
+                "additionalProperties": {}
               }
             }
           }
@@ -21188,8 +20539,7 @@
                   },
                   "redirectTo": {
                     "type": "string",
-                    "description": "The URL to redirect the user to reset their password. If the token isn't valid or expired, it'll be redirected with a query parameter `?error=INVALID_TOKEN`. If the token is valid, it'll be redirected with a query parameter `?token=VALID_TOKEN",
-                    "nullable": true
+                    "description": "The URL to redirect the user to reset their password. If the token isn't valid or expired, it'll be redirected with a query parameter `?error=INVALID_TOKEN`. If the token is valid, it'll be redirected with a query parameter `?token=VALID_TOKEN"
                   }
                 },
                 "required": [
@@ -22043,11 +21393,54 @@
                 "properties": {
                   "callbackURL": {
                     "type": "string",
-                    "description": "The URL to redirect to after the user has signed in",
-                    "nullable": true
+                    "description": "The URL to redirect to after the user has signed in"
                   },
                   "provider": {
-                    "type": "string"
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "apple",
+                          "atlassian",
+                          "cognito",
+                          "discord",
+                          "facebook",
+                          "figma",
+                          "github",
+                          "microsoft",
+                          "google",
+                          "huggingface",
+                          "slack",
+                          "spotify",
+                          "twitch",
+                          "twitter",
+                          "dropbox",
+                          "kick",
+                          "linear",
+                          "linkedin",
+                          "gitlab",
+                          "tiktok",
+                          "reddit",
+                          "roblox",
+                          "salesforce",
+                          "vk",
+                          "zoom",
+                          "notion",
+                          "kakao",
+                          "naver",
+                          "line",
+                          "paybin",
+                          "paypal",
+                          "polar",
+                          "railway",
+                          "vercel",
+                          "wechat"
+                        ]
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
                   },
                   "idToken": {
                     "type": "object",
@@ -22056,49 +21449,57 @@
                         "type": "string"
                       },
                       "nonce": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
                       },
                       "accessToken": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
                       },
                       "refreshToken": {
-                        "type": "string",
-                        "nullable": true
-                      },
-                      "scopes": {
-                        "type": "array",
-                        "nullable": true
+                        "type": "string"
                       }
                     },
                     "required": [
                       "token"
-                    ],
-                    "nullable": true
+                    ]
                   },
                   "requestSignUp": {
-                    "type": "boolean",
-                    "nullable": true
+                    "type": "boolean"
                   },
                   "scopes": {
                     "type": "array",
-                    "description": "Additional scopes to request from the provider",
-                    "nullable": true
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Additional scopes to request from the provider"
                   },
                   "errorCallbackURL": {
                     "type": "string",
-                    "description": "The URL to redirect to if there is an error during the link process",
-                    "nullable": true
+                    "description": "The URL to redirect to if there is an error during the link process"
                   },
                   "disableRedirect": {
                     "type": "boolean",
-                    "description": "Disable automatic redirection to the provider. Useful for handling the redirection yourself",
-                    "nullable": true
+                    "description": "Disable automatic redirection to the provider. Useful for handling the redirection yourself"
+                  },
+                  "loginHint": {
+                    "type": "string",
+                    "description": "The login hint to use for the authorization code request"
+                  },
+                  "additionalParams": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "Extra query parameters to append to the provider authorization URL (e.g. Cognito identity_provider, Google hd)."
                   },
                   "additionalData": {
-                    "type": "string",
-                    "nullable": true
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
                   }
                 },
                 "required": [
@@ -22271,6 +21672,9 @@
                         "type": "string",
                         "format": "date-time"
                       },
+                      "issuer": {
+                        "type": "string"
+                      },
                       "accountId": {
                         "type": "string"
                       },
@@ -22289,6 +21693,7 @@
                       "providerId",
                       "createdAt",
                       "updatedAt",
+                      "issuer",
                       "accountId",
                       "userId",
                       "scopes"
@@ -22422,8 +21827,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "description": "The URL to redirect to after deletion",
-              "nullable": true
+              "description": "The URL to redirect to after deletion"
             }
           }
         ],
@@ -22573,16 +21977,13 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "providerId": {
-                    "type": "string"
-                  },
                   "accountId": {
                     "type": "string",
-                    "nullable": true
+                    "description": "The Better Auth account ID to unlink"
                   }
                 },
                 "required": [
-                  "providerId"
+                  "accountId"
                 ]
               }
             }
@@ -22720,25 +22121,41 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "providerId": {
-                    "type": "string",
-                    "description": "The provider ID for the OAuth provider"
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "accountId": {
+                        "type": "string",
+                        "description": "The Better Auth account ID"
+                      },
+                      "userId": {
+                        "type": "string",
+                        "description": "The user ID associated with the account"
+                      }
+                    },
+                    "required": [
+                      "accountId"
+                    ]
                   },
-                  "accountId": {
-                    "type": "string",
-                    "description": "The account ID associated with the refresh token",
-                    "nullable": true
-                  },
-                  "userId": {
-                    "type": "string",
-                    "description": "The user ID associated with the account",
-                    "nullable": true
+                  {
+                    "type": "object",
+                    "properties": {
+                      "useAccountCookie": {
+                        "enum": [
+                          true
+                        ],
+                        "description": "Select the current OAuth account from its signed cookie"
+                      },
+                      "userId": {
+                        "type": "string",
+                        "description": "The user ID associated with the account"
+                      }
+                    },
+                    "required": [
+                      "useAccountCookie"
+                    ]
                   }
-                },
-                "required": [
-                  "providerId"
                 ]
               }
             }
@@ -22878,25 +22295,41 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "providerId": {
-                    "type": "string",
-                    "description": "The provider ID for the OAuth provider"
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "accountId": {
+                        "type": "string",
+                        "description": "The Better Auth account ID"
+                      },
+                      "userId": {
+                        "type": "string",
+                        "description": "The user ID associated with the account"
+                      }
+                    },
+                    "required": [
+                      "accountId"
+                    ]
                   },
-                  "accountId": {
-                    "type": "string",
-                    "description": "The account ID associated with the refresh token",
-                    "nullable": true
-                  },
-                  "userId": {
-                    "type": "string",
-                    "description": "The user ID associated with the account",
-                    "nullable": true
+                  {
+                    "type": "object",
+                    "properties": {
+                      "useAccountCookie": {
+                        "enum": [
+                          true
+                        ],
+                        "description": "Select the current OAuth account from its signed cookie"
+                      },
+                      "userId": {
+                        "type": "string",
+                        "description": "The user ID associated with the account"
+                      }
+                    },
+                    "required": [
+                      "useAccountCookie"
+                    ]
                   }
-                },
-                "required": [
-                  "providerId"
                 ]
               }
             }
@@ -23035,14 +22468,12 @@
                     "user": {
                       "type": "object",
                       "properties": {
-                        "id": {
-                          "type": "string"
-                        },
                         "name": {
                           "type": "string"
                         },
                         "email": {
-                          "type": "string"
+                          "type": "string",
+                          "nullable": true
                         },
                         "image": {
                           "type": "string"
@@ -23052,9 +22483,32 @@
                         }
                       },
                       "required": [
-                        "id",
                         "emailVerified"
                       ]
+                    },
+                    "account": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "providerId": {
+                          "type": "string"
+                        },
+                        "issuer": {
+                          "type": "string"
+                        },
+                        "accountId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "providerId",
+                        "issuer",
+                        "accountId"
+                      ],
+                      "additionalProperties": false
                     },
                     "data": {
                       "type": "object",
@@ -23064,7 +22518,8 @@
                   },
                   "required": [
                     "user",
-                    "data"
+                    "data",
+                    "account"
                   ],
                   "additionalProperties": false
                 }
@@ -23595,8 +23050,7 @@
                   },
                   "trustDevice": {
                     "type": "boolean",
-                    "description": "If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time. Eg: true",
-                    "nullable": true
+                    "description": "If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time. Eg: true"
                   }
                 },
                 "required": [
@@ -23733,6 +23187,21 @@
           }
         ],
         "parameters": [],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "trustDevice": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful response",
@@ -23872,8 +23341,7 @@
                     "description": "The otp code to verify. Eg: \"012345\""
                   },
                   "trustDevice": {
-                    "type": "boolean",
-                    "nullable": true
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -24075,13 +23543,11 @@
                   },
                   "disableSession": {
                     "type": "boolean",
-                    "description": "If true, the session cookie will not be set.",
-                    "nullable": true
+                    "description": "If true, the session cookie will not be set."
                   },
                   "trustDevice": {
                     "type": "boolean",
-                    "description": "If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time. Eg: true",
-                    "nullable": true
+                    "description": "If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time. Eg: true"
                   }
                 },
                 "required": [
@@ -24455,7 +23921,7 @@
         "tags": [
           "Two-factor"
         ],
-        "description": "Use this endpoint to enable two factor authentication. This will generate a TOTP URI and backup codes. Once the user verifies the TOTP URI, the two factor authentication will be enabled.",
+        "description": "Enable two factor authentication. Pass method 'totp' (default) to set up an authenticator app (returns TOTP URI and backup codes), or 'otp' to enable email/SMS-based codes immediately.",
         "security": [
           {
             "bearerAuth": []
@@ -24473,10 +23939,16 @@
                     "type": "string",
                     "description": "User password"
                   },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "otp",
+                      "totp"
+                    ]
+                  },
                   "issuer": {
                     "type": "string",
-                    "description": "Custom issuer for the TOTP URI",
-                    "nullable": true
+                    "description": "Custom issuer for the TOTP URI"
                   }
                 },
                 "required": [
@@ -24494,18 +23966,29 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "method": {
+                      "type": "string",
+                      "enum": [
+                        "otp",
+                        "totp"
+                      ],
+                      "description": "The 2FA method that was enabled."
+                    },
                     "totpURI": {
                       "type": "string",
-                      "description": "TOTP URI"
+                      "description": "TOTP URI for authenticator app setup. Only present when method is 'totp'."
                     },
                     "backupCodes": {
                       "type": "array",
                       "items": {
                         "type": "string"
                       },
-                      "description": "Backup codes"
+                      "description": "Recovery backup codes. Only present when method is 'totp'."
                     }
-                  }
+                  },
+                  "required": [
+                    "method"
+                  ]
                 }
               }
             }

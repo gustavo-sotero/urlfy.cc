@@ -7,13 +7,14 @@
  * ═════════════════════════════════════════════════════════════════════
  */
 
-import { BarChart3, Github, Info, Rocket, Shield, Zap } from 'lucide-react';
+import { BarChart3, Info, Rocket, Shield, Zap } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import type { JSX } from 'react';
 import { LinkForm } from '@/components/forms/link-form';
 import { HeroActions } from '@/components/home/hero-actions';
 import { HeroAuthBanner } from '@/components/home/hero-auth-banner';
+import { GitHubIcon } from '@/components/shared/github-icon';
 import { RevealSection } from '@/components/shared/reveal-section';
 import { Button } from '@/components/ui/button';
 import {
@@ -216,7 +217,7 @@ export default async function LandingPage(): Promise<JSX.Element> {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        <Github className="mr-2 h-4 w-4" />
+                        <GitHubIcon className="mr-2 h-4 w-4" />
                         GitHub
                       </a>
                     </Button>

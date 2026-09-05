@@ -1,4 +1,5 @@
-import { Code2, ExternalLink, Github, Rocket, Shield } from 'lucide-react';
+import { Code2, ExternalLink, Rocket, Shield } from 'lucide-react';
+import { GitHubIcon } from '@/components/shared/github-icon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -114,7 +115,7 @@ export function SecurityAuthorCtaSection({ t }: SecurityAuthorCtaSectionProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Github className="mr-2 h-4 w-4" />
+                  <GitHubIcon className="mr-2 h-4 w-4" />
                   {t('author.github')}
                 </a>
               </Button>
@@ -136,7 +137,7 @@ export function SecurityAuthorCtaSection({ t }: SecurityAuthorCtaSectionProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Github className="mr-2 h-4 w-4" />
+                  <GitHubIcon className="mr-2 h-4 w-4" />
                   {t('cta.repository')}
                 </a>
               </Button>

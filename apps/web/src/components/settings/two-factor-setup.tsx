@@ -96,22 +96,27 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
         password: data.password
       });
 
-      if (!result.data?.totpURI) {
+      // better-auth >= 1.7 returns a discriminated union on `method`.
+      // This flow only uses the TOTP enrollment path.
+      const enableData =
+        result.data?.method === 'totp' ? result.data : undefined;
+
+      if (!enableData?.totpURI) {
         toast.error(t('errors.init'));
         return;
       }
 
       // Store backup codes returned by enable()
-      if (result.data.backupCodes) {
-        setBackupCodes(result.data.backupCodes);
+      if (enableData.backupCodes) {
+        setBackupCodes(enableData.backupCodes);
       }
 
       // Extract secret from URI for manual entry
-      const secret = extractSecretFromURI(result.data.totpURI);
+      const secret = extractSecretFromURI(enableData.totpURI);
       setTotpSecret(secret);
 
       // Generate QR Code
-      const qrDataURL = await qrcode.toDataURL(result.data.totpURI, {
+      const qrDataURL = await qrcode.toDataURL(enableData.totpURI, {
         errorCorrectionLevel: 'H',
         width: 256,
         margin: 2

@@ -82,7 +82,7 @@ for (const envVar of requiredTestEnv) {
   }
 }
 
-Object.defineProperty(process.env, 'NODE_ENV', { value: 'test' });
+process.env.NODE_ENV = 'test';
 
 // ═══════════════════════════════════════════════════════════════════
 // LOGTAPE MOCK (prevents configure() errors in tests)
@@ -100,7 +100,10 @@ mock.module('@logtape/logtape', () => ({
   }),
   configure: async () => {},
   reset: async () => {},
-  getConsoleSink: () => () => {}
+  getConsoleSink: () => () => {},
+  // @logtape/elysia >= 2.3 imports this for request-scoped log context.
+  withContext: <T>(_context: Record<string, unknown>, callback: () => T): T =>
+    callback()
 }));
 
 mock.module('@logtape/otel', () => ({

@@ -1,8 +1,9 @@
 // src/components/layout/footer.tsx
 'use client';
 
-import { Github, Rocket } from 'lucide-react';
+import { Rocket } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { GitHubIcon } from '@/components/shared/github-icon';
 import { Link } from '@/i18n/routing';
 
 export function Footer() {
@@ -93,7 +94,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className={`${linkClass} inline-flex items-center gap-1`}
                 >
-                  <Github className="h-3 w-3" />
+                  <GitHubIcon className="h-3 w-3" />
                   {tFooter('repository')}
                 </a>
               </li>
